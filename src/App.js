@@ -848,19 +848,54 @@ function MusicLibrarySidebar({ accentColor }) {
       {activeMediaMenu === "liveTv" ? (
         <div style={{
           flex: 1,
-          border: "1px dashed rgba(148,163,184,.26)",
+          border: "1px solid rgba(148,163,184,.26)",
           borderRadius: 16,
-          color: "#94a3b8",
-          fontSize: 13,
-          fontWeight: 800,
-          padding: 18,
-          lineHeight: 1.45,
+          background: "rgba(2,6,23,.78)",
+          overflow: "hidden",
           display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          textAlign: "center"
+          flexDirection: "column"
         }}>
-          No live TV channels added yet.
+          <div style={{
+            padding: "10px 12px",
+            borderBottom: "1px solid rgba(148,163,184,.18)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 10
+          }}>
+            <div style={{
+              color: "#f8fafc",
+              fontSize: 12,
+              fontWeight: 1000,
+              textTransform: "uppercase",
+              letterSpacing: .8
+            }}>
+              Fuit LIVE TV
+            </div>
+            <button onClick={() => window.open("https://thetvapp.to/", "_blank", "noopener,noreferrer")} style={{
+              border: "1px solid rgba(148,163,184,.28)",
+              background: "rgba(255,255,255,.08)",
+              color: "#f8fafc",
+              borderRadius: 10,
+              padding: "7px 9px",
+              cursor: "pointer",
+              fontSize: 11,
+              fontWeight: 900
+            }}>
+              New Tab
+            </button>
+          </div>
+          <iframe
+            title="Fuit LIVE TV"
+            src="https://thetvapp.to/"
+            style={{
+              flex: 1,
+              width: "100%",
+              minHeight: 0,
+              border: "none",
+              background: "#020617"
+            }}
+          />
         </div>
       ) : (
         <>

@@ -1640,7 +1640,7 @@ export default function App() {
                 boxShadow: "0 8px 24px rgba(56,189,248,.25)"
               }}
             >
-              🌐 Open Google Browser
+              🌐 Open Google Browser!
             </button>
             <input ref={audioFileRef} type="file" accept="audio/*" onChange={handleMusicFile} style={{ display: "none" }} />
             <button onClick={() => audioFileRef.current?.click()}

@@ -895,6 +895,14 @@ function MusicLibrarySidebar({ accentColor }) {
             textAlign: "center",
             gap: 14
           }}>
+            <div style={{
+              color: "#cbd5e1",
+              fontSize: 13,
+              fontWeight: 800,
+              lineHeight: 1.45
+            }}>
+              Sports + CABLE TV
+            </div>
             <button onClick={() => window.open("https://thetvapp.to/", "_blank", "noopener,noreferrer")} style={{
               border: "none",
               background: `linear-gradient(135deg, ${accentColor}, #38bdf8)`,
@@ -910,14 +918,6 @@ function MusicLibrarySidebar({ accentColor }) {
             }}>
               Open Fuit LIVE TV
             </button>
-            <div style={{
-              color: "#cbd5e1",
-              fontSize: 13,
-              fontWeight: 800,
-              lineHeight: 1.45
-            }}>
-              Sports + CABLE TV
-            </div>
           </div>
         </div>
       ) : (

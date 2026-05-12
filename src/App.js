@@ -285,7 +285,7 @@ function pokemonAssetPath(game, fileName) {
   return `${process.env.PUBLIC_URL}/rom-images/${encodeURIComponent(game.label)}/${fileName}`;
 }
 
-function PokemonCoverImage({ game, side, onZoom }) {
+function PokemonCoverImage({ game, side, onZoom, compact = false }) {
   const extensions = ["avif", "jpg", "jpeg", "png", "webp"];
   const [index, setIndex] = useState(0);
   const [failed, setFailed] = useState(false);
@@ -304,8 +304,8 @@ function PokemonCoverImage({ game, side, onZoom }) {
         type="button"
         disabled
         style={{
-          width: 92,
-          height: 126,
+          width: compact ? 74 : 92,
+          height: compact ? 98 : 126,
           borderRadius: 10,
           border: "2px dashed rgba(255,255,255,.28)",
           background: "rgba(255,255,255,.08)",
@@ -324,7 +324,7 @@ function PokemonCoverImage({ game, side, onZoom }) {
   return (
     <img
       key={`${game.label}-${side}-${index}`}
-      onClick={() => onZoom({ src, title })}
+      onClick={() => onZoom && onZoom({ src, title })}
       src={src}
       alt={title}
       onError={() => {
@@ -332,8 +332,8 @@ function PokemonCoverImage({ game, side, onZoom }) {
         else setFailed(true);
       }}
       style={{
-        width: 92,
-        height: 126,
+        width: compact ? 74 : 92,
+        height: compact ? 98 : 126,
         objectFit: "cover",
         borderRadius: 10,
         border: "2px solid rgba(255,255,255,.25)",
@@ -354,8 +354,21 @@ function PokemonSidebar() {
   const playerRef = useRef(null);
 
   const systemGames = POKEMON_ROMS.filter(game => game.system === activeSystem);
+  const activeGameIndex = Math.max(0, systemGames.findIndex(game => game.file === activeGame.file));
   const backgroundImage = SYSTEM_BACKGROUNDS[activeSystem] || SYSTEM_BACKGROUNDS.GB;
   const manualSrc = pokemonAssetPath(activeGame, "manual.pdf");
+
+  const moveCarousel = (direction) => {
+    if (!systemGames.length) return;
+    const nextIndex = (activeGameIndex + direction + systemGames.length) % systemGames.length;
+    setActiveGame(systemGames[nextIndex]);
+    setShowBackCover(false);
+  };
+
+  const chooseCarouselGame = (game) => {
+    setActiveGame(game);
+    setShowBackCover(false);
+  };
 
   const handleSystemChange = (nextSystem) => {
     const firstGame = POKEMON_ROMS.find(game => game.system === nextSystem) || POKEMON_ROMS[0];
@@ -423,6 +436,8 @@ function PokemonSidebar() {
       <style>{`
         @media (max-width: 1180px) { .pokemon-desktop-sidebar { display: none !important; } }
         .pokemon-desktop-sidebar button:hover { transform: translateY(-1px); }
+        .game-cover-carousel::-webkit-scrollbar { height: 6px; }
+        .game-cover-carousel::-webkit-scrollbar-thumb { background: rgba(250,204,21,.55); border-radius: 999px; }
       `}</style>
       <button onClick={() => setCollapsed(c => !c)} style={{
         width: "100%",
@@ -482,21 +497,81 @@ function PokemonSidebar() {
             ))}
           </div>
 
-          <select value={activeGame.file} onChange={e => handleGameChange(e.target.value)} style={{
-            width: "100%",
-            marginTop: 10,
-            padding: "12px 14px",
-            borderRadius: 14,
-            border: "1px solid rgba(255,255,255,.22)",
-            background: "rgba(15,23,42,.94)",
-            color: "#f8fafc",
-            fontWeight: 800,
-            outline: "none"
+          <div style={{
+            marginTop: 12,
+            padding: 10,
+            borderRadius: 18,
+            background: "rgba(15,23,42,.86)",
+            border: "1px solid rgba(255,255,255,.14)",
+            boxShadow: "inset 0 0 18px rgba(0,0,0,.28)"
           }}>
-            {systemGames.map(game => (
-              <option key={game.file} value={game.file}>{game.label} — {game.year}</option>
-            ))}
-          </select>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 8,
+              marginBottom: 10
+            }}>
+              <button onClick={() => moveCarousel(-1)} style={{
+                width: 38, height: 38, borderRadius: "50%", border: "1px solid rgba(255,255,255,.18)",
+                background: "rgba(2,6,23,.9)", color: "#fff", cursor: "pointer", fontSize: 22, fontWeight: 900
+              }}>‹</button>
+              <div style={{ textAlign: "center", flex: 1 }}>
+                <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: 1.2, color: "#facc15", textTransform: "uppercase" }}>
+                  {activeSystem} Game Carousel
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "#fff", marginTop: 2 }}>
+                  {activeGameIndex + 1} / {systemGames.length}
+                </div>
+              </div>
+              <button onClick={() => moveCarousel(1)} style={{
+                width: 38, height: 38, borderRadius: "50%", border: "1px solid rgba(255,255,255,.18)",
+                background: "rgba(2,6,23,.9)", color: "#fff", cursor: "pointer", fontSize: 22, fontWeight: 900
+              }}>›</button>
+            </div>
+
+            <div className="game-cover-carousel" style={{
+              display: "flex",
+              gap: 10,
+              overflowX: "auto",
+              scrollSnapType: "x mandatory",
+              paddingBottom: 4
+            }}>
+              {systemGames.map(game => {
+                const selected = game.file === activeGame.file;
+                return (
+                  <button key={game.file} onClick={() => chooseCarouselGame(game)} style={{
+                    minWidth: 108,
+                    maxWidth: 108,
+                    scrollSnapAlign: "center",
+                    border: selected ? "2px solid #facc15" : "1px solid rgba(255,255,255,.18)",
+                    borderRadius: 16,
+                    padding: 8,
+                    background: selected ? "rgba(250,204,21,.18)" : "rgba(2,6,23,.72)",
+                    color: "#fff",
+                    cursor: "pointer",
+                    boxShadow: selected ? "0 0 18px rgba(250,204,21,.32)" : "0 8px 18px rgba(0,0,0,.22)",
+                    transform: selected ? "translateY(-2px) scale(1.02)" : "none",
+                    transition: "transform .18s ease, box-shadow .18s ease, border .18s ease",
+                    textAlign: "center"
+                  }}>
+                    <div style={{ pointerEvents: "none", display: "flex", justifyContent: "center" }}>
+                      <PokemonCoverImage game={game} side="front" onZoom={() => {}} compact />
+                    </div>
+                    <div style={{
+                      marginTop: 7, fontSize: 10, fontWeight: 900, lineHeight: 1.15,
+                      height: 34, overflow: "hidden", color: selected ? "#fff" : "#cbd5e1"
+                    }}>
+                      {game.label}
+                    </div>
+                    <div style={{ marginTop: 5, fontSize: 10, fontWeight: 900, color: selected ? "#facc15" : "#94a3b8" }}>
+                      {game.system} • {game.year}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
           <div style={{
             marginTop: 12,

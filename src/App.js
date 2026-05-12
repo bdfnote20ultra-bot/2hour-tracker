@@ -544,7 +544,6 @@ function ProjectDropdown({ projects, activeId, onSelect, onManage }) {
         </div>
       )}
       </div>
-    </div>
   );
 }
 

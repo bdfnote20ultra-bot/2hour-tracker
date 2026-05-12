@@ -1,3 +1,7 @@
+// GitHub-managed Fuit Music library.
+// Put files in public/music-library/<genre>/
+// Then list them here.
+
 export const MUSIC_LIBRARY = [
   {
     id: "nirvana-smells-like-teen-spirit-audio",

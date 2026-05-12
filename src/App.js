@@ -156,6 +156,7 @@ const THEME_KEY = "hoursTrackerTheme_v1";
 const CUSTOM_BG_KEY = "hoursTrackerCustomBackground_v1";
 const MUSIC_KEY = "hoursTrackerBackgroundMusic_v1";
 const MUSIC_SETTINGS_KEY = "hoursTrackerMusicSettings_v1";
+const MUSIC_LIBRARY_KEY = "hoursTrackerMusicLibrary_v1";
 
 const THEMES = {
   midnight: {
@@ -226,6 +227,312 @@ function loadMusicSettings() {
 function saveMusicSettings(settings) {
   try { localStorage.setItem(MUSIC_SETTINGS_KEY, JSON.stringify(settings)); } catch {}
 }
+
+
+function loadMusicLibrary() {
+  try { return JSON.parse(localStorage.getItem(MUSIC_LIBRARY_KEY)) || []; } catch { return []; }
+}
+function saveMusicLibrary(library) {
+  try { localStorage.setItem(MUSIC_LIBRARY_KEY, JSON.stringify(library)); } catch {}
+}
+
+function MusicLibrarySidebar({ theme, accentColor }) {
+  const [library, setLibrary] = useState(loadMusicLibrary);
+  const [selectedId, setSelectedId] = useState(null);
+  const [commentText, setCommentText] = useState("");
+  const fileInputRef = useRef(null);
+
+  useEffect(() => { saveMusicLibrary(library); }, [library]);
+
+  const selectedTrack = library.find(item => item.id === selectedId) || library[0] || null;
+
+  const addFiles = (event) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+
+    const validFiles = files.filter(file => file.type.startsWith("audio/") || file.type.startsWith("video/"));
+    if (!validFiles.length) {
+      alert("Please choose MP3, audio, or MP4/video files.");
+      event.target.value = "";
+      return;
+    }
+
+    validFiles.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const item = {
+          id: `track_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+          title: file.name.replace(/\.[^/.]+$/, ""),
+          fileName: file.name,
+          type: file.type.startsWith("video/") ? "video" : "audio",
+          src: ev.target.result,
+          rating: 0,
+          comments: [],
+          addedAt: new Date().toISOString()
+        };
+        setLibrary(prev => {
+          const next = [item, ...prev];
+          if (!selectedId) setSelectedId(item.id);
+          return next;
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+
+    event.target.value = "";
+  };
+
+  const rateTrack = (id, rating) => {
+    setLibrary(prev => prev.map(item => item.id === id ? { ...item, rating } : item));
+  };
+
+  const addComment = () => {
+    if (!selectedTrack || !commentText.trim()) return;
+    const comment = {
+      id: `comment_${Date.now()}`,
+      text: commentText.trim(),
+      date: new Date().toLocaleString()
+    };
+    setLibrary(prev => prev.map(item =>
+      item.id === selectedTrack.id ? { ...item, comments: [comment, ...(item.comments || [])] } : item
+    ));
+    setCommentText("");
+  };
+
+  const removeTrack = (id) => {
+    setLibrary(prev => prev.filter(item => item.id !== id));
+    if (selectedId === id) setSelectedId(null);
+  };
+
+  const panelBg = "linear-gradient(180deg, rgba(17,24,39,.96), rgba(2,6,23,.98))";
+
+  return (
+    <aside className="music-library-desktop-sidebar" style={{
+      position: "fixed",
+      right: 18,
+      top: 18,
+      bottom: 18,
+      width: 360,
+      zIndex: 4,
+      borderRadius: 24,
+      border: "2px solid rgba(255,255,255,0.16)",
+      background: panelBg,
+      boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
+      padding: 16,
+      color: "#f8fafc",
+      fontFamily: "system-ui, sans-serif",
+      overflow: "hidden",
+      display: "flex",
+      flexDirection: "column"
+    }}>
+      <style>{`
+        @media (max-width: 1180px) { .music-library-desktop-sidebar { display: none !important; } }
+        .music-library-desktop-sidebar button:hover { transform: translateY(-1px); }
+      `}</style>
+
+      <div style={{
+        borderRadius: 18,
+        padding: "12px 14px",
+        background: `linear-gradient(135deg, ${accentColor}, #38bdf8)`,
+        color: "#06111f",
+        fontWeight: 1000,
+        letterSpacing: .8,
+        textTransform: "uppercase",
+        boxShadow: `0 8px 24px ${accentColor}55`,
+        marginBottom: 12,
+        textAlign: "center"
+      }}>
+        🎧 Fury Music Library
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="audio/*,video/*,.mp3,.mp4,.m4a,.wav,.mov"
+        multiple
+        onChange={addFiles}
+        style={{ display: "none" }}
+      />
+
+      <button
+        onClick={() => fileInputRef.current?.click()}
+        style={{
+          border: "none",
+          borderRadius: 14,
+          padding: "12px 14px",
+          background: "rgba(255,255,255,.10)",
+          color: "#f8fafc",
+          fontWeight: 900,
+          cursor: "pointer",
+          marginBottom: 12
+        }}
+      >
+        + Add MP3 / MP4
+      </button>
+
+      {selectedTrack ? (
+        <div style={{
+          borderRadius: 18,
+          background: "rgba(15,23,42,.92)",
+          border: "1px solid rgba(148,163,184,.25)",
+          padding: 12,
+          marginBottom: 12
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {selectedTrack.title}
+          </div>
+
+          {selectedTrack.type === "video" ? (
+            <video key={selectedTrack.id} src={selectedTrack.src} controls style={{
+              width: "100%",
+              maxHeight: 180,
+              borderRadius: 12,
+              background: "#000"
+            }} />
+          ) : (
+            <audio key={selectedTrack.id} src={selectedTrack.src} controls style={{ width: "100%" }} />
+          )}
+
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
+            <div style={{ display: "flex", gap: 2 }}>
+              {[1,2,3,4,5].map(star => (
+                <button key={star} onClick={() => rateTrack(selectedTrack.id, star)} style={{
+                  background: "none",
+                  border: "none",
+                  color: star <= (selectedTrack.rating || 0) ? "#facc15" : "#64748b",
+                  cursor: "pointer",
+                  fontSize: 22,
+                  padding: "0 1px",
+                  lineHeight: 1
+                }}>
+                  ★
+                </button>
+              ))}
+            </div>
+            <button onClick={() => removeTrack(selectedTrack.id)} style={{
+              background: "rgba(239,68,68,.14)",
+              color: "#fecaca",
+              border: "1px solid rgba(239,68,68,.35)",
+              borderRadius: 10,
+              padding: "6px 9px",
+              cursor: "pointer",
+              fontSize: 12,
+              fontWeight: 800
+            }}>
+              Remove
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div style={{
+          borderRadius: 18,
+          background: "rgba(15,23,42,.75)",
+          border: "1px dashed rgba(148,163,184,.35)",
+          padding: 18,
+          color: "#cbd5e1",
+          fontSize: 13,
+          lineHeight: 1.45,
+          marginBottom: 12,
+          textAlign: "center",
+          fontWeight: 700
+        }}>
+          Add MP3s or MP4s to start building your local library.
+        </div>
+      )}
+
+      <div style={{
+        flex: 1,
+        overflowY: "auto",
+        paddingRight: 4,
+        marginBottom: 12
+      }}>
+        {library.map(item => (
+          <button key={item.id} onClick={() => setSelectedId(item.id)} style={{
+            width: "100%",
+            border: selectedTrack?.id === item.id ? `2px solid ${accentColor}` : "1px solid rgba(148,163,184,.18)",
+            background: selectedTrack?.id === item.id ? "rgba(255,255,255,.12)" : "rgba(15,23,42,.72)",
+            color: "#f8fafc",
+            borderRadius: 14,
+            padding: 10,
+            marginBottom: 8,
+            cursor: "pointer",
+            textAlign: "left"
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</div>
+                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
+                  {item.type.toUpperCase()} • {(item.comments || []).length} comments
+                </div>
+              </div>
+              <div style={{ color: "#facc15", fontSize: 12, whiteSpace: "nowrap" }}>
+                {"★".repeat(item.rating || 0)}{"☆".repeat(5 - (item.rating || 0))}
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {selectedTrack && (
+        <div style={{
+          borderRadius: 16,
+          background: "rgba(15,23,42,.92)",
+          border: "1px solid rgba(148,163,184,.22)",
+          padding: 10
+        }}>
+          <div style={{ fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: .8, color: "#cbd5e1", marginBottom: 8 }}>
+            Comments
+          </div>
+          <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+            <input
+              value={commentText}
+              onChange={e => setCommentText(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") addComment(); }}
+              placeholder="Leave a comment..."
+              style={{
+                flex: 1,
+                minWidth: 0,
+                borderRadius: 10,
+                border: "1px solid rgba(148,163,184,.25)",
+                background: "#020617",
+                color: "#f8fafc",
+                padding: "9px 10px",
+                outline: "none",
+                fontSize: 12
+              }}
+            />
+            <button onClick={addComment} style={{
+              border: "none",
+              borderRadius: 10,
+              background: accentColor,
+              color: "#06111f",
+              fontWeight: 900,
+              padding: "0 10px",
+              cursor: "pointer"
+            }}>
+              Add
+            </button>
+          </div>
+          <div style={{ maxHeight: 120, overflowY: "auto" }}>
+            {(selectedTrack.comments || []).map(comment => (
+              <div key={comment.id} style={{
+                padding: "8px 0",
+                borderTop: "1px solid rgba(148,163,184,.14)"
+              }}>
+                <div style={{ fontSize: 12, color: "#f8fafc", fontWeight: 750 }}>{comment.text}</div>
+                <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>{comment.date}</div>
+              </div>
+            ))}
+            {(!selectedTrack.comments || selectedTrack.comments.length === 0) && (
+              <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>No comments yet.</div>
+            )}
+          </div>
+        </div>
+      )}
+    </aside>
+  );
+}
+
 
 function AnimatedMoney({ value, style, prefix = "$" }) {
   const numericValue = Number.parseFloat(value || 0) || 0;
@@ -674,6 +981,19 @@ function PokemonSidebar() {
             </div>
           )}
 
+          <div style={{
+            marginTop: 12,
+            padding: 12,
+            borderRadius: 14,
+            background: "rgba(15,23,42,.88)",
+            color: "#cbd5e1",
+            fontSize: 12,
+            lineHeight: 1.45,
+            fontWeight: 700
+          }}>
+            Cover folders must match the full ROM name without the file extension. Example: <br />
+            <span style={{ color: "#fff" }}>/rom-images/{activeGame.label}/front.avif or front.jpg</span>
+          </div>
         </>
       )}
     </aside>
@@ -1063,6 +1383,7 @@ export default function App() {
   return (
     <div style={{ minHeight: "100vh", background: "#000", position: "relative" }}>
       {view === "week" && <PokemonSidebar />}
+      {view === "week" && <MusicLibrarySidebar theme={theme} accentColor={accentColor} />}
       <div style={{ minHeight: "100vh", background: pageBackground, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed", fontFamily: theme.font, maxWidth: 480, margin: "0 auto", color: appTextColor, transition: "background 0.25s ease, color 0.25s ease", position: "relative", zIndex: 5 }}>
       <audio ref={musicRef} src={activeMusicSrc} loop playsInline onPlay={() => setIsMusicPlaying(true)} onPause={() => setIsMusicPlaying(false)} onEnded={() => setIsMusicPlaying(false)} />
       {/* Header */}

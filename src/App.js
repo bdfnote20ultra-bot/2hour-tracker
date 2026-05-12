@@ -725,6 +725,13 @@ function MusicLibrarySidebar({ accentColor }) {
     MUSIC_LIBRARY[0] ||
     null;
 
+  const filteredVideos = filteredLibrary.filter(item =>
+    item.type === "video" || (item.src || "").toLowerCase().endsWith(".mp4")
+  );
+  const filteredMusic = filteredLibrary.filter(item =>
+    item.type === "audio" || (item.src || "").toLowerCase().endsWith(".mp3")
+  );
+
   const rateTrack = (id, rating) => {
     setRatings(prev => ({ ...prev, [id]: rating }));
   };
@@ -897,30 +904,59 @@ function MusicLibrarySidebar({ accentColor }) {
       )}
 
       <div style={{ flex: 1, overflowY: "auto", paddingRight: 4, marginBottom: 12 }}>
-        {filteredLibrary.map(item => (
-          <button key={item.id} onClick={() => setSelectedId(item.id)} style={{
-            width: "100%",
-            border: selectedTrack?.id === item.id ? `2px solid ${accentColor}` : "1px solid rgba(148,163,184,.18)",
-            background: selectedTrack?.id === item.id ? "rgba(255,255,255,.12)" : "rgba(15,23,42,.72)",
-            color: "#f8fafc",
-            borderRadius: 14,
-            padding: 10,
-            marginBottom: 8,
-            cursor: "pointer",
-            textAlign: "left"
-          }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</div>
-                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
-                  {item.artist || "Unknown Artist"} • {(comments[item.id] || []).length} comments
-                </div>
-              </div>
-              <div style={{ color: "#facc15", fontSize: 12, whiteSpace: "nowrap" }}>
-                {"★".repeat(ratings[item.id] || 0)}{"☆".repeat(5 - (ratings[item.id] || 0))}
-              </div>
+        {[
+          { label: "Videos", items: filteredVideos },
+          { label: "Music", items: filteredMusic }
+        ].map(section => (
+          <div key={section.label} style={{ marginBottom: 14 }}>
+            <div style={{
+              fontSize: 12,
+              fontWeight: 1000,
+              color: "#cbd5e1",
+              textTransform: "uppercase",
+              letterSpacing: .9,
+              margin: "0 0 8px 2px"
+            }}>
+              {section.label}
             </div>
-          </button>
+            {section.items.length > 0 ? section.items.map(item => (
+              <button key={item.id} onClick={() => setSelectedId(item.id)} style={{
+                width: "100%",
+                border: selectedTrack?.id === item.id ? `2px solid ${accentColor}` : "1px solid rgba(148,163,184,.18)",
+                background: selectedTrack?.id === item.id ? "rgba(255,255,255,.12)" : "rgba(15,23,42,.72)",
+                color: "#f8fafc",
+                borderRadius: 14,
+                padding: 10,
+                marginBottom: 8,
+                cursor: "pointer",
+                textAlign: "left"
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</div>
+                    <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
+                      {item.artist || "Unknown Artist"} • {(comments[item.id] || []).length} comments
+                    </div>
+                  </div>
+                  <div style={{ color: "#facc15", fontSize: 12, whiteSpace: "nowrap" }}>
+                    {"★".repeat(ratings[item.id] || 0)}{"☆".repeat(5 - (ratings[item.id] || 0))}
+                  </div>
+                </div>
+              </button>
+            )) : (
+              <div style={{
+                border: "1px dashed rgba(148,163,184,.22)",
+                borderRadius: 12,
+                color: "#64748b",
+                fontSize: 12,
+                fontWeight: 800,
+                padding: "10px 12px",
+                marginBottom: 8
+              }}>
+                No {section.label.toLowerCase()} found.
+              </div>
+            )}
+          </div>
         ))}
       </div>
 

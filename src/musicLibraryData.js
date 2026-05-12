@@ -1,8 +1,9 @@
-// Add your music/video files in public/music-library/
-// Then list them here. Trusted GitHub collaborators can edit this file.
-// Example file paths:
-// public/music-library/my-song.mp3  ->  src: "/music-library/my-song.mp3"
-// public/music-library/my-video.mp4 ->  src: "/music-library/my-video.mp4"
+// GitHub-managed music/video library.
+// Add files into public/music-library/ and list them here.
+//
+// Example:
+// public/music-library/my-song.mp3
+// src: "/music-library/my-song.mp3"
 
 export const MUSIC_LIBRARY = [
   {

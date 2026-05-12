@@ -1,9 +1,8 @@
-Put your MP3/MP4 files in this folder.
+Put MP3/MP4 files in this folder.
 
-Then update:
-src/musicLibraryData.js
+Then update src/musicLibraryData.js.
 
-Example:
+Example audio entry:
 {
   id: "my-song",
   title: "My Song",
@@ -12,7 +11,7 @@ Example:
   src: "/music-library/my-song.mp3"
 }
 
-For video:
+Example video entry:
 {
   id: "my-video",
   title: "My Video",

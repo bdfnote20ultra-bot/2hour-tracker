@@ -693,7 +693,7 @@ function MusicLibrarySidebar({ accentColor }) {
   });
   const [commentText, setCommentText] = useState("");
   const [musicSearch, setMusicSearch] = useState("");
-  const [openMusicSections, setOpenMusicSections] = useState({ videos: false, music: false });
+  const [openMusicSections, setOpenMusicSections] = useState({ liveTv: false, videos: false, music: false });
 
   const filteredLibrary = MUSIC_LIBRARY.filter(item => {
     const query = musicSearch.trim().toLowerCase();
@@ -792,6 +792,56 @@ function MusicLibrarySidebar({ accentColor }) {
         textAlign: "center"
       }}>
         🎧 Fuit Music
+      </div>
+
+      <div style={{ marginBottom: 10 }}>
+        <button onClick={() => toggleMusicSection("liveTv")} style={{
+          width: "100%",
+          border: "1px solid rgba(148,163,184,.24)",
+          background: "rgba(2,6,23,.86)",
+          color: "#f8fafc",
+          borderRadius: 14,
+          padding: "10px 12px",
+          marginBottom: openMusicSections.liveTv ? 8 : 0,
+          cursor: "pointer",
+          textAlign: "left",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10
+        }}>
+          <span style={{
+            fontSize: 12,
+            fontWeight: 1000,
+            color: "#cbd5e1",
+            textTransform: "uppercase",
+            letterSpacing: .9
+          }}>
+            Fuit LIVE TV
+          </span>
+          <span style={{
+            color: "#94a3b8",
+            fontSize: 12,
+            fontWeight: 900,
+            whiteSpace: "nowrap"
+          }}>
+            {openMusicSections.liveTv ? "▲" : "▼"}
+          </span>
+        </button>
+        {openMusicSections.liveTv && (
+          <div style={{
+            border: "1px dashed rgba(148,163,184,.22)",
+            borderRadius: 12,
+            color: "#94a3b8",
+            fontSize: 12,
+            fontWeight: 800,
+            padding: "10px 12px",
+            marginBottom: 8,
+            lineHeight: 1.4
+          }}>
+            No live TV channels added yet.
+          </div>
+        )}
       </div>
 
       <input

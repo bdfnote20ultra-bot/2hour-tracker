@@ -700,30 +700,7 @@ function MusicLibrarySidebar({ accentColor }) {
     try { localStorage.setItem("hoursTrackerStaticMusicComments_v1", JSON.stringify(comments)); } catch {}
   }, [comments]);
 
-  const genres = Array.from(new Set(MUSIC_LIBRARY.map(item => item.genre || "Other")));
-  const [activeGenre, setActiveGenre] = useState(genres[0] || "Other");
-
-  const filteredLibrary = MUSIC_LIBRARY.filter(item => {
-    const query = musicSearch.trim().toLowerCase();
-    const matchesGenre = (item.genre || "Other") === activeGenre;
-    const matchesSearch = !query ||
-      (item.title || "").toLowerCase().includes(query) ||
-      (item.artist || "").toLowerCase().includes(query) ||
-      (item.genre || "").toLowerCase().includes(query);
-    return matchesGenre && matchesSearch;
-  });
-
-  const selectedTrack =
-    MUSIC_LIBRARY.find(item => item.id === selectedId) ||
-    filteredLibrary[0] ||
-    MUSIC_LIBRARY[0] ||
-    null;
-
-  useEffect(() => {
-    if (!filteredLibrary.find(item => item.id === selectedId)) {
-      setSelectedId(filteredLibrary[0]?.id || MUSIC_LIBRARY[0]?.id || null);
-    }
-  }, [musicSearch, activeGenre]);
+  const selectedTrack = MUSIC_LIBRARY.find(item => item.id === selectedId) || MUSIC_LIBRARY[0] || null;
 
   const rateTrack = (id, rating) => {
     setRatings(prev => ({ ...prev, [id]: rating }));
@@ -780,49 +757,6 @@ function MusicLibrarySidebar({ accentColor }) {
         textAlign: "center"
       }}>
         🎧 Fuit Music
-      </div>
-
-      <input
-        value={musicSearch}
-        onChange={e => setMusicSearch(e.target.value)}
-        placeholder="Search songs..."
-        style={{
-          width: "100%",
-          borderRadius: 14,
-          border: "1px solid rgba(148,163,184,.28)",
-          background: "rgba(2,6,23,.82)",
-          color: "#f8fafc",
-          padding: "11px 12px",
-          outline: "none",
-          fontSize: 13,
-          fontWeight: 800,
-          marginBottom: 10,
-          boxSizing: "border-box"
-        }}
-      />
-
-      <div style={{
-        display: "flex",
-        gap: 8,
-        overflowX: "auto",
-        paddingBottom: 8,
-        marginBottom: 10
-      }}>
-        {genres.map(genre => (
-          <button key={genre} onClick={() => setActiveGenre(genre)} style={{
-            border: activeGenre === genre ? `2px solid ${accentColor}` : "1px solid rgba(148,163,184,.24)",
-            background: activeGenre === genre ? "rgba(255,255,255,.14)" : "rgba(15,23,42,.85)",
-            color: "#f8fafc",
-            borderRadius: 999,
-            padding: "8px 11px",
-            fontSize: 12,
-            fontWeight: 900,
-            whiteSpace: "nowrap",
-            cursor: "pointer"
-          }}>
-            {genre}
-          </button>
-        ))}
       </div>
 
       {selectedTrack ? (
@@ -894,7 +828,7 @@ function MusicLibrarySidebar({ accentColor }) {
       )}
 
       <div style={{ flex: 1, overflowY: "auto", paddingRight: 4, marginBottom: 12 }}>
-        {filteredLibrary.map(item => (
+        {MUSIC_LIBRARY.map(item => (
           <button key={item.id} onClick={() => setSelectedId(item.id)} style={{
             width: "100%",
             border: selectedTrack?.id === item.id ? `2px solid ${accentColor}` : "1px solid rgba(148,163,184,.18)",
@@ -1372,7 +1306,7 @@ export default function App() {
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0,0,0,0.72)",
+            background: "rgba(0,0,0,0.78)",
             zIndex: 10000,
             display: "flex",
             alignItems: "center",
@@ -1413,7 +1347,7 @@ export default function App() {
                   cursor: "pointer"
                 }}
               >
-                ✕
+                ✕ Close
               </button>
               <input
                 value={inAppBrowserUrl}
@@ -1693,19 +1627,20 @@ export default function App() {
               onClick={() => setInAppBrowserOpen(true)}
               style={{
                 width: "100%",
-                padding: "13px",
+                padding: "15px",
                 background: "linear-gradient(135deg, #38bdf8, #a78bfa)",
                 color: "#07111f",
                 border: "none",
-                borderRadius: 12,
-                fontSize: 15,
+                borderRadius: 14,
+                fontSize: 16,
                 cursor: "pointer",
                 fontFamily: "Georgia, serif",
-                marginBottom: 10,
-                fontWeight: 900
+                marginBottom: 14,
+                fontWeight: 900,
+                boxShadow: "0 8px 24px rgba(56,189,248,.25)"
               }}
             >
-              🌐 Open In-App Browser
+              🌐 Open Google Browser
             </button>
             <input ref={audioFileRef} type="file" accept="audio/*" onChange={handleMusicFile} style={{ display: "none" }} />
             <button onClick={() => audioFileRef.current?.click()}

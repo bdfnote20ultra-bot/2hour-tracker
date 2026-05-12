@@ -1622,7 +1622,7 @@ export default function App() {
           </div>
 
           <div style={{ marginTop: 16, background: theme.cardBg, borderRadius: 14, padding: 20, boxShadow: theme.shadow, border: `1px solid ${theme.line}`, ...glassStyle }}>
-            <div style={{ fontSize: 12, color: theme.muted, textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui", marginBottom: 14 }}>Background Music - https://yt2mp3.gs/</div>
+            <div style={{ fontSize: 12, color: theme.muted, textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui", marginBottom: 14 }}>Background Music - https://yt2mp3.gs/ - copy, new tab, paste</div>
             <button
               onClick={() => window.open("https://yt2mp3.gs/", "_blank", "noopener,noreferrer")}
               style={{

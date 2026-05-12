@@ -1067,6 +1067,8 @@ export default function App() {
   const [musicSettings, setMusicSettings] = useState(loadMusicSettings);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [musicNeedsTap, setMusicNeedsTap] = useState(false);
+  const [inAppBrowserOpen, setInAppBrowserOpen] = useState(false);
+  const [inAppBrowserUrl, setInAppBrowserUrl] = useState("https://www.google.com/search?igu=1");
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectColor, setNewProjectColor] = useState(PROJECT_COLORS[0]);
   const [editingProjectId, setEditingProjectId] = useState(null);
@@ -1365,6 +1367,125 @@ export default function App() {
       {view === "week" && <MusicLibrarySidebar accentColor={accentColor} />}
       <div style={{ minHeight: "100vh", background: pageBackground, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed", fontFamily: theme.font, maxWidth: 480, margin: "0 auto", color: appTextColor, transition: "background 0.25s ease, color 0.25s ease", position: "relative", zIndex: 5 }}>
       <audio ref={musicRef} src={activeMusicSrc} loop playsInline onPlay={() => setIsMusicPlaying(true)} onPause={() => setIsMusicPlaying(false)} onEnded={() => setIsMusicPlaying(false)} />
+      {inAppBrowserOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.72)",
+            zIndex: 10000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 14
+          }}
+        >
+          <div
+            style={{
+              width: "min(980px, 100%)",
+              height: "min(760px, 92vh)",
+              background: "#0f172a",
+              borderRadius: 18,
+              border: "2px solid rgba(255,255,255,.18)",
+              overflow: "hidden",
+              boxShadow: "0 24px 90px rgba(0,0,0,.75)",
+              display: "flex",
+              flexDirection: "column"
+            }}
+          >
+            <div style={{
+              display: "flex",
+              gap: 8,
+              alignItems: "center",
+              padding: 10,
+              background: "linear-gradient(135deg, #111827, #020617)",
+              borderBottom: "1px solid rgba(255,255,255,.12)"
+            }}>
+              <button
+                onClick={() => setInAppBrowserOpen(false)}
+                style={{
+                  border: "none",
+                  borderRadius: 10,
+                  padding: "9px 12px",
+                  background: "rgba(239,68,68,.18)",
+                  color: "#fecaca",
+                  fontWeight: 900,
+                  cursor: "pointer"
+                }}
+              >
+                ✕
+              </button>
+              <input
+                value={inAppBrowserUrl}
+                onChange={e => setInAppBrowserUrl(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter") {
+                    let next = e.currentTarget.value.trim();
+                    if (next && !next.startsWith("http://") && !next.startsWith("https://")) {
+                      next = `https://${next}`;
+                    }
+                    setInAppBrowserUrl(next || "https://www.google.com/search?igu=1");
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  borderRadius: 12,
+                  border: "1px solid rgba(148,163,184,.28)",
+                  background: "#020617",
+                  color: "#f8fafc",
+                  padding: "10px 12px",
+                  outline: "none",
+                  fontSize: 13,
+                  fontWeight: 800
+                }}
+              />
+              <button
+                onClick={() => {
+                  let next = inAppBrowserUrl.trim();
+                  if (next && !next.startsWith("http://") && !next.startsWith("https://")) next = `https://${next}`;
+                  setInAppBrowserUrl(next || "https://www.google.com/search?igu=1");
+                }}
+                style={{
+                  border: "none",
+                  borderRadius: 10,
+                  padding: "10px 12px",
+                  background: "#38bdf8",
+                  color: "#06111f",
+                  fontWeight: 900,
+                  cursor: "pointer"
+                }}
+              >
+                Go
+              </button>
+              <button
+                onClick={() => window.open(inAppBrowserUrl, "_blank", "noopener,noreferrer")}
+                style={{
+                  border: "1px solid rgba(255,255,255,.2)",
+                  borderRadius: 10,
+                  padding: "10px 12px",
+                  background: "rgba(255,255,255,.08)",
+                  color: "#f8fafc",
+                  fontWeight: 900,
+                  cursor: "pointer"
+                }}
+              >
+                New Tab
+              </button>
+            </div>
+            <iframe
+              title="In-App Browser"
+              src={inAppBrowserUrl}
+              style={{
+                flex: 1,
+                width: "100%",
+                border: "none",
+                background: "#fff"
+              }}
+            />
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div style={{ background: theme.headerBg, color: theme.headerText, padding: "52px 24px 16px", position: "sticky", top: 0, zIndex: 10, ...glassStyle }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -1568,6 +1689,24 @@ export default function App() {
 
           <div style={{ marginTop: 16, background: theme.cardBg, borderRadius: 14, padding: 20, boxShadow: theme.shadow, border: `1px solid ${theme.line}`, ...glassStyle }}>
             <div style={{ fontSize: 12, color: theme.muted, textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui", marginBottom: 14 }}>Background Music</div>
+            <button
+              onClick={() => setInAppBrowserOpen(true)}
+              style={{
+                width: "100%",
+                padding: "13px",
+                background: "linear-gradient(135deg, #38bdf8, #a78bfa)",
+                color: "#07111f",
+                border: "none",
+                borderRadius: 12,
+                fontSize: 15,
+                cursor: "pointer",
+                fontFamily: "Georgia, serif",
+                marginBottom: 10,
+                fontWeight: 900
+              }}
+            >
+              🌐 Open In-App Browser
+            </button>
             <input ref={audioFileRef} type="file" accept="audio/*" onChange={handleMusicFile} style={{ display: "none" }} />
             <button onClick={() => audioFileRef.current?.click()}
               style={{ width: "100%", padding: "13px", background: theme.buttonBg, color: theme.buttonText, border: "none", borderRadius: 12, fontSize: 15, cursor: "pointer", fontFamily: "Georgia, serif", marginBottom: 10, fontWeight: 900 }}>

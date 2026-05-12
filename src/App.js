@@ -887,11 +887,11 @@ function MusicLibrarySidebar({ accentColor }) {
           </div>
           <div style={{
             flex: 1,
-            padding: 18,
+            padding: "14px 18px",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            justifyContent: "center",
+            justifyContent: "flex-start",
             textAlign: "center",
             gap: 14
           }}>

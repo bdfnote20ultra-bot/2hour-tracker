@@ -738,7 +738,7 @@ function MusicLibrarySidebar({ accentColor }) {
   );
   const liveTvOptions = [
     { id: "fuit", label: "Open Fuit LIVE TV", url: "https://thetvapp.to/", embed: false },
-    { id: "athf", label: "ATHF", url: "https://www.adultswim.com/streams/aqua-teen-hunger-force", embed: true }
+    { id: "athf", label: "ADULT SWIM ZONE", url: "https://www.adultswim.com/streams/aqua-teen-hunger-force", embed: true }
   ];
   const activeLiveTvOption = liveTvOptions.find(option => option.id === activeLiveTv) || liveTvOptions[0];
 
@@ -908,7 +908,7 @@ function MusicLibrarySidebar({ accentColor }) {
               fontWeight: 800,
               lineHeight: 1.45
             }}>
-              Sports + CABLE TV
+              ADULT SWIM ZONE
             </div>
             <div style={{ position: "relative", width: "100%" }}>
               <button onClick={() => setLiveTvMenuOpen(open => !open)} style={{

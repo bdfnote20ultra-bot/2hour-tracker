@@ -290,6 +290,7 @@ function PokemonSidebar() {
   const [activeGame, setActiveGame] = useState(POKEMON_ROMS.find(g => g.system === "GB") || POKEMON_ROMS[0]);
   const [collapsed, setCollapsed] = useState(false);
   const [showBackCover, setShowBackCover] = useState(false);
+  const [zoomedCover, setZoomedCover] = useState(null);
   const [coverExt, setCoverExt] = useState("jpg");
   const playerRef = useRef(null);
 
@@ -454,6 +455,7 @@ function PokemonSidebar() {
             border: "1px solid rgba(255,255,255,.14)"
           }}>
             <img
+              onClick={() => setZoomedCover({ src: coverSrc, title: `${activeGame.label} ${showBackCover ? "Back" : "Front"} Cover` })}
               src={coverSrc}
               alt={`${activeGame.label} ${showBackCover ? "back" : "front"} cover`}
               onError={(event) => {
@@ -467,7 +469,9 @@ function PokemonSidebar() {
                 objectFit: "cover",
                 borderRadius: 10,
                 border: "2px solid rgba(255,255,255,.25)",
-                background: "rgba(255,255,255,.08)"
+                background: "rgba(255,255,255,.08)",
+                cursor: "zoom-in",
+                boxShadow: "0 8px 22px rgba(0,0,0,.35)"
               }}
             />
             <div>
@@ -488,6 +492,69 @@ function PokemonSidebar() {
               </div>
             </div>
           </div>
+
+
+
+          {zoomedCover && (
+            <div
+              onClick={() => setZoomedCover(null)}
+              style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 9999,
+                background: "rgba(0,0,0,0.88)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 24,
+                cursor: "zoom-out"
+              }}
+            >
+              <div
+                onClick={e => e.stopPropagation()}
+                style={{
+                  maxWidth: "min(92vw, 760px)",
+                  maxHeight: "92vh",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 12
+                }}
+              >
+                <button
+                  onClick={() => setZoomedCover(null)}
+                  style={{
+                    alignSelf: "flex-end",
+                    border: "1px solid rgba(255,255,255,.22)",
+                    borderRadius: 999,
+                    padding: "8px 14px",
+                    background: "rgba(15,23,42,.92)",
+                    color: "#fff",
+                    cursor: "pointer",
+                    fontWeight: 900
+                  }}
+                >
+                  ✕ Close
+                </button>
+                <img
+                  src={zoomedCover.src}
+                  alt={zoomedCover.title}
+                  style={{
+                    maxWidth: "100%",
+                    maxHeight: "82vh",
+                    objectFit: "contain",
+                    borderRadius: 18,
+                    border: "3px solid rgba(255,255,255,.32)",
+                    boxShadow: "0 24px 80px rgba(0,0,0,.75)",
+                    background: "#020617"
+                  }}
+                />
+                <div style={{ color: "#fff", fontSize: 14, fontWeight: 900, textAlign: "center", textShadow: "0 2px 8px rgba(0,0,0,.8)" }}>
+                  {zoomedCover.title}
+                </div>
+              </div>
+            </div>
+          )}
 
           <div style={{
             marginTop: 12,

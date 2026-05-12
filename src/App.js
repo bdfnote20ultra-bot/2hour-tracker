@@ -959,7 +959,6 @@ function MusicLibrarySidebar({ accentColor }) {
                     <button key={option.id} onClick={() => {
                       setActiveLiveTv(option.id);
                       setLiveTvMenuOpen(false);
-                      if (!option.embed) openExternalLink(option.url);
                     }} style={{
                       width: "100%",
                       border: "none",
@@ -993,6 +992,31 @@ function MusicLibrarySidebar({ accentColor }) {
                   background: "#020617"
                 }}
               />
+            )}
+            {!activeLiveTvOption.embed && (
+              <a
+                href={activeLiveTvOption.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  border: "1px solid rgba(148,163,184,.28)",
+                  background: "rgba(255,255,255,.08)",
+                  color: "#f8fafc",
+                  borderRadius: 14,
+                  padding: "12px 14px",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontWeight: 1000,
+                  textTransform: "uppercase",
+                  letterSpacing: .7,
+                  textDecoration: "none",
+                  textAlign: "center"
+                }}
+              >
+                Open In New Tab
+              </a>
             )}
           </div>
         </div>

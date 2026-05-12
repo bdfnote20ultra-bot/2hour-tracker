@@ -255,62 +255,61 @@ function AnimatedMoney({ value, style, prefix = "$" }) {
 }
 
 
-const POKEMON_GROUPS = {
+const POKEMON_SYSTEMS = {
   gb: {
-    label: "GB",
-    title: "Game Boy Classics",
-    accent: "#ef4444",
-    background: "radial-gradient(circle at 20% 15%, rgba(239,68,68,.35), transparent 32%), radial-gradient(circle at 85% 30%, rgba(248,113,113,.25), transparent 28%), linear-gradient(180deg, #3f0d12 0%, #140509 58%, #020617 100%)",
-    games: [
-      { label: "Red", core: "gb", file: "Pokemon - Red Version (USA, Europe) (SGB Enhanced).gb", vibe: "#ef4444" },
-      { label: "Blue", core: "gb", file: "Pokemon - Blue Version (USA, Europe) (SGB Enhanced).gb", vibe: "#3b82f6" },
-      { label: "Yellow", core: "gb", file: "Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).gb", vibe: "#facc15" },
-    ],
+    label: "Game Boy",
+    shortLabel: "GB",
+    core: "gb",
+    background: `${process.env.PUBLIC_URL}/sidequest-gb.png`,
+    accent: "#9ca66b",
   },
   gbc: {
-    label: "GBC",
-    title: "Game Boy Color",
-    accent: "#a855f7",
-    background: "radial-gradient(circle at 25% 18%, rgba(168,85,247,.36), transparent 30%), radial-gradient(circle at 78% 25%, rgba(34,211,238,.24), transparent 32%), linear-gradient(180deg, #24114f 0%, #111827 52%, #020617 100%)",
-    games: [
-      { label: "Gold", core: "gb", file: "Pokemon - Gold Version (USA, Europe) (SGB Enhanced) (GB Compatible).gbc", vibe: "#f59e0b" },
-      { label: "Silver", core: "gb", file: "Pokemon - Silver Version (USA, Europe) (SGB Enhanced) (GB Compatible).gbc", vibe: "#cbd5e1" },
-      { label: "Crystal", core: "gb", file: "Pokemon - Crystal Version (USA, Europe) (Rev 1).gbc", vibe: "#22d3ee" },
-      { label: "TCG", core: "gb", file: "Pokemon Trading Card Game (USA, Australia) (SGB Enhanced) (GB Compatible).gbc", vibe: "#f97316" },
-      { label: "Puzzle", core: "gb", file: "Pokemon Puzzle Challenge (USA, Australia).gbc", vibe: "#ec4899" },
-    ],
+    label: "Game Boy Color",
+    shortLabel: "GBC",
+    core: "gb",
+    background: `${process.env.PUBLIC_URL}/sidequest-gbc.png`,
+    accent: "#facc15",
   },
   gba: {
-    label: "GBA",
-    title: "Game Boy Advance",
-    accent: "#22c55e",
-    background: "radial-gradient(circle at 18% 18%, rgba(34,197,94,.32), transparent 30%), radial-gradient(circle at 84% 28%, rgba(59,130,246,.24), transparent 32%), linear-gradient(180deg, #052e16 0%, #0f172a 52%, #020617 100%)",
-    games: [
-      { label: "FireRed", core: "gba", file: "Pokemon - FireRed Version (USA, Europe) (Rev 1).gba", vibe: "#ef4444" },
-      { label: "LeafGreen", core: "gba", file: "Pokemon - LeafGreen Version (USA, Europe) (Rev 1).gba", vibe: "#22c55e" },
-      { label: "Emerald", core: "gba", file: "Pokemon - Emerald Version (USA, Europe).gba", vibe: "#10b981" },
-      { label: "Ruby", core: "gba", file: "Pokemon - Ruby Version (USA, Europe) (Rev 2).gba", vibe: "#dc2626" },
-      { label: "Sapphire", core: "gba", file: "Pokemon - Sapphire Version (USA, Europe) (Rev 2).gba", vibe: "#2563eb" },
-      { label: "Pinball", core: "gba", file: "Pokemon Pinball - Ruby & Sapphire (USA).gba", vibe: "#f97316" },
-      { label: "Red Rescue", core: "gba", file: "Pokemon Mystery Dungeon - Red Rescue Team (USA, Australia).gba", vibe: "#f43f5e" },
-      { label: "Aurora Ticket", core: "gba", file: "Pokemon - Aurora Ticket Distribution (USA) (Kiosk).gba", vibe: "#38bdf8" },
-    ],
+    label: "Game Boy Advance",
+    shortLabel: "GBA",
+    core: "gba",
+    background: `${process.env.PUBLIC_URL}/sidequest-gba.png`,
+    accent: "#a78bfa",
   },
 };
 
+const POKEMON_ROMS = [
+  { label: "Red", system: "gb", file: "Pokemon - Red Version (USA, Europe) (SGB Enhanced).gb" },
+  { label: "Blue", system: "gb", file: "Pokemon - Blue Version (USA, Europe) (SGB Enhanced).gb" },
+  { label: "Yellow", system: "gb", file: "Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).gb" },
+  { label: "Gold", system: "gbc", file: "Pokemon - Gold Version (USA, Europe) (SGB Enhanced) (GB Compatible).gbc" },
+  { label: "Silver", system: "gbc", file: "Pokemon - Silver Version (USA, Europe) (SGB Enhanced) (GB Compatible).gbc" },
+  { label: "Crystal", system: "gbc", file: "Pokemon - Crystal Version (USA, Europe) (Rev 1).gbc" },
+  { label: "TCG", system: "gbc", file: "Pokemon Trading Card Game (USA, Australia) (SGB Enhanced) (GB Compatible).gbc" },
+  { label: "Puzzle", system: "gbc", file: "Pokemon Puzzle Challenge (USA, Australia).gbc" },
+  { label: "FireRed", system: "gba", file: "Pokemon - FireRed Version (USA, Europe) (Rev 1).gba" },
+  { label: "LeafGreen", system: "gba", file: "Pokemon - LeafGreen Version (USA, Europe) (Rev 1).gba" },
+  { label: "Emerald", system: "gba", file: "Pokemon - Emerald Version (USA, Europe).gba" },
+  { label: "Ruby", system: "gba", file: "Pokemon - Ruby Version (USA, Europe) (Rev 2).gba" },
+  { label: "Sapphire", system: "gba", file: "Pokemon - Sapphire Version (USA, Europe) (Rev 2).gba" },
+  { label: "Pinball", system: "gba", file: "Pokemon Pinball - Ruby & Sapphire (USA).gba" },
+  { label: "Red Rescue", system: "gba", file: "Pokemon Mystery Dungeon - Red Rescue Team (USA, Australia).gba" },
+];
+
 function PokemonSidebar() {
-  const [activeSystem, setActiveSystem] = useState("gb");
-  const [activeGame, setActiveGame] = useState(POKEMON_GROUPS.gb.games[0]);
+  const [selectedSystem, setSelectedSystem] = useState("gb");
+  const [activeGame, setActiveGame] = useState(POKEMON_ROMS[0]);
   const [collapsed, setCollapsed] = useState(false);
   const playerRef = useRef(null);
-  const activeGroup = POKEMON_GROUPS[activeSystem] || POKEMON_GROUPS.gb;
-  const gameAccent = activeGame.vibe || activeGroup.accent;
-  const sideBackground = `${activeGroup.background}, linear-gradient(180deg, #111827 0%, #020617 100%)`;
 
-  const switchSystem = (systemKey) => {
-    const nextGroup = POKEMON_GROUPS[systemKey] || POKEMON_GROUPS.gb;
-    setActiveSystem(systemKey);
-    setActiveGame(nextGroup.games[0]);
+  const systemTheme = POKEMON_SYSTEMS[selectedSystem] || POKEMON_SYSTEMS.gb;
+  const gamesForSystem = POKEMON_ROMS.filter(game => game.system === selectedSystem);
+
+  const chooseSystem = (systemId) => {
+    const firstGame = POKEMON_ROMS.find(game => game.system === systemId) || POKEMON_ROMS[0];
+    setSelectedSystem(systemId);
+    setActiveGame(firstGame);
   };
 
   useEffect(() => {
@@ -323,14 +322,15 @@ function PokemonSidebar() {
     mount.style.height = "100%";
     playerRef.current.appendChild(mount);
 
+    const activeSystem = POKEMON_SYSTEMS[activeGame.system] || POKEMON_SYSTEMS.gb;
     window.EJS_player = "#pokemon-game-player";
-    window.EJS_core = activeGame.core;
+    window.EJS_core = activeSystem.core;
     window.EJS_gameName = activeGame.label;
     window.EJS_gameUrl = `${process.env.PUBLIC_URL}/roms/${encodeURIComponent(activeGame.file)}`;
     window.EJS_pathtodata = "https://cdn.emulatorjs.org/stable/data/";
     window.EJS_startOnLoaded = false;
-    window.EJS_backgroundColor = "#111827";
-    window.EJS_color = gameAccent;
+    window.EJS_backgroundColor = "#020617";
+    window.EJS_color = activeSystem.accent;
 
     const script = document.createElement("script");
     script.src = `https://cdn.emulatorjs.org/stable/data/loader.js?v=${Date.now()}`;
@@ -341,7 +341,7 @@ function PokemonSidebar() {
       script.remove();
       if (playerRef.current) playerRef.current.innerHTML = "";
     };
-  }, [activeGame, collapsed, gameAccent]);
+  }, [activeGame, collapsed]);
 
   return (
     <aside className="pokemon-desktop-sidebar" style={{
@@ -349,141 +349,128 @@ function PokemonSidebar() {
       left: 18,
       top: 18,
       bottom: 18,
-      width: collapsed ? 72 : 375,
+      width: collapsed ? 72 : 380,
       zIndex: 4,
-      borderRadius: 24,
-      border: `2px solid ${gameAccent}88`,
-      background: sideBackground,
-      boxShadow: `0 18px 60px rgba(0,0,0,0.58), 0 0 36px ${gameAccent}33`,
+      borderRadius: 26,
+      border: "2px solid rgba(255,255,255,0.22)",
+      background: `linear-gradient(rgba(2,6,23,0.38), rgba(2,6,23,0.82)), url(${systemTheme.background})`,
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      boxShadow: `0 18px 60px rgba(0,0,0,0.60), 0 0 26px ${systemTheme.accent}55`,
       padding: collapsed ? 12 : 16,
       color: "#f8fafc",
       fontFamily: "system-ui, sans-serif",
-      transition: "width .25s ease, padding .25s ease, background .25s ease, border .25s ease",
+      transition: "width .25s ease, padding .25s ease, box-shadow .25s ease, background .25s ease",
       overflow: "hidden"
     }}>
       <style>{`
         @media (max-width: 1180px) { .pokemon-desktop-sidebar { display: none !important; } }
         .pokemon-desktop-sidebar button:hover { transform: translateY(-1px); }
       `}</style>
-      <button onClick={() => setCollapsed(c => !c)} style={{
-        width: "100%",
-        border: "none",
-        borderRadius: 16,
-        padding: collapsed ? "12px 0" : "10px 12px",
-        background: `linear-gradient(135deg, ${gameAccent}, ${activeGroup.accent})`,
-        color: "white",
-        fontWeight: 900,
-        letterSpacing: 1,
-        cursor: "pointer",
-        boxShadow: `0 8px 22px ${gameAccent}55`,
-        marginBottom: 12,
-        textShadow: "0 1px 2px rgba(0,0,0,.45)"
-      }}>
-        {collapsed ? "🎮" : "🎮 Pokémon Side Quest"}
-      </button>
+      <div style={{
+        position: "absolute",
+        inset: 0,
+        background: "radial-gradient(circle at top, rgba(255,255,255,0.10), transparent 36%), linear-gradient(90deg, rgba(0,0,0,.35), rgba(0,0,0,.08), rgba(0,0,0,.35))",
+        pointerEvents: "none"
+      }} />
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <button onClick={() => setCollapsed(c => !c)} style={{
+          width: "100%",
+          border: "none",
+          borderRadius: 18,
+          padding: collapsed ? "12px 0" : "11px 12px",
+          background: `linear-gradient(135deg, ${systemTheme.accent}, #111827)`,
+          color: "white",
+          fontWeight: 950,
+          letterSpacing: 1,
+          cursor: "pointer",
+          boxShadow: `0 8px 24px ${systemTheme.accent}55`,
+          marginBottom: 12,
+          textShadow: "0 2px 5px rgba(0,0,0,.55)",
+        }}>
+          {collapsed ? "🎮" : `🎮 ${systemTheme.label} Side Quest`}
+        </button>
 
-      {!collapsed && (
-        <>
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 8,
-            marginBottom: 12
-          }}>
-            {Object.entries(POKEMON_GROUPS).map(([key, group]) => (
-              <button key={key} onClick={() => switchSystem(key)} style={{
-                padding: "10px 8px",
-                borderRadius: 14,
-                border: activeSystem === key ? `2px solid ${group.accent}` : "1px solid rgba(255,255,255,.18)",
-                background: activeSystem === key ? `${group.accent}33` : "rgba(15,23,42,.72)",
-                color: "#f8fafc",
-                fontWeight: 950,
-                letterSpacing: .8,
-                cursor: "pointer",
-                boxShadow: activeSystem === key ? `0 0 18px ${group.accent}44` : "none"
-              }}>{group.label}</button>
-            ))}
-          </div>
+        {!collapsed && (
+          <>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr 1fr",
+              gap: 8,
+              marginBottom: 12,
+            }}>
+              {Object.entries(POKEMON_SYSTEMS).map(([systemId, system]) => (
+                <button key={systemId} onClick={() => chooseSystem(systemId)} style={{
+                  border: selectedSystem === systemId ? `2px solid ${system.accent}` : "1px solid rgba(255,255,255,.22)",
+                  background: selectedSystem === systemId ? `linear-gradient(135deg, ${system.accent}, rgba(15,23,42,.92))` : "rgba(15,23,42,.74)",
+                  color: "#fff",
+                  borderRadius: 14,
+                  padding: "9px 6px",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontWeight: 950,
+                  boxShadow: selectedSystem === systemId ? `0 0 18px ${system.accent}66` : "none",
+                }}>
+                  {system.shortLabel}
+                </button>
+              ))}
+            </div>
 
-          <div style={{
-            marginBottom: 10,
-            padding: "10px 12px",
-            borderRadius: 14,
-            background: "rgba(2,6,23,.62)",
-            border: `1px solid ${gameAccent}55`,
-            color: "#f8fafc",
-            fontSize: 13,
-            fontWeight: 900,
-            textAlign: "center",
-            textTransform: "uppercase",
-            letterSpacing: 1.2,
-            boxShadow: `inset 0 0 20px rgba(0,0,0,.28), 0 0 18px ${gameAccent}22`
-          }}>
-            {activeGroup.title} · {activeGame.label}
-          </div>
+            <div style={{
+              borderRadius: 24,
+              background: "linear-gradient(180deg, rgba(15,23,42,.94), rgba(2,6,23,.96))",
+              padding: 12,
+              border: `2px solid ${systemTheme.accent}88`,
+              boxShadow: `inset 0 0 30px rgba(0,0,0,.6), 0 0 28px ${systemTheme.accent}44`,
+              backdropFilter: "blur(6px)",
+            }}>
+              <div ref={playerRef} style={{
+                width: "100%",
+                aspectRatio: "4 / 3",
+                minHeight: 245,
+                borderRadius: 16,
+                overflow: "hidden",
+                background: "#020617",
+                border: "5px solid #020617",
+                boxShadow: "0 10px 28px rgba(0,0,0,.65)"
+              }} />
+            </div>
 
-          <div style={{
-            borderRadius: 22,
-            background: `linear-gradient(180deg, ${gameAccent}33, rgba(15,23,42,.94))`,
-            padding: 12,
-            border: `2px solid ${gameAccent}66`,
-            boxShadow: `inset 0 0 24px rgba(0,0,0,.45), 0 0 22px ${gameAccent}22`
-          }}>
-            <div ref={playerRef} style={{
+            <select value={activeGame.file} onChange={e => {
+              const next = gamesForSystem.find(g => g.file === e.target.value) || gamesForSystem[0] || POKEMON_ROMS[0];
+              setActiveGame(next);
+            }} style={{
               width: "100%",
-              aspectRatio: "4 / 3",
-              minHeight: 245,
+              marginTop: 12,
+              padding: "12px 14px",
               borderRadius: 14,
-              overflow: "hidden",
-              background: "#020617",
-              border: "4px solid #0f172a"
-            }} />
-          </div>
+              border: `2px solid ${systemTheme.accent}88`,
+              background: "rgba(2,6,23,.92)",
+              color: "#f8fafc",
+              fontWeight: 900,
+              outline: "none",
+              boxShadow: "0 8px 22px rgba(0,0,0,.35)",
+            }}>
+              {gamesForSystem.map(game => <option key={game.file} value={game.file}>{game.label}</option>)}
+            </select>
 
-          <label style={{
-            display: "block",
-            marginTop: 12,
-            marginBottom: 6,
-            color: "#e5e7eb",
-            fontSize: 11,
-            fontWeight: 900,
-            letterSpacing: 1.1,
-            textTransform: "uppercase"
-          }}>
-            Choose {activeGroup.label} Game
-          </label>
-          <select value={activeGame.file} onChange={e => {
-            const next = activeGroup.games.find(g => g.file === e.target.value) || activeGroup.games[0];
-            setActiveGame(next);
-          }} style={{
-            width: "100%",
-            padding: "12px 14px",
-            borderRadius: 14,
-            border: `1px solid ${gameAccent}88`,
-            background: "#0f172a",
-            color: "#f8fafc",
-            fontWeight: 900,
-            outline: "none",
-            boxShadow: `0 0 18px ${gameAccent}22`
-          }}>
-            {activeGroup.games.map(game => <option key={game.file} value={game.file}>{game.label}</option>)}
-          </select>
-
-          <div style={{
-            marginTop: 12,
-            padding: 12,
-            borderRadius: 14,
-            background: "rgba(15,23,42,.85)",
-            color: "#cbd5e1",
-            fontSize: 12,
-            lineHeight: 1.45,
-            fontWeight: 700,
-            border: `1px solid ${gameAccent}33`
-          }}>
-            Pick GB, GBC, or GBA first. Each game changes the Side Quest theme color/background automatically.
-          </div>
-        </>
-      )}
+            <div style={{
+              marginTop: 12,
+              padding: 12,
+              borderRadius: 14,
+              background: "rgba(2,6,23,.78)",
+              border: "1px solid rgba(255,255,255,.16)",
+              color: "#e5e7eb",
+              fontSize: 12,
+              lineHeight: 1.45,
+              fontWeight: 800,
+              textShadow: "0 2px 4px rgba(0,0,0,.9)",
+            }}>
+              Pick GB, GBC, or GBA. The trim background changes to match the selected system.
+            </div>
+          </>
+        )}
+      </div>
     </aside>
   );
 }
@@ -1407,7 +1394,6 @@ export default function App() {
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 }

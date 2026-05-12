@@ -255,28 +255,63 @@ function AnimatedMoney({ value, style, prefix = "$" }) {
 }
 
 
-const POKEMON_ROMS = [
-  { label: "Red", core: "gb", file: "Pokemon - Red Version (USA, Europe) (SGB Enhanced).gb" },
-  { label: "Blue", core: "gb", file: "Pokemon - Blue Version (USA, Europe) (SGB Enhanced).gb" },
-  { label: "Yellow", core: "gb", file: "Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).gb" },
-  { label: "Gold", core: "gb", file: "Pokemon - Gold Version (USA, Europe) (SGB Enhanced) (GB Compatible).gbc" },
-  { label: "Silver", core: "gb", file: "Pokemon - Silver Version (USA, Europe) (SGB Enhanced) (GB Compatible).gbc" },
-  { label: "Crystal", core: "gb", file: "Pokemon - Crystal Version (USA, Europe) (Rev 1).gbc" },
-  { label: "FireRed", core: "gba", file: "Pokemon - FireRed Version (USA, Europe) (Rev 1).gba" },
-  { label: "LeafGreen", core: "gba", file: "Pokemon - LeafGreen Version (USA, Europe) (Rev 1).gba" },
-  { label: "Emerald", core: "gba", file: "Pokemon - Emerald Version (USA, Europe).gba" },
-  { label: "Ruby", core: "gba", file: "Pokemon - Ruby Version (USA, Europe) (Rev 2).gba" },
-  { label: "Sapphire", core: "gba", file: "Pokemon - Sapphire Version (USA, Europe) (Rev 2).gba" },
-  { label: "TCG", core: "gb", file: "Pokemon Trading Card Game (USA, Australia) (SGB Enhanced) (GB Compatible).gbc" },
-  { label: "Pinball", core: "gba", file: "Pokemon Pinball - Ruby & Sapphire (USA).gba" },
-  { label: "Puzzle", core: "gb", file: "Pokemon Puzzle Challenge (USA, Australia).gbc" },
-  { label: "Red Rescue", core: "gba", file: "Pokemon Mystery Dungeon - Red Rescue Team (USA, Australia).gba" },
-];
+const POKEMON_GROUPS = {
+  gb: {
+    label: "GB",
+    title: "Game Boy Classics",
+    accent: "#ef4444",
+    background: "radial-gradient(circle at 20% 15%, rgba(239,68,68,.35), transparent 32%), radial-gradient(circle at 85% 30%, rgba(248,113,113,.25), transparent 28%), linear-gradient(180deg, #3f0d12 0%, #140509 58%, #020617 100%)",
+    games: [
+      { label: "Red", core: "gb", file: "Pokemon - Red Version (USA, Europe) (SGB Enhanced).gb", vibe: "#ef4444" },
+      { label: "Blue", core: "gb", file: "Pokemon - Blue Version (USA, Europe) (SGB Enhanced).gb", vibe: "#3b82f6" },
+      { label: "Yellow", core: "gb", file: "Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).gb", vibe: "#facc15" },
+    ],
+  },
+  gbc: {
+    label: "GBC",
+    title: "Game Boy Color",
+    accent: "#a855f7",
+    background: "radial-gradient(circle at 25% 18%, rgba(168,85,247,.36), transparent 30%), radial-gradient(circle at 78% 25%, rgba(34,211,238,.24), transparent 32%), linear-gradient(180deg, #24114f 0%, #111827 52%, #020617 100%)",
+    games: [
+      { label: "Gold", core: "gb", file: "Pokemon - Gold Version (USA, Europe) (SGB Enhanced) (GB Compatible).gbc", vibe: "#f59e0b" },
+      { label: "Silver", core: "gb", file: "Pokemon - Silver Version (USA, Europe) (SGB Enhanced) (GB Compatible).gbc", vibe: "#cbd5e1" },
+      { label: "Crystal", core: "gb", file: "Pokemon - Crystal Version (USA, Europe) (Rev 1).gbc", vibe: "#22d3ee" },
+      { label: "TCG", core: "gb", file: "Pokemon Trading Card Game (USA, Australia) (SGB Enhanced) (GB Compatible).gbc", vibe: "#f97316" },
+      { label: "Puzzle", core: "gb", file: "Pokemon Puzzle Challenge (USA, Australia).gbc", vibe: "#ec4899" },
+    ],
+  },
+  gba: {
+    label: "GBA",
+    title: "Game Boy Advance",
+    accent: "#22c55e",
+    background: "radial-gradient(circle at 18% 18%, rgba(34,197,94,.32), transparent 30%), radial-gradient(circle at 84% 28%, rgba(59,130,246,.24), transparent 32%), linear-gradient(180deg, #052e16 0%, #0f172a 52%, #020617 100%)",
+    games: [
+      { label: "FireRed", core: "gba", file: "Pokemon - FireRed Version (USA, Europe) (Rev 1).gba", vibe: "#ef4444" },
+      { label: "LeafGreen", core: "gba", file: "Pokemon - LeafGreen Version (USA, Europe) (Rev 1).gba", vibe: "#22c55e" },
+      { label: "Emerald", core: "gba", file: "Pokemon - Emerald Version (USA, Europe).gba", vibe: "#10b981" },
+      { label: "Ruby", core: "gba", file: "Pokemon - Ruby Version (USA, Europe) (Rev 2).gba", vibe: "#dc2626" },
+      { label: "Sapphire", core: "gba", file: "Pokemon - Sapphire Version (USA, Europe) (Rev 2).gba", vibe: "#2563eb" },
+      { label: "Pinball", core: "gba", file: "Pokemon Pinball - Ruby & Sapphire (USA).gba", vibe: "#f97316" },
+      { label: "Red Rescue", core: "gba", file: "Pokemon Mystery Dungeon - Red Rescue Team (USA, Australia).gba", vibe: "#f43f5e" },
+      { label: "Aurora Ticket", core: "gba", file: "Pokemon - Aurora Ticket Distribution (USA) (Kiosk).gba", vibe: "#38bdf8" },
+    ],
+  },
+};
 
 function PokemonSidebar() {
-  const [activeGame, setActiveGame] = useState(POKEMON_ROMS[0]);
+  const [activeSystem, setActiveSystem] = useState("gb");
+  const [activeGame, setActiveGame] = useState(POKEMON_GROUPS.gb.games[0]);
   const [collapsed, setCollapsed] = useState(false);
   const playerRef = useRef(null);
+  const activeGroup = POKEMON_GROUPS[activeSystem] || POKEMON_GROUPS.gb;
+  const gameAccent = activeGame.vibe || activeGroup.accent;
+  const sideBackground = `${activeGroup.background}, linear-gradient(180deg, #111827 0%, #020617 100%)`;
+
+  const switchSystem = (systemKey) => {
+    const nextGroup = POKEMON_GROUPS[systemKey] || POKEMON_GROUPS.gb;
+    setActiveSystem(systemKey);
+    setActiveGame(nextGroup.games[0]);
+  };
 
   useEffect(() => {
     if (collapsed || !playerRef.current) return;
@@ -295,7 +330,7 @@ function PokemonSidebar() {
     window.EJS_pathtodata = "https://cdn.emulatorjs.org/stable/data/";
     window.EJS_startOnLoaded = false;
     window.EJS_backgroundColor = "#111827";
-    window.EJS_color = "#38bdf8";
+    window.EJS_color = gameAccent;
 
     const script = document.createElement("script");
     script.src = `https://cdn.emulatorjs.org/stable/data/loader.js?v=${Date.now()}`;
@@ -306,7 +341,7 @@ function PokemonSidebar() {
       script.remove();
       if (playerRef.current) playerRef.current.innerHTML = "";
     };
-  }, [activeGame, collapsed]);
+  }, [activeGame, collapsed, gameAccent]);
 
   return (
     <aside className="pokemon-desktop-sidebar" style={{
@@ -314,16 +349,16 @@ function PokemonSidebar() {
       left: 18,
       top: 18,
       bottom: 18,
-      width: collapsed ? 72 : 360,
+      width: collapsed ? 72 : 375,
       zIndex: 4,
       borderRadius: 24,
-      border: "2px solid rgba(255,255,255,0.18)",
-      background: "linear-gradient(180deg, #111827 0%, #020617 100%)",
-      boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
+      border: `2px solid ${gameAccent}88`,
+      background: sideBackground,
+      boxShadow: `0 18px 60px rgba(0,0,0,0.58), 0 0 36px ${gameAccent}33`,
       padding: collapsed ? 12 : 16,
       color: "#f8fafc",
       fontFamily: "system-ui, sans-serif",
-      transition: "width .25s ease, padding .25s ease",
+      transition: "width .25s ease, padding .25s ease, background .25s ease, border .25s ease",
       overflow: "hidden"
     }}>
       <style>{`
@@ -335,13 +370,14 @@ function PokemonSidebar() {
         border: "none",
         borderRadius: 16,
         padding: collapsed ? "12px 0" : "10px 12px",
-        background: "linear-gradient(135deg, #ef4444, #f97316)",
+        background: `linear-gradient(135deg, ${gameAccent}, ${activeGroup.accent})`,
         color: "white",
         fontWeight: 900,
         letterSpacing: 1,
         cursor: "pointer",
-        boxShadow: "0 8px 22px rgba(239,68,68,.35)",
-        marginBottom: 12
+        boxShadow: `0 8px 22px ${gameAccent}55`,
+        marginBottom: 12,
+        textShadow: "0 1px 2px rgba(0,0,0,.45)"
       }}>
         {collapsed ? "🎮" : "🎮 Pokémon Side Quest"}
       </button>
@@ -349,11 +385,49 @@ function PokemonSidebar() {
       {!collapsed && (
         <>
           <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 8,
+            marginBottom: 12
+          }}>
+            {Object.entries(POKEMON_GROUPS).map(([key, group]) => (
+              <button key={key} onClick={() => switchSystem(key)} style={{
+                padding: "10px 8px",
+                borderRadius: 14,
+                border: activeSystem === key ? `2px solid ${group.accent}` : "1px solid rgba(255,255,255,.18)",
+                background: activeSystem === key ? `${group.accent}33` : "rgba(15,23,42,.72)",
+                color: "#f8fafc",
+                fontWeight: 950,
+                letterSpacing: .8,
+                cursor: "pointer",
+                boxShadow: activeSystem === key ? `0 0 18px ${group.accent}44` : "none"
+              }}>{group.label}</button>
+            ))}
+          </div>
+
+          <div style={{
+            marginBottom: 10,
+            padding: "10px 12px",
+            borderRadius: 14,
+            background: "rgba(2,6,23,.62)",
+            border: `1px solid ${gameAccent}55`,
+            color: "#f8fafc",
+            fontSize: 13,
+            fontWeight: 900,
+            textAlign: "center",
+            textTransform: "uppercase",
+            letterSpacing: 1.2,
+            boxShadow: `inset 0 0 20px rgba(0,0,0,.28), 0 0 18px ${gameAccent}22`
+          }}>
+            {activeGroup.title} · {activeGame.label}
+          </div>
+
+          <div style={{
             borderRadius: 22,
-            background: "linear-gradient(180deg, #334155, #0f172a)",
+            background: `linear-gradient(180deg, ${gameAccent}33, rgba(15,23,42,.94))`,
             padding: 12,
-            border: "2px solid rgba(148,163,184,.35)",
-            boxShadow: "inset 0 0 24px rgba(0,0,0,.45)"
+            border: `2px solid ${gameAccent}66`,
+            boxShadow: `inset 0 0 24px rgba(0,0,0,.45), 0 0 22px ${gameAccent}22`
           }}>
             <div ref={playerRef} style={{
               width: "100%",
@@ -366,21 +440,33 @@ function PokemonSidebar() {
             }} />
           </div>
 
+          <label style={{
+            display: "block",
+            marginTop: 12,
+            marginBottom: 6,
+            color: "#e5e7eb",
+            fontSize: 11,
+            fontWeight: 900,
+            letterSpacing: 1.1,
+            textTransform: "uppercase"
+          }}>
+            Choose {activeGroup.label} Game
+          </label>
           <select value={activeGame.file} onChange={e => {
-            const next = POKEMON_ROMS.find(g => g.file === e.target.value) || POKEMON_ROMS[0];
+            const next = activeGroup.games.find(g => g.file === e.target.value) || activeGroup.games[0];
             setActiveGame(next);
           }} style={{
             width: "100%",
-            marginTop: 12,
             padding: "12px 14px",
             borderRadius: 14,
-            border: "1px solid rgba(255,255,255,.18)",
+            border: `1px solid ${gameAccent}88`,
             background: "#0f172a",
             color: "#f8fafc",
-            fontWeight: 800,
-            outline: "none"
+            fontWeight: 900,
+            outline: "none",
+            boxShadow: `0 0 18px ${gameAccent}22`
           }}>
-            {POKEMON_ROMS.map(game => <option key={game.file} value={game.file}>{game.label}</option>)}
+            {activeGroup.games.map(game => <option key={game.file} value={game.file}>{game.label}</option>)}
           </select>
 
           <div style={{
@@ -391,9 +477,10 @@ function PokemonSidebar() {
             color: "#cbd5e1",
             fontSize: 12,
             lineHeight: 1.45,
-            fontWeight: 700
+            fontWeight: 700,
+            border: `1px solid ${gameAccent}33`
           }}>
-            Desktop-only side panel. Click inside the game screen, then use keyboard controls or the emulator menu.
+            Pick GB, GBC, or GBA first. Each game changes the Side Quest theme color/background automatically.
           </div>
         </>
       )}

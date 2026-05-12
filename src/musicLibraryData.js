@@ -1,12 +1,6 @@
 // GitHub-managed Fuit Music library.
 // Put files in public/music-library/<genre>/
 // Then list them here.
-//
-// Genre folder examples:
-// public/music-library/rock/
-// public/music-library/rap/
-// public/music-library/classic/
-// public/music-library/juggalo/
 
 export const MUSIC_LIBRARY = [
   {

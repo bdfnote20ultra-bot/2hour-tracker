@@ -674,20 +674,6 @@ function PokemonSidebar() {
               </div>
             </div>
           )}
-
-          <div style={{
-            marginTop: 12,
-            padding: 12,
-            borderRadius: 14,
-            background: "rgba(15,23,42,.88)",
-            color: "#cbd5e1",
-            fontSize: 12,
-            lineHeight: 1.45,
-            fontWeight: 700
-          }}>
-            Cover folders must match the full ROM name without the file extension. Example: <br />
-            <span style={{ color: "#fff" }}>/rom-images/{activeGame.label}/front.avif or front.jpg</span>
-          </div>
         </>
       )}
     </aside>
@@ -770,20 +756,6 @@ function MusicLibrarySidebar({ accentColor }) {
         textAlign: "center"
       }}>
         🎧 Fuit Music
-      </div>
-
-      <div style={{
-        borderRadius: 14,
-        padding: "10px 12px",
-        background: "rgba(15,23,42,.9)",
-        border: "1px solid rgba(148,163,184,.2)",
-        color: "#cbd5e1",
-        fontSize: 12,
-        lineHeight: 1.45,
-        fontWeight: 800,
-        marginBottom: 12
-      }}>
-        GitHub-managed only. Add MP3/MP4 files to <span style={{ color: "#fff" }}>public/music-library</span> and edit <span style={{ color: "#fff" }}>src/musicLibraryData.js</span>.
       </div>
 
       {selectedTrack ? (

@@ -769,6 +769,16 @@ function MusicLibrarySidebar({ accentColor }) {
     setMediaMenuOpen(false);
   };
 
+  const openExternalLink = (url) => {
+    const link = document.createElement("a");
+    link.href = url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
   return (
     <aside className="music-library-desktop-sidebar" style={{
       position: "fixed",
@@ -879,7 +889,7 @@ function MusicLibrarySidebar({ accentColor }) {
             }}>
               Fuit LIVE TV
             </div>
-            <button onClick={() => window.open(activeLiveTvOption.url, "_blank", "noopener,noreferrer")} style={{
+            <button onClick={() => openExternalLink(activeLiveTvOption.url)} style={{
               border: "1px solid rgba(148,163,184,.28)",
               background: "rgba(255,255,255,.08)",
               color: "#f8fafc",
@@ -949,7 +959,7 @@ function MusicLibrarySidebar({ accentColor }) {
                     <button key={option.id} onClick={() => {
                       setActiveLiveTv(option.id);
                       setLiveTvMenuOpen(false);
-                      if (!option.embed) window.open(option.url, "_blank", "noopener,noreferrer");
+                      if (!option.embed) openExternalLink(option.url);
                     }} style={{
                       width: "100%",
                       border: "none",

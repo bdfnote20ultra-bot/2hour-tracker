@@ -469,7 +469,6 @@ function ProjectDropdown({ projects, activeId, onSelect, onManage }) {
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 }
@@ -1321,6 +1320,7 @@ export default function App() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

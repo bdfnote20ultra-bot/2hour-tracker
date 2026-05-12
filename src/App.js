@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { MUSIC_LIBRARY } from "./musicLibraryData";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const FULL_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -151,855 +152,6 @@ const PROJECT_COLORS = [
   "#A2D5C4", "#D5B8A2", "#B8A2D5", "#A2D5B8", "#D5A2C4"
 ];
 
-
-const THEME_KEY = "hoursTrackerTheme_v1";
-const CUSTOM_BG_KEY = "hoursTrackerCustomBackground_v1";
-const MUSIC_KEY = "hoursTrackerBackgroundMusic_v1";
-const MUSIC_SETTINGS_KEY = "hoursTrackerMusicSettings_v1";
-const MUSIC_LIBRARY_KEY = "hoursTrackerMusicLibrary_v1";
-
-const THEMES = {
-  midnight: {
-    id: "midnight", name: "Midnight", emoji: "🌙",
-    appBg: "linear-gradient(180deg, #0F1117 0%, #1A1D29 100%)", headerBg: "rgba(12,14,20,0.96)", statsBg: "rgba(34,38,52,0.92)", cardBg: "rgba(255,255,255,0.08)", modalBg: "#151822", text: "#F7F5F2", headerText: "#F7F5F2", muted: "#9CA3AF", line: "rgba(255,255,255,0.12)", buttonBg: "#F7F5F2", buttonText: "#111827", shadow: "0 8px 30px rgba(0,0,0,0.25)", font: "Georgia, serif"
-  },
-  ice: {
-    id: "ice", name: "Ice", emoji: "❄️",
-    appBg: "linear-gradient(180deg, #EFF7FF 0%, #FFFFFF 100%)", headerBg: "#EAF4FF", statsBg: "rgba(255,255,255,0.9)", cardBg: "rgba(255,255,255,0.95)", modalBg: "#F7FBFF", text: "#172033", headerText: "#172033", muted: "#6B7280", line: "rgba(23,32,51,0.12)", buttonBg: "#172033", buttonText: "#FFFFFF", shadow: "0 8px 24px rgba(50,85,120,0.12)", font: "Georgia, serif"
-  },
-  construction: {
-    id: "construction", name: "Construction", emoji: "🚧",
-    appBg: "linear-gradient(180deg, #2A241D 0%, #403323 100%)", headerBg: "#1F1A14", statsBg: "#2E261B", cardBg: "#FFF4D6", modalBg: "#FFF4D6", text: "#251A0D", headerText: "#FFE4A3", muted: "#9B7A47", line: "rgba(255,196,84,0.35)", buttonBg: "#FFC145", buttonText: "#1F1A14", shadow: "0 8px 24px rgba(0,0,0,0.25)", font: "Georgia, serif"
-  },
-  cyber: {
-    id: "cyber", name: "Cyber", emoji: "⚡",
-    appBg: "radial-gradient(circle at top, #22234B 0%, #090A12 58%, #050509 100%)", headerBg: "rgba(5,5,12,0.96)", statsBg: "rgba(22,20,45,0.94)", cardBg: "rgba(15,16,35,0.92)", modalBg: "#0B0C1A", text: "#ECFEFF", headerText: "#ECFEFF", muted: "#8B9BB4", line: "rgba(103,232,249,0.2)", buttonBg: "#67E8F9", buttonText: "#060712", shadow: "0 0 28px rgba(103,232,249,0.12)", font: "Georgia, serif"
-  },
-  classic: {
-    id: "classic", name: "Classic", emoji: "📓",
-    appBg: "#F7F5F2", headerBg: "#1C1C1E", statsBg: "#FFFFFF", cardBg: "#FFFFFF", modalBg: "#F7F5F2", text: "#1C1C1E", headerText: "#F7F5F2", muted: "#4B5563", line: "rgba(0,0,0,0.12)", buttonBg: "#1C1C1E", buttonText: "#F7F5F2", shadow: "0 2px 10px rgba(0,0,0,0.10)", font: "Georgia, serif"
-  },
-  oled: {
-    id: "oled", name: "OLED Black", emoji: "⬛",
-    appBg: "#000000", headerBg: "#000000", statsBg: "#0A0A0A", cardBg: "#111111", modalBg: "#050505", text: "#FFFFFF", headerText: "#FFFFFF", muted: "#8A8A8A", line: "rgba(255,255,255,0.12)", buttonBg: "#FFFFFF", buttonText: "#000000", shadow: "0 0 0 1px rgba(255,255,255,0.08)", font: "Georgia, serif"
-  },
-  custom: {
-    id: "custom", name: "Custom", emoji: "🖼️",
-    appBg: "linear-gradient(180deg, #1C1C1E 0%, #34343A 100%)", headerBg: "rgba(20,20,22,0.82)", statsBg: "rgba(25,25,28,0.78)", cardBg: "rgba(255,255,255,0.16)", modalBg: "rgba(247,245,242,0.96)", text: "#F7F5F2", headerText: "#F7F5F2", muted: "#C7C7CC", line: "rgba(255,255,255,0.18)", buttonBg: "#F7F5F2", buttonText: "#1C1C1E", shadow: "0 10px 36px rgba(0,0,0,0.32)", font: "Georgia, serif"
-  }
-};
-
-function loadThemeId() {
-  try { return localStorage.getItem(THEME_KEY) || "classic"; } catch { return "classic"; }
-}
-function loadCustomBackground() {
-  try { return localStorage.getItem(CUSTOM_BG_KEY) || ""; } catch { return ""; }
-}
-function saveThemeId(themeId) {
-  try { localStorage.setItem(THEME_KEY, themeId); } catch {}
-}
-function saveCustomBackground(bg) {
-  try {
-    if (bg) localStorage.setItem(CUSTOM_BG_KEY, bg);
-    else localStorage.removeItem(CUSTOM_BG_KEY);
-  } catch {}
-}
-
-function loadMusicData() {
-  try { return localStorage.getItem(MUSIC_KEY) || ""; } catch { return ""; }
-}
-function saveMusicData(data) {
-  try {
-    if (data) localStorage.setItem(MUSIC_KEY, data);
-    else localStorage.removeItem(MUSIC_KEY);
-    return true;
-  } catch {
-    return false;
-  }
-}
-function loadMusicSettings() {
-  try {
-    return JSON.parse(localStorage.getItem(MUSIC_SETTINGS_KEY)) || { volume: 0.35, fileName: "" };
-  } catch {
-    return { volume: 0.35, fileName: "" };
-  }
-}
-function saveMusicSettings(settings) {
-  try { localStorage.setItem(MUSIC_SETTINGS_KEY, JSON.stringify(settings)); } catch {}
-}
-
-
-function loadMusicLibrary() {
-  try { return JSON.parse(localStorage.getItem(MUSIC_LIBRARY_KEY)) || []; } catch { return []; }
-}
-function saveMusicLibrary(library) {
-  try { localStorage.setItem(MUSIC_LIBRARY_KEY, JSON.stringify(library)); } catch {}
-}
-
-function MusicLibrarySidebar({ theme, accentColor }) {
-  const [library, setLibrary] = useState(loadMusicLibrary);
-  const [selectedId, setSelectedId] = useState(null);
-  const [commentText, setCommentText] = useState("");
-  const fileInputRef = useRef(null);
-
-  useEffect(() => { saveMusicLibrary(library); }, [library]);
-
-  const selectedTrack = library.find(item => item.id === selectedId) || library[0] || null;
-
-  const addFiles = (event) => {
-    const files = Array.from(event.target.files || []);
-    if (!files.length) return;
-
-    const validFiles = files.filter(file => file.type.startsWith("audio/") || file.type.startsWith("video/"));
-    if (!validFiles.length) {
-      alert("Please choose MP3, audio, or MP4/video files.");
-      event.target.value = "";
-      return;
-    }
-
-    validFiles.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const item = {
-          id: `track_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-          title: file.name.replace(/\.[^/.]+$/, ""),
-          fileName: file.name,
-          type: file.type.startsWith("video/") ? "video" : "audio",
-          src: ev.target.result,
-          rating: 0,
-          comments: [],
-          addedAt: new Date().toISOString()
-        };
-        setLibrary(prev => {
-          const next = [item, ...prev];
-          if (!selectedId) setSelectedId(item.id);
-          return next;
-        });
-      };
-      reader.readAsDataURL(file);
-    });
-
-    event.target.value = "";
-  };
-
-  const rateTrack = (id, rating) => {
-    setLibrary(prev => prev.map(item => item.id === id ? { ...item, rating } : item));
-  };
-
-  const addComment = () => {
-    if (!selectedTrack || !commentText.trim()) return;
-    const comment = {
-      id: `comment_${Date.now()}`,
-      text: commentText.trim(),
-      date: new Date().toLocaleString()
-    };
-    setLibrary(prev => prev.map(item =>
-      item.id === selectedTrack.id ? { ...item, comments: [comment, ...(item.comments || [])] } : item
-    ));
-    setCommentText("");
-  };
-
-  const removeTrack = (id) => {
-    setLibrary(prev => prev.filter(item => item.id !== id));
-    if (selectedId === id) setSelectedId(null);
-  };
-
-  const panelBg = "linear-gradient(180deg, rgba(17,24,39,.96), rgba(2,6,23,.98))";
-
-  return (
-    <aside className="music-library-desktop-sidebar" style={{
-      position: "fixed",
-      right: 18,
-      top: 18,
-      bottom: 18,
-      width: 360,
-      zIndex: 4,
-      borderRadius: 24,
-      border: "2px solid rgba(255,255,255,0.16)",
-      background: panelBg,
-      boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
-      padding: 16,
-      color: "#f8fafc",
-      fontFamily: "system-ui, sans-serif",
-      overflow: "hidden",
-      display: "flex",
-      flexDirection: "column"
-    }}>
-      <style>{`
-        @media (max-width: 1180px) { .music-library-desktop-sidebar { display: none !important; } }
-        .music-library-desktop-sidebar button:hover { transform: translateY(-1px); }
-      `}</style>
-
-      <div style={{
-        borderRadius: 18,
-        padding: "12px 14px",
-        background: `linear-gradient(135deg, ${accentColor}, #38bdf8)`,
-        color: "#06111f",
-        fontWeight: 1000,
-        letterSpacing: .8,
-        textTransform: "uppercase",
-        boxShadow: `0 8px 24px ${accentColor}55`,
-        marginBottom: 12,
-        textAlign: "center"
-      }}>
-        🎧 Fury Music Library
-      </div>
-
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="audio/*,video/*,.mp3,.mp4,.m4a,.wav,.mov"
-        multiple
-        onChange={addFiles}
-        style={{ display: "none" }}
-      />
-
-      <button
-        onClick={() => fileInputRef.current?.click()}
-        style={{
-          border: "none",
-          borderRadius: 14,
-          padding: "12px 14px",
-          background: "rgba(255,255,255,.10)",
-          color: "#f8fafc",
-          fontWeight: 900,
-          cursor: "pointer",
-          marginBottom: 12
-        }}
-      >
-        + Add MP3 / MP4
-      </button>
-
-      {selectedTrack ? (
-        <div style={{
-          borderRadius: 18,
-          background: "rgba(15,23,42,.92)",
-          border: "1px solid rgba(148,163,184,.25)",
-          padding: 12,
-          marginBottom: 12
-        }}>
-          <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {selectedTrack.title}
-          </div>
-
-          {selectedTrack.type === "video" ? (
-            <video key={selectedTrack.id} src={selectedTrack.src} controls style={{
-              width: "100%",
-              maxHeight: 180,
-              borderRadius: 12,
-              background: "#000"
-            }} />
-          ) : (
-            <audio key={selectedTrack.id} src={selectedTrack.src} controls style={{ width: "100%" }} />
-          )}
-
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
-            <div style={{ display: "flex", gap: 2 }}>
-              {[1,2,3,4,5].map(star => (
-                <button key={star} onClick={() => rateTrack(selectedTrack.id, star)} style={{
-                  background: "none",
-                  border: "none",
-                  color: star <= (selectedTrack.rating || 0) ? "#facc15" : "#64748b",
-                  cursor: "pointer",
-                  fontSize: 22,
-                  padding: "0 1px",
-                  lineHeight: 1
-                }}>
-                  ★
-                </button>
-              ))}
-            </div>
-            <button onClick={() => removeTrack(selectedTrack.id)} style={{
-              background: "rgba(239,68,68,.14)",
-              color: "#fecaca",
-              border: "1px solid rgba(239,68,68,.35)",
-              borderRadius: 10,
-              padding: "6px 9px",
-              cursor: "pointer",
-              fontSize: 12,
-              fontWeight: 800
-            }}>
-              Remove
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div style={{
-          borderRadius: 18,
-          background: "rgba(15,23,42,.75)",
-          border: "1px dashed rgba(148,163,184,.35)",
-          padding: 18,
-          color: "#cbd5e1",
-          fontSize: 13,
-          lineHeight: 1.45,
-          marginBottom: 12,
-          textAlign: "center",
-          fontWeight: 700
-        }}>
-          Add MP3s or MP4s to start building your local library.
-        </div>
-      )}
-
-      <div style={{
-        flex: 1,
-        overflowY: "auto",
-        paddingRight: 4,
-        marginBottom: 12
-      }}>
-        {library.map(item => (
-          <button key={item.id} onClick={() => setSelectedId(item.id)} style={{
-            width: "100%",
-            border: selectedTrack?.id === item.id ? `2px solid ${accentColor}` : "1px solid rgba(148,163,184,.18)",
-            background: selectedTrack?.id === item.id ? "rgba(255,255,255,.12)" : "rgba(15,23,42,.72)",
-            color: "#f8fafc",
-            borderRadius: 14,
-            padding: 10,
-            marginBottom: 8,
-            cursor: "pointer",
-            textAlign: "left"
-          }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</div>
-                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
-                  {item.type.toUpperCase()} • {(item.comments || []).length} comments
-                </div>
-              </div>
-              <div style={{ color: "#facc15", fontSize: 12, whiteSpace: "nowrap" }}>
-                {"★".repeat(item.rating || 0)}{"☆".repeat(5 - (item.rating || 0))}
-              </div>
-            </div>
-          </button>
-        ))}
-      </div>
-
-      {selectedTrack && (
-        <div style={{
-          borderRadius: 16,
-          background: "rgba(15,23,42,.92)",
-          border: "1px solid rgba(148,163,184,.22)",
-          padding: 10
-        }}>
-          <div style={{ fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: .8, color: "#cbd5e1", marginBottom: 8 }}>
-            Comments
-          </div>
-          <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-            <input
-              value={commentText}
-              onChange={e => setCommentText(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter") addComment(); }}
-              placeholder="Leave a comment..."
-              style={{
-                flex: 1,
-                minWidth: 0,
-                borderRadius: 10,
-                border: "1px solid rgba(148,163,184,.25)",
-                background: "#020617",
-                color: "#f8fafc",
-                padding: "9px 10px",
-                outline: "none",
-                fontSize: 12
-              }}
-            />
-            <button onClick={addComment} style={{
-              border: "none",
-              borderRadius: 10,
-              background: accentColor,
-              color: "#06111f",
-              fontWeight: 900,
-              padding: "0 10px",
-              cursor: "pointer"
-            }}>
-              Add
-            </button>
-          </div>
-          <div style={{ maxHeight: 120, overflowY: "auto" }}>
-            {(selectedTrack.comments || []).map(comment => (
-              <div key={comment.id} style={{
-                padding: "8px 0",
-                borderTop: "1px solid rgba(148,163,184,.14)"
-              }}>
-                <div style={{ fontSize: 12, color: "#f8fafc", fontWeight: 750 }}>{comment.text}</div>
-                <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>{comment.date}</div>
-              </div>
-            ))}
-            {(!selectedTrack.comments || selectedTrack.comments.length === 0) && (
-              <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>No comments yet.</div>
-            )}
-          </div>
-        </div>
-      )}
-    </aside>
-  );
-}
-
-
-function AnimatedMoney({ value, style, prefix = "$" }) {
-  const numericValue = Number.parseFloat(value || 0) || 0;
-  const [displayValue, setDisplayValue] = useState(numericValue);
-  const previousValue = useRef(numericValue);
-
-  useEffect(() => {
-    const from = previousValue.current;
-    const to = numericValue;
-    const duration = 450;
-    const start = performance.now();
-    let frame;
-
-    const tick = (now) => {
-      const progress = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplayValue(from + (to - from) * eased);
-      if (progress < 1) frame = requestAnimationFrame(tick);
-      else previousValue.current = to;
-    };
-
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [numericValue]);
-
-  return <span style={style}>{prefix}{displayValue.toFixed(2)}</span>;
-}
-
-
-const POKEMON_ROMS = [
-  { label: "Pokemon - Red Version (USA, Europe) (SGB Enhanced)", system: "GB", core: "gb", year: "1998", file: "Pokemon - Red Version (USA, Europe) (SGB Enhanced).gb" },
-  { label: "Pokemon - Blue Version (USA, Europe) (SGB Enhanced)", system: "GB", core: "gb", year: "1998", file: "Pokemon - Blue Version (USA, Europe) (SGB Enhanced).gb" },
-  { label: "Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced)", system: "GB", core: "gb", year: "1999", file: "Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).gb" },
-  { label: "Pokemon - Gold Version (USA, Europe) (SGB Enhanced) (GB Compatible)", system: "GBC", core: "gb", year: "2000", file: "Pokemon - Gold Version (USA, Europe) (SGB Enhanced) (GB Compatible).gbc" },
-  { label: "Pokemon - Silver Version (USA, Europe) (SGB Enhanced) (GB Compatible)", system: "GBC", core: "gb", year: "2000", file: "Pokemon - Silver Version (USA, Europe) (SGB Enhanced) (GB Compatible).gbc" },
-  { label: "Pokemon - Crystal Version (USA, Europe) (Rev 1)", system: "GBC", core: "gb", year: "2001", file: "Pokemon - Crystal Version (USA, Europe) (Rev 1).gbc" },
-  { label: "Pokemon Trading Card Game (USA, Australia) (SGB Enhanced) (GB Compatible)", system: "GBC", core: "gb", year: "2000", file: "Pokemon Trading Card Game (USA, Australia) (SGB Enhanced) (GB Compatible).gbc" },
-  { label: "Pokemon Puzzle Challenge (USA, Australia)", system: "GBC", core: "gb", year: "2000", file: "Pokemon Puzzle Challenge (USA, Australia).gbc" },
-  { label: "Pokemon Jade Version - Special Pikachu Edition (USA) (Pirate)", system: "GBC", core: "gb", year: "2001", file: "Pokemon Jade Version - Special Pikachu Edition (USA) (Pirate).gbc" },
-  { label: "Pokemon - Ruby Version (USA, Europe) (Rev 2)", system: "GBA", core: "gba", year: "2003", file: "Pokemon - Ruby Version (USA, Europe) (Rev 2).gba" },
-  { label: "Pokemon - Sapphire Version (USA, Europe) (Rev 2)", system: "GBA", core: "gba", year: "2003", file: "Pokemon - Sapphire Version (USA, Europe) (Rev 2).gba" },
-  { label: "Pokemon - FireRed Version (USA, Europe) (Rev 1)", system: "GBA", core: "gba", year: "2004", file: "Pokemon - FireRed Version (USA, Europe) (Rev 1).gba" },
-  { label: "Pokemon - LeafGreen Version (USA, Europe) (Rev 1)", system: "GBA", core: "gba", year: "2004", file: "Pokemon - LeafGreen Version (USA, Europe) (Rev 1).gba" },
-  { label: "Pokemon - Emerald Version (USA, Europe)", system: "GBA", core: "gba", year: "2005", file: "Pokemon - Emerald Version (USA, Europe).gba" },
-  { label: "Pokemon Mystery Dungeon - Red Rescue Team (USA, Australia)", system: "GBA", core: "gba", year: "2006", file: "Pokemon Mystery Dungeon - Red Rescue Team (USA, Australia).gba" },
-  { label: "Pokemon Pinball - Ruby & Sapphire (USA)", system: "GBA", core: "gba", year: "2003", file: "Pokemon Pinball - Ruby & Sapphire (USA).gba" },
-  { label: "Pokemon - Aurora Ticket Distribution (USA) (Kiosk)", system: "GBA", core: "gba", year: "2004", file: "Pokemon - Aurora Ticket Distribution (USA) (Kiosk).gba" },
-];
-
-const SYSTEM_BACKGROUNDS = {
-  GB: "sidequest-gb.png",
-  GBC: "sidequest-gbc.png",
-  GBA: "sidequest-gba.png",
-};
-
-function pokemonAssetPath(game, fileName) {
-  return `${process.env.PUBLIC_URL}/rom-images/${encodeURIComponent(game.label)}/${fileName}`;
-}
-
-function PokemonCoverImage({ game, side, onZoom, compact = false }) {
-  const extensions = ["avif", "jpg", "jpeg", "png", "webp"];
-  const [index, setIndex] = useState(0);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    setIndex(0);
-    setFailed(false);
-  }, [game.label, side]);
-
-  const src = pokemonAssetPath(game, `${side}.${extensions[index]}`);
-  const title = `${game.label} ${side === "back" ? "Back" : "Front"} Cover`;
-
-  if (failed) {
-    return (
-      <button
-        type="button"
-        disabled
-        style={{
-          width: compact ? 74 : 92,
-          height: compact ? 98 : 126,
-          borderRadius: 10,
-          border: "2px dashed rgba(255,255,255,.28)",
-          background: "rgba(255,255,255,.08)",
-          color: "#cbd5e1",
-          fontSize: 11,
-          fontWeight: 900,
-          padding: 8,
-          textAlign: "center"
-        }}
-      >
-        No {side} cover found
-      </button>
-    );
-  }
-
-  return (
-    <img
-      key={`${game.label}-${side}-${index}`}
-      onClick={() => onZoom && onZoom({ src, title })}
-      src={src}
-      alt={title}
-      onError={() => {
-        if (index < extensions.length - 1) setIndex(i => i + 1);
-        else setFailed(true);
-      }}
-      style={{
-        width: compact ? 74 : 92,
-        height: compact ? 98 : 126,
-        objectFit: "cover",
-        borderRadius: 10,
-        border: "2px solid rgba(255,255,255,.25)",
-        background: "rgba(255,255,255,.08)",
-        cursor: "zoom-in",
-        boxShadow: "0 8px 22px rgba(0,0,0,.35)"
-      }}
-    />
-  );
-}
-
-function PokemonSidebar() {
-  const [activeSystem, setActiveSystem] = useState("GB");
-  const [activeGame, setActiveGame] = useState(POKEMON_ROMS.find(g => g.system === "GB") || POKEMON_ROMS[0]);
-  const [collapsed, setCollapsed] = useState(false);
-  const [showBackCover, setShowBackCover] = useState(false);
-  const [zoomedCover, setZoomedCover] = useState(null);
-  const playerRef = useRef(null);
-
-  const systemGames = POKEMON_ROMS.filter(game => game.system === activeSystem);
-  const activeGameIndex = Math.max(0, systemGames.findIndex(game => game.file === activeGame.file));
-  const backgroundImage = SYSTEM_BACKGROUNDS[activeSystem] || SYSTEM_BACKGROUNDS.GB;
-  const manualSrc = pokemonAssetPath(activeGame, "manual.pdf");
-
-  const moveCarousel = (direction) => {
-    if (!systemGames.length) return;
-    const nextIndex = (activeGameIndex + direction + systemGames.length) % systemGames.length;
-    setActiveGame(systemGames[nextIndex]);
-    setShowBackCover(false);
-  };
-
-  const chooseCarouselGame = (game) => {
-    setActiveGame(game);
-    setShowBackCover(false);
-  };
-
-  const handleSystemChange = (nextSystem) => {
-    const firstGame = POKEMON_ROMS.find(game => game.system === nextSystem) || POKEMON_ROMS[0];
-    setActiveSystem(nextSystem);
-    setActiveGame(firstGame);
-    setShowBackCover(false);
-  };
-
-  const handleGameChange = (gameFile) => {
-    const next = POKEMON_ROMS.find(g => g.file === gameFile) || systemGames[0] || POKEMON_ROMS[0];
-    setActiveGame(next);
-    setShowBackCover(false);
-  };
-
-  useEffect(() => {
-    if (collapsed || !playerRef.current) return;
-
-    playerRef.current.innerHTML = "";
-    const mount = document.createElement("div");
-    mount.id = "pokemon-game-player";
-    mount.style.width = "100%";
-    mount.style.height = "100%";
-    playerRef.current.appendChild(mount);
-
-    window.EJS_player = "#pokemon-game-player";
-    window.EJS_core = activeGame.core;
-    window.EJS_gameName = activeGame.label;
-    window.EJS_gameUrl = `${process.env.PUBLIC_URL}/roms/${encodeURIComponent(activeGame.file)}`;
-    window.EJS_pathtodata = "https://cdn.emulatorjs.org/stable/data/";
-    window.EJS_startOnLoaded = false;
-    window.EJS_backgroundColor = "#111827";
-    window.EJS_color = "#38bdf8";
-
-    const script = document.createElement("script");
-    script.src = `https://cdn.emulatorjs.org/stable/data/loader.js?v=${Date.now()}`;
-    script.async = true;
-    document.body.appendChild(script);
-
-    return () => {
-      script.remove();
-      if (playerRef.current) playerRef.current.innerHTML = "";
-    };
-  }, [activeGame, collapsed]);
-
-  return (
-    <aside className="pokemon-desktop-sidebar" style={{
-      position: "fixed",
-      left: 18,
-      top: 18,
-      bottom: 18,
-      width: collapsed ? 72 : 390,
-      zIndex: 4,
-      borderRadius: 24,
-      border: "2px solid rgba(255,255,255,0.22)",
-      background: `linear-gradient(rgba(2,6,23,0.62), rgba(2,6,23,0.82)), url(${process.env.PUBLIC_URL}/${backgroundImage})`,
-      backgroundSize: "cover",
-      backgroundPosition: "center",
-      boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
-      padding: collapsed ? 12 : 16,
-      color: "#f8fafc",
-      fontFamily: "system-ui, sans-serif",
-      transition: "width .25s ease, padding .25s ease",
-      overflow: "hidden"
-    }}>
-      <style>{`
-        @media (max-width: 1180px) { .pokemon-desktop-sidebar { display: none !important; } }
-        .pokemon-desktop-sidebar button:hover { transform: translateY(-1px); }
-        .game-cover-carousel::-webkit-scrollbar { height: 6px; }
-        .game-cover-carousel::-webkit-scrollbar-thumb { background: rgba(250,204,21,.55); border-radius: 999px; }
-      `}</style>
-      <button onClick={() => setCollapsed(c => !c)} style={{
-        width: "100%",
-        border: "none",
-        borderRadius: 16,
-        padding: collapsed ? "12px 0" : "10px 12px",
-        background: "linear-gradient(135deg, #ef4444, #f97316)",
-        color: "white",
-        fontWeight: 900,
-        letterSpacing: 1,
-        cursor: "pointer",
-        boxShadow: "0 8px 22px rgba(239,68,68,.35)",
-        marginBottom: 12
-      }}>
-        {collapsed ? "🎮" : "🎮 Pokémon Side Quest"}
-      </button>
-
-      {!collapsed && (
-        <>
-          <div style={{
-            borderRadius: 22,
-            background: "linear-gradient(180deg, rgba(51,65,85,.92), rgba(15,23,42,.96))",
-            padding: 12,
-            border: "2px solid rgba(248,250,252,.38)",
-            boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)"
-          }}>
-            <div ref={playerRef} style={{
-              width: "100%",
-              aspectRatio: "4 / 3",
-              minHeight: 245,
-              borderRadius: 14,
-              overflow: "hidden",
-              background: "#020617",
-              border: "4px solid #0f172a"
-            }} />
-          </div>
-
-          <div style={{
-            marginTop: 12,
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 8
-          }}>
-            {["GB", "GBC", "GBA"].map(system => (
-              <button key={system} onClick={() => handleSystemChange(system)} style={{
-                border: activeSystem === system ? "2px solid #facc15" : "1px solid rgba(255,255,255,.22)",
-                borderRadius: 12,
-                padding: "9px 6px",
-                background: activeSystem === system ? "rgba(250,204,21,.2)" : "rgba(15,23,42,.82)",
-                color: "#f8fafc",
-                fontWeight: 900,
-                cursor: "pointer",
-                boxShadow: activeSystem === system ? "0 0 16px rgba(250,204,21,.22)" : "none"
-              }}>
-                {system}
-              </button>
-            ))}
-          </div>
-
-          <div style={{
-            marginTop: 12,
-            padding: 10,
-            borderRadius: 18,
-            background: "rgba(15,23,42,.86)",
-            border: "1px solid rgba(255,255,255,.14)",
-            boxShadow: "inset 0 0 18px rgba(0,0,0,.28)"
-          }}>
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 8,
-              marginBottom: 10
-            }}>
-              <button onClick={() => moveCarousel(-1)} style={{
-                width: 38, height: 38, borderRadius: "50%", border: "1px solid rgba(255,255,255,.18)",
-                background: "rgba(2,6,23,.9)", color: "#fff", cursor: "pointer", fontSize: 22, fontWeight: 900
-              }}>‹</button>
-              <div style={{ textAlign: "center", flex: 1 }}>
-                <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: 1.2, color: "#facc15", textTransform: "uppercase" }}>
-                  {activeSystem} Game Carousel
-                </div>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "#fff", marginTop: 2 }}>
-                  {activeGameIndex + 1} / {systemGames.length}
-                </div>
-              </div>
-              <button onClick={() => moveCarousel(1)} style={{
-                width: 38, height: 38, borderRadius: "50%", border: "1px solid rgba(255,255,255,.18)",
-                background: "rgba(2,6,23,.9)", color: "#fff", cursor: "pointer", fontSize: 22, fontWeight: 900
-              }}>›</button>
-            </div>
-
-            <div className="game-cover-carousel" style={{
-              display: "flex",
-              gap: 10,
-              overflowX: "auto",
-              scrollSnapType: "x mandatory",
-              paddingBottom: 4
-            }}>
-              {systemGames.map(game => {
-                const selected = game.file === activeGame.file;
-                return (
-                  <button key={game.file} onClick={() => chooseCarouselGame(game)} style={{
-                    minWidth: 108,
-                    maxWidth: 108,
-                    scrollSnapAlign: "center",
-                    border: selected ? "2px solid #facc15" : "1px solid rgba(255,255,255,.18)",
-                    borderRadius: 16,
-                    padding: 8,
-                    background: selected ? "rgba(250,204,21,.18)" : "rgba(2,6,23,.72)",
-                    color: "#fff",
-                    cursor: "pointer",
-                    boxShadow: selected ? "0 0 18px rgba(250,204,21,.32)" : "0 8px 18px rgba(0,0,0,.22)",
-                    transform: selected ? "translateY(-2px) scale(1.02)" : "none",
-                    transition: "transform .18s ease, box-shadow .18s ease, border .18s ease",
-                    textAlign: "center"
-                  }}>
-                    <div style={{ pointerEvents: "none", display: "flex", justifyContent: "center" }}>
-                      <PokemonCoverImage game={game} side="front" onZoom={() => {}} compact />
-                    </div>
-                    <div style={{
-                      marginTop: 7, fontSize: 10, fontWeight: 900, lineHeight: 1.15,
-                      height: 34, overflow: "hidden", color: selected ? "#fff" : "#cbd5e1"
-                    }}>
-                      {game.label}
-                    </div>
-                    <div style={{ marginTop: 5, fontSize: 10, fontWeight: 900, color: selected ? "#facc15" : "#94a3b8" }}>
-                      {game.system} • {game.year}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div style={{
-            marginTop: 12,
-            display: "grid",
-            gridTemplateColumns: "92px 1fr",
-            gap: 12,
-            alignItems: "center",
-            padding: 10,
-            borderRadius: 16,
-            background: "rgba(15,23,42,.88)",
-            border: "1px solid rgba(255,255,255,.14)"
-          }}>
-            <PokemonCoverImage
-              game={activeGame}
-              side={showBackCover ? "back" : "front"}
-              onZoom={setZoomedCover}
-            />
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 900, lineHeight: 1.25, color: "#fff" }}>{activeGame.label}</div>
-              <div style={{ fontSize: 11, fontWeight: 800, color: "#cbd5e1", marginTop: 4 }}>{activeGame.system} • {activeGame.year}</div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
-                <button onClick={() => setShowBackCover(false)} style={{
-                  border: "none", borderRadius: 999, padding: "7px 10px", cursor: "pointer",
-                  background: !showBackCover ? "#22c55e" : "rgba(255,255,255,.14)", color: !showBackCover ? "#052e16" : "#fff", fontWeight: 900
-                }}>Front</button>
-                <button onClick={() => setShowBackCover(true)} style={{
-                  border: "none", borderRadius: 999, padding: "7px 10px", cursor: "pointer",
-                  background: showBackCover ? "#a855f7" : "rgba(255,255,255,.14)", color: showBackCover ? "#fff" : "#fff", fontWeight: 900
-                }}>Back</button>
-                <a href={manualSrc} target="_blank" rel="noreferrer" style={{
-                  borderRadius: 999, padding: "7px 10px", textDecoration: "none", background: "rgba(59,130,246,.9)", color: "#fff", fontWeight: 900, fontSize: 13
-                }}>Manual</a>
-              </div>
-            </div>
-          </div>
-
-
-
-          {zoomedCover && (
-            <div
-              onClick={() => setZoomedCover(null)}
-              style={{
-                position: "fixed",
-                left: 18,
-                top: 18,
-                bottom: 18,
-                width: 390,
-                zIndex: 9999,
-                background: "rgba(0,0,0,0.88)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 16,
-                cursor: "zoom-out"
-              }}
-            >
-              <div
-                onClick={e => e.stopPropagation()}
-                style={{
-                  maxWidth: "100%",
-                  maxHeight: "100%",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 12
-                }}
-              >
-                <button
-                  onClick={() => setZoomedCover(null)}
-                  style={{
-                    alignSelf: "flex-end",
-                    border: "1px solid rgba(255,255,255,.22)",
-                    borderRadius: 999,
-                    padding: "8px 14px",
-                    background: "rgba(15,23,42,.92)",
-                    color: "#fff",
-                    cursor: "pointer",
-                    fontWeight: 900
-                  }}
-                >
-                  ✕ Close
-                </button>
-                <img
-                  src={zoomedCover.src}
-                  alt={zoomedCover.title}
-                  style={{
-                    maxWidth: "100%",
-                    maxHeight: "calc(100vh - 150px)",
-                    objectFit: "contain",
-                    borderRadius: 18,
-                    border: "3px solid rgba(255,255,255,.32)",
-                    boxShadow: "0 24px 80px rgba(0,0,0,.75)",
-                    background: "#020617"
-                  }}
-                />
-                <div style={{ color: "#fff", fontSize: 14, fontWeight: 900, textAlign: "center", textShadow: "0 2px 8px rgba(0,0,0,.8)" }}>
-                  {zoomedCover.title}
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div style={{
-            marginTop: 12,
-            padding: 12,
-            borderRadius: 14,
-            background: "rgba(15,23,42,.88)",
-            color: "#cbd5e1",
-            fontSize: 12,
-            lineHeight: 1.45,
-            fontWeight: 700
-          }}>
-            Cover folders must match the full ROM name without the file extension. Example: <br />
-            <span style={{ color: "#fff" }}>/rom-images/{activeGame.label}/front.avif or front.jpg</span>
-          </div>
-        </>
-      )}
-    </aside>
-  );
-}
-
 function ProjectDropdown({ projects, activeId, onSelect, onManage }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -1082,12 +234,6 @@ export default function App() {
   const [form, setForm] = useState(defaultEntry());
   const [projects, setProjects] = useState(loadProjects);
   const [activeProjectId, setActiveProjectId] = useState(() => loadProjects()[0]?.id || "default");
-  const [themeId, setThemeId] = useState(loadThemeId);
-  const [customBackground, setCustomBackground] = useState(loadCustomBackground);
-  const [musicData, setMusicData] = useState(loadMusicData);
-  const [musicSettings, setMusicSettings] = useState(loadMusicSettings);
-  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
-  const [musicNeedsTap, setMusicNeedsTap] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectColor, setNewProjectColor] = useState(PROJECT_COLORS[0]);
   const [editingProjectId, setEditingProjectId] = useState(null);
@@ -1098,11 +244,6 @@ export default function App() {
   useEffect(() => { saveRates(projectRates); }, [projectRates]);
   useEffect(() => { saveMonthlyTrackerMonths(monthlyTrackerMonths); }, [monthlyTrackerMonths]);
   useEffect(() => { saveProjects(projects); }, [projects]);
-  useEffect(() => { saveThemeId(themeId); }, [themeId]);
-  useEffect(() => { saveCustomBackground(customBackground); }, [customBackground]);
-  useEffect(() => { saveMusicSettings(musicSettings); }, [musicSettings]);
-  const builtInMusicSrc = `${process.env.PUBLIC_URL}/rickroll.mp3`;
-  const activeMusicSrc = musicData || builtInMusicSrc;
 
   const hourlyRate = projectRates[activeProjectId] || 0;
   const setHourlyRate = (val) => setProjectRates(prev => ({ ...prev, [activeProjectId]: val }));
@@ -1111,37 +252,6 @@ export default function App() {
   const getEntry = (date, projectId) => entries[getKey(date, projectId)] || defaultEntry();
   const activeProject = projects.find(p => p.id === activeProjectId) || projects[0];
   const accentColor = activeProject?.color || "#A8D5A2";
-  const theme = THEMES[themeId] || THEMES.classic;
-  const isDarkTheme = ["midnight", "cyber", "oled", "custom"].includes(theme.id);
-  const pageBackground = theme.id === "custom" && customBackground
-    ? `linear-gradient(rgba(0,0,0,0.52), rgba(0,0,0,0.62)), url(${customBackground})`
-    : theme.appBg;
-  const appTextColor = isDarkTheme ? theme.headerText : theme.text;
-  const dayCardBg = isDarkTheme ? "rgba(255,255,255,0.12)" : theme.cardBg;
-  const dayCardText = isDarkTheme ? theme.headerText : theme.text;
-  const readableTextShadow = isDarkTheme || theme.id === "custom"
-    ? "0 1px 3px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.35)"
-    : "0 1px 0 rgba(255,255,255,0.65)";
-  const vibrantLabelColor = isDarkTheme || theme.id === "custom" ? "#FFFFFF" : "#111827";
-  const vibrantMutedColor = isDarkTheme || theme.id === "custom" ? "#E5E7EB" : "#374151";
-  const darkHeaderThemes = ["classic", "midnight", "cyber", "oled", "custom", "construction"];
-  const headerLabelColor = theme.headerText || "#FFFFFF";
-  const headerMutedColor = darkHeaderThemes.includes(theme.id) ? "#E5E7EB" : vibrantMutedColor;
-  const statValueColor = isDarkTheme || theme.id === "custom" ? "#FFFFFF" : "#111827";
-  const vibrantLabelStyle = {
-    fontSize: 11, color: vibrantLabelColor, letterSpacing: 1.1, textTransform: "uppercase",
-    fontFamily: "system-ui", fontWeight: 900, textShadow: readableTextShadow
-  };
-  const vibrantSmallStyle = {
-    fontSize: 11, color: vibrantMutedColor, fontFamily: "system-ui", fontWeight: 800, textShadow: readableTextShadow
-  };
-  const statValueStyle = {
-    fontSize: 24, fontWeight: 900, color: statValueColor, marginTop: 2, fontFamily: "Georgia, serif", textShadow: readableTextShadow
-  };
-  const miniStatValueStyle = {
-    fontSize: 18, fontWeight: 900, color: statValueColor, marginTop: 2, fontFamily: "Georgia, serif", textShadow: readableTextShadow
-  };
-  const glassStyle = theme.id === "custom" ? { backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" } : {};
 
   const totalWeekMins = weekDates.reduce((acc, d) => {
     const e = getEntry(d, activeProjectId);
@@ -1180,19 +290,12 @@ export default function App() {
   );
 
   const overtimeMins = Math.max(0, totalWeekMins - (40 * 60));
-  const overtimePay = calcExactPay(overtimeMins, hourlyRate * 1.5, false);
 
   const weekPay = calcExactPay(totalWeekMins, hourlyRate, true);
   const monthlyPay = calcExactPay(monthlyMins, hourlyRate, true);
   const allTimePay = calcExactPay(allTimeMins, hourlyRate, true);
 
   const openEdit = (date) => {
-    // When you tap any date, show that date's month in the monthly tracker.
-    // This lets older dates like 3/31/2026 switch Monthly back to March totals.
-    setMonthlyTrackerMonths(prev => ({
-      ...prev,
-      [activeProjectId]: getMonthKey(date),
-    }));
     setEditingDay(date);
     setForm({ ...defaultEntry(), ...getEntry(date, activeProjectId) });
   };
@@ -1242,118 +345,6 @@ export default function App() {
   };
 
   const importRef = useRef(null);
-  const backgroundRef = useRef(null);
-  const musicRef = useRef(null);
-  const audioFileRef = useRef(null);
-
-  useEffect(() => {
-    if (musicRef.current) musicRef.current.volume = Number(musicSettings.volume ?? 0.35);
-  }, [musicSettings.volume, activeMusicSrc]);
-
-  useEffect(() => {
-    const audio = musicRef.current;
-    if (!audio || !activeMusicSrc) return;
-
-    const tryPlay = async () => {
-      try {
-        audio.muted = false;
-        await audio.play();
-        setIsMusicPlaying(true);
-        setMusicNeedsTap(false);
-        setMusicNeedsTap(false);
-        return true;
-      } catch {
-        setIsMusicPlaying(false);
-        setMusicNeedsTap(true);
-        return false;
-      }
-    };
-
-    tryPlay();
-
-    const unlockAudio = async () => {
-      if (!audio.paused) return;
-      const didPlay = await tryPlay();
-      if (didPlay) {
-        window.removeEventListener("pointerdown", unlockAudio);
-        window.removeEventListener("touchstart", unlockAudio);
-        window.removeEventListener("keydown", unlockAudio);
-      }
-    };
-
-    window.addEventListener("pointerdown", unlockAudio);
-    window.addEventListener("touchstart", unlockAudio);
-    window.addEventListener("keydown", unlockAudio);
-
-    return () => {
-      window.removeEventListener("pointerdown", unlockAudio);
-      window.removeEventListener("touchstart", unlockAudio);
-      window.removeEventListener("keydown", unlockAudio);
-    };
-  }, [activeMusicSrc]);
-
-  const toggleMusic = async () => {
-    const audio = musicRef.current;
-    if (!audio) return;
-    try {
-      if (isMusicPlaying) {
-        audio.pause();
-        setIsMusicPlaying(false);
-        setMusicNeedsTap(false);
-      } else {
-        await audio.play();
-        setIsMusicPlaying(true);
-        setMusicNeedsTap(false);
-      }
-    } catch {
-      setIsMusicPlaying(false);
-      setMusicNeedsTap(true);
-      alert("Tap anywhere on the app once to start the background song.");
-    }
-  };
-
-  const handleMusicFile = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("audio/")) {
-      alert("Please choose an audio file.");
-      e.target.value = "";
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target.result;
-      setMusicData(dataUrl);
-      const saved = saveMusicData(dataUrl);
-      setMusicSettings(prev => ({ ...prev, fileName: file.name }));
-      setIsMusicPlaying(false);
-      if (!saved) {
-        alert("Song added for this session, but it may be too large to save permanently on this device. A shorter MP3 should save better.");
-      }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  };
-
-  const removeMusic = () => {
-    musicRef.current?.pause();
-    setIsMusicPlaying(false);
-    setMusicData("");
-    saveMusicData("");
-    setMusicSettings(prev => ({ ...prev, fileName: "" }));
-  };
-
-  const handleCustomBackground = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setCustomBackground(ev.target.result);
-      setThemeId("custom");
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  };
 
   const importData = (e) => {
     const file = e.target.files[0];
@@ -1381,13 +372,9 @@ export default function App() {
   const totalPay = calcExactPay(totalWorked, hourlyRate);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#000", position: "relative" }}>
-      {view === "week" && <PokemonSidebar />}
-      {view === "week" && <MusicLibrarySidebar theme={theme} accentColor={accentColor} />}
-      <div style={{ minHeight: "100vh", background: pageBackground, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed", fontFamily: theme.font, maxWidth: 480, margin: "0 auto", color: appTextColor, transition: "background 0.25s ease, color 0.25s ease", position: "relative", zIndex: 5 }}>
-      <audio ref={musicRef} src={activeMusicSrc} loop playsInline onPlay={() => setIsMusicPlaying(true)} onPause={() => setIsMusicPlaying(false)} onEnded={() => setIsMusicPlaying(false)} />
+    <div style={{ minHeight: "100vh", background: "#F7F5F2", fontFamily: "'Georgia', serif", maxWidth: 480, margin: "0 auto" }}>
       {/* Header */}
-      <div style={{ background: theme.headerBg, color: theme.headerText, padding: "52px 24px 16px", position: "sticky", top: 0, zIndex: 10, ...glassStyle }}>
+      <div style={{ background: "#1C1C1E", color: "#F7F5F2", padding: "52px 24px 16px", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <ProjectDropdown
             projects={projects}
@@ -1397,90 +384,50 @@ export default function App() {
           />
           <button
             onClick={() => setView(view === "settings" ? "week" : "settings")}
-            style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, textShadow: readableTextShadow }}
+            style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: 20 }}
           >
             {view === "settings" ? "✕" : "⚙"}
           </button>
         </div>
         {view === "week" && (
           <>
-            <div style={{ display: "flex", justifyContent: "center", margin: "-4px 0 10px" }}>
-              <button
-                onClick={toggleMusic}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                  padding: "9px 16px",
-                  borderRadius: 999,
-                  border: `2px solid ${accentColor}`,
-                  background: isMusicPlaying ? accentColor : "rgba(0,0,0,0.35)",
-                  color: isMusicPlaying ? "#111827" : headerLabelColor,
-                  boxShadow: isMusicPlaying ? `0 0 18px ${accentColor}77` : theme.shadow,
-                  cursor: "pointer",
-                  fontSize: 13,
-                  fontFamily: "system-ui",
-                  fontWeight: 900,
-                  letterSpacing: 0.5,
-                  textTransform: "uppercase",
-                  textShadow: isMusicPlaying ? "none" : readableTextShadow
-                }}
-              >
-                {isMusicPlaying ? "⏸ Pause Soundtrack" : musicNeedsTap ? "▶ Tap Anywhere To Start" : "▶ Play Soundtrack"}
-              </button>
-            </div>
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", margin: "-6px 0 14px" }}>
-              <img
-                src={`${process.env.PUBLIC_URL}/fury-dispatch-logo.png`}
-                alt="Fury Dispatch"
-                style={{
-                  width: "100%",
-                  maxWidth: 370,
-                  maxHeight: 150,
-                  objectFit: "contain",
-                  display: "block",
-                  filter: isDarkTheme || theme.id === "custom" ? "drop-shadow(0 10px 22px rgba(0,0,0,0.75))" : "drop-shadow(0 8px 18px rgba(0,0,0,0.28))"
-                }}
-              />
-            </div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <button onClick={() => setWeekOffset(w => w - 1)} style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, padding: "4px 8px" }}>‹</button>
+              <button onClick={() => setWeekOffset(w => w - 1)} style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: 20, padding: "4px 8px" }}>‹</button>
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 13, color: headerLabelColor, fontFamily: "system-ui", fontWeight: 900, textShadow: readableTextShadow }}>
+                <div style={{ fontSize: 13, color: "#aaa", fontFamily: "system-ui" }}>
                   {weekOffset === 0 ? "This Week" : weekOffset === -1 ? "Last Week" : `${Math.abs(weekOffset)}w ${weekOffset < 0 ? "ago" : "ahead"}`}
                 </div>
-                <div style={{ fontSize: 12, color: headerMutedColor, fontFamily: "system-ui", fontWeight: 800, textShadow: readableTextShadow }}>
+                <div style={{ fontSize: 12, color: "#666", fontFamily: "system-ui" }}>
                   {formatDate(weekDates[0])} – {formatDate(weekDates[6])}
                 </div>
               </div>
-              <button onClick={() => setWeekOffset(w => w + 1)} style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, padding: "4px 8px" }}>›</button>
+              <button onClick={() => setWeekOffset(w => w + 1)} style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: 20, padding: "4px 8px" }}>›</button>
             </div>
-            <div style={{ marginTop: 14, background: theme.statsBg, borderRadius: 12, padding: "14px 16px", boxShadow: theme.shadow, border: `1px solid ${theme.line}`, ...glassStyle }}>
+            <div style={{ marginTop: 14, background: "#2C2C2E", borderRadius: 12, padding: "14px 16px" }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
                 <div>
-                  <div style={vibrantLabelStyle}>Total Hours</div>
-                  <div style={statValueStyle}>{minutesToHHMM(totalWeekMins)}</div>
+                  <div style={{ fontSize: 11, color: "#888", letterSpacing: 1, textTransform: "uppercase", fontFamily: "system-ui" }}>Total Hours</div>
+                  <div style={{ fontSize: 24, fontWeight: "normal", color: "#F7F5F2", marginTop: 2, fontFamily: "Georgia, serif" }}>{minutesToHHMM(totalWeekMins)}</div>
                 </div>
 
                 <div>
-                  <div style={vibrantLabelStyle}>Monthly</div>
-                  <div style={statValueStyle}>
+                  <div style={{ fontSize: 11, color: "#888", letterSpacing: 1, textTransform: "uppercase", fontFamily: "system-ui" }}>Monthly</div>
+                  <div style={{ fontSize: 24, color: "#F7F5F2", marginTop: 2, fontFamily: "Georgia, serif" }}>
                     {minutesToHHMM(monthlyMins)}
                   </div>
                   {monthlyPay && (
-                    <div style={{ ...vibrantSmallStyle, marginTop: 2 }}>
-                      <AnimatedMoney value={monthlyPay} />
+                    <div style={{ fontSize: 11, color: "#aaa", marginTop: 2, fontFamily: "system-ui" }}>
+                      ${monthlyPay}
                     </div>
                   )}
                 </div>
 
                 {weekPay && (
                   <div style={{ textAlign: "right" }}>
-                    <div style={vibrantLabelStyle}>Earnings</div>
-                    <div style={{ ...statValueStyle, color: accentColor }}><AnimatedMoney value={weekPay} /></div>
+                    <div style={{ fontSize: 11, color: "#888", letterSpacing: 1, textTransform: "uppercase", fontFamily: "system-ui" }}>Earnings</div>
+                    <div style={{ fontSize: 24, color: accentColor, marginTop: 2, fontFamily: "Georgia, serif" }}>${weekPay}</div>
                     {overtimeMins > 0 && (
-                      <div style={{ ...vibrantSmallStyle, marginTop: 2 }}>
+                      <div style={{ fontSize: 11, color: "#aaa", marginTop: 2, fontFamily: "system-ui" }}>
                         OT: {minutesToHHMM(overtimeMins)}
                       </div>
                     )}
@@ -1491,37 +438,27 @@ export default function App() {
               <div style={{
                 marginTop: 14,
                 paddingTop: 12,
-                borderTop: `2px solid ${theme.line}`,
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr 1fr",
-                gap: 12,
+                borderTop: "1px solid rgba(255,255,255,0.08)",
+                display: "flex",
+                justifyContent: "space-between",
                 alignItems: "center"
               }}>
                 <div>
-                  <div style={vibrantLabelStyle}>
+                  <div style={{ fontSize: 11, color: "#888", letterSpacing: 1, textTransform: "uppercase", fontFamily: "system-ui" }}>
                     All Time Total
                   </div>
-                  <div style={miniStatValueStyle}>
+                  <div style={{ fontSize: 18, color: "#F7F5F2", marginTop: 2, fontFamily: "Georgia, serif" }}>
                     {minutesToHHMM(allTimeMins)}
-                  </div>
-                </div>
-
-                <div style={{ textAlign: "center" }}>
-                  <div style={vibrantLabelStyle}>
-                    Weekly OT Earned
-                  </div>
-                  <div style={{ ...miniStatValueStyle, color: overtimeMins > 0 ? accentColor : vibrantMutedColor }}>
-                    <AnimatedMoney value={overtimePay || "0.00"} />
                   </div>
                 </div>
 
                 {allTimePay && (
                   <div style={{ textAlign: "right" }}>
-                    <div style={vibrantLabelStyle}>
+                    <div style={{ fontSize: 11, color: "#888", letterSpacing: 1, textTransform: "uppercase", fontFamily: "system-ui" }}>
                       Lifetime Earned
                     </div>
-                    <div style={{ ...miniStatValueStyle, color: accentColor }}>
-                      <AnimatedMoney value={allTimePay} />
+                    <div style={{ fontSize: 18, color: accentColor, marginTop: 2, fontFamily: "Georgia, serif" }}>
+                      ${allTimePay}
                     </div>
                   </div>
                 )}
@@ -1534,8 +471,8 @@ export default function App() {
       {/* Settings View */}
       {view === "settings" && (
         <div style={{ padding: 24 }}>
-          <div style={{ fontSize: 22, marginBottom: 24, color: appTextColor }}>Settings</div>
-          <div style={{ background: theme.cardBg, borderRadius: 14, padding: 20, boxShadow: theme.shadow, border: `1px solid ${theme.line}`, ...glassStyle }}>
+          <div style={{ fontSize: 22, marginBottom: 24, color: "#1C1C1E" }}>Settings</div>
+          <div style={{ background: "#fff", borderRadius: 14, padding: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: accentColor, flexShrink: 0 }} />
               <label style={{ fontSize: 12, color: "#888", textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui" }}>
@@ -1555,84 +492,15 @@ export default function App() {
             <div style={{ fontSize: 12, color: "#aaa", marginTop: 8, fontFamily: "system-ui" }}>Each project has its own rate. Switch projects to set others.</div>
           </div>
 
-          <div style={{ marginTop: 16, background: theme.cardBg, borderRadius: 14, padding: 20, boxShadow: theme.shadow, border: `1px solid ${theme.line}`, ...glassStyle }}>
-            <div style={{ fontSize: 12, color: theme.muted, textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui", marginBottom: 14 }}>Themes</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              {Object.values(THEMES).map(t => (
-                <button key={t.id} onClick={() => setThemeId(t.id)}
-                  style={{
-                    padding: "12px 10px", borderRadius: 12,
-                    border: themeId === t.id ? `2px solid ${accentColor}` : `1px solid ${theme.line}`,
-                    background: t.id === "custom" && customBackground ? `linear-gradient(rgba(0,0,0,.25),rgba(0,0,0,.25)), url(${customBackground})` : t.appBg,
-                    backgroundSize: "cover", backgroundPosition: "center",
-                    color: ["ice", "classic", "construction"].includes(t.id) ? "#1C1C1E" : "#F7F5F2",
-                    cursor: "pointer", fontFamily: "system-ui", textAlign: "left", boxShadow: themeId === t.id ? `0 0 0 2px ${accentColor}33` : "none"
-                  }}>
-                  <div style={{ fontSize: 18, marginBottom: 4 }}>{t.emoji}</div>
-                  <div style={{ fontSize: 13, fontWeight: 700 }}>{t.name}</div>
-                </button>
-              ))}
-            </div>
-            <input ref={backgroundRef} type="file" accept="image/*" onChange={handleCustomBackground} style={{ display: "none" }} />
-            <button onClick={() => backgroundRef.current?.click()}
-              style={{ width: "100%", padding: "13px", background: theme.buttonBg, color: theme.buttonText, border: "none", borderRadius: 12, fontSize: 15, cursor: "pointer", fontFamily: "Georgia, serif", marginTop: 14 }}>
-              🖼️ Choose Custom Background
-            </button>
-            {customBackground && (
-              <button onClick={() => setCustomBackground("")}
-                style={{ width: "100%", padding: "11px", background: "transparent", color: theme.muted, border: `1px solid ${theme.line}`, borderRadius: 12, fontSize: 13, cursor: "pointer", fontFamily: "system-ui", marginTop: 8 }}>
-                Remove Custom Background
-              </button>
-            )}
-            <div style={{ fontSize: 12, color: theme.muted, marginTop: 10, fontFamily: "system-ui" }}>Custom uses your camera roll/photo picker and keeps the image saved on this device.</div>
-          </div>
-
-          <div style={{ marginTop: 16, background: theme.cardBg, borderRadius: 14, padding: 20, boxShadow: theme.shadow, border: `1px solid ${theme.line}`, ...glassStyle }}>
-            <div style={{ fontSize: 12, color: theme.muted, textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui", marginBottom: 14 }}>Background Music</div>
-            <input ref={audioFileRef} type="file" accept="audio/*" onChange={handleMusicFile} style={{ display: "none" }} />
-            <button onClick={() => audioFileRef.current?.click()}
-              style={{ width: "100%", padding: "13px", background: theme.buttonBg, color: theme.buttonText, border: "none", borderRadius: 12, fontSize: 15, cursor: "pointer", fontFamily: "Georgia, serif", marginBottom: 10, fontWeight: 900 }}>
-              🎵 Choose Music File
-            </button>
-            {musicData && (
-              <>
-                <div style={{ fontSize: 13, color: appTextColor, fontFamily: "system-ui", fontWeight: 800, marginBottom: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  Current: {musicData ? (musicSettings.fileName || "Selected song") : "Built-in Fury soundtrack"}
-                </div>
-                <button onClick={toggleMusic}
-                  style={{ width: "100%", padding: "13px", background: accentColor, color: "#111827", border: "none", borderRadius: 12, fontSize: 15, cursor: "pointer", fontFamily: "Georgia, serif", marginBottom: 12, fontWeight: 900 }}>
-                  {isMusicPlaying ? "⏸ Pause Music" : "▶ Play Music"}
-                </button>
-                <label style={{ display: "block", fontSize: 12, color: theme.muted, textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui", marginBottom: 8, fontWeight: 800 }}>
-                  Volume: {Math.round((musicSettings.volume ?? 0.35) * 100)}%
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={musicSettings.volume ?? 0.35}
-                  onChange={e => setMusicSettings(prev => ({ ...prev, volume: Number(e.target.value) }))}
-                  style={{ width: "100%", accentColor, marginBottom: 10 }}
-                />
-                <button onClick={removeMusic}
-                  style={{ width: "100%", padding: "11px", background: "transparent", color: theme.muted, border: `1px solid ${theme.line}`, borderRadius: 12, fontSize: 13, cursor: "pointer", fontFamily: "system-ui", fontWeight: 800 }}>
-                  Remove Music
-                </button>
-              </>
-            )}
-            <div style={{ fontSize: 12, color: theme.muted, marginTop: 10, fontFamily: "system-ui" }}>Music plays only after you tap play. Audio stays on this device when the file is small enough for browser storage.</div>
-          </div>
-
-          <div style={{ marginTop: 16, background: theme.cardBg, borderRadius: 14, padding: 20, boxShadow: theme.shadow, border: `1px solid ${theme.line}`, ...glassStyle }}>
-            <div style={{ fontSize: 12, color: theme.muted, textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui", marginBottom: 14 }}>Backup & Restore</div>
+          <div style={{ marginTop: 16, background: "#fff", borderRadius: 14, padding: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+            <div style={{ fontSize: 12, color: "#888", textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui", marginBottom: 14 }}>Backup & Restore</div>
             <button onClick={exportData}
-              style={{ width: "100%", padding: "13px", background: theme.buttonBg, color: theme.buttonText, border: "none", borderRadius: 12, fontSize: 15, cursor: "pointer", fontFamily: "Georgia, serif", marginBottom: 10 }}>
+              style={{ width: "100%", padding: "13px", background: "#1C1C1E", color: "#F7F5F2", border: "none", borderRadius: 12, fontSize: 15, cursor: "pointer", fontFamily: "Georgia, serif", marginBottom: 10 }}>
               ↓ Export Backup
             </button>
             <input ref={importRef} type="file" accept=".json" onChange={importData} style={{ display: "none" }} />
             <button onClick={() => importRef.current?.click()}
-              style={{ width: "100%", padding: "13px", background: "transparent", color: appTextColor, border: `2px solid ${theme.line}`, borderRadius: 12, fontSize: 15, cursor: "pointer", fontFamily: "Georgia, serif" }}>
+              style={{ width: "100%", padding: "13px", background: "transparent", color: "#1C1C1E", border: "2px solid #1C1C1E", borderRadius: 12, fontSize: 15, cursor: "pointer", fontFamily: "Georgia, serif" }}>
               ↑ Import Backup
             </button>
             <div style={{ fontSize: 12, color: "#aaa", marginTop: 10, fontFamily: "system-ui" }}>Export regularly to keep your data safe. Import restores everything — projects, rates, and all entries.</div>
@@ -1645,7 +513,7 @@ export default function App() {
         <div style={{ padding: 24 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <div style={{ fontSize: 22, color: "#1C1C1E" }}>Projects</div>
-            <button onClick={() => setView("week")} style={{ background: "none", border: "none", color: vibrantLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, textShadow: readableTextShadow }}>✕</button>
+            <button onClick={() => setView("week")} style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: 20 }}>✕</button>
           </div>
           <div style={{ marginBottom: 24 }}>
             {projects.map(p => (
@@ -1707,20 +575,20 @@ export default function App() {
               <button key={i} onClick={() => openEdit(date)}
                 style={{
                   display: "flex", alignItems: "center", width: "100%",
-                  background: today_ ? theme.headerBg : dayCardBg,
+                  background: today_ ? "#1C1C1E" : "#fff",
                   border: "none", borderRadius: 14, padding: "16px 18px", marginBottom: 8,
-                  cursor: "pointer", boxShadow: today_ ? theme.shadow : theme.shadow, border: `1px solid ${theme.line}`, ...glassStyle,
+                  cursor: "pointer", boxShadow: today_ ? "0 2px 12px rgba(0,0,0,0.15)" : "0 1px 4px rgba(0,0,0,0.06)",
                   textAlign: "left",
                 }}
               >
                 <div style={{ width: 52, flexShrink: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 900, color: today_ ? theme.headerText : dayCardText, fontFamily: "system-ui", textShadow: readableTextShadow }}>{DAYS[i]}</div>
-                  <div style={{ fontSize: 11, color: today_ ? headerMutedColor : vibrantMutedColor, fontFamily: "system-ui", fontWeight: 800, textShadow: readableTextShadow }}>{formatDate(date)}</div>
+                  <div style={{ fontSize: 13, fontWeight: "bold", color: today_ ? "#F7F5F2" : "#1C1C1E", fontFamily: "system-ui" }}>{DAYS[i]}</div>
+                  <div style={{ fontSize: 11, color: today_ ? "#888" : "#bbb", fontFamily: "system-ui" }}>{formatDate(date)}</div>
                 </div>
                 <div style={{ flex: 1, marginLeft: 12 }}>
                   {hasEntry ? (
                     <div>
-                      <div style={{ fontSize: 14, color: today_ ? theme.headerText : dayCardText, fontFamily: "system-ui", fontWeight: 800, textShadow: readableTextShadow }}>
+                      <div style={{ fontSize: 14, color: today_ ? "#F7F5F2" : "#1C1C1E", fontFamily: "system-ui" }}>
                         {to12Hour(e.start)} → {to12Hour(e.end)}
                         {e.breaks && e.breaks.length > 0 && (
                           <span style={{ color: "#aaa", fontSize: 12 }}> − {totalBreakMins(e.breaks)}m break</span>
@@ -1741,7 +609,7 @@ export default function App() {
                       {e.note && <div style={{ fontSize: 11, color: "#aaa", marginTop: 2, fontFamily: "system-ui" }}>{e.note}</div>}
                     </div>
                   ) : (
-                    <div style={{ fontSize: 13, color: today_ ? headerMutedColor : vibrantMutedColor, fontFamily: "system-ui" }}>
+                    <div style={{ fontSize: 13, color: today_ ? "#555" : "#ddd", fontFamily: "system-ui" }}>
                       {today_ ? "Tap to log today" : "No entry"}
                     </div>
                   )}
@@ -1750,7 +618,7 @@ export default function App() {
                   {hasEntry ? (
                     <>
                       <div style={{ fontSize: 17, color: today_ ? accentColor : "#1C1C1E", fontFamily: "Georgia, serif" }}>{minutesToHHMM(worked)}</div>
-                      {dayPay && <div style={{ fontSize: 11, color: "#aaa", fontFamily: "system-ui", marginTop: 2 }}><AnimatedMoney value={dayPay} /></div>}
+                      {dayPay && <div style={{ fontSize: 11, color: "#aaa", fontFamily: "system-ui", marginTop: 2 }}>${dayPay}</div>}
                     </>
                   ) : (
                     <div style={{ fontSize: 20, color: today_ ? "#444" : "#e0e0e0" }}>+</div>
@@ -1766,7 +634,7 @@ export default function App() {
       {editingDay && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-end", zIndex: 100 }}
           onClick={() => setEditingDay(null)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: theme.modalBg, width: "100%", borderRadius: "20px 20px 0 0", padding: "24px 20px 48px", maxHeight: "90vh", overflowY: "auto", color: theme.text, ...glassStyle }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "#F7F5F2", width: "100%", borderRadius: "20px 20px 0 0", padding: "24px 20px 48px", maxHeight: "90vh", overflowY: "auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
               <div>
                 <div style={{ fontSize: 22, color: "#1C1C1E" }}>{FULL_DAYS[weekDates.indexOf(editingDay)]}</div>
@@ -1908,19 +776,18 @@ export default function App() {
                   </span>
                   {totalPay && (
                     <div style={{ color: "#666", fontSize: 12, fontFamily: "system-ui", marginTop: 2 }}>
-                      <AnimatedMoney value={totalPay} />
+                      ${totalPay}
                     </div>
                   )}
                 </div>
               </div>
             )}
-            <button onClick={saveEntry} style={{ width: "100%", padding: "16px", background: theme.buttonBg, color: theme.buttonText, border: "none", borderRadius: 14, fontSize: 17, cursor: "pointer", fontFamily: "Georgia, serif" }}>
+            <button onClick={saveEntry} style={{ width: "100%", padding: "16px", background: "#1C1C1E", color: "#F7F5F2", border: "none", borderRadius: 14, fontSize: 17, cursor: "pointer", fontFamily: "Georgia, serif" }}>
               Save Entry
             </button>
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 }

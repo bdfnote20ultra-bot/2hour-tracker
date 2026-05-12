@@ -674,19 +674,6 @@ function PokemonSidebar() {
             </div>
           )}
 
-          <div style={{
-            marginTop: 12,
-            padding: 12,
-            borderRadius: 14,
-            background: "rgba(15,23,42,.88)",
-            color: "#cbd5e1",
-            fontSize: 12,
-            lineHeight: 1.45,
-            fontWeight: 700
-          }}>
-            Cover folders must match the full ROM name without the file extension. Example: <br />
-            <span style={{ color: "#fff" }}>/rom-images/{activeGame.label}/front.avif or front.jpg</span>
-          </div>
         </>
       )}
     </aside>

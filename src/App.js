@@ -225,6 +225,16 @@ export default function App() {
   }, 0);
   const weekPay = calcExactPay(totalWeekMins, hourlyRate);
 
+// ALL TIME TOTALS
+const allTimeMins = Object.entries(entries).reduce((acc, [key, entry]) => {
+  if (!key.startsWith(`${activeProjectId}__`)) return acc;
+
+  const worked = calcTotalWorked(entry);
+  return acc + (worked || 0);
+}, 0);
+
+const allTimePay = calcExactPay(allTimeMins, hourlyRate);
+
   const openEdit = (date) => {
     setEditingDay(date);
     setForm({ ...defaultEntry(), ...getEntry(date, activeProjectId) });
@@ -329,11 +339,144 @@ export default function App() {
               </div>
               <button onClick={() => setWeekOffset(w => w + 1)} style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: 20, padding: "4px 8px" }}>›</button>
             </div>
-            <div style={{ marginTop: 14, background: "#2C2C2E", borderRadius: 12, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <div style={{ fontSize: 11, color: "#888", letterSpacing: 1, textTransform: "uppercase", fontFamily: "system-ui" }}>Total Hours</div>
-                <div style={{ fontSize: 26, fontWeight: "normal", color: "#F7F5F2", marginTop: 2, fontFamily: "Georgia, serif" }}>{minutesToHHMM(totalWeekMins)}</div>
-              </div>
+            
+<div
+  style={{
+    marginTop: 14,
+    background: "#2C2C2E",
+    borderRadius: 12,
+    padding: "14px 16px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 16,
+  }}
+>
+  {/* WEEKLY */}
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+    }}
+  >
+    <div>
+      <div
+        style={{
+          fontSize: 11,
+          color: "#888",
+          letterSpacing: 1,
+          textTransform: "uppercase",
+          fontFamily: "system-ui",
+        }}
+      >
+        Weekly Hours
+      </div>
+
+      <div
+        style={{
+          fontSize: 26,
+          color: "#F7F5F2",
+          marginTop: 2,
+          fontFamily: "Georgia, serif",
+        }}
+      >
+        {minutesToHHMM(totalWeekMins)}
+      </div>
+    </div>
+
+    {weekPay && (
+      <div style={{ textAlign: "right" }}>
+        <div
+          style={{
+            fontSize: 11,
+            color: "#888",
+            letterSpacing: 1,
+            textTransform: "uppercase",
+            fontFamily: "system-ui",
+          }}
+        >
+          Weekly Earned
+        </div>
+
+        <div
+          style={{
+            fontSize: 26,
+            color: accentColor,
+            marginTop: 2,
+            fontFamily: "Georgia, serif",
+          }}
+        >
+          ${weekPay}
+        </div>
+      </div>
+    )}
+  </div>
+
+  {/* ALL TIME */}
+  <div
+    style={{
+      borderTop: "1px solid rgba(255,255,255,0.08)",
+      paddingTop: 14,
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+    }}
+  >
+    <div>
+      <div
+        style={{
+          fontSize: 11,
+          color: "#888",
+          letterSpacing: 1,
+          textTransform: "uppercase",
+          fontFamily: "system-ui",
+        }}
+      >
+        All Time Hours
+      </div>
+
+      <div
+        style={{
+          fontSize: 22,
+          color: "#F7F5F2",
+          marginTop: 2,
+          fontFamily: "Georgia, serif",
+        }}
+      >
+        {minutesToHHMM(allTimeMins)}
+      </div>
+    </div>
+
+    {allTimePay && (
+      <div style={{ textAlign: "right" }}>
+        <div
+          style={{
+            fontSize: 11,
+            color: "#888",
+            letterSpacing: 1,
+            textTransform: "uppercase",
+            fontFamily: "system-ui",
+          }}
+        >
+          All Time Earned
+        </div>
+
+        <div
+          style={{
+            fontSize: 22,
+            color: accentColor,
+            marginTop: 2,
+            fontFamily: "Georgia, serif",
+          }}
+        >
+          ${allTimePay}
+        </div>
+      </div>
+    )}
+  </div>
+</div>
+</div>
+
               {weekPay && (
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: 11, color: "#888", letterSpacing: 1, textTransform: "uppercase", fontFamily: "system-ui" }}>Earnings</div>

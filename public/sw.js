@@ -1,0 +1,22 @@
+const CACHE_NAME = 'hours-tracker-pokemon-v2-readable-classic';
+const urlsToCache = [
+  '/',
+  '/static/js/bundle.js',
+  '/manifest.json',
+  '/rickroll.mp3'
+];
+
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
+  );
+});
+
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request).then(response => {
+      if (response) return response;
+      return fetch(event.request).catch(() => caches.match('/'));
+    })
+  );
+});

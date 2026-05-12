@@ -682,6 +682,8 @@ function PokemonSidebar() {
 
 
 function MusicLibrarySidebar({ accentColor }) {
+  const genres = Array.from(new Set(MUSIC_LIBRARY.map(item => item.genre || "Other")));
+  const [activeGenre, setActiveGenre] = useState(genres[0] || "Other");
   const [selectedId, setSelectedId] = useState(MUSIC_LIBRARY[0]?.id || null);
   const [ratings, setRatings] = useState(() => {
     try { return JSON.parse(localStorage.getItem("hoursTrackerStaticMusicRatings_v1")) || {}; } catch { return {}; }
@@ -692,6 +694,17 @@ function MusicLibrarySidebar({ accentColor }) {
   const [commentText, setCommentText] = useState("");
   const [musicSearch, setMusicSearch] = useState("");
 
+  const filteredLibrary = MUSIC_LIBRARY.filter(item => {
+    const query = musicSearch.trim().toLowerCase();
+    const matchesGenre = (item.genre || "Other") === activeGenre;
+    const matchesSearch =
+      !query ||
+      (item.title || "").toLowerCase().includes(query) ||
+      (item.artist || "").toLowerCase().includes(query) ||
+      (item.genre || "").toLowerCase().includes(query);
+    return matchesGenre && matchesSearch;
+  });
+
   useEffect(() => {
     try { localStorage.setItem("hoursTrackerStaticMusicRatings_v1", JSON.stringify(ratings)); } catch {}
   }, [ratings]);
@@ -700,7 +713,17 @@ function MusicLibrarySidebar({ accentColor }) {
     try { localStorage.setItem("hoursTrackerStaticMusicComments_v1", JSON.stringify(comments)); } catch {}
   }, [comments]);
 
-  const selectedTrack = MUSIC_LIBRARY.find(item => item.id === selectedId) || MUSIC_LIBRARY[0] || null;
+  useEffect(() => {
+    if (!filteredLibrary.find(item => item.id === selectedId)) {
+      setSelectedId(filteredLibrary[0]?.id || MUSIC_LIBRARY[0]?.id || null);
+    }
+  }, [activeGenre, musicSearch]);
+
+  const selectedTrack =
+    MUSIC_LIBRARY.find(item => item.id === selectedId) ||
+    filteredLibrary[0] ||
+    MUSIC_LIBRARY[0] ||
+    null;
 
   const rateTrack = (id, rating) => {
     setRatings(prev => ({ ...prev, [id]: rating }));
@@ -759,6 +782,49 @@ function MusicLibrarySidebar({ accentColor }) {
         🎧 Fuit Music
       </div>
 
+      <input
+        value={musicSearch}
+        onChange={e => setMusicSearch(e.target.value)}
+        placeholder="Search songs..."
+        style={{
+          width: "100%",
+          boxSizing: "border-box",
+          borderRadius: 14,
+          border: "1px solid rgba(148,163,184,.28)",
+          background: "rgba(2,6,23,.82)",
+          color: "#f8fafc",
+          padding: "11px 12px",
+          outline: "none",
+          fontSize: 13,
+          fontWeight: 800,
+          marginBottom: 10
+        }}
+      />
+
+      <div style={{
+        display: "flex",
+        gap: 8,
+        overflowX: "auto",
+        paddingBottom: 8,
+        marginBottom: 10
+      }}>
+        {genres.map(genre => (
+          <button key={genre} onClick={() => setActiveGenre(genre)} style={{
+            border: activeGenre === genre ? `2px solid ${accentColor}` : "1px solid rgba(148,163,184,.24)",
+            background: activeGenre === genre ? "rgba(255,255,255,.14)" : "rgba(15,23,42,.85)",
+            color: "#f8fafc",
+            borderRadius: 999,
+            padding: "8px 11px",
+            fontSize: 12,
+            fontWeight: 900,
+            whiteSpace: "nowrap",
+            cursor: "pointer"
+          }}>
+            {genre}
+          </button>
+        ))}
+      </div>
+
       {selectedTrack ? (
         <div style={{
           borderRadius: 18,
@@ -767,8 +833,11 @@ function MusicLibrarySidebar({ accentColor }) {
           padding: 12,
           marginBottom: 12
         }}>
-          <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {selectedTrack.title}
+          </div>
+          <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 800, marginBottom: 8 }}>
+            {selectedTrack.artist || "Unknown Artist"} • {selectedTrack.genre || "Other"}
           </div>
 
           {selectedTrack.type === "video" ? (
@@ -823,12 +892,12 @@ function MusicLibrarySidebar({ accentColor }) {
           textAlign: "center",
           fontWeight: 700
         }}>
-          No music has been added yet.
+          No songs found.
         </div>
       )}
 
       <div style={{ flex: 1, overflowY: "auto", paddingRight: 4, marginBottom: 12 }}>
-        {MUSIC_LIBRARY.map(item => (
+        {filteredLibrary.map(item => (
           <button key={item.id} onClick={() => setSelectedId(item.id)} style={{
             width: "100%",
             border: selectedTrack?.id === item.id ? `2px solid ${accentColor}` : "1px solid rgba(148,163,184,.18)",
@@ -911,7 +980,6 @@ function MusicLibrarySidebar({ accentColor }) {
     </aside>
   );
 }
-
 
 function ProjectDropdown({ projects, activeId, onSelect, onManage }) {
   const [open, setOpen] = useState(false);
@@ -1624,7 +1692,7 @@ export default function App() {
           <div style={{ marginTop: 16, background: theme.cardBg, borderRadius: 14, padding: 20, boxShadow: theme.shadow, border: `1px solid ${theme.line}`, ...glassStyle }}>
             <div style={{ fontSize: 12, color: theme.muted, textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui", marginBottom: 14 }}>Background Music - https://yt2mp3.gs/ - copy, new tab, paste</div>
             <button
-              onClick={() => window.open("https://yt2mp3.gs/", "_blank", "noopener,noreferrer")}
+              onClick={() => setInAppBrowserOpen(true)}
               style={{
                 width: "100%",
                 padding: "15px",
@@ -1640,7 +1708,7 @@ export default function App() {
                 boxShadow: "0 8px 24px rgba(56,189,248,.25)"
               }}
             >
-              🌐 Open yt2mp3.gs
+              🌐 Open Google Browser
             </button>
             <input ref={audioFileRef} type="file" accept="audio/*" onChange={handleMusicFile} style={{ display: "none" }} />
             <button onClick={() => audioFileRef.current?.click()}

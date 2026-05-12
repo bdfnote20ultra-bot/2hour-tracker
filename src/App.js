@@ -255,192 +255,63 @@ function AnimatedMoney({ value, style, prefix = "$" }) {
 }
 
 
-const POKEMON_SYSTEMS = {
-  gb: {
-    label: "Game Boy",
-    shortLabel: "GB",
-    core: "gb",
-    background: `${process.env.PUBLIC_URL}/sidequest-gb.png`,
-    accent: "#9ca66b",
-  },
-  gbc: {
-    label: "Game Boy Color",
-    shortLabel: "GBC",
-    core: "gb",
-    background: `${process.env.PUBLIC_URL}/sidequest-gbc.png`,
-    accent: "#facc15",
-  },
-  gba: {
-    label: "Game Boy Advance",
-    shortLabel: "GBA",
-    core: "gba",
-    background: `${process.env.PUBLIC_URL}/sidequest-gba.png`,
-    accent: "#a78bfa",
-  },
-};
-
 const POKEMON_ROMS = [
-  { label: "Red", system: "gb", year: 1998, image: "pokemon-red-card.png", file: "Pokemon - Red Version (USA, Europe) (SGB Enhanced).gb" },
-  { label: "Blue", system: "gb", year: 1998, image: "pokemon-blue-card.png", file: "Pokemon - Blue Version (USA, Europe) (SGB Enhanced).gb" },
-  { label: "Yellow", system: "gb", year: 1999, image: "pokemon-yellow-card.png", file: "Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).gb" },
-  { label: "Gold", system: "gbc", year: 2000, image: "pokemon-gold-card.png", file: "Pokemon - Gold Version (USA, Europe) (SGB Enhanced) (GB Compatible).gbc" },
-  { label: "Silver", system: "gbc", year: 2000, image: "pokemon-silver-card.png", file: "Pokemon - Silver Version (USA, Europe) (SGB Enhanced) (GB Compatible).gbc" },
-  { label: "Crystal", system: "gbc", year: 2001, image: "pokemon-crystal-card.png", file: "Pokemon - Crystal Version (USA, Europe) (Rev 1).gbc" },
-  { label: "TCG", system: "gbc", year: 2000, image: "pokemon-tcg-card.png", file: "Pokemon Trading Card Game (USA, Australia) (SGB Enhanced) (GB Compatible).gbc" },
-  { label: "Puzzle", system: "gbc", year: 2000, image: "pokemon-puzzle-card.png", file: "Pokemon Puzzle Challenge (USA, Australia).gbc" },
-  { label: "FireRed", system: "gba", year: 2004, image: "pokemon-firered-card.png", file: "Pokemon - FireRed Version (USA, Europe) (Rev 1).gba" },
-  { label: "LeafGreen", system: "gba", year: 2004, image: "pokemon-leafgreen-card.png", file: "Pokemon - LeafGreen Version (USA, Europe) (Rev 1).gba" },
-  { label: "Emerald", system: "gba", year: 2005, image: "pokemon-emerald-card.png", file: "Pokemon - Emerald Version (USA, Europe).gba" },
-  { label: "Ruby", system: "gba", year: 2003, image: "pokemon-ruby-card.png", file: "Pokemon - Ruby Version (USA, Europe) (Rev 2).gba" },
-  { label: "Sapphire", system: "gba", year: 2003, image: "pokemon-sapphire-card.png", file: "Pokemon - Sapphire Version (USA, Europe) (Rev 2).gba" },
-  { label: "Pinball", system: "gba", year: 2003, image: "pokemon-pinball-card.png", file: "Pokemon Pinball - Ruby & Sapphire (USA).gba" },
-  { label: "Red Rescue", system: "gba", year: 2006, image: "pokemon-red-rescue-card.png", file: "Pokemon Mystery Dungeon - Red Rescue Team (USA, Australia).gba" },
+  { label: "Pokemon - Red Version (USA, Europe) (SGB Enhanced)", system: "GB", core: "gb", year: "1998", file: "Pokemon - Red Version (USA, Europe) (SGB Enhanced).gb" },
+  { label: "Pokemon - Blue Version (USA, Europe) (SGB Enhanced)", system: "GB", core: "gb", year: "1998", file: "Pokemon - Blue Version (USA, Europe) (SGB Enhanced).gb" },
+  { label: "Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced)", system: "GB", core: "gb", year: "1999", file: "Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).gb" },
+  { label: "Pokemon - Gold Version (USA, Europe) (SGB Enhanced) (GB Compatible)", system: "GBC", core: "gb", year: "2000", file: "Pokemon - Gold Version (USA, Europe) (SGB Enhanced) (GB Compatible).gbc" },
+  { label: "Pokemon - Silver Version (USA, Europe) (SGB Enhanced) (GB Compatible)", system: "GBC", core: "gb", year: "2000", file: "Pokemon - Silver Version (USA, Europe) (SGB Enhanced) (GB Compatible).gbc" },
+  { label: "Pokemon - Crystal Version (USA, Europe) (Rev 1)", system: "GBC", core: "gb", year: "2001", file: "Pokemon - Crystal Version (USA, Europe) (Rev 1).gbc" },
+  { label: "Pokemon Trading Card Game (USA, Australia) (SGB Enhanced) (GB Compatible)", system: "GBC", core: "gb", year: "2000", file: "Pokemon Trading Card Game (USA, Australia) (SGB Enhanced) (GB Compatible).gbc" },
+  { label: "Pokemon Puzzle Challenge (USA, Australia)", system: "GBC", core: "gb", year: "2000", file: "Pokemon Puzzle Challenge (USA, Australia).gbc" },
+  { label: "Pokemon Jade Version - Special Pikachu Edition (USA) (Pirate)", system: "GBC", core: "gb", year: "2001", file: "Pokemon Jade Version - Special Pikachu Edition (USA) (Pirate).gbc" },
+  { label: "Pokemon - Ruby Version (USA, Europe) (Rev 2)", system: "GBA", core: "gba", year: "2003", file: "Pokemon - Ruby Version (USA, Europe) (Rev 2).gba" },
+  { label: "Pokemon - Sapphire Version (USA, Europe) (Rev 2)", system: "GBA", core: "gba", year: "2003", file: "Pokemon - Sapphire Version (USA, Europe) (Rev 2).gba" },
+  { label: "Pokemon - FireRed Version (USA, Europe) (Rev 1)", system: "GBA", core: "gba", year: "2004", file: "Pokemon - FireRed Version (USA, Europe) (Rev 1).gba" },
+  { label: "Pokemon - LeafGreen Version (USA, Europe) (Rev 1)", system: "GBA", core: "gba", year: "2004", file: "Pokemon - LeafGreen Version (USA, Europe) (Rev 1).gba" },
+  { label: "Pokemon - Emerald Version (USA, Europe)", system: "GBA", core: "gba", year: "2005", file: "Pokemon - Emerald Version (USA, Europe).gba" },
+  { label: "Pokemon Mystery Dungeon - Red Rescue Team (USA, Australia)", system: "GBA", core: "gba", year: "2006", file: "Pokemon Mystery Dungeon - Red Rescue Team (USA, Australia).gba" },
+  { label: "Pokemon Pinball - Ruby & Sapphire (USA)", system: "GBA", core: "gba", year: "2003", file: "Pokemon Pinball - Ruby & Sapphire (USA).gba" },
+  { label: "Pokemon - Aurora Ticket Distribution (USA) (Kiosk)", system: "GBA", core: "gba", year: "2004", file: "Pokemon - Aurora Ticket Distribution (USA) (Kiosk).gba" },
 ];
 
+const SYSTEM_BACKGROUNDS = {
+  GB: "sidequest-gb.png",
+  GBC: "sidequest-gbc.png",
+  GBA: "sidequest-gba.png",
+};
 
-function GameImageDropdown({ games, activeGame, onSelect, systemTheme }) {
-  const [open, setOpen] = useState(false);
-  const dropdownRef = useRef(null);
-
-  useEffect(() => {
-    const handler = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  return (
-    <div ref={dropdownRef} style={{ position: "relative", marginTop: 12, zIndex: 8 }}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        style={{
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: 10,
-          borderRadius: 16,
-          border: `2px solid ${systemTheme.accent}99`,
-          background: "rgba(2,6,23,.94)",
-          color: "#f8fafc",
-          cursor: "pointer",
-          boxShadow: `0 8px 24px rgba(0,0,0,.42), 0 0 16px ${systemTheme.accent}44`,
-        }}
-      >
-        <img
-          src={`${process.env.PUBLIC_URL}/rom-images/${activeGame.image}`}
-          alt=""
-          style={{
-            width: 58,
-            height: 42,
-            objectFit: "cover",
-            borderRadius: 10,
-            border: "1px solid rgba(255,255,255,.24)",
-            flexShrink: 0,
-          }}
-        />
-        <div style={{ flex: 1, textAlign: "left", minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 950, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            Pokémon {activeGame.label}
-          </div>
-          <div style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 850, marginTop: 2 }}>
-            {activeGame.year} • {systemTheme.shortLabel}
-          </div>
-        </div>
-        <span style={{
-          color: "#111827",
-          background: systemTheme.accent,
-          borderRadius: 999,
-          padding: "5px 9px",
-          fontWeight: 950,
-          fontSize: 12,
-          flexShrink: 0,
-        }}>
-          {open ? "▲" : "▼"}
-        </span>
-      </button>
-
-      {open && (
-        <div style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          top: "calc(100% + 8px)",
-          maxHeight: 300,
-          overflowY: "auto",
-          borderRadius: 18,
-          border: `2px solid ${systemTheme.accent}99`,
-          background: "rgba(2,6,23,.98)",
-          boxShadow: "0 18px 42px rgba(0,0,0,.70)",
-          padding: 8,
-        }}>
-          {games.map(game => {
-            const selected = game.file === activeGame.file;
-            return (
-              <button
-                key={game.file}
-                onClick={() => { onSelect(game); setOpen(false); }}
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: 8,
-                  marginBottom: 6,
-                  borderRadius: 14,
-                  border: selected ? `2px solid ${systemTheme.accent}` : "1px solid rgba(255,255,255,.12)",
-                  background: selected ? `linear-gradient(135deg, ${systemTheme.accent}55, rgba(15,23,42,.96))` : "rgba(15,23,42,.78)",
-                  color: "#fff",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  boxShadow: selected ? `0 0 14px ${systemTheme.accent}44` : "none",
-                }}
-              >
-                <img
-                  src={`${process.env.PUBLIC_URL}/rom-images/${game.image}`}
-                  alt=""
-                  style={{
-                    width: 60,
-                    height: 44,
-                    objectFit: "cover",
-                    borderRadius: 10,
-                    border: "1px solid rgba(255,255,255,.22)",
-                    flexShrink: 0,
-                  }}
-                />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 950, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    Pokémon {game.label}
-                  </div>
-                  <div style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 850, marginTop: 2 }}>
-                    {game.year}
-                  </div>
-                </div>
-                {selected && <span style={{ color: systemTheme.accent, fontWeight: 950 }}>✓</span>}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
+function pokemonAssetPath(game, fileName) {
+  return `${process.env.PUBLIC_URL}/rom-images/${encodeURIComponent(game.label)}/${fileName}`;
 }
 
-
 function PokemonSidebar() {
-  const [selectedSystem, setSelectedSystem] = useState("gb");
-  const [activeGame, setActiveGame] = useState(POKEMON_ROMS[0]);
+  const [activeSystem, setActiveSystem] = useState("GB");
+  const [activeGame, setActiveGame] = useState(POKEMON_ROMS.find(g => g.system === "GB") || POKEMON_ROMS[0]);
   const [collapsed, setCollapsed] = useState(false);
+  const [showBackCover, setShowBackCover] = useState(false);
+  const [coverExt, setCoverExt] = useState("jpg");
   const playerRef = useRef(null);
 
-  const systemTheme = POKEMON_SYSTEMS[selectedSystem] || POKEMON_SYSTEMS.gb;
-  const gamesForSystem = POKEMON_ROMS.filter(game => game.system === selectedSystem);
+  const systemGames = POKEMON_ROMS.filter(game => game.system === activeSystem);
+  const backgroundImage = SYSTEM_BACKGROUNDS[activeSystem] || SYSTEM_BACKGROUNDS.GB;
+  const coverFile = showBackCover ? `back.${coverExt}` : `front.${coverExt}`;
+  const coverSrc = pokemonAssetPath(activeGame, coverFile);
+  const manualSrc = pokemonAssetPath(activeGame, "manual.pdf");
 
-  const chooseSystem = (systemId) => {
-    const firstGame = POKEMON_ROMS.find(game => game.system === systemId) || POKEMON_ROMS[0];
-    setSelectedSystem(systemId);
+  const handleSystemChange = (nextSystem) => {
+    const firstGame = POKEMON_ROMS.find(game => game.system === nextSystem) || POKEMON_ROMS[0];
+    setActiveSystem(nextSystem);
     setActiveGame(firstGame);
+    setShowBackCover(false);
+    setCoverExt("jpg");
+  };
+
+  const handleGameChange = (gameFile) => {
+    const next = POKEMON_ROMS.find(g => g.file === gameFile) || systemGames[0] || POKEMON_ROMS[0];
+    setActiveGame(next);
+    setShowBackCover(false);
+    setCoverExt("jpg");
   };
 
   useEffect(() => {
@@ -453,15 +324,14 @@ function PokemonSidebar() {
     mount.style.height = "100%";
     playerRef.current.appendChild(mount);
 
-    const activeSystem = POKEMON_SYSTEMS[activeGame.system] || POKEMON_SYSTEMS.gb;
     window.EJS_player = "#pokemon-game-player";
-    window.EJS_core = activeSystem.core;
+    window.EJS_core = activeGame.core;
     window.EJS_gameName = activeGame.label;
     window.EJS_gameUrl = `${process.env.PUBLIC_URL}/roms/${encodeURIComponent(activeGame.file)}`;
     window.EJS_pathtodata = "https://cdn.emulatorjs.org/stable/data/";
     window.EJS_startOnLoaded = false;
-    window.EJS_backgroundColor = "#020617";
-    window.EJS_color = activeSystem.accent;
+    window.EJS_backgroundColor = "#111827";
+    window.EJS_color = "#38bdf8";
 
     const script = document.createElement("script");
     script.src = `https://cdn.emulatorjs.org/stable/data/loader.js?v=${Date.now()}`;
@@ -480,166 +350,160 @@ function PokemonSidebar() {
       left: 18,
       top: 18,
       bottom: 18,
-      width: collapsed ? 72 : 380,
+      width: collapsed ? 72 : 390,
       zIndex: 4,
-      borderRadius: 26,
+      borderRadius: 24,
       border: "2px solid rgba(255,255,255,0.22)",
-      background: `linear-gradient(rgba(2,6,23,0.38), rgba(2,6,23,0.82)), url(${systemTheme.background})`,
+      background: `linear-gradient(rgba(2,6,23,0.62), rgba(2,6,23,0.82)), url(${process.env.PUBLIC_URL}/${backgroundImage})`,
       backgroundSize: "cover",
       backgroundPosition: "center",
-      boxShadow: `0 18px 60px rgba(0,0,0,0.60), 0 0 26px ${systemTheme.accent}55`,
+      boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
       padding: collapsed ? 12 : 16,
       color: "#f8fafc",
       fontFamily: "system-ui, sans-serif",
-      transition: "width .25s ease, padding .25s ease, box-shadow .25s ease, background .25s ease",
+      transition: "width .25s ease, padding .25s ease",
       overflow: "hidden"
     }}>
       <style>{`
         @media (max-width: 1180px) { .pokemon-desktop-sidebar { display: none !important; } }
         .pokemon-desktop-sidebar button:hover { transform: translateY(-1px); }
       `}</style>
-      <div style={{
-        position: "absolute",
-        inset: 0,
-        background: "radial-gradient(circle at top, rgba(255,255,255,0.10), transparent 36%), linear-gradient(90deg, rgba(0,0,0,.35), rgba(0,0,0,.08), rgba(0,0,0,.35))",
-        pointerEvents: "none"
-      }} />
-      <div style={{ position: "relative", zIndex: 1 }}>
-        <button onClick={() => setCollapsed(c => !c)} style={{
-          width: "100%",
-          border: "none",
-          borderRadius: 18,
-          padding: collapsed ? "12px 0" : "11px 12px",
-          background: `linear-gradient(135deg, ${systemTheme.accent}, #111827)`,
-          color: "white",
-          fontWeight: 950,
-          letterSpacing: 1,
-          cursor: "pointer",
-          boxShadow: `0 8px 24px ${systemTheme.accent}55`,
-          marginBottom: 12,
-          textShadow: "0 2px 5px rgba(0,0,0,.55)",
-        }}>
-          {collapsed ? "🎮" : `🎮 ${systemTheme.label} Side Quest`}
-        </button>
+      <button onClick={() => setCollapsed(c => !c)} style={{
+        width: "100%",
+        border: "none",
+        borderRadius: 16,
+        padding: collapsed ? "12px 0" : "10px 12px",
+        background: "linear-gradient(135deg, #ef4444, #f97316)",
+        color: "white",
+        fontWeight: 900,
+        letterSpacing: 1,
+        cursor: "pointer",
+        boxShadow: "0 8px 22px rgba(239,68,68,.35)",
+        marginBottom: 12
+      }}>
+        {collapsed ? "🎮" : "🎮 Pokémon Side Quest"}
+      </button>
 
-        {!collapsed && (
-          <>
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr",
-              gap: 8,
-              marginBottom: 12,
-            }}>
-              {Object.entries(POKEMON_SYSTEMS).map(([systemId, system]) => (
-                <button key={systemId} onClick={() => chooseSystem(systemId)} style={{
-                  border: selectedSystem === systemId ? `2px solid ${system.accent}` : "1px solid rgba(255,255,255,.22)",
-                  background: selectedSystem === systemId ? `linear-gradient(135deg, ${system.accent}, rgba(15,23,42,.92))` : "rgba(15,23,42,.74)",
-                  color: "#fff",
-                  borderRadius: 14,
-                  padding: "9px 6px",
-                  cursor: "pointer",
-                  fontSize: 12,
-                  fontWeight: 950,
-                  boxShadow: selectedSystem === systemId ? `0 0 18px ${system.accent}66` : "none",
-                }}>
-                  {system.shortLabel}
-                </button>
-              ))}
-            </div>
-
-            <div style={{
-              borderRadius: 24,
-              background: "linear-gradient(180deg, rgba(15,23,42,.94), rgba(2,6,23,.96))",
-              padding: 12,
-              border: `2px solid ${systemTheme.accent}88`,
-              boxShadow: `inset 0 0 30px rgba(0,0,0,.6), 0 0 28px ${systemTheme.accent}44`,
-              backdropFilter: "blur(6px)",
-            }}>
-              <div ref={playerRef} style={{
-                width: "100%",
-                aspectRatio: "4 / 3",
-                minHeight: 245,
-                borderRadius: 16,
-                overflow: "hidden",
-                background: "#020617",
-                border: "5px solid #020617",
-                boxShadow: "0 10px 28px rgba(0,0,0,.65)"
-              }} />
-            </div>
-
-            <div style={{
-              marginTop: 12,
-              borderRadius: 18,
+      {!collapsed && (
+        <>
+          <div style={{
+            borderRadius: 22,
+            background: "linear-gradient(180deg, rgba(51,65,85,.92), rgba(15,23,42,.96))",
+            padding: 12,
+            border: "2px solid rgba(248,250,252,.38)",
+            boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)"
+          }}>
+            <div ref={playerRef} style={{
+              width: "100%",
+              aspectRatio: "4 / 3",
+              minHeight: 245,
+              borderRadius: 14,
               overflow: "hidden",
-              border: `2px solid ${systemTheme.accent}99`,
-              background: "rgba(2,6,23,.88)",
-              boxShadow: `0 12px 28px rgba(0,0,0,.46), 0 0 18px ${systemTheme.accent}44`,
-            }}>
-              <img
-                src={`${process.env.PUBLIC_URL}/rom-images/${activeGame.image}`}
-                alt={`${activeGame.label} ${activeGame.year}`}
-                style={{
-                  width: "100%",
-                  height: 112,
-                  objectFit: "cover",
-                  display: "block",
-                }}
-              />
-              <div style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 10,
-                padding: "10px 12px",
+              background: "#020617",
+              border: "4px solid #0f172a"
+            }} />
+          </div>
+
+          <div style={{
+            marginTop: 12,
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 8
+          }}>
+            {["GB", "GBC", "GBA"].map(system => (
+              <button key={system} onClick={() => handleSystemChange(system)} style={{
+                border: activeSystem === system ? "2px solid #facc15" : "1px solid rgba(255,255,255,.22)",
+                borderRadius: 12,
+                padding: "9px 6px",
+                background: activeSystem === system ? "rgba(250,204,21,.2)" : "rgba(15,23,42,.82)",
+                color: "#f8fafc",
+                fontWeight: 900,
+                cursor: "pointer",
+                boxShadow: activeSystem === system ? "0 0 16px rgba(250,204,21,.22)" : "none"
               }}>
-                <div style={{
-                  color: "#ffffff",
-                  fontWeight: 950,
-                  fontSize: 14,
-                  letterSpacing: .4,
-                  textShadow: "0 2px 6px rgba(0,0,0,.9)",
-                }}>
-                  Pokémon {activeGame.label}
-                </div>
-                <div style={{
-                  color: "#111827",
-                  background: systemTheme.accent,
-                  borderRadius: 999,
-                  padding: "5px 10px",
-                  fontWeight: 950,
-                  fontSize: 12,
-                  whiteSpace: "nowrap",
-                  boxShadow: `0 0 14px ${systemTheme.accent}77`,
-                }}>
-                  {activeGame.year}
-                </div>
+                {system}
+              </button>
+            ))}
+          </div>
+
+          <select value={activeGame.file} onChange={e => handleGameChange(e.target.value)} style={{
+            width: "100%",
+            marginTop: 10,
+            padding: "12px 14px",
+            borderRadius: 14,
+            border: "1px solid rgba(255,255,255,.22)",
+            background: "rgba(15,23,42,.94)",
+            color: "#f8fafc",
+            fontWeight: 800,
+            outline: "none"
+          }}>
+            {systemGames.map(game => (
+              <option key={game.file} value={game.file}>{game.label} — {game.year}</option>
+            ))}
+          </select>
+
+          <div style={{
+            marginTop: 12,
+            display: "grid",
+            gridTemplateColumns: "92px 1fr",
+            gap: 12,
+            alignItems: "center",
+            padding: 10,
+            borderRadius: 16,
+            background: "rgba(15,23,42,.88)",
+            border: "1px solid rgba(255,255,255,.14)"
+          }}>
+            <img
+              src={coverSrc}
+              alt={`${activeGame.label} ${showBackCover ? "back" : "front"} cover`}
+              onError={(event) => {
+                if (coverExt === "jpg") setCoverExt("avif");
+                else if (coverExt === "avif") setCoverExt("png");
+                else event.currentTarget.style.display = "none";
+              }}
+              style={{
+                width: 92,
+                height: 126,
+                objectFit: "cover",
+                borderRadius: 10,
+                border: "2px solid rgba(255,255,255,.25)",
+                background: "rgba(255,255,255,.08)"
+              }}
+            />
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 900, lineHeight: 1.25, color: "#fff" }}>{activeGame.label}</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#cbd5e1", marginTop: 4 }}>{activeGame.system} • {activeGame.year}</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+                <button onClick={() => setShowBackCover(false)} style={{
+                  border: "none", borderRadius: 999, padding: "7px 10px", cursor: "pointer",
+                  background: !showBackCover ? "#22c55e" : "rgba(255,255,255,.14)", color: !showBackCover ? "#052e16" : "#fff", fontWeight: 900
+                }}>Front</button>
+                <button onClick={() => setShowBackCover(true)} style={{
+                  border: "none", borderRadius: 999, padding: "7px 10px", cursor: "pointer",
+                  background: showBackCover ? "#a855f7" : "rgba(255,255,255,.14)", color: showBackCover ? "#fff" : "#fff", fontWeight: 900
+                }}>Back</button>
+                <a href={manualSrc} target="_blank" rel="noreferrer" style={{
+                  borderRadius: 999, padding: "7px 10px", textDecoration: "none", background: "rgba(59,130,246,.9)", color: "#fff", fontWeight: 900, fontSize: 13
+                }}>Manual</a>
               </div>
             </div>
+          </div>
 
-            <GameImageDropdown
-              games={gamesForSystem}
-              activeGame={activeGame}
-              onSelect={setActiveGame}
-              systemTheme={systemTheme}
-            />
-
-            <div style={{
-              marginTop: 12,
-              padding: 12,
-              borderRadius: 14,
-              background: "rgba(2,6,23,.78)",
-              border: "1px solid rgba(255,255,255,.16)",
-              color: "#e5e7eb",
-              fontSize: 12,
-              lineHeight: 1.45,
-              fontWeight: 800,
-              textShadow: "0 2px 4px rgba(0,0,0,.9)",
-            }}>
-              Pick GB, GBC, or GBA. The trim background changes to match the selected system.
-            </div>
-          </>
-        )}
-      </div>
+          <div style={{
+            marginTop: 12,
+            padding: 12,
+            borderRadius: 14,
+            background: "rgba(15,23,42,.88)",
+            color: "#cbd5e1",
+            fontSize: 12,
+            lineHeight: 1.45,
+            fontWeight: 700
+          }}>
+            Cover folders must match the full ROM name without the file extension. Example: <br />
+            <span style={{ color: "#fff" }}>/rom-images/{activeGame.label}/front.jpg</span>
+          </div>
+        </>
+      )}
     </aside>
   );
 }
@@ -712,7 +576,7 @@ function ProjectDropdown({ projects, activeId, onSelect, onManage }) {
           </div>
         </div>
       )}
-      </div>
+    </div>
   );
 }
 

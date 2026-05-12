@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { MUSIC_LIBRARY } from "./musicLibraryData";
+import { FATTYS_LIVE_TV } from "./fattysLiveTvData";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const FULL_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -701,7 +702,6 @@ function MusicLibrarySidebar({ accentColor }) {
   const [selectedCustomTvId, setSelectedCustomTvId] = useState(null);
   const [customTvUrl, setCustomTvUrl] = useState("");
   const [openMusicSections, setOpenMusicSections] = useState({ videos: false, music: false });
-  const customTvFileRef = useRef(null);
 
   const filteredLibrary = MUSIC_LIBRARY.filter(item => {
     const query = musicSearch.trim().toLowerCase();
@@ -803,55 +803,10 @@ function MusicLibrarySidebar({ accentColor }) {
     setCustomTvUrl("");
   };
 
-  const handleCustomTvFile = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const lowerName = file.name.toLowerCase();
-
-    if (lowerName.endsWith(".mp4") || file.type.startsWith("video/")) {
-      addCustomTvItem({
-        id: `custom_tv_${Date.now()}`,
-        title: file.name,
-        src: URL.createObjectURL(file)
-      });
-      event.target.value = "";
-      return;
-    }
-
-    if (lowerName.endsWith(".m3u") || lowerName.endsWith(".m3u8")) {
-      const reader = new FileReader();
-      reader.onload = (readerEvent) => {
-        const lines = String(readerEvent.target.result || "")
-          .split(/\r?\n/)
-          .map(line => line.trim())
-          .filter(Boolean);
-        const streams = [];
-        let pendingTitle = "";
-        lines.forEach(line => {
-          if (line.startsWith("#EXTINF")) {
-            pendingTitle = line.split(",").pop()?.trim() || "";
-          } else if (!line.startsWith("#")) {
-            streams.push({
-              id: `custom_tv_${Date.now()}_${streams.length}`,
-              title: pendingTitle || line.split("/").pop() || `Stream ${streams.length + 1}`,
-              src: line
-            });
-            pendingTitle = "";
-          }
-        });
-        if (streams.length > 0) {
-          setCustomTvItems(prev => [...streams, ...prev]);
-          setSelectedCustomTvId(streams[0].id);
-        }
-      };
-      reader.readAsText(file);
-    }
-    event.target.value = "";
-  };
-
+  const allCustomTvItems = [...customTvItems, ...FATTYS_LIVE_TV];
   const selectedCustomTvItem =
-    customTvItems.find(item => item.id === selectedCustomTvId) ||
-    customTvItems[0] ||
+    allCustomTvItems.find(item => item.id === selectedCustomTvId) ||
+    allCustomTvItems[0] ||
     null;
 
   return (
@@ -1058,29 +1013,6 @@ function MusicLibrarySidebar({ accentColor }) {
             </div>
             {activeLiveTvOption.custom && (
               <>
-                <input
-                  ref={customTvFileRef}
-                  type="file"
-                  accept=".mp4,.m3u,.m3u8,video/*"
-                  onChange={handleCustomTvFile}
-                  style={{ display: "none" }}
-                />
-                <button onClick={() => customTvFileRef.current?.click()} style={{
-                  width: "100%",
-                  border: "none",
-                  background: `linear-gradient(135deg, ${accentColor}, #38bdf8)`,
-                  color: "#06111f",
-                  borderRadius: 14,
-                  padding: "12px 14px",
-                  cursor: "pointer",
-                  fontSize: 13,
-                  fontWeight: 1000,
-                  textTransform: "uppercase",
-                  letterSpacing: .7,
-                  boxShadow: `0 8px 24px ${accentColor}44`
-                }}>
-                  Add MP4 / M3U
-                </button>
                 <div style={{ display: "flex", width: "100%", gap: 8 }}>
                   <input
                     value={customTvUrl}
@@ -1138,12 +1070,12 @@ function MusicLibrarySidebar({ accentColor }) {
                     padding: "16px 12px",
                     boxSizing: "border-box"
                   }}>
-                    Add an MP4, M3U playlist, M3U8 stream, or direct video URL.
+                    Add built-in items in src/fattysLiveTvData.js or paste a direct video URL above.
                   </div>
                 )}
-                {customTvItems.length > 0 && (
+                {allCustomTvItems.length > 0 && (
                   <div style={{ width: "100%", maxHeight: 150, overflowY: "auto" }}>
-                    {customTvItems.map(item => (
+                    {allCustomTvItems.map(item => (
                       <button key={item.id} onClick={() => setSelectedCustomTvId(item.id)} style={{
                         width: "100%",
                         border: selectedCustomTvItem?.id === item.id ? `2px solid ${accentColor}` : "1px solid rgba(148,163,184,.18)",

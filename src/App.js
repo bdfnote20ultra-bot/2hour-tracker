@@ -280,22 +280,153 @@ const POKEMON_SYSTEMS = {
 };
 
 const POKEMON_ROMS = [
-  { label: "Red", system: "gb", file: "Pokemon - Red Version (USA, Europe) (SGB Enhanced).gb" },
-  { label: "Blue", system: "gb", file: "Pokemon - Blue Version (USA, Europe) (SGB Enhanced).gb" },
-  { label: "Yellow", system: "gb", file: "Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).gb" },
-  { label: "Gold", system: "gbc", file: "Pokemon - Gold Version (USA, Europe) (SGB Enhanced) (GB Compatible).gbc" },
-  { label: "Silver", system: "gbc", file: "Pokemon - Silver Version (USA, Europe) (SGB Enhanced) (GB Compatible).gbc" },
-  { label: "Crystal", system: "gbc", file: "Pokemon - Crystal Version (USA, Europe) (Rev 1).gbc" },
-  { label: "TCG", system: "gbc", file: "Pokemon Trading Card Game (USA, Australia) (SGB Enhanced) (GB Compatible).gbc" },
-  { label: "Puzzle", system: "gbc", file: "Pokemon Puzzle Challenge (USA, Australia).gbc" },
-  { label: "FireRed", system: "gba", file: "Pokemon - FireRed Version (USA, Europe) (Rev 1).gba" },
-  { label: "LeafGreen", system: "gba", file: "Pokemon - LeafGreen Version (USA, Europe) (Rev 1).gba" },
-  { label: "Emerald", system: "gba", file: "Pokemon - Emerald Version (USA, Europe).gba" },
-  { label: "Ruby", system: "gba", file: "Pokemon - Ruby Version (USA, Europe) (Rev 2).gba" },
-  { label: "Sapphire", system: "gba", file: "Pokemon - Sapphire Version (USA, Europe) (Rev 2).gba" },
-  { label: "Pinball", system: "gba", file: "Pokemon Pinball - Ruby & Sapphire (USA).gba" },
-  { label: "Red Rescue", system: "gba", file: "Pokemon Mystery Dungeon - Red Rescue Team (USA, Australia).gba" },
+  { label: "Red", system: "gb", year: 1998, image: "pokemon-red-card.png", file: "Pokemon - Red Version (USA, Europe) (SGB Enhanced).gb" },
+  { label: "Blue", system: "gb", year: 1998, image: "pokemon-blue-card.png", file: "Pokemon - Blue Version (USA, Europe) (SGB Enhanced).gb" },
+  { label: "Yellow", system: "gb", year: 1999, image: "pokemon-yellow-card.png", file: "Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).gb" },
+  { label: "Gold", system: "gbc", year: 2000, image: "pokemon-gold-card.png", file: "Pokemon - Gold Version (USA, Europe) (SGB Enhanced) (GB Compatible).gbc" },
+  { label: "Silver", system: "gbc", year: 2000, image: "pokemon-silver-card.png", file: "Pokemon - Silver Version (USA, Europe) (SGB Enhanced) (GB Compatible).gbc" },
+  { label: "Crystal", system: "gbc", year: 2001, image: "pokemon-crystal-card.png", file: "Pokemon - Crystal Version (USA, Europe) (Rev 1).gbc" },
+  { label: "TCG", system: "gbc", year: 2000, image: "pokemon-tcg-card.png", file: "Pokemon Trading Card Game (USA, Australia) (SGB Enhanced) (GB Compatible).gbc" },
+  { label: "Puzzle", system: "gbc", year: 2000, image: "pokemon-puzzle-card.png", file: "Pokemon Puzzle Challenge (USA, Australia).gbc" },
+  { label: "FireRed", system: "gba", year: 2004, image: "pokemon-firered-card.png", file: "Pokemon - FireRed Version (USA, Europe) (Rev 1).gba" },
+  { label: "LeafGreen", system: "gba", year: 2004, image: "pokemon-leafgreen-card.png", file: "Pokemon - LeafGreen Version (USA, Europe) (Rev 1).gba" },
+  { label: "Emerald", system: "gba", year: 2005, image: "pokemon-emerald-card.png", file: "Pokemon - Emerald Version (USA, Europe).gba" },
+  { label: "Ruby", system: "gba", year: 2003, image: "pokemon-ruby-card.png", file: "Pokemon - Ruby Version (USA, Europe) (Rev 2).gba" },
+  { label: "Sapphire", system: "gba", year: 2003, image: "pokemon-sapphire-card.png", file: "Pokemon - Sapphire Version (USA, Europe) (Rev 2).gba" },
+  { label: "Pinball", system: "gba", year: 2003, image: "pokemon-pinball-card.png", file: "Pokemon Pinball - Ruby & Sapphire (USA).gba" },
+  { label: "Red Rescue", system: "gba", year: 2006, image: "pokemon-red-rescue-card.png", file: "Pokemon Mystery Dungeon - Red Rescue Team (USA, Australia).gba" },
 ];
+
+
+function GameImageDropdown({ games, activeGame, onSelect, systemTheme }) {
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={dropdownRef} style={{ position: "relative", marginTop: 12, zIndex: 8 }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          padding: 10,
+          borderRadius: 16,
+          border: `2px solid ${systemTheme.accent}99`,
+          background: "rgba(2,6,23,.94)",
+          color: "#f8fafc",
+          cursor: "pointer",
+          boxShadow: `0 8px 24px rgba(0,0,0,.42), 0 0 16px ${systemTheme.accent}44`,
+        }}
+      >
+        <img
+          src={`${process.env.PUBLIC_URL}/rom-images/${activeGame.image}`}
+          alt=""
+          style={{
+            width: 58,
+            height: 42,
+            objectFit: "cover",
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,.24)",
+            flexShrink: 0,
+          }}
+        />
+        <div style={{ flex: 1, textAlign: "left", minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 950, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            Pokémon {activeGame.label}
+          </div>
+          <div style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 850, marginTop: 2 }}>
+            {activeGame.year} • {systemTheme.shortLabel}
+          </div>
+        </div>
+        <span style={{
+          color: "#111827",
+          background: systemTheme.accent,
+          borderRadius: 999,
+          padding: "5px 9px",
+          fontWeight: 950,
+          fontSize: 12,
+          flexShrink: 0,
+        }}>
+          {open ? "▲" : "▼"}
+        </span>
+      </button>
+
+      {open && (
+        <div style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          top: "calc(100% + 8px)",
+          maxHeight: 300,
+          overflowY: "auto",
+          borderRadius: 18,
+          border: `2px solid ${systemTheme.accent}99`,
+          background: "rgba(2,6,23,.98)",
+          boxShadow: "0 18px 42px rgba(0,0,0,.70)",
+          padding: 8,
+        }}>
+          {games.map(game => {
+            const selected = game.file === activeGame.file;
+            return (
+              <button
+                key={game.file}
+                onClick={() => { onSelect(game); setOpen(false); }}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: 8,
+                  marginBottom: 6,
+                  borderRadius: 14,
+                  border: selected ? `2px solid ${systemTheme.accent}` : "1px solid rgba(255,255,255,.12)",
+                  background: selected ? `linear-gradient(135deg, ${systemTheme.accent}55, rgba(15,23,42,.96))` : "rgba(15,23,42,.78)",
+                  color: "#fff",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  boxShadow: selected ? `0 0 14px ${systemTheme.accent}44` : "none",
+                }}
+              >
+                <img
+                  src={`${process.env.PUBLIC_URL}/rom-images/${game.image}`}
+                  alt=""
+                  style={{
+                    width: 60,
+                    height: 44,
+                    objectFit: "cover",
+                    borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,.22)",
+                    flexShrink: 0,
+                  }}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 950, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    Pokémon {game.label}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 850, marginTop: 2 }}>
+                    {game.year}
+                  </div>
+                </div>
+                {selected && <span style={{ color: systemTheme.accent, fontWeight: 950 }}>✓</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 function PokemonSidebar() {
   const [selectedSystem, setSelectedSystem] = useState("gb");
@@ -436,23 +567,61 @@ function PokemonSidebar() {
               }} />
             </div>
 
-            <select value={activeGame.file} onChange={e => {
-              const next = gamesForSystem.find(g => g.file === e.target.value) || gamesForSystem[0] || POKEMON_ROMS[0];
-              setActiveGame(next);
-            }} style={{
-              width: "100%",
+            <div style={{
               marginTop: 12,
-              padding: "12px 14px",
-              borderRadius: 14,
-              border: `2px solid ${systemTheme.accent}88`,
-              background: "rgba(2,6,23,.92)",
-              color: "#f8fafc",
-              fontWeight: 900,
-              outline: "none",
-              boxShadow: "0 8px 22px rgba(0,0,0,.35)",
+              borderRadius: 18,
+              overflow: "hidden",
+              border: `2px solid ${systemTheme.accent}99`,
+              background: "rgba(2,6,23,.88)",
+              boxShadow: `0 12px 28px rgba(0,0,0,.46), 0 0 18px ${systemTheme.accent}44`,
             }}>
-              {gamesForSystem.map(game => <option key={game.file} value={game.file}>{game.label}</option>)}
-            </select>
+              <img
+                src={`${process.env.PUBLIC_URL}/rom-images/${activeGame.image}`}
+                alt={`${activeGame.label} ${activeGame.year}`}
+                style={{
+                  width: "100%",
+                  height: 112,
+                  objectFit: "cover",
+                  display: "block",
+                }}
+              />
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                padding: "10px 12px",
+              }}>
+                <div style={{
+                  color: "#ffffff",
+                  fontWeight: 950,
+                  fontSize: 14,
+                  letterSpacing: .4,
+                  textShadow: "0 2px 6px rgba(0,0,0,.9)",
+                }}>
+                  Pokémon {activeGame.label}
+                </div>
+                <div style={{
+                  color: "#111827",
+                  background: systemTheme.accent,
+                  borderRadius: 999,
+                  padding: "5px 10px",
+                  fontWeight: 950,
+                  fontSize: 12,
+                  whiteSpace: "nowrap",
+                  boxShadow: `0 0 14px ${systemTheme.accent}77`,
+                }}>
+                  {activeGame.year}
+                </div>
+              </div>
+            </div>
+
+            <GameImageDropdown
+              games={gamesForSystem}
+              activeGame={activeGame}
+              onSelect={setActiveGame}
+              systemTheme={systemTheme}
+            />
 
             <div style={{
               marginTop: 12,

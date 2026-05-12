@@ -285,19 +285,76 @@ function pokemonAssetPath(game, fileName) {
   return `${process.env.PUBLIC_URL}/rom-images/${encodeURIComponent(game.label)}/${fileName}`;
 }
 
+function PokemonCoverImage({ game, side, onZoom }) {
+  const extensions = ["avif", "jpg", "jpeg", "png", "webp"];
+  const [index, setIndex] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setIndex(0);
+    setFailed(false);
+  }, [game.label, side]);
+
+  const src = pokemonAssetPath(game, `${side}.${extensions[index]}`);
+  const title = `${game.label} ${side === "back" ? "Back" : "Front"} Cover`;
+
+  if (failed) {
+    return (
+      <button
+        type="button"
+        disabled
+        style={{
+          width: 92,
+          height: 126,
+          borderRadius: 10,
+          border: "2px dashed rgba(255,255,255,.28)",
+          background: "rgba(255,255,255,.08)",
+          color: "#cbd5e1",
+          fontSize: 11,
+          fontWeight: 900,
+          padding: 8,
+          textAlign: "center"
+        }}
+      >
+        No {side} cover found
+      </button>
+    );
+  }
+
+  return (
+    <img
+      key={`${game.label}-${side}-${index}`}
+      onClick={() => onZoom({ src, title })}
+      src={src}
+      alt={title}
+      onError={() => {
+        if (index < extensions.length - 1) setIndex(i => i + 1);
+        else setFailed(true);
+      }}
+      style={{
+        width: 92,
+        height: 126,
+        objectFit: "cover",
+        borderRadius: 10,
+        border: "2px solid rgba(255,255,255,.25)",
+        background: "rgba(255,255,255,.08)",
+        cursor: "zoom-in",
+        boxShadow: "0 8px 22px rgba(0,0,0,.35)"
+      }}
+    />
+  );
+}
+
 function PokemonSidebar() {
   const [activeSystem, setActiveSystem] = useState("GB");
   const [activeGame, setActiveGame] = useState(POKEMON_ROMS.find(g => g.system === "GB") || POKEMON_ROMS[0]);
   const [collapsed, setCollapsed] = useState(false);
   const [showBackCover, setShowBackCover] = useState(false);
   const [zoomedCover, setZoomedCover] = useState(null);
-  const [coverExt, setCoverExt] = useState("jpg");
   const playerRef = useRef(null);
 
   const systemGames = POKEMON_ROMS.filter(game => game.system === activeSystem);
   const backgroundImage = SYSTEM_BACKGROUNDS[activeSystem] || SYSTEM_BACKGROUNDS.GB;
-  const coverFile = showBackCover ? `back.${coverExt}` : `front.${coverExt}`;
-  const coverSrc = pokemonAssetPath(activeGame, coverFile);
   const manualSrc = pokemonAssetPath(activeGame, "manual.pdf");
 
   const handleSystemChange = (nextSystem) => {
@@ -305,14 +362,12 @@ function PokemonSidebar() {
     setActiveSystem(nextSystem);
     setActiveGame(firstGame);
     setShowBackCover(false);
-    setCoverExt("jpg");
   };
 
   const handleGameChange = (gameFile) => {
     const next = POKEMON_ROMS.find(g => g.file === gameFile) || systemGames[0] || POKEMON_ROMS[0];
     setActiveGame(next);
     setShowBackCover(false);
-    setCoverExt("jpg");
   };
 
   useEffect(() => {
@@ -454,25 +509,10 @@ function PokemonSidebar() {
             background: "rgba(15,23,42,.88)",
             border: "1px solid rgba(255,255,255,.14)"
           }}>
-            <img
-              onClick={() => setZoomedCover({ src: coverSrc, title: `${activeGame.label} ${showBackCover ? "Back" : "Front"} Cover` })}
-              src={coverSrc}
-              alt={`${activeGame.label} ${showBackCover ? "back" : "front"} cover`}
-              onError={(event) => {
-                if (coverExt === "jpg") setCoverExt("avif");
-                else if (coverExt === "avif") setCoverExt("png");
-                else event.currentTarget.style.display = "none";
-              }}
-              style={{
-                width: 92,
-                height: 126,
-                objectFit: "cover",
-                borderRadius: 10,
-                border: "2px solid rgba(255,255,255,.25)",
-                background: "rgba(255,255,255,.08)",
-                cursor: "zoom-in",
-                boxShadow: "0 8px 22px rgba(0,0,0,.35)"
-              }}
+            <PokemonCoverImage
+              game={activeGame}
+              side={showBackCover ? "back" : "front"}
+              onZoom={setZoomedCover}
             />
             <div>
               <div style={{ fontSize: 12, fontWeight: 900, lineHeight: 1.25, color: "#fff" }}>{activeGame.label}</div>
@@ -567,7 +607,7 @@ function PokemonSidebar() {
             fontWeight: 700
           }}>
             Cover folders must match the full ROM name without the file extension. Example: <br />
-            <span style={{ color: "#fff" }}>/rom-images/{activeGame.label}/front.jpg</span>
+            <span style={{ color: "#fff" }}>/rom-images/{activeGame.label}/front.avif or front.jpg</span>
           </div>
         </>
       )}

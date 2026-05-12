@@ -1624,7 +1624,7 @@ export default function App() {
           <div style={{ marginTop: 16, background: theme.cardBg, borderRadius: 14, padding: 20, boxShadow: theme.shadow, border: `1px solid ${theme.line}`, ...glassStyle }}>
             <div style={{ fontSize: 12, color: theme.muted, textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui", marginBottom: 14 }}>Background Music - https://yt2mp3.gs/</div>
             <button
-              onClick={() => setInAppBrowserOpen(true)}
+              onClick={() => window.open("https://yt2mp3.gs/", "_blank", "noopener,noreferrer")}
               style={{
                 width: "100%",
                 padding: "15px",
@@ -1640,7 +1640,7 @@ export default function App() {
                 boxShadow: "0 8px 24px rgba(56,189,248,.25)"
               }}
             >
-              🌐 Open Google Browser
+              🌐 Open yt2mp3.gs
             </button>
             <input ref={audioFileRef} type="file" accept="audio/*" onChange={handleMusicFile} style={{ display: "none" }} />
             <button onClick={() => audioFileRef.current?.click()}

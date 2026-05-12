@@ -697,7 +697,11 @@ function MusicLibrarySidebar({ accentColor }) {
   const [mediaMenuOpen, setMediaMenuOpen] = useState(false);
   const [liveTvMenuOpen, setLiveTvMenuOpen] = useState(false);
   const [activeLiveTv, setActiveLiveTv] = useState("fuit");
+  const [customTvItems, setCustomTvItems] = useState([]);
+  const [selectedCustomTvId, setSelectedCustomTvId] = useState(null);
+  const [customTvUrl, setCustomTvUrl] = useState("");
   const [openMusicSections, setOpenMusicSections] = useState({ videos: false, music: false });
+  const customTvFileRef = useRef(null);
 
   const filteredLibrary = MUSIC_LIBRARY.filter(item => {
     const query = musicSearch.trim().toLowerCase();
@@ -740,7 +744,8 @@ function MusicLibrarySidebar({ accentColor }) {
     { id: "fuit", label: "Open Fuit LIVE TV", heading: "SPORTS + CABLE TV", url: "https://thetvapp.to/", embed: false },
     { id: "athf", label: "ADULT SWIM ZONE", heading: "ADULT SWIM ZONE", url: "https://www.adultswim.com/streams/aqua-teen-hunger-force", embed: true },
     { id: "youtube", label: "YOUTUBE", heading: "YOUTUBE", url: "https://www.youtube.com/", embed: false },
-    { id: "southpark", label: "SOUTH PARK WORLD", heading: "SOUTH PARK WORLD", url: "https://southpark.cc.com/seasons/south-park", embed: false }
+    { id: "southpark", label: "SOUTH PARK WORLD", heading: "SOUTH PARK WORLD", url: "https://southpark.cc.com/seasons/south-park", embed: false },
+    { id: "fattys", label: "FATTYS LIVE TV WORLD", heading: "FATTYS LIVE TV WORLD", custom: true }
   ];
   const activeLiveTvOption = liveTvOptions.find(option => option.id === activeLiveTv) || liveTvOptions[0];
 
@@ -772,6 +777,7 @@ function MusicLibrarySidebar({ accentColor }) {
   };
 
   const openExternalLink = (url) => {
+    if (!url) return;
     const link = document.createElement("a");
     link.href = url;
     link.target = "_blank";
@@ -780,6 +786,73 @@ function MusicLibrarySidebar({ accentColor }) {
     link.click();
     link.remove();
   };
+
+  const addCustomTvItem = (item) => {
+    setCustomTvItems(prev => [item, ...prev]);
+    setSelectedCustomTvId(item.id);
+  };
+
+  const addCustomTvUrl = () => {
+    const url = customTvUrl.trim();
+    if (!url) return;
+    addCustomTvItem({
+      id: `custom_tv_${Date.now()}`,
+      title: url.split("/").pop() || "Custom stream",
+      src: url
+    });
+    setCustomTvUrl("");
+  };
+
+  const handleCustomTvFile = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const lowerName = file.name.toLowerCase();
+
+    if (lowerName.endsWith(".mp4") || file.type.startsWith("video/")) {
+      addCustomTvItem({
+        id: `custom_tv_${Date.now()}`,
+        title: file.name,
+        src: URL.createObjectURL(file)
+      });
+      event.target.value = "";
+      return;
+    }
+
+    if (lowerName.endsWith(".m3u") || lowerName.endsWith(".m3u8")) {
+      const reader = new FileReader();
+      reader.onload = (readerEvent) => {
+        const lines = String(readerEvent.target.result || "")
+          .split(/\r?\n/)
+          .map(line => line.trim())
+          .filter(Boolean);
+        const streams = [];
+        let pendingTitle = "";
+        lines.forEach(line => {
+          if (line.startsWith("#EXTINF")) {
+            pendingTitle = line.split(",").pop()?.trim() || "";
+          } else if (!line.startsWith("#")) {
+            streams.push({
+              id: `custom_tv_${Date.now()}_${streams.length}`,
+              title: pendingTitle || line.split("/").pop() || `Stream ${streams.length + 1}`,
+              src: line
+            });
+            pendingTitle = "";
+          }
+        });
+        if (streams.length > 0) {
+          setCustomTvItems(prev => [...streams, ...prev]);
+          setSelectedCustomTvId(streams[0].id);
+        }
+      };
+      reader.readAsText(file);
+    }
+    event.target.value = "";
+  };
+
+  const selectedCustomTvItem =
+    customTvItems.find(item => item.id === selectedCustomTvId) ||
+    customTvItems[0] ||
+    null;
 
   return (
     <aside className="music-library-desktop-sidebar" style={{
@@ -891,6 +964,7 @@ function MusicLibrarySidebar({ accentColor }) {
             }}>
               Fuit LIVE TV
             </div>
+            {activeLiveTvOption.url && (
             <button onClick={() => openExternalLink(activeLiveTvOption.url)} style={{
               border: "1px solid rgba(148,163,184,.28)",
               background: "rgba(255,255,255,.08)",
@@ -903,6 +977,7 @@ function MusicLibrarySidebar({ accentColor }) {
             }}>
               New Tab
             </button>
+            )}
           </div>
           <div style={{
             flex: 1,
@@ -981,6 +1056,117 @@ function MusicLibrarySidebar({ accentColor }) {
                 </div>
               )}
             </div>
+            {activeLiveTvOption.custom && (
+              <>
+                <input
+                  ref={customTvFileRef}
+                  type="file"
+                  accept=".mp4,.m3u,.m3u8,video/*"
+                  onChange={handleCustomTvFile}
+                  style={{ display: "none" }}
+                />
+                <button onClick={() => customTvFileRef.current?.click()} style={{
+                  width: "100%",
+                  border: "none",
+                  background: `linear-gradient(135deg, ${accentColor}, #38bdf8)`,
+                  color: "#06111f",
+                  borderRadius: 14,
+                  padding: "12px 14px",
+                  cursor: "pointer",
+                  fontSize: 13,
+                  fontWeight: 1000,
+                  textTransform: "uppercase",
+                  letterSpacing: .7,
+                  boxShadow: `0 8px 24px ${accentColor}44`
+                }}>
+                  Add MP4 / M3U
+                </button>
+                <div style={{ display: "flex", width: "100%", gap: 8 }}>
+                  <input
+                    value={customTvUrl}
+                    onChange={event => setCustomTvUrl(event.target.value)}
+                    onKeyDown={event => { if (event.key === "Enter") addCustomTvUrl(); }}
+                    placeholder="Paste stream URL..."
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      borderRadius: 12,
+                      border: "1px solid rgba(148,163,184,.28)",
+                      background: "#020617",
+                      color: "#f8fafc",
+                      padding: "10px 11px",
+                      outline: "none",
+                      fontSize: 12,
+                      fontWeight: 800
+                    }}
+                  />
+                  <button onClick={addCustomTvUrl} style={{
+                    border: "none",
+                    borderRadius: 12,
+                    background: accentColor,
+                    color: "#06111f",
+                    cursor: "pointer",
+                    fontSize: 12,
+                    fontWeight: 1000,
+                    padding: "0 12px"
+                  }}>
+                    Add
+                  </button>
+                </div>
+                {selectedCustomTvItem ? (
+                  <video
+                    key={selectedCustomTvItem.id}
+                    src={selectedCustomTvItem.src}
+                    controls
+                    playsInline
+                    style={{
+                      width: "100%",
+                      maxHeight: 240,
+                      border: "1px solid rgba(148,163,184,.22)",
+                      borderRadius: 14,
+                      background: "#000"
+                    }}
+                  />
+                ) : (
+                  <div style={{
+                    width: "100%",
+                    border: "1px dashed rgba(148,163,184,.24)",
+                    borderRadius: 14,
+                    color: "#94a3b8",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    padding: "16px 12px",
+                    boxSizing: "border-box"
+                  }}>
+                    Add an MP4, M3U playlist, M3U8 stream, or direct video URL.
+                  </div>
+                )}
+                {customTvItems.length > 0 && (
+                  <div style={{ width: "100%", maxHeight: 150, overflowY: "auto" }}>
+                    {customTvItems.map(item => (
+                      <button key={item.id} onClick={() => setSelectedCustomTvId(item.id)} style={{
+                        width: "100%",
+                        border: selectedCustomTvItem?.id === item.id ? `2px solid ${accentColor}` : "1px solid rgba(148,163,184,.18)",
+                        background: selectedCustomTvItem?.id === item.id ? "rgba(255,255,255,.12)" : "rgba(15,23,42,.72)",
+                        color: "#f8fafc",
+                        borderRadius: 12,
+                        padding: 10,
+                        marginBottom: 8,
+                        cursor: "pointer",
+                        textAlign: "left",
+                        fontSize: 12,
+                        fontWeight: 900,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap"
+                      }}>
+                        {item.title}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
             {activeLiveTvOption.embed && (
               <iframe
                 title={activeLiveTvOption.label}
@@ -995,7 +1181,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 }}
               />
             )}
-            {!activeLiveTvOption.embed && (
+            {!activeLiveTvOption.embed && !activeLiveTvOption.custom && (
               <a
                 href={activeLiveTvOption.url}
                 target="_blank"

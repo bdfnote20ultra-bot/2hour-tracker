@@ -885,17 +885,40 @@ function MusicLibrarySidebar({ accentColor }) {
               New Tab
             </button>
           </div>
-          <iframe
-            title="Fuit LIVE TV"
-            src="https://thetvapp.to/"
-            style={{
-              flex: 1,
-              width: "100%",
-              minHeight: 0,
+          <div style={{
+            flex: 1,
+            padding: 18,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            textAlign: "center",
+            gap: 14
+          }}>
+            <div style={{
+              color: "#cbd5e1",
+              fontSize: 13,
+              fontWeight: 800,
+              lineHeight: 1.45
+            }}>
+              This TV site blocks built-in browser windows.
+            </div>
+            <button onClick={() => window.open("https://thetvapp.to/", "_blank", "noopener,noreferrer")} style={{
               border: "none",
-              background: "#020617"
-            }}
-          />
+              background: `linear-gradient(135deg, ${accentColor}, #38bdf8)`,
+              color: "#06111f",
+              borderRadius: 14,
+              padding: "12px 14px",
+              cursor: "pointer",
+              fontSize: 13,
+              fontWeight: 1000,
+              textTransform: "uppercase",
+              letterSpacing: .7,
+              boxShadow: `0 8px 24px ${accentColor}44`
+            }}>
+              Open Fuit LIVE TV
+            </button>
+          </div>
         </div>
       ) : (
         <>

@@ -693,6 +693,7 @@ function MusicLibrarySidebar({ accentColor }) {
   });
   const [commentText, setCommentText] = useState("");
   const [musicSearch, setMusicSearch] = useState("");
+  const [openMusicSections, setOpenMusicSections] = useState({ videos: false, music: false });
 
   const filteredLibrary = MUSIC_LIBRARY.filter(item => {
     const query = musicSearch.trim().toLowerCase();
@@ -748,6 +749,10 @@ function MusicLibrarySidebar({ accentColor }) {
       [selectedTrack.id]: [comment, ...(prev[selectedTrack.id] || [])]
     }));
     setCommentText("");
+  };
+
+  const toggleMusicSection = (section) => {
+    setOpenMusicSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
   return (
@@ -905,21 +910,44 @@ function MusicLibrarySidebar({ accentColor }) {
 
       <div style={{ flex: 1, overflowY: "auto", paddingRight: 4, marginBottom: 12 }}>
         {[
-          { label: "Videos", items: filteredVideos },
-          { label: "Music", items: filteredMusic }
+          { label: "Videos", key: "videos", items: filteredVideos },
+          { label: "Music", key: "music", items: filteredMusic }
         ].map(section => (
-          <div key={section.label} style={{ marginBottom: 14 }}>
-            <div style={{
-              fontSize: 12,
-              fontWeight: 1000,
-              color: "#cbd5e1",
-              textTransform: "uppercase",
-              letterSpacing: .9,
-              margin: "0 0 8px 2px"
+          <div key={section.label} style={{ marginBottom: 10 }}>
+            <button onClick={() => toggleMusicSection(section.key)} style={{
+              width: "100%",
+              border: "1px solid rgba(148,163,184,.24)",
+              background: "rgba(2,6,23,.86)",
+              color: "#f8fafc",
+              borderRadius: 14,
+              padding: "10px 12px",
+              marginBottom: openMusicSections[section.key] ? 8 : 0,
+              cursor: "pointer",
+              textAlign: "left",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10
             }}>
-              {section.label}
-            </div>
-            {section.items.length > 0 ? section.items.map(item => (
+              <span style={{
+                fontSize: 12,
+                fontWeight: 1000,
+                color: "#cbd5e1",
+                textTransform: "uppercase",
+                letterSpacing: .9
+              }}>
+                {section.label}
+              </span>
+              <span style={{
+                color: "#94a3b8",
+                fontSize: 12,
+                fontWeight: 900,
+                whiteSpace: "nowrap"
+              }}>
+                {section.items.length} {openMusicSections[section.key] ? "▲" : "▼"}
+              </span>
+            </button>
+            {openMusicSections[section.key] && (section.items.length > 0 ? section.items.map(item => (
               <button key={item.id} onClick={() => setSelectedId(item.id)} style={{
                 width: "100%",
                 border: selectedTrack?.id === item.id ? `2px solid ${accentColor}` : "1px solid rgba(148,163,184,.18)",
@@ -955,7 +983,7 @@ function MusicLibrarySidebar({ accentColor }) {
               }}>
                 No {section.label.toLowerCase()} found.
               </div>
-            )}
+            ))}
           </div>
         ))}
       </div>

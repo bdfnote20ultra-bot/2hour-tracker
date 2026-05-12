@@ -695,6 +695,8 @@ function MusicLibrarySidebar({ accentColor }) {
   const [musicSearch, setMusicSearch] = useState("");
   const [activeMediaMenu, setActiveMediaMenu] = useState("music");
   const [mediaMenuOpen, setMediaMenuOpen] = useState(false);
+  const [liveTvMenuOpen, setLiveTvMenuOpen] = useState(false);
+  const [activeLiveTv, setActiveLiveTv] = useState("fuit");
   const [openMusicSections, setOpenMusicSections] = useState({ videos: false, music: false });
 
   const filteredLibrary = MUSIC_LIBRARY.filter(item => {
@@ -734,6 +736,11 @@ function MusicLibrarySidebar({ accentColor }) {
   const filteredMusic = filteredLibrary.filter(item =>
     item.type === "audio" || (item.src || "").toLowerCase().endsWith(".mp3")
   );
+  const liveTvOptions = [
+    { id: "fuit", label: "Open Fuit LIVE TV", url: "https://thetvapp.to/", embed: false },
+    { id: "athf", label: "ATHF", url: "https://www.adultswim.com/streams/aqua-teen-hunger-force", embed: true }
+  ];
+  const activeLiveTvOption = liveTvOptions.find(option => option.id === activeLiveTv) || liveTvOptions[0];
 
   const rateTrack = (id, rating) => {
     setRatings(prev => ({ ...prev, [id]: rating }));
@@ -872,7 +879,7 @@ function MusicLibrarySidebar({ accentColor }) {
             }}>
               Fuit LIVE TV
             </div>
-            <button onClick={() => window.open("https://thetvapp.to/", "_blank", "noopener,noreferrer")} style={{
+            <button onClick={() => window.open(activeLiveTvOption.url, "_blank", "noopener,noreferrer")} style={{
               border: "1px solid rgba(148,163,184,.28)",
               background: "rgba(255,255,255,.08)",
               color: "#f8fafc",
@@ -903,21 +910,80 @@ function MusicLibrarySidebar({ accentColor }) {
             }}>
               Sports + CABLE TV
             </div>
-            <button onClick={() => window.open("https://thetvapp.to/", "_blank", "noopener,noreferrer")} style={{
-              border: "none",
-              background: `linear-gradient(135deg, ${accentColor}, #38bdf8)`,
-              color: "#06111f",
-              borderRadius: 14,
-              padding: "12px 14px",
-              cursor: "pointer",
-              fontSize: 13,
-              fontWeight: 1000,
-              textTransform: "uppercase",
-              letterSpacing: .7,
-              boxShadow: `0 8px 24px ${accentColor}44`
-            }}>
-              Open Fuit LIVE TV
-            </button>
+            <div style={{ position: "relative", width: "100%" }}>
+              <button onClick={() => setLiveTvMenuOpen(open => !open)} style={{
+                width: "100%",
+                border: "none",
+                background: `linear-gradient(135deg, ${accentColor}, #38bdf8)`,
+                color: "#06111f",
+                borderRadius: 14,
+                padding: "12px 14px",
+                cursor: "pointer",
+                fontSize: 13,
+                fontWeight: 1000,
+                textTransform: "uppercase",
+                letterSpacing: .7,
+                boxShadow: `0 8px 24px ${accentColor}44`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10
+              }}>
+                <span>{activeLiveTvOption.label}</span>
+                <span>{liveTvMenuOpen ? "▲" : "▼"}</span>
+              </button>
+              {liveTvMenuOpen && (
+                <div style={{
+                  position: "absolute",
+                  top: "calc(100% + 8px)",
+                  left: 0,
+                  right: 0,
+                  zIndex: 12,
+                  borderRadius: 14,
+                  overflow: "hidden",
+                  border: "1px solid rgba(148,163,184,.28)",
+                  background: "rgba(2,6,23,.98)",
+                  boxShadow: "0 16px 36px rgba(0,0,0,.45)"
+                }}>
+                  {liveTvOptions.map(option => (
+                    <button key={option.id} onClick={() => {
+                      setActiveLiveTv(option.id);
+                      setLiveTvMenuOpen(false);
+                      if (!option.embed) window.open(option.url, "_blank", "noopener,noreferrer");
+                    }} style={{
+                      width: "100%",
+                      border: "none",
+                      borderBottom: "1px solid rgba(148,163,184,.14)",
+                      background: activeLiveTv === option.id ? "rgba(255,255,255,.14)" : "transparent",
+                      color: "#f8fafc",
+                      padding: "12px 14px",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      fontSize: 13,
+                      fontWeight: 1000,
+                      textTransform: "uppercase",
+                      letterSpacing: .7
+                    }}>
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {activeLiveTvOption.embed && (
+              <iframe
+                title={activeLiveTvOption.label}
+                src={activeLiveTvOption.url}
+                style={{
+                  width: "100%",
+                  flex: 1,
+                  minHeight: 280,
+                  border: "1px solid rgba(148,163,184,.22)",
+                  borderRadius: 14,
+                  background: "#020617"
+                }}
+              />
+            )}
           </div>
         </div>
       ) : (

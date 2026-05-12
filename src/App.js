@@ -693,7 +693,9 @@ function MusicLibrarySidebar({ accentColor }) {
   });
   const [commentText, setCommentText] = useState("");
   const [musicSearch, setMusicSearch] = useState("");
-  const [openMusicSections, setOpenMusicSections] = useState({ liveTv: false, videos: false, music: false });
+  const [activeMediaMenu, setActiveMediaMenu] = useState("music");
+  const [mediaMenuOpen, setMediaMenuOpen] = useState(false);
+  const [openMusicSections, setOpenMusicSections] = useState({ videos: false, music: false });
 
   const filteredLibrary = MUSIC_LIBRARY.filter(item => {
     const query = musicSearch.trim().toLowerCase();
@@ -755,6 +757,11 @@ function MusicLibrarySidebar({ accentColor }) {
     setOpenMusicSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
+  const chooseMediaMenu = (menu) => {
+    setActiveMediaMenu(menu);
+    setMediaMenuOpen(false);
+  };
+
   return (
     <aside className="music-library-desktop-sidebar" style={{
       position: "fixed",
@@ -779,7 +786,86 @@ function MusicLibrarySidebar({ accentColor }) {
         .music-library-desktop-sidebar button:hover { transform: translateY(-1px); }
       `}</style>
 
-      <div style={{
+      <div style={{ position: "relative", marginBottom: 12 }}>
+        <button onClick={() => setMediaMenuOpen(open => !open)} style={{
+          width: "100%",
+          border: "none",
+          borderRadius: 18,
+          padding: "12px 14px",
+          background: `linear-gradient(135deg, ${accentColor}, #38bdf8)`,
+          color: "#06111f",
+          fontWeight: 1000,
+          letterSpacing: .8,
+          textTransform: "uppercase",
+          boxShadow: `0 8px 24px ${accentColor}55`,
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10
+        }}>
+          <span>{activeMediaMenu === "music" ? "Fuit Music" : "Fuit LIVE TV"}</span>
+          <span style={{ fontSize: 12, fontWeight: 1000 }}>{mediaMenuOpen ? "▲" : "▼"}</span>
+        </button>
+        {mediaMenuOpen && (
+          <div style={{
+            position: "absolute",
+            top: "calc(100% + 8px)",
+            left: 0,
+            right: 0,
+            zIndex: 10,
+            borderRadius: 16,
+            overflow: "hidden",
+            border: "1px solid rgba(148,163,184,.28)",
+            background: "rgba(2,6,23,.98)",
+            boxShadow: "0 16px 36px rgba(0,0,0,.45)"
+          }}>
+            {[
+              { label: "Fuit Music", value: "music" },
+              { label: "Fuit LIVE TV", value: "liveTv" }
+            ].map(option => (
+              <button key={option.value} onClick={() => chooseMediaMenu(option.value)} style={{
+                width: "100%",
+                border: "none",
+                borderBottom: "1px solid rgba(148,163,184,.14)",
+                background: activeMediaMenu === option.value ? "rgba(255,255,255,.14)" : "transparent",
+                color: "#f8fafc",
+                padding: "12px 14px",
+                cursor: "pointer",
+                textAlign: "left",
+                fontSize: 13,
+                fontWeight: 1000,
+                textTransform: "uppercase",
+                letterSpacing: .8
+              }}>
+                {option.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {activeMediaMenu === "liveTv" ? (
+        <div style={{
+          flex: 1,
+          border: "1px dashed rgba(148,163,184,.26)",
+          borderRadius: 16,
+          color: "#94a3b8",
+          fontSize: 13,
+          fontWeight: 800,
+          padding: 18,
+          lineHeight: 1.45,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          textAlign: "center"
+        }}>
+          No live TV channels added yet.
+        </div>
+      ) : (
+        <>
+
+      <div style={{ display: "none",
         borderRadius: 18,
         padding: "12px 14px",
         background: `linear-gradient(135deg, ${accentColor}, #38bdf8)`,
@@ -794,7 +880,7 @@ function MusicLibrarySidebar({ accentColor }) {
         🎧 Fuit Music
       </div>
 
-      <div style={{ marginBottom: 10 }}>
+      <div style={{ display: "none", marginBottom: 10 }}>
         <button onClick={() => toggleMusicSection("liveTv")} style={{
           width: "100%",
           border: "1px solid rgba(148,163,184,.24)",
@@ -1090,6 +1176,8 @@ function MusicLibrarySidebar({ accentColor }) {
             )}
           </div>
         </div>
+      )}
+        </>
       )}
     </aside>
   );

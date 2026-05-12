@@ -700,7 +700,30 @@ function MusicLibrarySidebar({ accentColor }) {
     try { localStorage.setItem("hoursTrackerStaticMusicComments_v1", JSON.stringify(comments)); } catch {}
   }, [comments]);
 
-  const selectedTrack = MUSIC_LIBRARY.find(item => item.id === selectedId) || MUSIC_LIBRARY[0] || null;
+  const genres = Array.from(new Set(MUSIC_LIBRARY.map(item => item.genre || "Other")));
+  const [activeGenre, setActiveGenre] = useState(genres[0] || "Other");
+
+  const filteredLibrary = MUSIC_LIBRARY.filter(item => {
+    const query = musicSearch.trim().toLowerCase();
+    const matchesGenre = (item.genre || "Other") === activeGenre;
+    const matchesSearch = !query ||
+      (item.title || "").toLowerCase().includes(query) ||
+      (item.artist || "").toLowerCase().includes(query) ||
+      (item.genre || "").toLowerCase().includes(query);
+    return matchesGenre && matchesSearch;
+  });
+
+  const selectedTrack =
+    MUSIC_LIBRARY.find(item => item.id === selectedId) ||
+    filteredLibrary[0] ||
+    MUSIC_LIBRARY[0] ||
+    null;
+
+  useEffect(() => {
+    if (!filteredLibrary.find(item => item.id === selectedId)) {
+      setSelectedId(filteredLibrary[0]?.id || MUSIC_LIBRARY[0]?.id || null);
+    }
+  }, [musicSearch, activeGenre]);
 
   const rateTrack = (id, rating) => {
     setRatings(prev => ({ ...prev, [id]: rating }));
@@ -757,6 +780,49 @@ function MusicLibrarySidebar({ accentColor }) {
         textAlign: "center"
       }}>
         🎧 Fuit Music
+      </div>
+
+      <input
+        value={musicSearch}
+        onChange={e => setMusicSearch(e.target.value)}
+        placeholder="Search songs..."
+        style={{
+          width: "100%",
+          borderRadius: 14,
+          border: "1px solid rgba(148,163,184,.28)",
+          background: "rgba(2,6,23,.82)",
+          color: "#f8fafc",
+          padding: "11px 12px",
+          outline: "none",
+          fontSize: 13,
+          fontWeight: 800,
+          marginBottom: 10,
+          boxSizing: "border-box"
+        }}
+      />
+
+      <div style={{
+        display: "flex",
+        gap: 8,
+        overflowX: "auto",
+        paddingBottom: 8,
+        marginBottom: 10
+      }}>
+        {genres.map(genre => (
+          <button key={genre} onClick={() => setActiveGenre(genre)} style={{
+            border: activeGenre === genre ? `2px solid ${accentColor}` : "1px solid rgba(148,163,184,.24)",
+            background: activeGenre === genre ? "rgba(255,255,255,.14)" : "rgba(15,23,42,.85)",
+            color: "#f8fafc",
+            borderRadius: 999,
+            padding: "8px 11px",
+            fontSize: 12,
+            fontWeight: 900,
+            whiteSpace: "nowrap",
+            cursor: "pointer"
+          }}>
+            {genre}
+          </button>
+        ))}
       </div>
 
       {selectedTrack ? (
@@ -828,7 +894,7 @@ function MusicLibrarySidebar({ accentColor }) {
       )}
 
       <div style={{ flex: 1, overflowY: "auto", paddingRight: 4, marginBottom: 12 }}>
-        {MUSIC_LIBRARY.map(item => (
+        {filteredLibrary.map(item => (
           <button key={item.id} onClick={() => setSelectedId(item.id)} style={{
             width: "100%",
             border: selectedTrack?.id === item.id ? `2px solid ${accentColor}` : "1px solid rgba(148,163,184,.18)",

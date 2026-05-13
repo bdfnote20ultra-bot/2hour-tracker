@@ -161,7 +161,7 @@ const MUSIC_SETTINGS_KEY = "hoursTrackerMusicSettings_v1";
 
 const THEMES = {
   midnight: {
-    id: "midnight", name: "Midnight", emoji: "ðŸŒ™",
+    id: "midnight", name: "Midnight", emoji: "Moon",
     appBg: "linear-gradient(180deg, #0F1117 0%, #1A1D29 100%)", headerBg: "rgba(12,14,20,0.96)", statsBg: "rgba(34,38,52,0.92)", cardBg: "rgba(255,255,255,0.08)", modalBg: "#151822", text: "#F7F5F2", headerText: "#F7F5F2", muted: "#9CA3AF", line: "rgba(255,255,255,0.12)", buttonBg: "#F7F5F2", buttonText: "#111827", shadow: "0 8px 30px rgba(0,0,0,0.25)", font: "Georgia, serif"
   },
   ice: {
@@ -169,7 +169,7 @@ const THEMES = {
     appBg: "linear-gradient(180deg, #EFF7FF 0%, #FFFFFF 100%)", headerBg: "#EAF4FF", statsBg: "rgba(255,255,255,0.9)", cardBg: "rgba(255,255,255,0.95)", modalBg: "#F7FBFF", text: "#172033", headerText: "#172033", muted: "#6B7280", line: "rgba(23,32,51,0.12)", buttonBg: "#172033", buttonText: "#FFFFFF", shadow: "0 8px 24px rgba(50,85,120,0.12)", font: "Georgia, serif"
   },
   construction: {
-    id: "construction", name: "Construction", emoji: "ðŸš§",
+    id: "construction", name: "Construction", emoji: "Work",
     appBg: "linear-gradient(180deg, #2A241D 0%, #403323 100%)", headerBg: "#1F1A14", statsBg: "#2E261B", cardBg: "#FFF4D6", modalBg: "#FFF4D6", text: "#251A0D", headerText: "#FFE4A3", muted: "#9B7A47", line: "rgba(255,196,84,0.35)", buttonBg: "#FFC145", buttonText: "#1F1A14", shadow: "0 8px 24px rgba(0,0,0,0.25)", font: "Georgia, serif"
   },
   cyber: {
@@ -177,7 +177,7 @@ const THEMES = {
     appBg: "radial-gradient(circle at top, #22234B 0%, #090A12 58%, #050509 100%)", headerBg: "rgba(5,5,12,0.96)", statsBg: "rgba(22,20,45,0.94)", cardBg: "rgba(15,16,35,0.92)", modalBg: "#0B0C1A", text: "#ECFEFF", headerText: "#ECFEFF", muted: "#8B9BB4", line: "rgba(103,232,249,0.2)", buttonBg: "#67E8F9", buttonText: "#060712", shadow: "0 0 28px rgba(103,232,249,0.12)", font: "Georgia, serif"
   },
   classic: {
-    id: "classic", name: "Classic", emoji: "ðŸ““",
+    id: "classic", name: "Classic", emoji: "Book",
     appBg: "#F7F5F2", headerBg: "#1C1C1E", statsBg: "#FFFFFF", cardBg: "#FFFFFF", modalBg: "#F7F5F2", text: "#1C1C1E", headerText: "#F7F5F2", muted: "#4B5563", line: "rgba(0,0,0,0.12)", buttonBg: "#1C1C1E", buttonText: "#F7F5F2", shadow: "0 2px 10px rgba(0,0,0,0.10)", font: "Georgia, serif"
   },
   oled: {
@@ -185,7 +185,7 @@ const THEMES = {
     appBg: "#000000", headerBg: "#000000", statsBg: "#0A0A0A", cardBg: "#111111", modalBg: "#050505", text: "#FFFFFF", headerText: "#FFFFFF", muted: "#8A8A8A", line: "rgba(255,255,255,0.12)", buttonBg: "#FFFFFF", buttonText: "#000000", shadow: "0 0 0 1px rgba(255,255,255,0.08)", font: "Georgia, serif"
   },
   custom: {
-    id: "custom", name: "Custom", emoji: "ðŸ–¼ï¸",
+    id: "custom", name: "Custom", emoji: "Image",
     appBg: "linear-gradient(180deg, #1C1C1E 0%, #34343A 100%)", headerBg: "rgba(20,20,22,0.82)", statsBg: "rgba(25,25,28,0.78)", cardBg: "rgba(255,255,255,0.16)", modalBg: "rgba(247,245,242,0.96)", text: "#F7F5F2", headerText: "#F7F5F2", muted: "#C7C7CC", line: "rgba(255,255,255,0.18)", buttonBg: "#F7F5F2", buttonText: "#1C1C1E", shadow: "0 10px 36px rgba(0,0,0,0.32)", font: "Georgia, serif"
   }
 };
@@ -454,7 +454,7 @@ function PokemonSidebar() {
         boxShadow: "0 8px 22px rgba(239,68,68,.35)",
         marginBottom: 12
       }}>
-        {collapsed ? "ðŸŽ®" : "ðŸŽ® PokÃ©mon Side Quest"}
+        {collapsed ? "Game" : "Game Pokemon Side Quest"}
       </button>
 
       {!collapsed && (
@@ -1335,7 +1335,7 @@ function MusicLibrarySidebar({ accentColor }) {
         marginBottom: 12,
         textAlign: "center"
       }}>
-        ðŸŽ§ Fuit Music
+        Fuit Music
       </div>
 
       <div style={{ display: "none", marginBottom: 10 }}>
@@ -2309,7 +2309,7 @@ export default function App() {
             <input ref={backgroundRef} type="file" accept="image/*" onChange={handleCustomBackground} style={{ display: "none" }} />
             <button onClick={() => backgroundRef.current?.click()}
               style={{ width: "100%", padding: "13px", background: theme.buttonBg, color: theme.buttonText, border: "none", borderRadius: 12, fontSize: 15, cursor: "pointer", fontFamily: "Georgia, serif", marginTop: 14 }}>
-              ðŸ–¼ï¸ Choose Custom Background
+              Image Choose Custom Background
             </button>
             {customBackground && (
               <button onClick={() => setCustomBackground("")}
@@ -2339,12 +2339,12 @@ export default function App() {
                 boxShadow: "0 8px 24px rgba(56,189,248,.25)"
               }}
             >
-              ðŸŒ Open Google Browser
+              Browser Open Google Browser
             </button>
             <input ref={audioFileRef} type="file" accept="audio/*" onChange={handleMusicFile} style={{ display: "none" }} />
             <button onClick={() => audioFileRef.current?.click()}
               style={{ width: "100%", padding: "13px", background: theme.buttonBg, color: theme.buttonText, border: "none", borderRadius: 12, fontSize: 15, cursor: "pointer", fontFamily: "Georgia, serif", marginBottom: 10, fontWeight: 900 }}>
-              ðŸŽµ Choose Music File
+              Music Choose Music File
             </button>
             {musicData && (
               <>
@@ -2637,7 +2637,7 @@ export default function App() {
                     <span style={{ fontSize: 12, color: "#888", fontFamily: "system-ui" }}>m</span>
                   </div>
                   <button onClick={() => setForm(f => ({ ...f, breaks: f.breaks.filter((_, i) => i !== idx) }))}
-                    style={{ background: "none", border: "none", color: "#e05555", cursor: "pointer", fontSize: 20, lineHeight: 1, padding: "0 4px" }}>Ã—</button>
+                    style={{ background: "none", border: "none", color: "#e05555", cursor: "pointer", fontSize: 20, lineHeight: 1, padding: "0 4px" }}>X</button>
                 </div>
               ))}
               <button onClick={() => setForm(f => ({ ...f, breaks: [...(f.breaks || []), { label: "", mins: "" }] }))}

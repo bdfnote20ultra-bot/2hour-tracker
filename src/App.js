@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { MUSIC_LIBRARY } from "./musicLibraryData";
 import { FATTYS_LIVE_TV, FUITS_LIVE_TV_PLAYLIST } from "./fattysLiveTvData";
 
@@ -683,9 +683,11 @@ function PokemonSidebar() {
 
 
 function MusicLibrarySidebar({ accentColor }) {
-  const genres = Array.from(new Set(MUSIC_LIBRARY.map(item => item.genre || "Other")));
+  const fuitsLiveTvChannelUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
+  const [musicLibrary, setMusicLibrary] = useState(MUSIC_LIBRARY);
+  const genres = useMemo(() => Array.from(new Set(musicLibrary.map(item => item.genre || "Other"))), [musicLibrary]);
   const [activeGenre, setActiveGenre] = useState(genres[0] || "Other");
-  const [selectedId, setSelectedId] = useState(MUSIC_LIBRARY[0]?.id || null);
+  const [selectedId, setSelectedId] = useState(musicLibrary[0]?.id || null);
   const [ratings, setRatings] = useState(() => {
     try { return JSON.parse(localStorage.getItem("hoursTrackerStaticMusicRatings_v1")) || {}; } catch { return {}; }
   });
@@ -706,7 +708,7 @@ function MusicLibrarySidebar({ accentColor }) {
   const jellyfinFrameRef = useRef(null);
   const adultSwimFrameRef = useRef(null);
 
-  const filteredLibrary = MUSIC_LIBRARY.filter(item => {
+  const filteredLibrary = useMemo(() => musicLibrary.filter(item => {
     const query = musicSearch.trim().toLowerCase();
     const matchesGenre = (item.genre || "Other") === activeGenre;
     const matchesSearch =
@@ -715,7 +717,7 @@ function MusicLibrarySidebar({ accentColor }) {
       (item.artist || "").toLowerCase().includes(query) ||
       (item.genre || "").toLowerCase().includes(query);
     return matchesGenre && matchesSearch;
-  });
+  }), [activeGenre, musicLibrary, musicSearch]);
 
   useEffect(() => {
     try { localStorage.setItem("hoursTrackerStaticMusicRatings_v1", JSON.stringify(ratings)); } catch {}
@@ -726,15 +728,36 @@ function MusicLibrarySidebar({ accentColor }) {
   }, [comments]);
 
   useEffect(() => {
-    if (!filteredLibrary.find(item => item.id === selectedId)) {
-      setSelectedId(filteredLibrary[0]?.id || MUSIC_LIBRARY[0]?.id || null);
+    let cancelled = false;
+    const loadMusicLibrary = async () => {
+      try {
+        const response = await fetch(`${fuitsLiveTvChannelUrl}/music-library.json`, { cache: "no-store" });
+        const items = await response.json();
+        if (!cancelled && Array.isArray(items) && items.length) {
+          setMusicLibrary(items);
+        }
+      } catch {}
+    };
+
+    loadMusicLibrary();
+  }, [fuitsLiveTvChannelUrl]);
+
+  useEffect(() => {
+    if (!genres.includes(activeGenre)) {
+      setActiveGenre(genres[0] || "Other");
     }
-  }, [activeGenre, musicSearch]);
+  }, [genres, activeGenre]);
+
+  useEffect(() => {
+    if (!filteredLibrary.find(item => item.id === selectedId)) {
+      setSelectedId(filteredLibrary[0]?.id || musicLibrary[0]?.id || null);
+    }
+  }, [activeGenre, musicSearch, musicLibrary, filteredLibrary, selectedId]);
 
   const selectedTrack =
-    MUSIC_LIBRARY.find(item => item.id === selectedId) ||
+    musicLibrary.find(item => item.id === selectedId) ||
     filteredLibrary[0] ||
-    MUSIC_LIBRARY[0] ||
+    musicLibrary[0] ||
     null;
 
   useEffect(() => {
@@ -831,7 +854,6 @@ function MusicLibrarySidebar({ accentColor }) {
     allCustomTvItems.find(item => item.id === selectedCustomTvId) ||
     allCustomTvItems[0] ||
     null;
-  const fuitsLiveTvChannelUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
 
   const openFrameFullscreen = (frame) => {
     if (!frame) return;

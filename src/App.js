@@ -1228,21 +1228,21 @@ function MusicLibrarySidebar({ accentColor }) {
                   allowFullScreen
                   style={{
                     width: "100%",
-                    flex: activeLiveTvOption.id === "jellyfin" ? "0 0 auto" : 1,
-                    height: activeLiveTvOption.id === "jellyfin" ? 330 : "auto",
-                    minHeight: activeLiveTvOption.id === "jellyfin" ? 330 : 280,
+                    flex: (activeLiveTvOption.id === "jellyfin" || activeLiveTvOption.id === "athf") ? "0 0 auto" : 1,
+                    height: activeLiveTvOption.id === "jellyfin" ? 330 : activeLiveTvOption.id === "athf" ? 330 : "auto",
+                    minHeight: activeLiveTvOption.id === "jellyfin" ? 330 : activeLiveTvOption.id === "athf" ? 330 : 280,
                     border: "1px solid rgba(148,163,184,.22)",
                     borderRadius: 14,
                     background: "#020617"
                   }}
                 />
-                {activeLiveTvOption.id === "jellyfin" && (
+                {(activeLiveTvOption.id === "jellyfin" || activeLiveTvOption.id === "athf") && (
                   <iframe
-                    title="FUIT Jellyfin Chat"
+                    title={`${activeLiveTvOption.label} Chat`}
                     src="https://location-delegation-system-manufactured.trycloudflare.com/chat-only"
                     style={{
                       width: "100%",
-                      height: 260,
+                      height: activeLiveTvOption.id === "jellyfin" ? 260 : 250,
                       border: "1px solid rgba(148,163,184,.22)",
                       borderRadius: 14,
                       background: "#020617"

@@ -765,7 +765,7 @@ function MusicLibrarySidebar({ accentColor }) {
     { id: "athf", label: "ADULT SWIM ZONE", heading: "ADULT SWIM ZONE", url: "https://www.adultswim.com/streams/aqua-teen-hunger-force", embed: true },
     { id: "youtube", label: "YOUTUBE", heading: "YOUTUBE", url: "https://www.youtube.com/", embed: false },
     { id: "southpark", label: "SOUTH PARK WORLD", heading: "SOUTH PARK WORLD", url: "https://southpark.cc.com/seasons/south-park", embed: false },
-    { id: "jellyfin", label: "FATTYS JELLYFIN", heading: "FATTYS JELLYFIN", url: "https://conversion-significantly-ver-outlets.trycloudflare.com/web/", embed: true },
+    { id: "jellyfin", label: "FUIT JELLYFIN", heading: "FUIT JELLYFIN", url: "https://conversion-significantly-ver-outlets.trycloudflare.com/web/", embed: true },
     { id: "fattys", label: "FUITS LIVE TV WORLD", heading: "FUITS LIVE TV WORLD", custom: true }
   ];
   const activeLiveTvOption = liveTvOptions.find(option => option.id === activeLiveTv) || liveTvOptions[0];
@@ -1171,20 +1171,38 @@ function MusicLibrarySidebar({ accentColor }) {
               </>
             )}
             {activeLiveTvOption.embed && (
-              <iframe
-                title={activeLiveTvOption.label}
-                src={activeLiveTvOption.url}
-                allow="fullscreen; autoplay; encrypted-media; picture-in-picture"
-                allowFullScreen
-                style={{
-                  width: "100%",
-                  flex: 1,
-                  minHeight: 280,
-                  border: "1px solid rgba(148,163,184,.22)",
-                  borderRadius: 14,
-                  background: "#020617"
-                }}
-              />
+              <>
+                {activeLiveTvOption.id === "jellyfin" && (
+                  <div style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    border: "1px solid rgba(148,163,184,.18)",
+                    borderRadius: 10,
+                    background: "rgba(15,23,42,.72)",
+                    color: "#cbd5e1",
+                    fontSize: 11,
+                    fontWeight: 900,
+                    padding: "6px 8px",
+                    lineHeight: 1.25
+                  }}>
+                    USER: fuitviewer | PASS: fuittocool
+                  </div>
+                )}
+                <iframe
+                  title={activeLiveTvOption.label}
+                  src={activeLiveTvOption.url}
+                  allow="fullscreen; autoplay; encrypted-media; picture-in-picture"
+                  allowFullScreen
+                  style={{
+                    width: "100%",
+                    flex: 1,
+                    minHeight: 280,
+                    border: "1px solid rgba(148,163,184,.22)",
+                    borderRadius: 14,
+                    background: "#020617"
+                  }}
+                />
+              </>
             )}
             {!activeLiveTvOption.embed && !activeLiveTvOption.custom && (
               <a

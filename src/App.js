@@ -1252,29 +1252,45 @@ function MusicLibrarySidebar({ accentColor }) {
               </>
             )}
             {!activeLiveTvOption.embed && !activeLiveTvOption.custom && (
-              <a
-                href={activeLiveTvOption.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  width: "100%",
-                  boxSizing: "border-box",
-                  border: "1px solid rgba(148,163,184,.28)",
-                  background: "rgba(255,255,255,.08)",
-                  color: "#f8fafc",
-                  borderRadius: 14,
-                  padding: "12px 14px",
-                  cursor: "pointer",
-                  fontSize: 12,
-                  fontWeight: 1000,
-                  textTransform: "uppercase",
-                  letterSpacing: .7,
-                  textDecoration: "none",
-                  textAlign: "center"
-                }}
-              >
-                Open In New Tab
-              </a>
+              <>
+                <a
+                  href={activeLiveTvOption.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    border: "1px solid rgba(148,163,184,.28)",
+                    background: "rgba(255,255,255,.08)",
+                    color: "#f8fafc",
+                    borderRadius: 14,
+                    padding: "12px 14px",
+                    cursor: "pointer",
+                    fontSize: 12,
+                    fontWeight: 1000,
+                    textTransform: "uppercase",
+                    letterSpacing: .7,
+                    textDecoration: "none",
+                    textAlign: "center"
+                  }}
+                >
+                  Open In New Tab
+                </a>
+                {activeLiveTvOption.id === "southpark" && (
+                  <iframe
+                    title="South Park World Chat"
+                    src="https://location-delegation-system-manufactured.trycloudflare.com/chat-only"
+                    style={{
+                      width: "100%",
+                      flex: 1,
+                      minHeight: 360,
+                      border: "1px solid rgba(148,163,184,.22)",
+                      borderRadius: 14,
+                      background: "#020617"
+                    }}
+                  />
+                )}
+              </>
             )}
           </div>
         </div>

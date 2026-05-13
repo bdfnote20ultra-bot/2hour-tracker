@@ -1,8 +1,18 @@
 export const FATTYS_LIVE_TV = [
-  // Add built-in channels or videos here.
-  // Put files in public/fattys-live-tv and use paths like:
-  // { id: "my-video", title: "My Video", src: "/fattys-live-tv/my-video.mp4" }
+  // Add web-playable FUITS LIVE TV WORLD videos here.
+  // The app cannot play T:\ drive paths after it is deployed to Vercel.
+  // Use direct https video URLs, Jellyfin/tunnel stream URLs, or files in public/fattys-live-tv.
   //
-  // Direct stream URLs can also go here:
-  // { id: "my-stream", title: "My Stream", src: "https://example.com/stream.m3u8" }
+  // Example:
+  // {
+  //   id: "simpsons-movie",
+  //   title: "The Simpsons Movie",
+  //   src: "https://your-video-url.example/the-simpsons-movie.mp4"
+  // }
 ];
+
+export const FUITS_LIVE_TV_PLAYLIST = {
+  title: "FUITS LIVE TV WORLD",
+  localPlaylistPath: "T:\\FattysLiveTV\\Playlists\\FuitsLiveTV\\fuits-live-tv-world.m3u",
+  items: FATTYS_LIVE_TV
+};

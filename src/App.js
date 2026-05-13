@@ -1282,8 +1282,8 @@ function MusicLibrarySidebar({ accentColor }) {
                     src="https://location-delegation-system-manufactured.trycloudflare.com/chat-only"
                     style={{
                       width: "100%",
-                      height: 210,
-                      minHeight: 210,
+                      height: 250,
+                      minHeight: 250,
                       border: "1px solid rgba(148,163,184,.22)",
                       borderRadius: 14,
                       background: "#020617"

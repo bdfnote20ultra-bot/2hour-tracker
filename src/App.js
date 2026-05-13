@@ -1104,6 +1104,8 @@ function MusicLibrarySidebar({ accentColor }) {
               <iframe
                 title={activeLiveTvOption.label}
                 src={activeLiveTvOption.url}
+                allow="fullscreen; autoplay; encrypted-media; picture-in-picture"
+                allowFullScreen
                 style={{
                   width: "100%",
                   flex: 1,

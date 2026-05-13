@@ -704,6 +704,7 @@ function MusicLibrarySidebar({ accentColor }) {
   const [owncastOnline, setOwncastOnline] = useState(false);
   const [openMusicSections, setOpenMusicSections] = useState({ videos: false, music: false });
   const jellyfinFrameRef = useRef(null);
+  const adultSwimFrameRef = useRef(null);
 
   const filteredLibrary = MUSIC_LIBRARY.filter(item => {
     const query = musicSearch.trim().toLowerCase();
@@ -832,8 +833,7 @@ function MusicLibrarySidebar({ accentColor }) {
     null;
   const fuitsLiveTvChannelUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
 
-  const openJellyfinFullscreen = () => {
-    const frame = jellyfinFrameRef.current;
+  const openFrameFullscreen = (frame) => {
     if (!frame) return;
     const requestFullscreen =
       frame.requestFullscreen ||
@@ -842,6 +842,14 @@ function MusicLibrarySidebar({ accentColor }) {
     if (requestFullscreen) {
       requestFullscreen.call(frame);
     }
+  };
+
+  const openJellyfinFullscreen = () => {
+    openFrameFullscreen(jellyfinFrameRef.current);
+  };
+
+  const openAdultSwimFullscreen = () => {
+    openFrameFullscreen(adultSwimFrameRef.current);
   };
 
   return (
@@ -1220,8 +1228,26 @@ function MusicLibrarySidebar({ accentColor }) {
                     FULLSCREEN JELLYFIN
                   </button>
                 )}
+                {activeLiveTvOption.id === "athf" && (
+                  <button
+                    onClick={openAdultSwimFullscreen}
+                    style={{
+                      width: "100%",
+                      border: "1px solid rgba(148,163,184,.24)",
+                      borderRadius: 10,
+                      background: "rgba(248,250,252,.94)",
+                      color: "#020617",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 1000,
+                      padding: "7px 9px"
+                    }}
+                  >
+                    FULLSCREEN ADULT SWIM
+                  </button>
+                )}
                 <iframe
-                  ref={activeLiveTvOption.id === "jellyfin" ? jellyfinFrameRef : null}
+                  ref={activeLiveTvOption.id === "jellyfin" ? jellyfinFrameRef : activeLiveTvOption.id === "athf" ? adultSwimFrameRef : null}
                   title={activeLiveTvOption.label}
                   src={activeLiveTvOption.url}
                   allow="fullscreen; autoplay; encrypted-media; picture-in-picture"

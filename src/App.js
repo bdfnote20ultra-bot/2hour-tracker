@@ -694,6 +694,7 @@ function MusicLibrarySidebar({ accentColor }) {
   const [musicSearch, setMusicSearch] = useState("");
   const [activeMediaMenu, setActiveMediaMenu] = useState("music");
   const [mediaMenuOpen, setMediaMenuOpen] = useState(false);
+  const [activeMusicView, setActiveMusicView] = useState("library");
   const [liveTvMenuOpen, setLiveTvMenuOpen] = useState(false);
   const [activeLiveTv, setActiveLiveTv] = useState("fuit");
   const [customTvItems, setCustomTvItems] = useState([]);
@@ -783,7 +784,6 @@ function MusicLibrarySidebar({ accentColor }) {
     { id: "youtube", label: "YOUTUBE", heading: "YOUTUBE", url: "https://www.youtube.com/", embed: false },
     { id: "southpark", label: "SOUTH PARK WORLD", heading: "SOUTH PARK WORLD", url: "https://southpark.cc.com/seasons/south-park", embed: false },
     { id: "jellyfin", label: "FUIT JELLYFIN", heading: "FUIT JELLYFIN", url: "https://conversion-significantly-ver-outlets.trycloudflare.com/web/", embed: true },
-    { id: "radio", label: "FUITS RADIO WORLD", heading: "FUITS RADIO WORLD", radio: true },
     { id: "fattys", label: "FUITS LIVE TV WORLD", heading: "FUITS LIVE TV WORLD", custom: true }
   ];
   const activeLiveTvOption = liveTvOptions.find(option => option.id === activeLiveTv) || liveTvOptions[0];
@@ -1104,21 +1104,6 @@ function MusicLibrarySidebar({ accentColor }) {
                 }}
               />
             )}
-            {activeLiveTvOption.radio && fuitsLiveTvChannelUrl && (
-              <iframe
-                title="FUITS RADIO WORLD"
-                src={`${fuitsLiveTvChannelUrl}/fuits-radio`}
-                allow="autoplay; encrypted-media"
-                style={{
-                  width: "100%",
-                  flex: 1,
-                  minHeight: 430,
-                  border: "1px solid rgba(148,163,184,.22)",
-                  borderRadius: 14,
-                  background: "#020617"
-                }}
-              />
-            )}
             {activeLiveTvOption.custom && !owncastOnline && !fuitsLiveTvChannelUrl && (
               <>
                 <div style={{ display: "flex", width: "100%", gap: 8 }}>
@@ -1293,7 +1278,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 )}
               </>
             )}
-            {!activeLiveTvOption.embed && !activeLiveTvOption.custom && !activeLiveTvOption.radio && (
+            {!activeLiveTvOption.embed && !activeLiveTvOption.custom && (
               <>
                 <a
                   href={activeLiveTvOption.url}
@@ -1403,6 +1388,46 @@ function MusicLibrarySidebar({ accentColor }) {
           </div>
         )}
       </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+        {[
+          { id: "library", label: "Music Library" },
+          { id: "radio", label: "FUITS Radio World" }
+        ].map(option => (
+          <button key={option.id} onClick={() => setActiveMusicView(option.id)} style={{
+            border: activeMusicView === option.id ? `2px solid ${accentColor}` : "1px solid rgba(148,163,184,.24)",
+            background: activeMusicView === option.id ? "rgba(255,255,255,.14)" : "rgba(15,23,42,.85)",
+            color: "#f8fafc",
+            borderRadius: 12,
+            padding: "9px 8px",
+            fontSize: 11,
+            fontWeight: 1000,
+            textTransform: "uppercase",
+            cursor: "pointer"
+          }}>
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+      {activeMusicView === "radio" ? (
+        <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+          <iframe
+            title="FUITS RADIO WORLD"
+            src={`${fuitsLiveTvChannelUrl}/fuits-radio`}
+            allow="autoplay; encrypted-media"
+            style={{
+              width: "100%",
+              flex: 1,
+              minHeight: 560,
+              border: "1px solid rgba(148,163,184,.22)",
+              borderRadius: 14,
+              background: "#020617"
+            }}
+          />
+        </div>
+      ) : (
+        <>
 
       <input
         value={musicSearch}
@@ -1621,6 +1646,8 @@ function MusicLibrarySidebar({ accentColor }) {
             }}
           />
         </div>
+      )}
+        </>
       )}
         </>
       )}

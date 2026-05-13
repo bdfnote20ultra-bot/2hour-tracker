@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { MUSIC_LIBRARY } from "./musicLibraryData";
-import { FATTYS_LIVE_TV } from "./fattysLiveTvData";
+import { FATTYS_LIVE_TV, FUITS_LIVE_TV_PLAYLIST } from "./fattysLiveTvData";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const FULL_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -829,6 +829,7 @@ function MusicLibrarySidebar({ accentColor }) {
     allCustomTvItems.find(item => item.id === selectedCustomTvId) ||
     allCustomTvItems[0] ||
     null;
+  const fuitsLiveTvChannelUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
 
   return (
     <aside className="music-library-desktop-sidebar" style={{
@@ -1065,7 +1066,23 @@ function MusicLibrarySidebar({ accentColor }) {
                 />
               </div>
             )}
-            {activeLiveTvOption.custom && !owncastOnline && (
+            {activeLiveTvOption.custom && !owncastOnline && fuitsLiveTvChannelUrl && (
+              <iframe
+                title={FUITS_LIVE_TV_PLAYLIST.title}
+                src={fuitsLiveTvChannelUrl}
+                allow="fullscreen; autoplay; encrypted-media; picture-in-picture"
+                allowFullScreen
+                style={{
+                  width: "100%",
+                  flex: 1,
+                  minHeight: 360,
+                  border: "1px solid rgba(148,163,184,.22)",
+                  borderRadius: 14,
+                  background: "#020617"
+                }}
+              />
+            )}
+            {activeLiveTvOption.custom && !owncastOnline && !fuitsLiveTvChannelUrl && (
               <>
                 <div style={{ display: "flex", width: "100%", gap: 8 }}>
                   <input

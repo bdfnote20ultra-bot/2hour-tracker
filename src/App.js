@@ -701,6 +701,7 @@ function MusicLibrarySidebar({ accentColor }) {
   const [customTvItems, setCustomTvItems] = useState([]);
   const [selectedCustomTvId, setSelectedCustomTvId] = useState(null);
   const [customTvUrl, setCustomTvUrl] = useState("");
+  const [owncastOnline, setOwncastOnline] = useState(false);
   const [openMusicSections, setOpenMusicSections] = useState({ videos: false, music: false });
 
   const filteredLibrary = MUSIC_LIBRARY.filter(item => {
@@ -734,6 +735,25 @@ function MusicLibrarySidebar({ accentColor }) {
     MUSIC_LIBRARY[0] ||
     null;
 
+  useEffect(() => {
+    let cancelled = false;
+    const checkOwncastStatus = async () => {
+      try {
+        const response = await fetch("https://required-students-exist-offer.trycloudflare.com/api/status", { cache: "no-store" });
+        const status = await response.json();
+        if (!cancelled) setOwncastOnline(Boolean(status.online));
+      } catch {
+        if (!cancelled) setOwncastOnline(false);
+      }
+    };
+    checkOwncastStatus();
+    const timer = setInterval(checkOwncastStatus, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
+
   const filteredVideos = filteredLibrary.filter(item =>
     item.type === "video" || (item.src || "").toLowerCase().endsWith(".mp4")
   );
@@ -741,6 +761,7 @@ function MusicLibrarySidebar({ accentColor }) {
     item.type === "audio" || (item.src || "").toLowerCase().endsWith(".mp3")
   );
   const liveTvOptions = [
+    { id: "announcement", label: "LIVE ANNOUNCEMENT", heading: "LIVE ANNOUNCEMENT", url: "https://required-students-exist-offer.trycloudflare.com", embed: true, liveOnly: true },
     { id: "fuit", label: "Open Fuit LIVE TV", heading: "SPORTS + CABLE TV", url: "https://thetvapp.to/", embed: false },
     { id: "athf", label: "ADULT SWIM ZONE", heading: "ADULT SWIM ZONE", url: "https://www.adultswim.com/streams/aqua-teen-hunger-force", embed: true },
     { id: "youtube", label: "YOUTUBE", heading: "YOUTUBE", url: "https://www.youtube.com/", embed: false },
@@ -1100,7 +1121,22 @@ function MusicLibrarySidebar({ accentColor }) {
                 )}
               </>
             )}
-            {activeLiveTvOption.embed && (
+            {activeLiveTvOption.liveOnly && !owncastOnline && (
+              <div style={{
+                width: "100%",
+                border: "1px dashed rgba(148,163,184,.24)",
+                borderRadius: 14,
+                color: "#94a3b8",
+                fontSize: 12,
+                fontWeight: 800,
+                padding: "16px 12px",
+                boxSizing: "border-box",
+                lineHeight: 1.45
+              }}>
+                Offline right now. Normal programming continues in Fuits Live TV World.
+              </div>
+            )}
+            {activeLiveTvOption.embed && (!activeLiveTvOption.liveOnly || owncastOnline) && (
               <iframe
                 title={activeLiveTvOption.label}
                 src={activeLiveTvOption.url}

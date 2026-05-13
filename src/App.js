@@ -1198,7 +1198,8 @@ function MusicLibrarySidebar({ accentColor }) {
                     padding: "6px 8px",
                     lineHeight: 1.25
                   }}>
-                    USER: fuitviewer | PASS: fuittocool
+                    USER: fuitviewer | PASS: fuittocool<br />
+                    NO LIVE TV RECORDING
                   </div>
                 )}
                 {activeLiveTvOption.id === "jellyfin" && (

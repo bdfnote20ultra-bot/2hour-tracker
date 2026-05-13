@@ -703,6 +703,7 @@ function MusicLibrarySidebar({ accentColor }) {
   const [customTvUrl, setCustomTvUrl] = useState("");
   const [owncastOnline, setOwncastOnline] = useState(false);
   const [openMusicSections, setOpenMusicSections] = useState({ videos: false, music: false });
+  const jellyfinFrameRef = useRef(null);
 
   const filteredLibrary = MUSIC_LIBRARY.filter(item => {
     const query = musicSearch.trim().toLowerCase();
@@ -830,6 +831,18 @@ function MusicLibrarySidebar({ accentColor }) {
     allCustomTvItems[0] ||
     null;
   const fuitsLiveTvChannelUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
+
+  const openJellyfinFullscreen = () => {
+    const frame = jellyfinFrameRef.current;
+    if (!frame) return;
+    const requestFullscreen =
+      frame.requestFullscreen ||
+      frame.webkitRequestFullscreen ||
+      frame.msRequestFullscreen;
+    if (requestFullscreen) {
+      requestFullscreen.call(frame);
+    }
+  };
 
   return (
     <aside className="music-library-desktop-sidebar" style={{
@@ -1188,7 +1201,26 @@ function MusicLibrarySidebar({ accentColor }) {
                     USER: fuitviewer | PASS: fuittocool
                   </div>
                 )}
+                {activeLiveTvOption.id === "jellyfin" && (
+                  <button
+                    onClick={openJellyfinFullscreen}
+                    style={{
+                      width: "100%",
+                      border: "1px solid rgba(148,163,184,.24)",
+                      borderRadius: 10,
+                      background: "rgba(248,250,252,.94)",
+                      color: "#020617",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 1000,
+                      padding: "7px 9px"
+                    }}
+                  >
+                    FULLSCREEN JELLYFIN
+                  </button>
+                )}
                 <iframe
+                  ref={activeLiveTvOption.id === "jellyfin" ? jellyfinFrameRef : null}
                   title={activeLiveTvOption.label}
                   src={activeLiveTvOption.url}
                   allow="fullscreen; autoplay; encrypted-media; picture-in-picture"

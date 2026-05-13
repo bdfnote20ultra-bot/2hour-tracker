@@ -783,6 +783,7 @@ function MusicLibrarySidebar({ accentColor }) {
     { id: "youtube", label: "YOUTUBE", heading: "YOUTUBE", url: "https://www.youtube.com/", embed: false },
     { id: "southpark", label: "SOUTH PARK WORLD", heading: "SOUTH PARK WORLD", url: "https://southpark.cc.com/seasons/south-park", embed: false },
     { id: "jellyfin", label: "FUIT JELLYFIN", heading: "FUIT JELLYFIN", url: "https://conversion-significantly-ver-outlets.trycloudflare.com/web/", embed: true },
+    { id: "radio", label: "FUITS RADIO WORLD", heading: "FUITS RADIO WORLD", radio: true },
     { id: "fattys", label: "FUITS LIVE TV WORLD", heading: "FUITS LIVE TV WORLD", custom: true }
   ];
   const activeLiveTvOption = liveTvOptions.find(option => option.id === activeLiveTv) || liveTvOptions[0];
@@ -1103,6 +1104,21 @@ function MusicLibrarySidebar({ accentColor }) {
                 }}
               />
             )}
+            {activeLiveTvOption.radio && fuitsLiveTvChannelUrl && (
+              <iframe
+                title="FUITS RADIO WORLD"
+                src={`${fuitsLiveTvChannelUrl}/fuits-radio`}
+                allow="autoplay; encrypted-media"
+                style={{
+                  width: "100%",
+                  flex: 1,
+                  minHeight: 430,
+                  border: "1px solid rgba(148,163,184,.22)",
+                  borderRadius: 14,
+                  background: "#020617"
+                }}
+              />
+            )}
             {activeLiveTvOption.custom && !owncastOnline && !fuitsLiveTvChannelUrl && (
               <>
                 <div style={{ display: "flex", width: "100%", gap: 8 }}>
@@ -1277,7 +1293,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 )}
               </>
             )}
-            {!activeLiveTvOption.embed && !activeLiveTvOption.custom && (
+            {!activeLiveTvOption.embed && !activeLiveTvOption.custom && !activeLiveTvOption.radio && (
               <>
                 <a
                   href={activeLiveTvOption.url}

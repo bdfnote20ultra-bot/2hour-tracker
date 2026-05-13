@@ -1276,9 +1276,9 @@ function MusicLibrarySidebar({ accentColor }) {
                 >
                   Open In New Tab
                 </a>
-                {activeLiveTvOption.id === "southpark" && (
+                {(activeLiveTvOption.id === "southpark" || activeLiveTvOption.id === "youtube") && (
                   <iframe
-                    title="South Park World Chat"
+                    title={`${activeLiveTvOption.label} Chat`}
                     src="https://location-delegation-system-manufactured.trycloudflare.com/chat-only"
                     style={{
                       width: "100%",

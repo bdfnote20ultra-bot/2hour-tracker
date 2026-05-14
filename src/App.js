@@ -1266,7 +1266,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "jellyfin" || activeLiveTvOption.id === "athf") && (
                   <iframe
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://gotta-modification-governance-banners.trycloudflare.com/chat-only"
+                    src="https://career-cardiac-twin-accepted.trycloudflare.com/chat-only"
                     style={{
                       width: "100%",
                       height: activeLiveTvOption.id === "jellyfin" ? 260 : 250,
@@ -1306,7 +1306,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "southpark" || activeLiveTvOption.id === "youtube" || activeLiveTvOption.id === "fuit") && (
                   <iframe
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://gotta-modification-governance-banners.trycloudflare.com/chat-only"
+                    src="https://career-cardiac-twin-accepted.trycloudflare.com/chat-only"
                     style={{
                       width: "100%",
                       height: 250,

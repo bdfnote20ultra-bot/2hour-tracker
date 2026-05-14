@@ -713,6 +713,7 @@ function MusicLibrarySidebar({ accentColor }) {
   const [activeMediaMenu, setActiveMediaMenu] = useState("music");
   const [mediaMenuOpen, setMediaMenuOpen] = useState(false);
   const [activeMusicView, setActiveMusicView] = useState("library");
+  const [radioChannels, setRadioChannels] = useState([]);
   const [liveTvMenuOpen, setLiveTvMenuOpen] = useState(false);
   const [activeLiveTv, setActiveLiveTv] = useState("fuit");
   const [customTvItems, setCustomTvItems] = useState([]);
@@ -752,6 +753,28 @@ function MusicLibrarySidebar({ accentColor }) {
     };
 
     loadMusicLibrary();
+  }, [fuitsLiveTvChannelUrl]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadRadioChannels = async () => {
+      try {
+        const response = await fetch(`${fuitsLiveTvChannelUrl}/radio-channels.json`, { cache: "no-store" });
+        const channels = await response.json();
+        if (!cancelled && Array.isArray(channels)) {
+          setRadioChannels(channels);
+        }
+      } catch {
+        if (!cancelled) setRadioChannels([]);
+      }
+    };
+
+    loadRadioChannels();
+    const timer = setInterval(loadRadioChannels, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
   }, [fuitsLiveTvChannelUrl]);
 
   useEffect(() => {
@@ -806,6 +829,15 @@ function MusicLibrarySidebar({ accentColor }) {
     { id: "fattys", label: "FUITS LIVE TV WORLD", heading: "FUITS LIVE TV WORLD", custom: true }
   ];
   const activeLiveTvOption = liveTvOptions.find(option => option.id === activeLiveTv) || liveTvOptions[0];
+  const musicViewOptions = [
+    { id: "library", label: "Music Library" },
+    { id: "radio", label: "FUITS Radio World" },
+    ...radioChannels.map(channel => ({ id: `radio:${channel.id}`, label: channel.label }))
+  ];
+  const activeRadioChannelId = activeMusicView.startsWith("radio:") ? activeMusicView.slice("radio:".length) : "";
+  const radioIframeSrc = activeRadioChannelId
+    ? `${fuitsLiveTvChannelUrl}/fuits-radio?channel=${encodeURIComponent(activeRadioChannelId)}`
+    : `${fuitsLiveTvChannelUrl}/fuits-radio`;
 
   const rateTrack = (id, rating) => {
     setRatings(prev => ({ ...prev, [id]: rating }));
@@ -1452,32 +1484,33 @@ function MusicLibrarySidebar({ accentColor }) {
         )}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
-        {[
-          { id: "library", label: "Music Library" },
-          { id: "radio", label: "FUITS Radio World" }
-        ].map(option => (
-          <button key={option.id} onClick={() => setActiveMusicView(option.id)} style={{
-            border: activeMusicView === option.id ? `2px solid ${accentColor}` : "1px solid rgba(148,163,184,.24)",
-            background: activeMusicView === option.id ? "rgba(255,255,255,.14)" : "rgba(15,23,42,.85)",
-            color: "#f8fafc",
-            borderRadius: 12,
-            padding: "9px 8px",
-            fontSize: 11,
-            fontWeight: 1000,
-            textTransform: "uppercase",
-            cursor: "pointer"
-          }}>
-            {option.label}
-          </button>
+      <select
+        value={activeMusicView}
+        onChange={event => setActiveMusicView(event.target.value)}
+        style={{
+          width: "100%",
+          boxSizing: "border-box",
+          borderRadius: 14,
+          border: "1px solid rgba(148,163,184,.28)",
+          background: "rgba(15,23,42,.9)",
+          color: "#f8fafc",
+          padding: "10px 12px",
+          marginBottom: 10,
+          fontSize: 12,
+          fontWeight: 1000,
+          textTransform: "uppercase"
+        }}
+      >
+        {musicViewOptions.map(option => (
+          <option key={option.id} value={option.id}>{option.label}</option>
         ))}
-      </div>
+      </select>
 
-      {activeMusicView === "radio" ? (
+      {activeMusicView === "radio" || activeMusicView.startsWith("radio:") ? (
         <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           <iframe
             title="FUITS RADIO WORLD"
-            src={`${fuitsLiveTvChannelUrl}/fuits-radio`}
+            src={radioIframeSrc}
             allow="autoplay; encrypted-media"
             style={{
               width: "100%",

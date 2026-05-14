@@ -1549,29 +1549,27 @@ function MusicLibrarySidebar({ accentColor }) {
         }}
       />
 
-      <div style={{
-        display: "flex",
-        gap: 8,
-        overflowX: "auto",
-        paddingBottom: 8,
-        marginBottom: 10
-      }}>
+      <select
+        value={activeGenre}
+        onChange={event => setActiveGenre(event.target.value)}
+        style={{
+          width: "100%",
+          boxSizing: "border-box",
+          borderRadius: 14,
+          border: "1px solid rgba(148,163,184,.28)",
+          background: "rgba(15,23,42,.9)",
+          color: "#f8fafc",
+          padding: "10px 12px",
+          marginBottom: 10,
+          fontSize: 12,
+          fontWeight: 1000,
+          textTransform: "uppercase"
+        }}
+      >
         {genres.map(genre => (
-          <button key={genre} onClick={() => setActiveGenre(genre)} style={{
-            border: activeGenre === genre ? `2px solid ${accentColor}` : "1px solid rgba(148,163,184,.24)",
-            background: activeGenre === genre ? "rgba(255,255,255,.14)" : "rgba(15,23,42,.85)",
-            color: "#f8fafc",
-            borderRadius: 999,
-            padding: "8px 11px",
-            fontSize: 12,
-            fontWeight: 900,
-            whiteSpace: "nowrap",
-            cursor: "pointer"
-          }}>
-            {genre}
-          </button>
+          <option key={genre} value={genre}>{genre}</option>
         ))}
-      </div>
+      </select>
 
       {selectedTrack ? (
         <div style={{

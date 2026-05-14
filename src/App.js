@@ -703,8 +703,7 @@ function LiveChatBox({ title = "Live Chat", src, height = 250, minHeight = 250 }
 function MusicLibrarySidebar({ accentColor }) {
   const fuitsLiveTvChannelUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
   const [musicLibrary, setMusicLibrary] = useState(MUSIC_LIBRARY);
-  const genres = useMemo(() => Array.from(new Set(musicLibrary.map(item => item.genre || "Other"))), [musicLibrary]);
-  const [activeGenre, setActiveGenre] = useState(genres[0] || "Other");
+  const [activeGenre, setActiveGenre] = useState("Other");
   const [selectedId, setSelectedId] = useState(musicLibrary[0]?.id || null);
   const [ratings, setRatings] = useState(() => {
     try { return JSON.parse(localStorage.getItem("hoursTrackerStaticMusicRatings_v1")) || {}; } catch { return {}; }
@@ -713,7 +712,7 @@ function MusicLibrarySidebar({ accentColor }) {
   const [activeMediaMenu, setActiveMediaMenu] = useState("music");
   const [mediaMenuOpen, setMediaMenuOpen] = useState(false);
   const [activeMusicView, setActiveMusicView] = useState("library");
-  const [radioChannels, setRadioChannels] = useState([]);
+  const [musicChannels, setMusicChannels] = useState([]);
   const [liveTvMenuOpen, setLiveTvMenuOpen] = useState(false);
   const [activeLiveTv, setActiveLiveTv] = useState("fuit");
   const [customTvItems, setCustomTvItems] = useState([]);
@@ -725,7 +724,13 @@ function MusicLibrarySidebar({ accentColor }) {
   const jellyfinFrameRef = useRef(null);
   const adultSwimFrameRef = useRef(null);
 
-  const filteredLibrary = useMemo(() => musicLibrary.filter(item => {
+  const activeMusicChannelId = activeMusicView.startsWith("music-channel:")
+    ? activeMusicView.slice("music-channel:".length)
+    : "";
+  const activeMusicChannel = musicChannels.find(channel => channel.id === activeMusicChannelId);
+  const currentMusicLibrary = activeMusicChannel ? activeMusicChannel.items || [] : musicLibrary;
+  const genres = useMemo(() => Array.from(new Set(currentMusicLibrary.map(item => item.genre || "Other"))), [currentMusicLibrary]);
+  const filteredLibrary = useMemo(() => currentMusicLibrary.filter(item => {
     const query = musicSearch.trim().toLowerCase();
     const matchesGenre = (item.genre || "Other") === activeGenre;
     const matchesSearch =
@@ -734,7 +739,7 @@ function MusicLibrarySidebar({ accentColor }) {
       (item.artist || "").toLowerCase().includes(query) ||
       (item.genre || "").toLowerCase().includes(query);
     return matchesGenre && matchesSearch;
-  }), [activeGenre, musicLibrary, musicSearch]);
+  }), [activeGenre, currentMusicLibrary, musicSearch]);
 
   useEffect(() => {
     try { localStorage.setItem("hoursTrackerStaticMusicRatings_v1", JSON.stringify(ratings)); } catch {}
@@ -757,20 +762,20 @@ function MusicLibrarySidebar({ accentColor }) {
 
   useEffect(() => {
     let cancelled = false;
-    const loadRadioChannels = async () => {
+    const loadMusicChannels = async () => {
       try {
-        const response = await fetch(`${fuitsLiveTvChannelUrl}/radio-channels.json`, { cache: "no-store" });
+        const response = await fetch(`${fuitsLiveTvChannelUrl}/music-channels.json`, { cache: "no-store" });
         const channels = await response.json();
         if (!cancelled && Array.isArray(channels)) {
-          setRadioChannels(channels);
+          setMusicChannels(channels);
         }
       } catch {
-        if (!cancelled) setRadioChannels([]);
+        if (!cancelled) setMusicChannels([]);
       }
     };
 
-    loadRadioChannels();
-    const timer = setInterval(loadRadioChannels, 30000);
+    loadMusicChannels();
+    const timer = setInterval(loadMusicChannels, 30000);
     return () => {
       cancelled = true;
       clearInterval(timer);
@@ -785,14 +790,14 @@ function MusicLibrarySidebar({ accentColor }) {
 
   useEffect(() => {
     if (!filteredLibrary.find(item => item.id === selectedId)) {
-      setSelectedId(filteredLibrary[0]?.id || musicLibrary[0]?.id || null);
+      setSelectedId(filteredLibrary[0]?.id || currentMusicLibrary[0]?.id || null);
     }
-  }, [activeGenre, musicSearch, musicLibrary, filteredLibrary, selectedId]);
+  }, [activeGenre, musicSearch, currentMusicLibrary, filteredLibrary, selectedId]);
 
   const selectedTrack =
-    musicLibrary.find(item => item.id === selectedId) ||
+    currentMusicLibrary.find(item => item.id === selectedId) ||
     filteredLibrary[0] ||
-    musicLibrary[0] ||
+    currentMusicLibrary[0] ||
     null;
 
   useEffect(() => {
@@ -831,8 +836,8 @@ function MusicLibrarySidebar({ accentColor }) {
   const activeLiveTvOption = liveTvOptions.find(option => option.id === activeLiveTv) || liveTvOptions[0];
   const musicViewOptions = [
     { id: "library", label: "Music Library" },
-    { id: "radio", label: "FUITS Radio World" },
-    ...radioChannels.map(channel => ({ id: `radio:${channel.id}`, label: channel.label }))
+    ...musicChannels.map(channel => ({ id: `music-channel:${channel.id}`, label: channel.label })),
+    { id: "radio", label: "FUITS Radio World" }
   ];
   const activeRadioChannelId = activeMusicView.startsWith("radio:") ? activeMusicView.slice("radio:".length) : "";
   const radioIframeSrc = activeRadioChannelId
@@ -1317,7 +1322,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "jellyfin" || activeLiveTvOption.id === "athf") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://organization-continued-dose-intellectual.trycloudflare.com/chat-only"
+                    src="https://bacteria-tubes-specification-ensures.trycloudflare.com/chat-only"
                     height={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                     minHeight={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                   />
@@ -1352,7 +1357,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "southpark" || activeLiveTvOption.id === "youtube" || activeLiveTvOption.id === "fuit") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://organization-continued-dose-intellectual.trycloudflare.com/chat-only"
+                    src="https://bacteria-tubes-specification-ensures.trycloudflare.com/chat-only"
                     height={250}
                     minHeight={250}
                   />

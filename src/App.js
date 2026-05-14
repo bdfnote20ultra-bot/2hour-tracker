@@ -681,6 +681,24 @@ function PokemonSidebar() {
   );
 }
 
+function LiveChatBox({ title = "Live Chat", src, height = 250, minHeight = 250 }) {
+  return (
+    <iframe
+      title={title}
+      src={src}
+      allow="fullscreen"
+      allowFullScreen
+      style={{
+        width: "100%",
+        height,
+        minHeight,
+        border: "1px solid rgba(148,163,184,.22)",
+        borderRadius: 14,
+        background: "#020617"
+      }}
+    />
+  );
+}
 
 function MusicLibrarySidebar({ accentColor }) {
   const fuitsLiveTvChannelUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
@@ -702,6 +720,7 @@ function MusicLibrarySidebar({ accentColor }) {
   const [customTvUrl, setCustomTvUrl] = useState("");
   const [owncastOnline, setOwncastOnline] = useState(false);
   const [openMusicSections, setOpenMusicSections] = useState({ videos: false, music: false });
+  const [zoomedDonationQr, setZoomedDonationQr] = useState(null);
   const jellyfinFrameRef = useRef(null);
   const adultSwimFrameRef = useRef(null);
 
@@ -1264,16 +1283,11 @@ function MusicLibrarySidebar({ accentColor }) {
                   }}
                 />
                 {(activeLiveTvOption.id === "jellyfin" || activeLiveTvOption.id === "athf") && (
-                  <iframe
+                  <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://universities-quest-newsletter-hammer.trycloudflare.com/chat-only"
-                    style={{
-                      width: "100%",
-                      height: activeLiveTvOption.id === "jellyfin" ? 260 : 250,
-                      border: "1px solid rgba(148,163,184,.22)",
-                      borderRadius: 14,
-                      background: "#020617"
-                    }}
+                    src="https://organization-continued-dose-intellectual.trycloudflare.com/chat-only"
+                    height={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
+                    minHeight={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                   />
                 )}
               </>
@@ -1304,18 +1318,67 @@ function MusicLibrarySidebar({ accentColor }) {
                   Open In New Tab
                 </a>
                 {(activeLiveTvOption.id === "southpark" || activeLiveTvOption.id === "youtube" || activeLiveTvOption.id === "fuit") && (
-                  <iframe
+                  <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://universities-quest-newsletter-hammer.trycloudflare.com/chat-only"
-                    style={{
-                      width: "100%",
-                      height: 250,
-                      minHeight: 250,
-                      border: "1px solid rgba(148,163,184,.22)",
-                      borderRadius: 14,
-                      background: "#020617"
-                    }}
+                    src="https://organization-continued-dose-intellectual.trycloudflare.com/chat-only"
+                    height={250}
+                    minHeight={250}
                   />
+                )}
+                {activeLiveTvOption.id === "southpark" && (
+                  <div
+                    style={{
+                      border: "1px solid rgba(56,189,248,.28)",
+                      borderRadius: 8,
+                      padding: "6px 8px",
+                      background: "rgba(15,23,42,.82)",
+                      color: "#e0f2fe",
+                      fontSize: 9,
+                      fontWeight: 1000,
+                      lineHeight: 1.25,
+                      overflow: "hidden",
+                      overflowWrap: "anywhere",
+                      textAlign: "center"
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 5 }}>
+                      {[
+                        { label: "PayPal", src: "/donation-qrs/paypal.jpeg" },
+                        { label: "Cash App", src: "/donation-qrs/cashapp.jpg" }
+                      ].map(qr => (
+                        <div key={qr.label} style={{ display: "grid", gap: 3, justifyItems: "center", color: "#cbd5e1", fontSize: 8 }}>
+                          <button
+                            type="button"
+                            onClick={() => setZoomedDonationQr(qr)}
+                            style={{
+                              display: "block",
+                              padding: 0,
+                              border: 0,
+                              background: "transparent",
+                              borderRadius: 6,
+                              cursor: "pointer",
+                              lineHeight: 0
+                            }}
+                          >
+                            <img
+                              src={qr.src}
+                              alt={`${qr.label} QR`}
+                              style={{
+                                width: 46,
+                                height: 46,
+                                objectFit: "cover",
+                                borderRadius: 6,
+                                background: "#fff",
+                                border: "1px solid rgba(248,250,252,.25)"
+                              }}
+                            />
+                          </button>
+                          <strong>{qr.label}</strong>
+                        </div>
+                      ))}
+                    </div>
+                    DONATE VIA SOLONA <span style={{ color: "#67e8f9" }}>8BEogzpRAUM92NCYAhhFdf4gmoV3gNyDmQHZYoEfVbKB</span>
+                  </div>
                 )}
               </>
             )}
@@ -1631,25 +1694,74 @@ function MusicLibrarySidebar({ accentColor }) {
           padding: 10,
           minHeight: 270
         }}>
-          <div style={{ fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: .8, color: "#cbd5e1", marginBottom: 8 }}>
-            Live Chat
-          </div>
-          <iframe
+          <LiveChatBox
             title="FUITS Music Live Chat"
             src={`${fuitsLiveTvChannelUrl}/chat-only`}
-            style={{
-              width: "100%",
-              height: 250,
-              border: "1px solid rgba(148,163,184,.22)",
-              borderRadius: 14,
-              background: "#020617"
-            }}
+            height={250}
+            minHeight={250}
           />
         </div>
       )}
         </>
       )}
         </>
+      )}
+      {zoomedDonationQr && (
+        <div
+          onClick={() => setZoomedDonationQr(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            display: "grid",
+            placeItems: "center",
+            padding: 18,
+            background: "rgba(2,6,23,.86)"
+          }}
+        >
+          <div
+            onClick={event => event.stopPropagation()}
+            style={{
+              display: "grid",
+              gap: 10,
+              justifyItems: "center",
+              maxWidth: "min(92vw, 420px)",
+              color: "#f8fafc",
+              fontSize: 14,
+              fontWeight: 900
+            }}
+          >
+            <div>{zoomedDonationQr.label} QR</div>
+            <img
+              src={zoomedDonationQr.src}
+              alt={`${zoomedDonationQr.label} QR zoom`}
+              style={{
+                width: "min(82vw, 360px)",
+                maxHeight: "72vh",
+                objectFit: "contain",
+                borderRadius: 12,
+                background: "#fff",
+                border: "1px solid rgba(248,250,252,.35)",
+                boxShadow: "0 20px 60px rgba(0,0,0,.55)"
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setZoomedDonationQr(null)}
+              style={{
+                border: "1px solid #f8fafc",
+                background: "#f8fafc",
+                color: "#020617",
+                borderRadius: 8,
+                padding: "8px 12px",
+                cursor: "pointer",
+                fontWeight: 900
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
       )}
     </aside>
   );

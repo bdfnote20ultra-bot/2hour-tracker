@@ -1322,7 +1322,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "jellyfin" || activeLiveTvOption.id === "athf") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://msgstr-olive-hwy-operate.trycloudflare.com/chat-only"
+                    src="https://object-chen-bride-fossil.trycloudflare.com/chat-only"
                     height={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                     minHeight={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                   />
@@ -1357,7 +1357,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "southpark" || activeLiveTvOption.id === "youtube" || activeLiveTvOption.id === "fuit") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://msgstr-olive-hwy-operate.trycloudflare.com/chat-only"
+                    src="https://object-chen-bride-fossil.trycloudflare.com/chat-only"
                     height={250}
                     minHeight={250}
                   />

@@ -1325,7 +1325,7 @@ function MusicLibrarySidebar({ accentColor }) {
                     minHeight={250}
                   />
                 )}
-                {(activeLiveTvOption.id === "southpark" || activeLiveTvOption.id === "youtube") && (
+                {(activeLiveTvOption.id === "southpark" || activeLiveTvOption.id === "youtube" || activeLiveTvOption.id === "fuit") && (
                   <div
                     style={{
                       border: "1px solid rgba(56,189,248,.28)",

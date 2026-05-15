@@ -501,7 +501,6 @@ function PokemonSidebar() {
   const [stretchGame, setStretchGame] = useState(false);
   const emulatorFrameRef = useRef(null);
   const emulatorHostRef = useRef(null);
-  const stretchCanvasRef = useRef(null);
 
   const stopRunningGame = () => {
     resetPokemonEmulator(emulatorHostRef.current);
@@ -569,47 +568,33 @@ function PokemonSidebar() {
       window.EJS_emulator?.resize?.();
       window.EJS_emulator?.gameManager?.resize?.();
     } catch {}
-  };
 
-  const paintStretchedPokemonFrame = () => {
-    const source = emulatorHostRef.current?.querySelector("canvas");
-    const output = stretchCanvasRef.current;
-    if (!source || !output) return;
-
-    const rect = output.getBoundingClientRect();
-    const width = Math.max(1, Math.round(rect.width));
-    const height = Math.max(1, Math.round(rect.height));
-    if (output.width !== width) output.width = width;
-    if (output.height !== height) output.height = height;
-
-    const context = output.getContext("2d", { alpha: false });
-    if (!context) return;
-
-    const sourceWidth = source.width || source.clientWidth;
-    const sourceHeight = source.height || source.clientHeight;
-    if (!sourceWidth || !sourceHeight) return;
-
-    const sourceAspect = sourceWidth / sourceHeight;
+    const sourceAspect = host.getBoundingClientRect().width / host.getBoundingClientRect().height;
     const reportedAspect = window.EJS_emulator?.gameManager?.getVideoDimensions?.("aspect");
     const systemAspect = POKEMON_SYSTEM_ASPECTS[activeGame?.system];
     const aspect = reportedAspect && Math.abs(reportedAspect - sourceAspect) > 0.02
       ? reportedAspect
       : systemAspect || reportedAspect || sourceAspect;
-    let sx = 0;
-    let sy = 0;
-    let sw = sourceWidth;
-    let sh = sourceHeight;
 
-    if (sourceAspect > aspect) {
-      sw = sourceHeight * aspect;
-      sx = (sourceWidth - sw) / 2;
-    } else if (sourceAspect < aspect) {
-      sh = sourceWidth / aspect;
-      sy = (sourceHeight - sh) / 2;
-    }
+    host.querySelectorAll("canvas").forEach(canvas => {
+      if (!shouldStretch) return;
 
-    context.imageSmoothingEnabled = false;
-    context.drawImage(source, sx, sy, sw, sh, 0, 0, width, height);
+      if (sourceAspect > aspect) {
+        const width = `${(sourceAspect / aspect) * 100}%`;
+        canvas.style.setProperty("width", width, "important");
+        canvas.style.setProperty("height", "100%", "important");
+        canvas.style.setProperty("left", "50%", "important");
+        canvas.style.setProperty("top", "50%", "important");
+        canvas.style.setProperty("transform", "translate(-50%, -50%)", "important");
+      } else if (sourceAspect < aspect) {
+        const height = `${(aspect / sourceAspect) * 100}%`;
+        canvas.style.setProperty("width", "100%", "important");
+        canvas.style.setProperty("height", height, "important");
+        canvas.style.setProperty("left", "50%", "important");
+        canvas.style.setProperty("top", "50%", "important");
+        canvas.style.setProperty("transform", "translate(-50%, -50%)", "important");
+      }
+    });
   };
 
   const toggleGameFullscreen = () => {
@@ -806,19 +791,6 @@ function PokemonSidebar() {
   }, [gameLaunch, stretchGame]);
 
   useEffect(() => {
-    if (!gameLaunch || !stretchGame) return;
-
-    let frame;
-    const draw = () => {
-      paintStretchedPokemonFrame();
-      frame = window.requestAnimationFrame(draw);
-    };
-
-    draw();
-    return () => window.cancelAnimationFrame(frame);
-  }, [gameLaunch, stretchGame]);
-
-  useEffect(() => {
     const handleFullscreenChange = () => {
       const fullscreenElement =
         document.fullscreenElement ||
@@ -899,16 +871,6 @@ function PokemonSidebar() {
           position: absolute !important;
           inset: 0 !important;
           object-fit: fill !important;
-        }
-        .pokemon-stretch-canvas {
-          position: absolute;
-          inset: 0;
-          width: 100%;
-          height: 100%;
-          z-index: 10;
-          background: #000;
-          pointer-events: none;
-          image-rendering: pixelated;
         }
         .pokemon-emulator-host.pokemon-emulator-stretch canvas,
         .pokemon-emulator-host.pokemon-emulator-stretch video,
@@ -1004,13 +966,6 @@ function PokemonSidebar() {
                   >
                     {stretchGame ? "Exit Fullscreen" : "Stretch Fullscreen"}
                   </button>
-                  {stretchGame && (
-                    <canvas
-                      ref={stretchCanvasRef}
-                      className="pokemon-stretch-canvas"
-                      aria-hidden="true"
-                    />
-                  )}
                 </>
               )}
               {activeGame && !gameLaunch && (

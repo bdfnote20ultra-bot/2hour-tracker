@@ -339,6 +339,36 @@ async function findPokemonAsset(game, fileNames, type = "file") {
   return "";
 }
 
+function resetPokemonEmulator(playerElement) {
+  try {
+    if (window.EJS_emulator?.destroy) window.EJS_emulator.destroy();
+  } catch {}
+
+  document.querySelectorAll("script[data-pokemon-emulator-loader='true']").forEach(script => script.remove());
+
+  Object.keys(window)
+    .filter(key => key.startsWith("EJS_"))
+    .forEach(key => {
+      try { delete window[key]; } catch {}
+    });
+
+  [
+    "EJS_emulator",
+    "EJS_player",
+    "EJS_core",
+    "EJS_gameName",
+    "EJS_gameUrl",
+    "EJS_pathtodata",
+    "EJS_startOnLoaded",
+    "EJS_backgroundColor",
+    "EJS_color"
+  ].forEach(key => {
+    try { delete window[key]; } catch {}
+  });
+
+  if (playerElement) playerElement.innerHTML = "";
+}
+
 function PokemonCoverImage({ game, onZoom, compact = false, imageType = "cover" }) {
   const coverFiles = imageType === "back" ? POKEMON_BACK_FILES : POKEMON_COVER_FILES;
   const [index, setIndex] = useState(0);
@@ -496,14 +526,16 @@ function PokemonSidebar() {
   useEffect(() => {
     if (collapsed || !playerRef.current || !activeGame) return;
 
-    playerRef.current.innerHTML = "";
+    resetPokemonEmulator(playerRef.current);
+
+    const playerId = `pokemon-game-player-${activeGame.core}-${Date.now()}`;
     const mount = document.createElement("div");
-    mount.id = "pokemon-game-player";
+    mount.id = playerId;
     mount.style.width = "100%";
     mount.style.height = "100%";
     playerRef.current.appendChild(mount);
 
-    window.EJS_player = "#pokemon-game-player";
+    window.EJS_player = `#${playerId}`;
     window.EJS_core = activeGame.core;
     window.EJS_gameName = activeGame.label;
     window.EJS_gameUrl = activeGame.gameUrl;
@@ -515,11 +547,11 @@ function PokemonSidebar() {
     const script = document.createElement("script");
     script.src = `https://cdn.emulatorjs.org/stable/data/loader.js?v=${Date.now()}`;
     script.async = true;
+    script.dataset.pokemonEmulatorLoader = "true";
     document.body.appendChild(script);
 
     return () => {
-      script.remove();
-      if (playerRef.current) playerRef.current.innerHTML = "";
+      resetPokemonEmulator(playerRef.current);
     };
   }, [activeGame, collapsed]);
 
@@ -1452,7 +1484,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "jellyfin" || activeLiveTvOption.id === "athf") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://giant-symphony-visitor-searched.trycloudflare.com/chat-only"
+                    src="https://administrators-handles-settings-convenient.trycloudflare.com/chat-only"
                     height={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                     minHeight={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                   />
@@ -1487,7 +1519,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "southpark" || activeLiveTvOption.id === "youtube" || activeLiveTvOption.id === "fuit") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://giant-symphony-visitor-searched.trycloudflare.com/chat-only"
+                    src="https://administrators-handles-settings-convenient.trycloudflare.com/chat-only"
                     height={250}
                     minHeight={250}
                   />

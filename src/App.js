@@ -570,11 +570,8 @@ function PokemonSidebar() {
     } catch {}
 
     const sourceAspect = host.getBoundingClientRect().width / host.getBoundingClientRect().height;
-    const reportedAspect = window.EJS_emulator?.gameManager?.getVideoDimensions?.("aspect");
     const systemAspect = POKEMON_SYSTEM_ASPECTS[activeGame?.system];
-    const aspect = reportedAspect && Math.abs(reportedAspect - sourceAspect) > 0.02
-      ? reportedAspect
-      : systemAspect || reportedAspect || sourceAspect;
+    const aspect = systemAspect || sourceAspect;
 
     host.querySelectorAll("canvas").forEach(canvas => {
       if (!shouldStretch) return;

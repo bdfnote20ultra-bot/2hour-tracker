@@ -437,7 +437,7 @@ function PokemonSidebar() {
   const [zoomedCover, setZoomedCover] = useState(null);
   const [activeGameAssets, setActiveGameAssets] = useState({ manualUrl: "", backUrl: "" });
   const [gameLaunch, setGameLaunch] = useState(null);
-  const playerRef = useRef(null);
+  const emulatorHostRef = useRef(null);
 
   const systemGames = games.filter(game => game.system === activeSystem);
   const activeGameIndex = activeGame ? Math.max(0, systemGames.findIndex(game => game.file === activeGame.file)) : 0;
@@ -528,20 +528,20 @@ function PokemonSidebar() {
   };
 
   useEffect(() => {
-    if (collapsed || !playerRef.current) return;
     if (!gameLaunch) {
-      resetPokemonEmulator(playerRef.current);
+      resetPokemonEmulator();
       return;
     }
+    if (collapsed || !emulatorHostRef.current) return;
 
-    resetPokemonEmulator(playerRef.current);
+    resetPokemonEmulator(emulatorHostRef.current);
 
     const playerId = `pokemon-game-player-${gameLaunch.core}-${Date.now()}`;
     const mount = document.createElement("div");
     mount.id = playerId;
     mount.style.width = "100%";
     mount.style.height = "100%";
-    playerRef.current.appendChild(mount);
+    emulatorHostRef.current.appendChild(mount);
 
     window.EJS_player = `#${playerId}`;
     window.EJS_core = gameLaunch.core;
@@ -584,7 +584,7 @@ function PokemonSidebar() {
     document.body.appendChild(script);
 
     return () => {
-      resetPokemonEmulator(playerRef.current);
+      resetPokemonEmulator(emulatorHostRef.current);
     };
   }, [gameLaunch?.core, gameLaunch?.file, gameLaunch?.gameUrl, gameLaunch?.label, collapsed]);
 
@@ -639,7 +639,7 @@ function PokemonSidebar() {
             border: "2px solid rgba(248,250,252,.38)",
             boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)"
           }}>
-            <div ref={playerRef} style={{
+            <div style={{
               width: "100%",
               aspectRatio: "4 / 3",
               minHeight: 245,
@@ -661,6 +661,9 @@ function PokemonSidebar() {
                 }}>
                   Add games to T:\FattysLiveTV\Games\Roms\{activeSystem}
                 </div>
+              )}
+              {activeGame && gameLaunch && (
+                <div ref={emulatorHostRef} style={{ width: "100%", height: "100%" }} />
               )}
               {activeGame && !gameLaunch && (
                 <div style={{
@@ -1551,7 +1554,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "jellyfin" || activeLiveTvOption.id === "athf") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://beth-likes-unwrap-usb.trycloudflare.com/chat-only"
+                    src="https://trainers-annotated-handbook-respond.trycloudflare.com/chat-only"
                     height={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                     minHeight={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                   />
@@ -1586,7 +1589,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "southpark" || activeLiveTvOption.id === "youtube" || activeLiveTvOption.id === "fuit") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://beth-likes-unwrap-usb.trycloudflare.com/chat-only"
+                    src="https://trainers-annotated-handbook-respond.trycloudflare.com/chat-only"
                     height={250}
                     minHeight={250}
                   />

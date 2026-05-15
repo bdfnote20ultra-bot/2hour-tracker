@@ -917,11 +917,11 @@ function MusicLibrarySidebar({ accentColor }) {
       bottom: 18,
       width: 360,
       zIndex: 4,
-      borderRadius: 24,
-      border: "2px solid rgba(255,255,255,0.16)",
-      background: "linear-gradient(180deg, rgba(17,24,39,.96), rgba(2,6,23,.98))",
-      boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
-      padding: 16,
+      borderRadius: 20,
+      border: "1px solid rgba(148,163,184,0.2)",
+      background: "linear-gradient(180deg, rgba(15,23,42,.94), rgba(2,6,23,.96))",
+      boxShadow: "0 18px 48px rgba(0,0,0,0.46)",
+      padding: 14,
       color: "#f8fafc",
       fontFamily: "system-ui, sans-serif",
       overflow: "hidden",
@@ -933,12 +933,12 @@ function MusicLibrarySidebar({ accentColor }) {
         .music-library-desktop-sidebar button:hover { transform: translateY(-1px); }
       `}</style>
 
-      <div style={{ position: "relative", marginBottom: 12 }}>
+      <div style={{ position: "relative", marginBottom: 10 }}>
         <button onClick={() => setMediaMenuOpen(open => !open)} style={{
           width: "100%",
           border: "none",
-          borderRadius: 18,
-          padding: "12px 14px",
+          borderRadius: 14,
+          padding: "11px 13px",
           background: `linear-gradient(135deg, ${accentColor}, #38bdf8)`,
           color: "#06111f",
           fontWeight: 1000,
@@ -995,16 +995,16 @@ function MusicLibrarySidebar({ accentColor }) {
       {activeMediaMenu === "liveTv" ? (
         <div style={{
           flex: 1,
-          border: "1px solid rgba(148,163,184,.26)",
-          borderRadius: 16,
-          background: "rgba(2,6,23,.78)",
-          overflow: "hidden",
+          border: "none",
+          borderRadius: 0,
+          background: "transparent",
+          overflow: "visible",
           display: "flex",
           flexDirection: "column"
         }}>
           <div style={{
-            padding: "10px 12px",
-            borderBottom: "1px solid rgba(148,163,184,.18)",
+            padding: "2px 2px 8px",
+            borderBottom: "1px solid rgba(148,163,184,.12)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -1036,7 +1036,7 @@ function MusicLibrarySidebar({ accentColor }) {
           </div>
           <div style={{
             flex: 1,
-            padding: "14px 18px",
+            padding: "10px 2px 0",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -1058,8 +1058,8 @@ function MusicLibrarySidebar({ accentColor }) {
                 border: "none",
                 background: `linear-gradient(135deg, ${accentColor}, #38bdf8)`,
                 color: "#06111f",
-                borderRadius: 14,
-                padding: "12px 14px",
+                borderRadius: 12,
+                padding: "11px 13px",
                 cursor: "pointer",
                 fontSize: 13,
                 fontWeight: 1000,
@@ -1495,11 +1495,11 @@ function MusicLibrarySidebar({ accentColor }) {
         style={{
           width: "100%",
           boxSizing: "border-box",
-          borderRadius: 14,
-          border: "1px solid rgba(148,163,184,.28)",
-          background: "rgba(15,23,42,.9)",
+          borderRadius: 12,
+          border: "1px solid rgba(148,163,184,.18)",
+          background: "rgba(15,23,42,.72)",
           color: "#f8fafc",
-          padding: "10px 12px",
+          padding: "9px 11px",
           marginBottom: 10,
           fontSize: 12,
           fontWeight: 1000,
@@ -1537,11 +1537,11 @@ function MusicLibrarySidebar({ accentColor }) {
         style={{
           width: "100%",
           boxSizing: "border-box",
-          borderRadius: 14,
-          border: "1px solid rgba(148,163,184,.28)",
-          background: "rgba(2,6,23,.82)",
+          borderRadius: 12,
+          border: "1px solid rgba(148,163,184,.16)",
+          background: "rgba(2,6,23,.64)",
           color: "#f8fafc",
-          padding: "11px 12px",
+          padding: "10px 11px",
           outline: "none",
           fontSize: 13,
           fontWeight: 800,
@@ -1555,11 +1555,11 @@ function MusicLibrarySidebar({ accentColor }) {
         style={{
           width: "100%",
           boxSizing: "border-box",
-          borderRadius: 14,
-          border: "1px solid rgba(148,163,184,.28)",
-          background: "rgba(15,23,42,.9)",
+          borderRadius: 12,
+          border: "1px solid rgba(148,163,184,.16)",
+          background: "rgba(15,23,42,.72)",
           color: "#f8fafc",
-          padding: "10px 12px",
+          padding: "9px 11px",
           marginBottom: 10,
           fontSize: 12,
           fontWeight: 1000,
@@ -1573,9 +1573,9 @@ function MusicLibrarySidebar({ accentColor }) {
 
       {selectedTrack ? (
         <div style={{
-          borderRadius: 18,
-          background: "rgba(15,23,42,.92)",
-          border: "1px solid rgba(148,163,184,.25)",
+          borderRadius: 14,
+          background: "rgba(15,23,42,.68)",
+          border: "1px solid rgba(148,163,184,.14)",
           padding: 12,
           marginBottom: 12
         }}>
@@ -1650,10 +1650,11 @@ function MusicLibrarySidebar({ accentColor }) {
           <div key={section.label} style={{ marginBottom: 10 }}>
             <button onClick={() => toggleMusicSection(section.key)} style={{
               width: "100%",
-              border: "1px solid rgba(148,163,184,.24)",
-              background: "rgba(2,6,23,.86)",
+              border: "none",
+              borderBottom: "1px solid rgba(148,163,184,.12)",
+              background: "rgba(2,6,23,.46)",
               color: "#f8fafc",
-              borderRadius: 14,
+              borderRadius: 10,
               padding: "10px 12px",
               marginBottom: openMusicSections[section.key] ? 8 : 0,
               cursor: "pointer",
@@ -1684,12 +1685,12 @@ function MusicLibrarySidebar({ accentColor }) {
             {openMusicSections[section.key] && (section.items.length > 0 ? section.items.map(item => (
               <button key={item.id} onClick={() => setSelectedId(item.id)} style={{
                 width: "100%",
-                border: selectedTrack?.id === item.id ? `2px solid ${accentColor}` : "1px solid rgba(148,163,184,.18)",
-                background: selectedTrack?.id === item.id ? "rgba(255,255,255,.12)" : "rgba(15,23,42,.72)",
+                border: selectedTrack?.id === item.id ? `1px solid ${accentColor}` : "1px solid transparent",
+                background: selectedTrack?.id === item.id ? "rgba(255,255,255,.1)" : "rgba(15,23,42,.42)",
                 color: "#f8fafc",
-                borderRadius: 14,
+                borderRadius: 10,
                 padding: 10,
-                marginBottom: 8,
+                marginBottom: 6,
                 cursor: "pointer",
                 textAlign: "left"
               }}>
@@ -1724,10 +1725,10 @@ function MusicLibrarySidebar({ accentColor }) {
 
       {selectedTrack && (
         <div style={{
-          borderRadius: 16,
-          background: "rgba(15,23,42,.92)",
-          border: "1px solid rgba(148,163,184,.22)",
-          padding: 10,
+          borderRadius: 12,
+          background: "rgba(15,23,42,.6)",
+          border: "1px solid rgba(148,163,184,.12)",
+          padding: 8,
           minHeight: 270
         }}>
           <LiveChatBox

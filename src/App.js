@@ -437,6 +437,7 @@ function PokemonSidebar() {
   const [zoomedCover, setZoomedCover] = useState(null);
   const [activeGameAssets, setActiveGameAssets] = useState({ manualUrl: "", backUrl: "" });
   const [gameLaunch, setGameLaunch] = useState(null);
+  const [selectedDiscIndex, setSelectedDiscIndex] = useState(0);
   const emulatorHostRef = useRef(null);
 
   const systemGames = games.filter(game => game.system === activeSystem);
@@ -503,12 +504,14 @@ function PokemonSidebar() {
     const nextIndex = (activeGameIndex + direction + systemGames.length) % systemGames.length;
     setActiveGame(systemGames[nextIndex]);
     setSelectedArt("cover");
+    setSelectedDiscIndex(0);
     setGameLaunch(null);
   };
 
   const chooseCarouselGame = (game) => {
     setActiveGame(game);
     setSelectedArt("cover");
+    setSelectedDiscIndex(0);
     setGameLaunch(null);
   };
 
@@ -517,6 +520,7 @@ function PokemonSidebar() {
     setActiveSystem(nextSystem);
     setActiveGame(firstGame);
     setSelectedArt("cover");
+    setSelectedDiscIndex(0);
     setGameLaunch(null);
   };
 
@@ -524,6 +528,7 @@ function PokemonSidebar() {
     const next = games.find(g => g.file === gameFile) || systemGames[0] || games[0] || null;
     setActiveGame(next);
     setSelectedArt("cover");
+    setSelectedDiscIndex(0);
     setGameLaunch(null);
   };
 
@@ -547,7 +552,7 @@ function PokemonSidebar() {
     window.EJS_core = gameLaunch.core;
     window.EJS_gameName = gameLaunch.label;
     window.EJS_gameUrl = gameLaunch.core === "psx" && gameLaunch.discUrls?.length
-      ? gameLaunch.discUrls[0]
+      ? gameLaunch.discUrls[Math.min(selectedDiscIndex, gameLaunch.discUrls.length - 1)]
       : gameLaunch.gameUrl;
     window.EJS_pathtodata = "https://cdn.emulatorjs.org/stable/data/";
     window.EJS_startOnLoaded = true;
@@ -588,7 +593,7 @@ function PokemonSidebar() {
     return () => {
       resetPokemonEmulator(emulatorHostRef.current);
     };
-  }, [gameLaunch?.core, gameLaunch?.discUrls?.join("|"), gameLaunch?.file, gameLaunch?.gameUrl, gameLaunch?.label, collapsed]);
+  }, [gameLaunch?.core, gameLaunch?.discUrls?.join("|"), gameLaunch?.file, gameLaunch?.gameUrl, gameLaunch?.label, selectedDiscIndex, collapsed]);
 
   return (
     <aside className="pokemon-desktop-sidebar" style={{
@@ -681,6 +686,27 @@ function PokemonSidebar() {
                   <div>
                     <div style={{ color: "#facc15", marginBottom: 8 }}>Selected</div>
                     <div style={{ lineHeight: 1.25 }}>{activeGame.label}</div>
+                    {activeGame.discUrls?.length > 1 && (
+                      <div style={{ marginTop: 12 }}>
+                        <select
+                          value={selectedDiscIndex}
+                          onChange={event => setSelectedDiscIndex(Number(event.target.value))}
+                          style={{
+                            width: "100%",
+                            border: "1px solid rgba(255,255,255,.22)",
+                            borderRadius: 10,
+                            padding: "8px 10px",
+                            background: "rgba(15,23,42,.96)",
+                            color: "#fff",
+                            fontWeight: 900
+                          }}
+                        >
+                          {activeGame.discUrls.map((url, index) => (
+                            <option key={url} value={index}>Disc {index + 1}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     <button
                       type="button"
                       onClick={() => setGameLaunch(activeGame)}
@@ -773,6 +799,7 @@ function PokemonSidebar() {
               )}
               {systemGames.map(game => {
                 const selected = activeGame && game.file === activeGame.file;
+                const discCount = game.discUrls?.length || 0;
                 return (
                   <button key={game.file} onClick={() => chooseCarouselGame(game)} style={{
                     minWidth: 108,
@@ -801,9 +828,24 @@ function PokemonSidebar() {
                     <div style={{ marginTop: 5, fontSize: 10, fontWeight: 900, color: selected ? "#facc15" : "#94a3b8" }}>
                       {game.system} • {game.year}
                     </div>
+                    {discCount > 1 && (
+                      <div style={{ marginTop: 5, fontSize: 10, fontWeight: 1000, color: "#38bdf8" }}>
+                        {discCount} discs
+                      </div>
+                    )}
                   </button>
                 );
               })}
+            </div>
+            <div style={{
+              marginTop: 10,
+              color: "#cbd5e1",
+              fontSize: 11,
+              fontWeight: 800,
+              lineHeight: 1.3,
+              textAlign: "center"
+            }}>
+              For multi disc games, export save, then start next disc and import.
             </div>
           </div>
 
@@ -823,6 +865,29 @@ function PokemonSidebar() {
             <div>
               <div style={{ fontSize: 12, fontWeight: 900, lineHeight: 1.25, color: "#fff" }}>{activeGame.label}</div>
               <div style={{ fontSize: 11, fontWeight: 800, color: "#cbd5e1", marginTop: 4 }}>{activeGame.system} • {activeGame.year}</div>
+              {activeGame.discUrls?.length > 1 && (
+                <select
+                  value={selectedDiscIndex}
+                  onChange={event => {
+                    setSelectedDiscIndex(Number(event.target.value));
+                    setGameLaunch(null);
+                  }}
+                  style={{
+                    marginTop: 8,
+                    width: "100%",
+                    border: "1px solid rgba(255,255,255,.18)",
+                    borderRadius: 10,
+                    padding: "7px 9px",
+                    background: "rgba(2,6,23,.92)",
+                    color: "#fff",
+                    fontWeight: 900
+                  }}
+                >
+                  {activeGame.discUrls.map((url, index) => (
+                    <option key={url} value={index}>Disc {index + 1}</option>
+                  ))}
+                </select>
+              )}
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
                 <button onClick={() => setSelectedArt("cover")} style={{
                   border: "none", borderRadius: 999, padding: "7px 10px", cursor: "pointer",
@@ -1556,7 +1621,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "jellyfin" || activeLiveTvOption.id === "athf") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://ends-principles-federation-tcp.trycloudflare.com/chat-only"
+                    src="https://acre-leslie-flashing-court.trycloudflare.com/chat-only"
                     height={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                     minHeight={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                   />
@@ -1591,7 +1656,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "southpark" || activeLiveTvOption.id === "youtube" || activeLiveTvOption.id === "fuit") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://ends-principles-federation-tcp.trycloudflare.com/chat-only"
+                    src="https://acre-leslie-flashing-court.trycloudflare.com/chat-only"
                     height={250}
                     minHeight={250}
                   />

@@ -492,6 +492,7 @@ function PokemonSidebar() {
   const [activeGameAssets, setActiveGameAssets] = useState({ manualUrl: "", backUrl: "" });
   const [gameLaunch, setGameLaunch] = useState(null);
   const [selectedDiscIndex, setSelectedDiscIndex] = useState(0);
+  const [stretchGame, setStretchGame] = useState(false);
   const emulatorHostRef = useRef(null);
 
   const stopRunningGame = () => {
@@ -679,6 +680,23 @@ function PokemonSidebar() {
         .pokemon-desktop-sidebar button:hover { transform: translateY(-1px); }
         .game-cover-carousel::-webkit-scrollbar { height: 6px; }
         .game-cover-carousel::-webkit-scrollbar-thumb { background: rgba(250,204,21,.55); border-radius: 999px; }
+        .pokemon-emulator-host,
+        .pokemon-emulator-host > div {
+          width: 100% !important;
+          height: 100% !important;
+        }
+        .pokemon-emulator-host.pokemon-emulator-stretch canvas,
+        .pokemon-emulator-host.pokemon-emulator-stretch video,
+        .pokemon-emulator-host.pokemon-emulator-stretch iframe,
+        .pokemon-emulator-host.pokemon-emulator-stretch > div,
+        .pokemon-emulator-host.pokemon-emulator-stretch [id^="game"] {
+          width: 100% !important;
+          height: 100% !important;
+          max-width: none !important;
+          max-height: none !important;
+          object-fit: fill !important;
+          aspect-ratio: auto !important;
+        }
       `}</style>
       <button onClick={() => setCollapsed(false)} style={{
         width: "100%",
@@ -712,7 +730,8 @@ function PokemonSidebar() {
               borderRadius: 14,
               overflow: "hidden",
               background: "#020617",
-              border: "4px solid #0f172a"
+              border: "4px solid #0f172a",
+              position: "relative"
             }}>
               {!activeGame && (
                 <div style={{
@@ -729,7 +748,34 @@ function PokemonSidebar() {
                 </div>
               )}
               {activeGame && gameLaunch && (
-                <div ref={emulatorHostRef} style={{ width: "100%", height: "100%" }} />
+                <>
+                  <div
+                    ref={emulatorHostRef}
+                    className={`pokemon-emulator-host${stretchGame ? " pokemon-emulator-stretch" : ""}`}
+                    style={{ width: "100%", height: "100%" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setStretchGame(stretch => !stretch)}
+                    style={{
+                      position: "absolute",
+                      right: 8,
+                      top: 8,
+                      zIndex: 20,
+                      border: "1px solid rgba(255,255,255,.26)",
+                      borderRadius: 999,
+                      padding: "7px 10px",
+                      background: stretchGame ? "rgba(34,197,94,.94)" : "rgba(15,23,42,.88)",
+                      color: stretchGame ? "#052e16" : "#fff",
+                      fontSize: 11,
+                      fontWeight: 1000,
+                      cursor: "pointer",
+                      boxShadow: "0 8px 18px rgba(0,0,0,.32)"
+                    }}
+                  >
+                    {stretchGame ? "Normal" : "Stretch"}
+                  </button>
+                </>
               )}
               {activeGame && !gameLaunch && (
                 <div style={{

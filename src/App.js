@@ -290,10 +290,52 @@ function pokemonAssetPath(game, fileName) {
   return `${process.env.PUBLIC_URL}/rom-images/${encodeURIComponent(game.label)}/${fileName}`;
 }
 
+const POKEMON_BACK_FILES = ["back.jpg", "back.png", "back.jpeg", "back.webp", "back.avif"];
+const POKEMON_COVER_FILES = ["cover.jpg", "cover.png", "cover.jpeg", "cover.webp", "cover.avif", "front.jpg", "front.png", "front.jpeg", "front.webp", "front.avif"];
+const POKEMON_MANUAL_FILES = ["manual.pdf", "manual.PDF"];
+
+function pokemonAssetOverride(game, keys) {
+  const value = keys.map(key => game?.[key]).find(Boolean);
+  if (!value || typeof value !== "string") return "";
+  if (/^https?:\/\//i.test(value) || value.startsWith("/")) return value;
+  return pokemonAssetPath(game, value);
+}
+
+function pokemonAssetExists(url, type = "file") {
+  if (!url) return Promise.resolve(false);
+
+  if (type === "image") {
+    return new Promise(resolve => {
+      const image = new Image();
+      image.onload = () => resolve(true);
+      image.onerror = () => resolve(false);
+      image.src = url;
+    });
+  }
+
+  return fetch(url, { method: "HEAD", cache: "no-store" })
+    .then(response => response.ok)
+    .catch(() => false);
+}
+
+async function findPokemonAsset(game, fileNames, type = "file") {
+  if (!game) return "";
+
+  const overrideUrl = type === "image"
+    ? pokemonAssetOverride(game, ["backUrl", "backImageUrl", "backImage", "back"])
+    : pokemonAssetOverride(game, ["manualUrl", "manualFile", "manual"]);
+  if (overrideUrl && await pokemonAssetExists(overrideUrl, type)) return overrideUrl;
+
+  for (const fileName of fileNames) {
+    const url = pokemonAssetPath(game, fileName);
+    if (await pokemonAssetExists(url, type)) return url;
+  }
+
+  return "";
+}
+
 function PokemonCoverImage({ game, onZoom, compact = false, imageType = "cover" }) {
-  const coverFiles = imageType === "back"
-    ? ["back.jpg", "back.png", "back.jpeg", "back.webp", "back.avif"]
-    : ["cover.jpg", "cover.png", "cover.jpeg", "cover.webp", "cover.avif", "front.jpg", "front.png", "front.jpeg", "front.webp", "front.avif"];
+  const coverFiles = imageType === "back" ? POKEMON_BACK_FILES : POKEMON_COVER_FILES;
   const [index, setIndex] = useState(0);
   const [failed, setFailed] = useState(false);
 
@@ -360,12 +402,12 @@ function PokemonSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [selectedArt, setSelectedArt] = useState("cover");
   const [zoomedCover, setZoomedCover] = useState(null);
+  const [activeGameAssets, setActiveGameAssets] = useState({ manualUrl: "", backUrl: "" });
   const playerRef = useRef(null);
 
   const systemGames = games.filter(game => game.system === activeSystem);
   const activeGameIndex = activeGame ? Math.max(0, systemGames.findIndex(game => game.file === activeGame.file)) : 0;
   const backgroundImage = SYSTEM_BACKGROUNDS[activeSystem] || SYSTEM_BACKGROUNDS.GB;
-  const manualSrc = activeGame ? pokemonAssetPath(activeGame, "manual.pdf") : "";
 
   useEffect(() => {
     let cancelled = false;
@@ -390,6 +432,31 @@ function PokemonSidebar() {
 
     loadGames();
   }, [activeSystem, fuitsLiveTvChannelUrl]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setActiveGameAssets({ manualUrl: "", backUrl: "" });
+
+    if (!activeGame) return () => { cancelled = true; };
+
+    const loadAssets = async () => {
+      const [manualUrl, backUrl] = await Promise.all([
+        findPokemonAsset(activeGame, POKEMON_MANUAL_FILES),
+        findPokemonAsset(activeGame, POKEMON_BACK_FILES, "image")
+      ]);
+
+      if (!cancelled) setActiveGameAssets({ manualUrl, backUrl });
+    };
+
+    loadAssets();
+    return () => { cancelled = true; };
+  }, [activeGame]);
+
+  useEffect(() => {
+    if (selectedArt === "back" && !activeGameAssets.backUrl) {
+      setSelectedArt("cover");
+    }
+  }, [activeGameAssets.backUrl, selectedArt]);
 
   const moveCarousel = (direction) => {
     if (!systemGames.length) return;
@@ -647,13 +714,17 @@ function PokemonSidebar() {
                   border: "none", borderRadius: 999, padding: "7px 10px", cursor: "pointer",
                   background: selectedArt === "cover" ? "#22c55e" : "rgba(255,255,255,.14)", color: selectedArt === "cover" ? "#052e16" : "#fff", fontWeight: 900
                 }}>Cover</button>
-                <button onClick={() => setSelectedArt("back")} style={{
-                  border: "none", borderRadius: 999, padding: "7px 10px", cursor: "pointer",
-                  background: selectedArt === "back" ? "#a855f7" : "rgba(255,255,255,.14)", color: "#fff", fontWeight: 900
-                }}>Back</button>
-                <a href={manualSrc} target="_blank" rel="noreferrer" style={{
-                  borderRadius: 999, padding: "7px 10px", textDecoration: "none", background: "rgba(59,130,246,.9)", color: "#fff", fontWeight: 900, fontSize: 13
-                }}>Manual</a>
+                {activeGameAssets.backUrl && (
+                  <button onClick={() => setSelectedArt("back")} style={{
+                    border: "none", borderRadius: 999, padding: "7px 10px", cursor: "pointer",
+                    background: selectedArt === "back" ? "#a855f7" : "rgba(255,255,255,.14)", color: "#fff", fontWeight: 900
+                  }}>Back</button>
+                )}
+                {activeGameAssets.manualUrl && (
+                  <a href={activeGameAssets.manualUrl} target="_blank" rel="noreferrer" style={{
+                    borderRadius: 999, padding: "7px 10px", textDecoration: "none", background: "rgba(59,130,246,.9)", color: "#fff", fontWeight: 900, fontSize: 13
+                  }}>Manual</a>
+                )}
               </div>
             </div>
           </div>

@@ -346,12 +346,6 @@ function resetPokemonEmulator(playerElement) {
 
   document.querySelectorAll("script[data-pokemon-emulator-loader='true']").forEach(script => script.remove());
 
-  Object.keys(window)
-    .filter(key => key.startsWith("EJS_"))
-    .forEach(key => {
-      try { delete window[key]; } catch {}
-    });
-
   [
     "EJS_emulator",
     "EJS_player",
@@ -553,7 +547,7 @@ function PokemonSidebar() {
     return () => {
       resetPokemonEmulator(playerRef.current);
     };
-  }, [activeGame, collapsed]);
+  }, [activeGame?.core, activeGame?.file, activeGame?.gameUrl, activeGame?.label, collapsed]);
 
   return (
     <aside className="pokemon-desktop-sidebar" style={{
@@ -1484,7 +1478,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "jellyfin" || activeLiveTvOption.id === "athf") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://administrators-handles-settings-convenient.trycloudflare.com/chat-only"
+                    src="https://obituaries-latitude-realtor-closer.trycloudflare.com/chat-only"
                     height={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                     minHeight={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                   />
@@ -1519,7 +1513,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "southpark" || activeLiveTvOption.id === "youtube" || activeLiveTvOption.id === "fuit") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://administrators-handles-settings-convenient.trycloudflare.com/chat-only"
+                    src="https://obituaries-latitude-realtor-closer.trycloudflare.com/chat-only"
                     height={250}
                     minHeight={250}
                   />

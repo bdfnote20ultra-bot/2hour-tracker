@@ -13,7 +13,7 @@
 
 export const FUITS_LIVE_TV_PLAYLIST = {
   title: "FUITS LIVE TV WORLD",
-  publicChannelUrl: "https://administrators-handles-settings-convenient.trycloudflare.com",
+  publicChannelUrl: "https://obituaries-latitude-realtor-closer.trycloudflare.com",
   localPlaylistPath: "T:\\FattysLiveTV\\Playlists\\FuitsLiveTV\\fuits-live-tv-world.m3u",
   items: FATTYS_LIVE_TV
 };

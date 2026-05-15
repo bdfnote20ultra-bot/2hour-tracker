@@ -511,30 +511,57 @@ function PokemonSidebar() {
     const host = emulatorHostRef.current;
     if (!host) return;
 
-    const targets = host.querySelectorAll("canvas, video, iframe, [id], [class]");
-    targets.forEach(element => {
-      const name = `${element.id || ""} ${element.className || ""}`.toLowerCase();
-      const isDisplayElement =
-        ["CANVAS", "VIDEO", "IFRAME"].includes(element.tagName) ||
-        name.includes("canvas") ||
-        name.includes("screen") ||
-        name.includes("game");
+    const stretchStyles = {
+      width: "100%",
+      height: "100%",
+      maxWidth: "none",
+      maxHeight: "none",
+      minWidth: "100%",
+      minHeight: "100%",
+      objectFit: "fill",
+      aspectRatio: "auto",
+      margin: "0",
+      transform: "none"
+    };
 
-      if (!isDisplayElement) return;
+    const frameStyles = {
+      position: "absolute",
+      inset: "0",
+      left: "0",
+      top: "0"
+    };
 
-      ["width", "height", "maxWidth", "maxHeight", "minWidth", "minHeight", "objectFit", "aspectRatio"].forEach(prop => {
-        element.style[prop] = shouldStretch ? {
-          width: "100%",
-          height: "100%",
-          maxWidth: "none",
-          maxHeight: "none",
-          minWidth: "100%",
-          minHeight: "100%",
-          objectFit: "fill",
-          aspectRatio: "auto"
-        }[prop] : "";
+    const setStyles = (element, styles) => {
+      Object.entries(styles).forEach(([prop, value]) => {
+        element.style[prop] = shouldStretch ? value : "";
       });
+    };
+
+    setStyles(host, { position: "relative", ...stretchStyles });
+
+    host.querySelectorAll("canvas, video, iframe").forEach(display => {
+      setStyles(display, { ...stretchStyles, ...frameStyles });
+      display.setAttribute("data-pokemon-stretch-display", "true");
+
+      let parent = display.parentElement;
+      while (parent && parent !== host) {
+        setStyles(parent, { position: "relative", ...stretchStyles });
+        parent.setAttribute("data-pokemon-stretch-wrapper", "true");
+        parent = parent.parentElement;
+      }
     });
+
+    if (!shouldStretch) {
+      host.querySelectorAll("[data-pokemon-stretch-display], [data-pokemon-stretch-wrapper]").forEach(element => {
+        element.removeAttribute("data-pokemon-stretch-display");
+        element.removeAttribute("data-pokemon-stretch-wrapper");
+      });
+    }
+
+    try {
+      window.EJS_emulator?.resize?.();
+      window.EJS_emulator?.gameManager?.resize?.();
+    } catch {}
   };
 
   const toggleGameFullscreen = () => {
@@ -794,6 +821,23 @@ function PokemonSidebar() {
         .pokemon-emulator-frame:-webkit-full-screen .pokemon-emulator-host {
           width: 100vw !important;
           height: 100vh !important;
+        }
+        .pokemon-emulator-host.pokemon-emulator-stretch [data-pokemon-stretch-wrapper],
+        .pokemon-emulator-host.pokemon-emulator-stretch [data-pokemon-stretch-display] {
+          width: 100% !important;
+          height: 100% !important;
+          max-width: none !important;
+          max-height: none !important;
+          min-width: 100% !important;
+          min-height: 100% !important;
+          margin: 0 !important;
+          transform: none !important;
+          aspect-ratio: auto !important;
+        }
+        .pokemon-emulator-host.pokemon-emulator-stretch [data-pokemon-stretch-display] {
+          position: absolute !important;
+          inset: 0 !important;
+          object-fit: fill !important;
         }
         .pokemon-emulator-host.pokemon-emulator-stretch canvas,
         .pokemon-emulator-host.pokemon-emulator-stretch video,

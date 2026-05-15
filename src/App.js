@@ -548,7 +548,7 @@ function PokemonSidebar() {
     window.EJS_gameName = gameLaunch.label;
     window.EJS_gameUrl = gameLaunch.gameUrl;
     window.EJS_pathtodata = "https://cdn.emulatorjs.org/stable/data/";
-    window.EJS_startOnLoaded = false;
+    window.EJS_startOnLoaded = true;
     window.EJS_backgroundColor = "#111827";
     window.EJS_color = "#38bdf8";
     window.EJS_defaultControls = {
@@ -1554,7 +1554,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "jellyfin" || activeLiveTvOption.id === "athf") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://trainers-annotated-handbook-respond.trycloudflare.com/chat-only"
+                    src="https://road-thumbnail-drop-wanted.trycloudflare.com/chat-only"
                     height={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                     minHeight={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                   />
@@ -1589,7 +1589,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "southpark" || activeLiveTvOption.id === "youtube" || activeLiveTvOption.id === "fuit") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://trainers-annotated-handbook-respond.trycloudflare.com/chat-only"
+                    src="https://road-thumbnail-drop-wanted.trycloudflare.com/chat-only"
                     height={250}
                     minHeight={250}
                   />

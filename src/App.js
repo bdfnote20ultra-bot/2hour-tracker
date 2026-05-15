@@ -537,7 +537,7 @@ function PokemonSidebar() {
     window.EJS_player = `#${playerId}`;
     window.EJS_core = activeGame.core;
     window.EJS_gameName = activeGame.label;
-    window.EJS_gameUrl = activeGame.core === "psx" && activeGame.discUrls?.length ? activeGame.discUrls : activeGame.gameUrl;
+    window.EJS_gameUrl = activeGame.gameUrl;
     window.EJS_pathtodata = "https://cdn.emulatorjs.org/stable/data/";
     window.EJS_startOnLoaded = false;
     window.EJS_backgroundColor = "#111827";
@@ -573,7 +573,7 @@ function PokemonSidebar() {
     return () => {
       resetPokemonEmulator(playerRef.current);
     };
-  }, [activeGame?.core, activeGame?.discUrls?.join("|"), activeGame?.file, activeGame?.gameUrl, activeGame?.label, collapsed]);
+  }, [activeGame?.core, activeGame?.file, activeGame?.gameUrl, activeGame?.label, collapsed]);
 
   return (
     <aside className="pokemon-desktop-sidebar" style={{
@@ -1504,7 +1504,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "jellyfin" || activeLiveTvOption.id === "athf") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://arthur-validity-unless-towards.trycloudflare.com/chat-only"
+                    src="https://markers-hence-bingo-trainers.trycloudflare.com/chat-only"
                     height={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                     minHeight={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                   />
@@ -1539,7 +1539,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "southpark" || activeLiveTvOption.id === "youtube" || activeLiveTvOption.id === "fuit") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://arthur-validity-unless-towards.trycloudflare.com/chat-only"
+                    src="https://markers-hence-bingo-trainers.trycloudflare.com/chat-only"
                     height={250}
                     minHeight={250}
                   />

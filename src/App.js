@@ -286,7 +286,7 @@ const SYSTEM_BACKGROUNDS = {
 const GAME_SYSTEMS = ["GB", "GBC", "GBA", "PS1"];
 
 function pokemonAssetPath(game, fileName) {
-  if (game?.assetBaseUrl) return `${game.assetBaseUrl}/${fileName}`;
+  if (game?.assetBaseUrl) return `${normalizePublicUrl(game.assetBaseUrl)}/${fileName}`;
   return `${process.env.PUBLIC_URL}/rom-images/${encodeURIComponent(game.label)}/${fileName}`;
 }
 
@@ -294,10 +294,15 @@ const POKEMON_BACK_FILES = ["back.jpg", "back.png", "back.jpeg", "back.webp", "b
 const POKEMON_COVER_FILES = ["cover.jpg", "cover.png", "cover.jpeg", "cover.webp", "cover.avif", "front.jpg", "front.png", "front.jpeg", "front.webp", "front.avif"];
 const POKEMON_MANUAL_FILES = ["manual.pdf", "manual.PDF"];
 
+function normalizePublicUrl(url) {
+  if (!url || typeof url !== "string") return url;
+  return url.replace(/^http:\/\/([^/]+\.trycloudflare\.com)/i, "https://$1");
+}
+
 function pokemonAssetOverride(game, keys) {
   const value = keys.map(key => game?.[key]).find(Boolean);
   if (!value || typeof value !== "string") return "";
-  if (/^https?:\/\//i.test(value) || value.startsWith("/")) return value;
+  if (/^https?:\/\//i.test(value) || value.startsWith("/")) return normalizePublicUrl(value);
   return pokemonAssetPath(game, value);
 }
 
@@ -418,7 +423,12 @@ function PokemonSidebar() {
         if (!cancelled && Array.isArray(serverGames) && serverGames.length) {
           const merged = serverGames.map(game => {
             const known = POKEMON_ROMS.find(item => item.file === game.file || item.label === game.label);
-            return known ? { ...known, ...game, year: known.year || game.year } : game;
+            const normalizedGame = {
+              ...game,
+              gameUrl: normalizePublicUrl(game.gameUrl),
+              assetBaseUrl: normalizePublicUrl(game.assetBaseUrl)
+            };
+            return known ? { ...known, ...normalizedGame, year: known.year || game.year } : normalizedGame;
           });
           setGames(merged);
           setActiveGame(current => {
@@ -1442,7 +1452,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "jellyfin" || activeLiveTvOption.id === "athf") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://restrict-males-latinas-opera.trycloudflare.com/chat-only"
+                    src="https://giant-symphony-visitor-searched.trycloudflare.com/chat-only"
                     height={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                     minHeight={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                   />
@@ -1477,7 +1487,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "southpark" || activeLiveTvOption.id === "youtube" || activeLiveTvOption.id === "fuit") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://restrict-males-latinas-opera.trycloudflare.com/chat-only"
+                    src="https://giant-symphony-visitor-searched.trycloudflare.com/chat-only"
                     height={250}
                     minHeight={250}
                   />

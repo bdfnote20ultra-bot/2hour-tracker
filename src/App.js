@@ -296,6 +296,7 @@ const POKEMON_STRETCH_DEFAULT_OPTIONS = {
   video_scale_integer: "false",
   video_aspect_ratio_auto: "false"
 };
+const POKEMON_FULLSCREEN_ASPECT = 16 / 9;
 
 function pokemonAssetPath(game, fileName) {
   if (game?.assetBaseUrl) return `${normalizePublicUrl(game.assetBaseUrl)}/${fileName}`;
@@ -525,81 +526,15 @@ function PokemonSidebar() {
     const host = emulatorHostRef.current;
     if (!host) return;
 
-    const stretchStyles = {
-      width: "100%",
-      height: "100%",
-      maxWidth: "none",
-      maxHeight: "none",
-      minWidth: "100%",
-      minHeight: "100%",
-      objectFit: "fill",
-      aspectRatio: "auto",
-      margin: "0",
-      transform: "none"
-    };
-
-    const frameStyles = {
-      position: "absolute",
-      inset: "0",
-      left: "0",
-      top: "0"
-    };
-
-    const setStyles = (element, styles) => {
-      Object.entries(styles).forEach(([prop, value]) => {
-        element.style[prop] = shouldStretch ? value : "";
-      });
-    };
-
-    setStyles(host, { position: "relative", ...stretchStyles });
-
-    host.querySelectorAll("canvas, video, iframe").forEach(display => {
-      setStyles(display, { ...stretchStyles, ...frameStyles });
-      display.setAttribute("data-pokemon-stretch-display", "true");
-
-      let parent = display.parentElement;
-      while (parent && parent !== host) {
-        setStyles(parent, { position: "relative", ...stretchStyles });
-        parent.setAttribute("data-pokemon-stretch-wrapper", "true");
-        parent = parent.parentElement;
-      }
-    });
-
-    if (!shouldStretch) {
-      host.querySelectorAll("[data-pokemon-stretch-display], [data-pokemon-stretch-wrapper]").forEach(element => {
-        element.removeAttribute("data-pokemon-stretch-display");
-        element.removeAttribute("data-pokemon-stretch-wrapper");
-      });
-    }
-
     try {
       window.EJS_emulator?.resize?.();
       window.EJS_emulator?.gameManager?.resize?.();
     } catch {}
 
-    const sourceAspect = host.getBoundingClientRect().width / host.getBoundingClientRect().height;
     const systemAspect = POKEMON_SYSTEM_ASPECTS[activeGame?.system];
-    const aspect = systemAspect || sourceAspect;
-
-    host.querySelectorAll("canvas").forEach(canvas => {
-      if (!shouldStretch) return;
-
-      if (sourceAspect > aspect) {
-        const width = `${(sourceAspect / aspect) * 100}%`;
-        canvas.style.setProperty("width", width, "important");
-        canvas.style.setProperty("height", "100%", "important");
-        canvas.style.setProperty("left", "50%", "important");
-        canvas.style.setProperty("top", "50%", "important");
-        canvas.style.setProperty("transform", "translate(-50%, -50%)", "important");
-      } else if (sourceAspect < aspect) {
-        const height = `${(aspect / sourceAspect) * 100}%`;
-        canvas.style.setProperty("width", "100%", "important");
-        canvas.style.setProperty("height", height, "important");
-        canvas.style.setProperty("left", "50%", "important");
-        canvas.style.setProperty("top", "50%", "important");
-        canvas.style.setProperty("transform", "translate(-50%, -50%)", "important");
-      }
-    });
+    const scaleX = shouldStretch && systemAspect ? POKEMON_FULLSCREEN_ASPECT / systemAspect : 1;
+    host.style.setProperty("--pokemon-stretch-scale-x", String(scaleX));
+    host.classList.toggle("pokemon-emulator-stretch", shouldStretch);
   };
 
   const toggleGameFullscreen = () => {
@@ -862,38 +797,20 @@ function PokemonSidebar() {
           width: 100vw !important;
           height: 100vh !important;
         }
-        .pokemon-emulator-host.pokemon-emulator-stretch [data-pokemon-stretch-wrapper],
-        .pokemon-emulator-host.pokemon-emulator-stretch [data-pokemon-stretch-display] {
+        .pokemon-emulator-host.pokemon-emulator-stretch {
+          overflow: hidden !important;
+        }
+        .pokemon-emulator-host.pokemon-emulator-stretch .ejs_parent,
+        .pokemon-emulator-host.pokemon-emulator-stretch .ejs_game,
+        .pokemon-emulator-host.pokemon-emulator-stretch .ejs_canvas_parent,
+        .pokemon-emulator-host.pokemon-emulator-stretch .ejs_canvas {
           width: 100% !important;
           height: 100% !important;
-          max-width: none !important;
-          max-height: none !important;
-          min-width: 100% !important;
-          min-height: 100% !important;
-          margin: 0 !important;
-          transform: none !important;
-          aspect-ratio: auto !important;
         }
-        .pokemon-emulator-host.pokemon-emulator-stretch [data-pokemon-stretch-display] {
-          position: absolute !important;
-          inset: 0 !important;
-          object-fit: fill !important;
-        }
-        .pokemon-emulator-host.pokemon-emulator-stretch canvas,
-        .pokemon-emulator-host.pokemon-emulator-stretch video,
-        .pokemon-emulator-host.pokemon-emulator-stretch iframe,
-        .pokemon-emulator-host.pokemon-emulator-stretch > div,
-        .pokemon-emulator-host.pokemon-emulator-stretch [id^="game"],
-        .pokemon-emulator-host.pokemon-emulator-stretch [class*="canvas"],
-        .pokemon-emulator-host.pokemon-emulator-stretch [class*="screen"] {
-          width: 100% !important;
-          height: 100% !important;
-          max-width: none !important;
-          max-height: none !important;
-          min-width: 100% !important;
-          min-height: 100% !important;
-          object-fit: fill !important;
-          aspect-ratio: auto !important;
+        .pokemon-emulator-host.pokemon-emulator-stretch .ejs_canvas {
+          transform: scaleX(var(--pokemon-stretch-scale-x, 1)) !important;
+          transform-origin: center center !important;
+          image-rendering: pixelated;
         }
       `}</style>
       <button onClick={() => setCollapsed(false)} style={{

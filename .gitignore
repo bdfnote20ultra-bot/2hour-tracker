@@ -1,0 +1,4 @@
+# Keep game files local on T:\FattysLiveTV only.
+public/roms/
+public/rom-images/
+

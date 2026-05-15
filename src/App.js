@@ -281,9 +281,12 @@ const SYSTEM_BACKGROUNDS = {
   GB: "sidequest-gb.png",
   GBC: "sidequest-gbc.png",
   GBA: "sidequest-gba.png",
+  PS1: "sidequest-gba.png",
 };
+const GAME_SYSTEMS = ["GB", "GBC", "GBA", "PS1"];
 
 function pokemonAssetPath(game, fileName) {
+  if (game?.assetBaseUrl) return `${game.assetBaseUrl}/${fileName}`;
   return `${process.env.PUBLIC_URL}/rom-images/${encodeURIComponent(game.label)}/${fileName}`;
 }
 
@@ -348,17 +351,43 @@ function PokemonCoverImage({ game, side, onZoom, compact = false }) {
 }
 
 function PokemonSidebar() {
+  const fuitsLiveTvChannelUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
+  const [games, setGames] = useState([]);
   const [activeSystem, setActiveSystem] = useState("GB");
-  const [activeGame, setActiveGame] = useState(POKEMON_ROMS.find(g => g.system === "GB") || POKEMON_ROMS[0]);
+  const [activeGame, setActiveGame] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
   const [showBackCover, setShowBackCover] = useState(false);
   const [zoomedCover, setZoomedCover] = useState(null);
   const playerRef = useRef(null);
 
-  const systemGames = POKEMON_ROMS.filter(game => game.system === activeSystem);
-  const activeGameIndex = Math.max(0, systemGames.findIndex(game => game.file === activeGame.file));
+  const systemGames = games.filter(game => game.system === activeSystem);
+  const activeGameIndex = activeGame ? Math.max(0, systemGames.findIndex(game => game.file === activeGame.file)) : 0;
   const backgroundImage = SYSTEM_BACKGROUNDS[activeSystem] || SYSTEM_BACKGROUNDS.GB;
-  const manualSrc = pokemonAssetPath(activeGame, "manual.pdf");
+  const manualSrc = activeGame ? pokemonAssetPath(activeGame, "manual.pdf") : "";
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadGames = async () => {
+      try {
+        const response = await fetch(`${fuitsLiveTvChannelUrl}/games.json`, { cache: "no-store" });
+        const serverGames = await response.json();
+        if (!cancelled && Array.isArray(serverGames) && serverGames.length) {
+          const merged = serverGames.map(game => {
+            const known = POKEMON_ROMS.find(item => item.file === game.file || item.label === game.label);
+            return known ? { ...known, ...game, year: known.year || game.year } : game;
+          });
+          setGames(merged);
+          setActiveGame(current => {
+            const currentStillExists = current && merged.find(game => game.file === current.file && game.system === current.system);
+            if (currentStillExists) return currentStillExists;
+            return merged.find(game => game.system === activeSystem) || merged[0] || current;
+          });
+        }
+      } catch {}
+    };
+
+    loadGames();
+  }, [activeSystem, fuitsLiveTvChannelUrl]);
 
   const moveCarousel = (direction) => {
     if (!systemGames.length) return;
@@ -373,20 +402,20 @@ function PokemonSidebar() {
   };
 
   const handleSystemChange = (nextSystem) => {
-    const firstGame = POKEMON_ROMS.find(game => game.system === nextSystem) || POKEMON_ROMS[0];
+    const firstGame = games.find(game => game.system === nextSystem) || null;
     setActiveSystem(nextSystem);
     setActiveGame(firstGame);
     setShowBackCover(false);
   };
 
   const handleGameChange = (gameFile) => {
-    const next = POKEMON_ROMS.find(g => g.file === gameFile) || systemGames[0] || POKEMON_ROMS[0];
+    const next = games.find(g => g.file === gameFile) || systemGames[0] || games[0] || null;
     setActiveGame(next);
     setShowBackCover(false);
   };
 
   useEffect(() => {
-    if (collapsed || !playerRef.current) return;
+    if (collapsed || !playerRef.current || !activeGame) return;
 
     playerRef.current.innerHTML = "";
     const mount = document.createElement("div");
@@ -398,7 +427,7 @@ function PokemonSidebar() {
     window.EJS_player = "#pokemon-game-player";
     window.EJS_core = activeGame.core;
     window.EJS_gameName = activeGame.label;
-    window.EJS_gameUrl = `${process.env.PUBLIC_URL}/roms/${encodeURIComponent(activeGame.file)}`;
+    window.EJS_gameUrl = activeGame.gameUrl;
     window.EJS_pathtodata = "https://cdn.emulatorjs.org/stable/data/";
     window.EJS_startOnLoaded = false;
     window.EJS_backgroundColor = "#111827";
@@ -474,16 +503,31 @@ function PokemonSidebar() {
               overflow: "hidden",
               background: "#020617",
               border: "4px solid #0f172a"
-            }} />
+            }}>
+              {!activeGame && (
+                <div style={{
+                  height: "100%",
+                  display: "grid",
+                  placeItems: "center",
+                  color: "#cbd5e1",
+                  fontSize: 13,
+                  fontWeight: 900,
+                  textAlign: "center",
+                  padding: 18
+                }}>
+                  Add games to T:\FattysLiveTV\Games\Roms\{activeSystem}
+                </div>
+              )}
+            </div>
           </div>
 
           <div style={{
             marginTop: 12,
             display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
+            gridTemplateColumns: "repeat(4, 1fr)",
             gap: 8
           }}>
-            {["GB", "GBC", "GBA"].map(system => (
+            {GAME_SYSTEMS.map(system => (
               <button key={system} onClick={() => handleSystemChange(system)} style={{
                 border: activeSystem === system ? "2px solid #facc15" : "1px solid rgba(255,255,255,.22)",
                 borderRadius: 12,
@@ -539,8 +583,13 @@ function PokemonSidebar() {
               scrollSnapType: "x mandatory",
               paddingBottom: 4
             }}>
+              {systemGames.length === 0 && (
+                <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 900, padding: 12 }}>
+                  No {activeSystem} games found yet.
+                </div>
+              )}
               {systemGames.map(game => {
-                const selected = game.file === activeGame.file;
+                const selected = activeGame && game.file === activeGame.file;
                 return (
                   <button key={game.file} onClick={() => chooseCarouselGame(game)} style={{
                     minWidth: 108,
@@ -575,6 +624,7 @@ function PokemonSidebar() {
             </div>
           </div>
 
+          {activeGame && (
           <div style={{
             marginTop: 12,
             display: "grid",
@@ -609,6 +659,7 @@ function PokemonSidebar() {
               </div>
             </div>
           </div>
+          )}
 
 
 

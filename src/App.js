@@ -546,7 +546,9 @@ function PokemonSidebar() {
     window.EJS_player = `#${playerId}`;
     window.EJS_core = gameLaunch.core;
     window.EJS_gameName = gameLaunch.label;
-    window.EJS_gameUrl = gameLaunch.gameUrl;
+    window.EJS_gameUrl = gameLaunch.core === "psx" && gameLaunch.discUrls?.length
+      ? gameLaunch.discUrls[0]
+      : gameLaunch.gameUrl;
     window.EJS_pathtodata = "https://cdn.emulatorjs.org/stable/data/";
     window.EJS_startOnLoaded = true;
     window.EJS_backgroundColor = "#111827";
@@ -586,7 +588,7 @@ function PokemonSidebar() {
     return () => {
       resetPokemonEmulator(emulatorHostRef.current);
     };
-  }, [gameLaunch?.core, gameLaunch?.file, gameLaunch?.gameUrl, gameLaunch?.label, collapsed]);
+  }, [gameLaunch?.core, gameLaunch?.discUrls?.join("|"), gameLaunch?.file, gameLaunch?.gameUrl, gameLaunch?.label, collapsed]);
 
   return (
     <aside className="pokemon-desktop-sidebar" style={{
@@ -1554,7 +1556,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "jellyfin" || activeLiveTvOption.id === "athf") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://progress-entering-magazines-riders.trycloudflare.com/chat-only"
+                    src="https://ends-principles-federation-tcp.trycloudflare.com/chat-only"
                     height={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                     minHeight={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                   />
@@ -1589,7 +1591,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "southpark" || activeLiveTvOption.id === "youtube" || activeLiveTvOption.id === "fuit") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://progress-entering-magazines-riders.trycloudflare.com/chat-only"
+                    src="https://ends-principles-federation-tcp.trycloudflare.com/chat-only"
                     height={250}
                     minHeight={250}
                   />

@@ -344,11 +344,64 @@ async function findPokemonAsset(game, fileNames, type = "file") {
 }
 
 function resetPokemonEmulator(playerElement) {
+  const emulator = window.EJS_emulator;
+  const shutdownTargets = [
+    [emulator, "pause"],
+    [emulator, "stop"],
+    [emulator, "destroy"],
+    [emulator, "exit"],
+    [emulator?.gameManager, "pause"],
+    [emulator?.gameManager, "stop"],
+    [emulator?.gameManager, "destroy"],
+    [emulator?.gameManager?.game, "pause"],
+    [emulator?.gameManager?.game, "stop"],
+    [emulator?.gameManager?.game, "destroy"]
+  ];
+
+  shutdownTargets.forEach(([target, method]) => {
+    try {
+      if (typeof target?.[method] === "function") target[method]();
+    } catch {}
+  });
+
+  [
+    emulator?.audioContext,
+    emulator?.audio?.context,
+    emulator?.gameManager?.audioContext,
+    emulator?.gameManager?.audio?.context
+  ].forEach(context => {
+    try {
+      if (context?.state !== "closed") {
+        if (typeof context?.close === "function") context.close();
+        else context?.suspend?.();
+      }
+    } catch {}
+  });
+
+  [
+    emulator?.worker,
+    emulator?.gameManager?.worker,
+    emulator?.gameManager?.game?.worker
+  ].forEach(worker => {
+    try { worker?.terminate?.(); } catch {}
+  });
+
   try {
     if (window.EJS_emulator?.destroy) window.EJS_emulator.destroy();
   } catch {}
 
   document.querySelectorAll("script[data-pokemon-emulator-loader='true']").forEach(script => script.remove());
+  document.querySelectorAll("[id^='pokemon-game-player-']").forEach(element => {
+    element.querySelectorAll("audio, video").forEach(media => {
+      try {
+        media.pause();
+        media.removeAttribute("src");
+        media.load?.();
+      } catch {}
+    });
+    element.innerHTML = "";
+    element.remove();
+  });
 
   [
     "EJS_emulator",
@@ -359,7 +412,8 @@ function resetPokemonEmulator(playerElement) {
     "EJS_pathtodata",
     "EJS_startOnLoaded",
     "EJS_backgroundColor",
-    "EJS_color"
+    "EJS_color",
+    "EJS_defaultControls"
   ].forEach(key => {
     try { delete window[key]; } catch {}
   });
@@ -440,6 +494,11 @@ function PokemonSidebar() {
   const [selectedDiscIndex, setSelectedDiscIndex] = useState(0);
   const emulatorHostRef = useRef(null);
 
+  const stopRunningGame = () => {
+    resetPokemonEmulator(emulatorHostRef.current);
+    setGameLaunch(null);
+  };
+
   const systemGames = games.filter(game => game.system === activeSystem);
   const activeGameIndex = activeGame ? Math.max(0, systemGames.findIndex(game => game.file === activeGame.file)) : 0;
   const backgroundImage = SYSTEM_BACKGROUNDS[activeSystem] || SYSTEM_BACKGROUNDS.GB;
@@ -502,34 +561,34 @@ function PokemonSidebar() {
   const moveCarousel = (direction) => {
     if (!systemGames.length) return;
     const nextIndex = (activeGameIndex + direction + systemGames.length) % systemGames.length;
+    stopRunningGame();
     setActiveGame(systemGames[nextIndex]);
     setSelectedArt("cover");
     setSelectedDiscIndex(0);
-    setGameLaunch(null);
   };
 
   const chooseCarouselGame = (game) => {
+    stopRunningGame();
     setActiveGame(game);
     setSelectedArt("cover");
     setSelectedDiscIndex(0);
-    setGameLaunch(null);
   };
 
   const handleSystemChange = (nextSystem) => {
     const firstGame = games.find(game => game.system === nextSystem) || null;
+    stopRunningGame();
     setActiveSystem(nextSystem);
     setActiveGame(firstGame);
     setSelectedArt("cover");
     setSelectedDiscIndex(0);
-    setGameLaunch(null);
   };
 
   const handleGameChange = (gameFile) => {
     const next = games.find(g => g.file === gameFile) || systemGames[0] || games[0] || null;
+    stopRunningGame();
     setActiveGame(next);
     setSelectedArt("cover");
     setSelectedDiscIndex(0);
-    setGameLaunch(null);
   };
 
   useEffect(() => {
@@ -709,7 +768,10 @@ function PokemonSidebar() {
                     )}
                     <button
                       type="button"
-                      onClick={() => setGameLaunch(activeGame)}
+                      onClick={() => {
+                        resetPokemonEmulator(emulatorHostRef.current);
+                        setGameLaunch(activeGame);
+                      }}
                       style={{
                         marginTop: 14,
                         border: "none",
@@ -870,8 +932,8 @@ function PokemonSidebar() {
                 <select
                   value={selectedDiscIndex}
                   onChange={event => {
+                    stopRunningGame();
                     setSelectedDiscIndex(Number(event.target.value));
-                    setGameLaunch(null);
                   }}
                   style={{
                     marginTop: 8,

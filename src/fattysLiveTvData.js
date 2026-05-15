@@ -13,7 +13,7 @@
 
 export const FUITS_LIVE_TV_PLAYLIST = {
   title: "FUITS LIVE TV WORLD",
-  publicChannelUrl: "https://markers-hence-bingo-trainers.trycloudflare.com",
+  publicChannelUrl: "https://beth-likes-unwrap-usb.trycloudflare.com",
   localPlaylistPath: "T:\\FattysLiveTV\\Playlists\\FuitsLiveTV\\fuits-live-tv-world.m3u",
   items: FATTYS_LIVE_TV
 };

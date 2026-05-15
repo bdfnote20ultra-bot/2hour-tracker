@@ -436,6 +436,7 @@ function PokemonSidebar() {
   const [selectedArt, setSelectedArt] = useState("cover");
   const [zoomedCover, setZoomedCover] = useState(null);
   const [activeGameAssets, setActiveGameAssets] = useState({ manualUrl: "", backUrl: "" });
+  const [gameLaunch, setGameLaunch] = useState(null);
   const playerRef = useRef(null);
 
   const systemGames = games.filter(game => game.system === activeSystem);
@@ -502,11 +503,13 @@ function PokemonSidebar() {
     const nextIndex = (activeGameIndex + direction + systemGames.length) % systemGames.length;
     setActiveGame(systemGames[nextIndex]);
     setSelectedArt("cover");
+    setGameLaunch(null);
   };
 
   const chooseCarouselGame = (game) => {
     setActiveGame(game);
     setSelectedArt("cover");
+    setGameLaunch(null);
   };
 
   const handleSystemChange = (nextSystem) => {
@@ -514,20 +517,26 @@ function PokemonSidebar() {
     setActiveSystem(nextSystem);
     setActiveGame(firstGame);
     setSelectedArt("cover");
+    setGameLaunch(null);
   };
 
   const handleGameChange = (gameFile) => {
     const next = games.find(g => g.file === gameFile) || systemGames[0] || games[0] || null;
     setActiveGame(next);
     setSelectedArt("cover");
+    setGameLaunch(null);
   };
 
   useEffect(() => {
-    if (collapsed || !playerRef.current || !activeGame) return;
+    if (collapsed || !playerRef.current) return;
+    if (!gameLaunch) {
+      resetPokemonEmulator(playerRef.current);
+      return;
+    }
 
     resetPokemonEmulator(playerRef.current);
 
-    const playerId = `pokemon-game-player-${activeGame.core}-${Date.now()}`;
+    const playerId = `pokemon-game-player-${gameLaunch.core}-${Date.now()}`;
     const mount = document.createElement("div");
     mount.id = playerId;
     mount.style.width = "100%";
@@ -535,9 +544,9 @@ function PokemonSidebar() {
     playerRef.current.appendChild(mount);
 
     window.EJS_player = `#${playerId}`;
-    window.EJS_core = activeGame.core;
-    window.EJS_gameName = activeGame.label;
-    window.EJS_gameUrl = activeGame.gameUrl;
+    window.EJS_core = gameLaunch.core;
+    window.EJS_gameName = gameLaunch.label;
+    window.EJS_gameUrl = gameLaunch.gameUrl;
     window.EJS_pathtodata = "https://cdn.emulatorjs.org/stable/data/";
     window.EJS_startOnLoaded = false;
     window.EJS_backgroundColor = "#111827";
@@ -548,16 +557,20 @@ function PokemonSidebar() {
         1: { value: "s", value2: "BUTTON_4" },
         2: { value: "v", value2: "SELECT" },
         3: { value: "enter", value2: "START" },
-        4: { value: "up arrow", value2: "LEFT_STICK_Y:-1" },
-        5: { value: "down arrow", value2: "LEFT_STICK_Y:+1" },
-        6: { value: "left arrow", value2: "LEFT_STICK_X:-1" },
-        7: { value: "right arrow", value2: "LEFT_STICK_X:+1" },
+        4: { value: "up arrow", value2: "DPAD_UP" },
+        5: { value: "down arrow", value2: "DPAD_DOWN" },
+        6: { value: "left arrow", value2: "DPAD_LEFT" },
+        7: { value: "right arrow", value2: "DPAD_RIGHT" },
         8: { value: "z", value2: "BUTTON_1" },
         9: { value: "a", value2: "BUTTON_3" },
         10: { value: "q", value2: "LEFT_TOP_SHOULDER" },
         11: { value: "e", value2: "RIGHT_TOP_SHOULDER" },
         12: { value: "tab", value2: "LEFT_BOTTOM_SHOULDER" },
-        13: { value: "r", value2: "RIGHT_BOTTOM_SHOULDER" }
+        13: { value: "r", value2: "RIGHT_BOTTOM_SHOULDER" },
+        16: { value: "h", value2: "LEFT_STICK_X:+1" },
+        17: { value: "f", value2: "LEFT_STICK_X:-1" },
+        18: { value: "g", value2: "LEFT_STICK_Y:+1" },
+        19: { value: "t", value2: "LEFT_STICK_Y:-1" }
       },
       1: {},
       2: {},
@@ -573,7 +586,7 @@ function PokemonSidebar() {
     return () => {
       resetPokemonEmulator(playerRef.current);
     };
-  }, [activeGame?.core, activeGame?.file, activeGame?.gameUrl, activeGame?.label, collapsed]);
+  }, [gameLaunch?.core, gameLaunch?.file, gameLaunch?.gameUrl, gameLaunch?.label, collapsed]);
 
   return (
     <aside className="pokemon-desktop-sidebar" style={{
@@ -647,6 +660,40 @@ function PokemonSidebar() {
                   padding: 18
                 }}>
                   Add games to T:\FattysLiveTV\Games\Roms\{activeSystem}
+                </div>
+              )}
+              {activeGame && !gameLaunch && (
+                <div style={{
+                  height: "100%",
+                  display: "grid",
+                  placeItems: "center",
+                  color: "#f8fafc",
+                  fontSize: 13,
+                  fontWeight: 900,
+                  textAlign: "center",
+                  padding: 18
+                }}>
+                  <div>
+                    <div style={{ color: "#facc15", marginBottom: 8 }}>Selected</div>
+                    <div style={{ lineHeight: 1.25 }}>{activeGame.label}</div>
+                    <button
+                      type="button"
+                      onClick={() => setGameLaunch(activeGame)}
+                      style={{
+                        marginTop: 14,
+                        border: "none",
+                        borderRadius: 999,
+                        padding: "10px 14px",
+                        background: "#22c55e",
+                        color: "#052e16",
+                        fontWeight: 1000,
+                        cursor: "pointer",
+                        boxShadow: "0 10px 24px rgba(34,197,94,.28)"
+                      }}
+                    >
+                      Start Selected Game
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -1504,7 +1551,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "jellyfin" || activeLiveTvOption.id === "athf") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://markers-hence-bingo-trainers.trycloudflare.com/chat-only"
+                    src="https://beth-likes-unwrap-usb.trycloudflare.com/chat-only"
                     height={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                     minHeight={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                   />
@@ -1539,7 +1586,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "southpark" || activeLiveTvOption.id === "youtube" || activeLiveTvOption.id === "fuit") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://markers-hence-bingo-trainers.trycloudflare.com/chat-only"
+                    src="https://beth-likes-unwrap-usb.trycloudflare.com/chat-only"
                     height={250}
                     minHeight={250}
                   />

@@ -290,18 +290,20 @@ function pokemonAssetPath(game, fileName) {
   return `${process.env.PUBLIC_URL}/rom-images/${encodeURIComponent(game.label)}/${fileName}`;
 }
 
-function PokemonCoverImage({ game, side, onZoom, compact = false }) {
-  const extensions = ["avif", "jpg", "jpeg", "png", "webp"];
+function PokemonCoverImage({ game, onZoom, compact = false, imageType = "cover" }) {
+  const coverFiles = imageType === "back"
+    ? ["back.jpg", "back.png", "back.jpeg", "back.webp", "back.avif"]
+    : ["cover.jpg", "cover.png", "cover.jpeg", "cover.webp", "cover.avif", "front.jpg", "front.png", "front.jpeg", "front.webp", "front.avif"];
   const [index, setIndex] = useState(0);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     setIndex(0);
     setFailed(false);
-  }, [game.label, side]);
+  }, [game.label, imageType]);
 
-  const src = pokemonAssetPath(game, `${side}.${extensions[index]}`);
-  const title = `${game.label} ${side === "back" ? "Back" : "Front"} Cover`;
+  const src = pokemonAssetPath(game, coverFiles[index]);
+  const title = `${game.label} ${imageType === "back" ? "Back Cover" : "Cover"}`;
 
   if (failed) {
     return (
@@ -321,19 +323,19 @@ function PokemonCoverImage({ game, side, onZoom, compact = false }) {
           textAlign: "center"
         }}
       >
-        No {side} cover found
+        No {imageType === "back" ? "back cover" : "cover"} found
       </button>
     );
   }
 
   return (
     <img
-      key={`${game.label}-${side}-${index}`}
+      key={`${game.label}-${imageType}-${index}`}
       onClick={() => onZoom && onZoom({ src, title })}
       src={src}
       alt={title}
       onError={() => {
-        if (index < extensions.length - 1) setIndex(i => i + 1);
+        if (index < coverFiles.length - 1) setIndex(i => i + 1);
         else setFailed(true);
       }}
       style={{
@@ -356,7 +358,7 @@ function PokemonSidebar() {
   const [activeSystem, setActiveSystem] = useState("GB");
   const [activeGame, setActiveGame] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
-  const [showBackCover, setShowBackCover] = useState(false);
+  const [selectedArt, setSelectedArt] = useState("cover");
   const [zoomedCover, setZoomedCover] = useState(null);
   const playerRef = useRef(null);
 
@@ -393,25 +395,25 @@ function PokemonSidebar() {
     if (!systemGames.length) return;
     const nextIndex = (activeGameIndex + direction + systemGames.length) % systemGames.length;
     setActiveGame(systemGames[nextIndex]);
-    setShowBackCover(false);
+    setSelectedArt("cover");
   };
 
   const chooseCarouselGame = (game) => {
     setActiveGame(game);
-    setShowBackCover(false);
+    setSelectedArt("cover");
   };
 
   const handleSystemChange = (nextSystem) => {
     const firstGame = games.find(game => game.system === nextSystem) || null;
     setActiveSystem(nextSystem);
     setActiveGame(firstGame);
-    setShowBackCover(false);
+    setSelectedArt("cover");
   };
 
   const handleGameChange = (gameFile) => {
     const next = games.find(g => g.file === gameFile) || systemGames[0] || games[0] || null;
     setActiveGame(next);
-    setShowBackCover(false);
+    setSelectedArt("cover");
   };
 
   useEffect(() => {
@@ -607,7 +609,7 @@ function PokemonSidebar() {
                     textAlign: "center"
                   }}>
                     <div style={{ pointerEvents: "none", display: "flex", justifyContent: "center" }}>
-                      <PokemonCoverImage game={game} side="front" onZoom={() => {}} compact />
+                      <PokemonCoverImage game={game} onZoom={() => {}} compact />
                     </div>
                     <div style={{
                       marginTop: 7, fontSize: 10, fontWeight: 900, lineHeight: 1.15,
@@ -636,22 +638,18 @@ function PokemonSidebar() {
             background: "rgba(15,23,42,.88)",
             border: "1px solid rgba(255,255,255,.14)"
           }}>
-            <PokemonCoverImage
-              game={activeGame}
-              side={showBackCover ? "back" : "front"}
-              onZoom={setZoomedCover}
-            />
+            <PokemonCoverImage game={activeGame} imageType={selectedArt} onZoom={setZoomedCover} />
             <div>
               <div style={{ fontSize: 12, fontWeight: 900, lineHeight: 1.25, color: "#fff" }}>{activeGame.label}</div>
               <div style={{ fontSize: 11, fontWeight: 800, color: "#cbd5e1", marginTop: 4 }}>{activeGame.system} • {activeGame.year}</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
-                <button onClick={() => setShowBackCover(false)} style={{
+                <button onClick={() => setSelectedArt("cover")} style={{
                   border: "none", borderRadius: 999, padding: "7px 10px", cursor: "pointer",
-                  background: !showBackCover ? "#22c55e" : "rgba(255,255,255,.14)", color: !showBackCover ? "#052e16" : "#fff", fontWeight: 900
-                }}>Front</button>
-                <button onClick={() => setShowBackCover(true)} style={{
+                  background: selectedArt === "cover" ? "#22c55e" : "rgba(255,255,255,.14)", color: selectedArt === "cover" ? "#052e16" : "#fff", fontWeight: 900
+                }}>Cover</button>
+                <button onClick={() => setSelectedArt("back")} style={{
                   border: "none", borderRadius: 999, padding: "7px 10px", cursor: "pointer",
-                  background: showBackCover ? "#a855f7" : "rgba(255,255,255,.14)", color: showBackCover ? "#fff" : "#fff", fontWeight: 900
+                  background: selectedArt === "back" ? "#a855f7" : "rgba(255,255,255,.14)", color: "#fff", fontWeight: 900
                 }}>Back</button>
                 <a href={manualSrc} target="_blank" rel="noreferrer" style={{
                   borderRadius: 999, padding: "7px 10px", textDecoration: "none", background: "rgba(59,130,246,.9)", color: "#fff", fontWeight: 900, fontSize: 13

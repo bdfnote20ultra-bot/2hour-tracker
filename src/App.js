@@ -290,6 +290,12 @@ const POKEMON_SYSTEM_ASPECTS = {
   GBA: 240 / 160,
   PS1: 4 / 3
 };
+const POKEMON_STRETCH_DEFAULT_OPTIONS = {
+  aspect_ratio_index: "1",
+  video_force_aspect: "false",
+  video_scale_integer: "false",
+  video_aspect_ratio_auto: "false"
+};
 
 function pokemonAssetPath(game, fileName) {
   if (game?.assetBaseUrl) return `${normalizePublicUrl(game.assetBaseUrl)}/${fileName}`;
@@ -419,7 +425,9 @@ function resetPokemonEmulator(playerElement) {
     "EJS_startOnLoaded",
     "EJS_backgroundColor",
     "EJS_color",
-    "EJS_defaultControls"
+    "EJS_defaultControls",
+    "EJS_defaultOptions",
+    "EJS_disableLocalStorage"
   ].forEach(key => {
     try { delete window[key]; } catch {}
   });
@@ -737,6 +745,8 @@ function PokemonSidebar() {
     window.EJS_startOnLoaded = true;
     window.EJS_backgroundColor = "#111827";
     window.EJS_color = "#38bdf8";
+    window.EJS_defaultOptions = stretchGame ? POKEMON_STRETCH_DEFAULT_OPTIONS : {};
+    window.EJS_disableLocalStorage = stretchGame;
     window.EJS_defaultControls = {
       0: {
         0: { value: "x", value2: "BUTTON_2" },
@@ -772,7 +782,7 @@ function PokemonSidebar() {
     return () => {
       resetPokemonEmulator(emulatorHostRef.current);
     };
-  }, [gameLaunch?.core, gameLaunch?.discUrls?.join("|"), gameLaunch?.file, gameLaunch?.gameUrl, gameLaunch?.label, selectedDiscIndex, collapsed]);
+  }, [gameLaunch?.core, gameLaunch?.discUrls?.join("|"), gameLaunch?.file, gameLaunch?.gameUrl, gameLaunch?.label, selectedDiscIndex, collapsed, stretchGame]);
 
   useEffect(() => {
     if (!gameLaunch) return;

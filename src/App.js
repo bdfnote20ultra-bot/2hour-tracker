@@ -299,6 +299,10 @@ function normalizePublicUrl(url) {
   return url.replace(/^http:\/\/([^/]+\.trycloudflare\.com)/i, "https://$1");
 }
 
+function normalizePublicUrls(urls) {
+  return Array.isArray(urls) ? urls.map(normalizePublicUrl).filter(Boolean) : undefined;
+}
+
 function pokemonAssetOverride(game, keys) {
   const value = keys.map(key => game?.[key]).find(Boolean);
   if (!value || typeof value !== "string") return "";
@@ -450,7 +454,8 @@ function PokemonSidebar() {
             const normalizedGame = {
               ...game,
               gameUrl: normalizePublicUrl(game.gameUrl),
-              assetBaseUrl: normalizePublicUrl(game.assetBaseUrl)
+              assetBaseUrl: normalizePublicUrl(game.assetBaseUrl),
+              discUrls: normalizePublicUrls(game.discUrls)
             };
             return known ? { ...known, ...normalizedGame, year: known.year || game.year } : normalizedGame;
           });
@@ -532,11 +537,32 @@ function PokemonSidebar() {
     window.EJS_player = `#${playerId}`;
     window.EJS_core = activeGame.core;
     window.EJS_gameName = activeGame.label;
-    window.EJS_gameUrl = activeGame.gameUrl;
+    window.EJS_gameUrl = activeGame.core === "psx" && activeGame.discUrls?.length ? activeGame.discUrls : activeGame.gameUrl;
     window.EJS_pathtodata = "https://cdn.emulatorjs.org/stable/data/";
     window.EJS_startOnLoaded = false;
     window.EJS_backgroundColor = "#111827";
     window.EJS_color = "#38bdf8";
+    window.EJS_defaultControls = {
+      0: {
+        0: { value: "x", value2: "BUTTON_2" },
+        1: { value: "s", value2: "BUTTON_4" },
+        2: { value: "v", value2: "SELECT" },
+        3: { value: "enter", value2: "START" },
+        4: { value: "up arrow", value2: "LEFT_STICK_Y:-1" },
+        5: { value: "down arrow", value2: "LEFT_STICK_Y:+1" },
+        6: { value: "left arrow", value2: "LEFT_STICK_X:-1" },
+        7: { value: "right arrow", value2: "LEFT_STICK_X:+1" },
+        8: { value: "z", value2: "BUTTON_1" },
+        9: { value: "a", value2: "BUTTON_3" },
+        10: { value: "q", value2: "LEFT_TOP_SHOULDER" },
+        11: { value: "e", value2: "RIGHT_TOP_SHOULDER" },
+        12: { value: "tab", value2: "LEFT_BOTTOM_SHOULDER" },
+        13: { value: "r", value2: "RIGHT_BOTTOM_SHOULDER" }
+      },
+      1: {},
+      2: {},
+      3: {}
+    };
 
     const script = document.createElement("script");
     script.src = `https://cdn.emulatorjs.org/stable/data/loader.js?v=${Date.now()}`;
@@ -547,7 +573,7 @@ function PokemonSidebar() {
     return () => {
       resetPokemonEmulator(playerRef.current);
     };
-  }, [activeGame?.core, activeGame?.file, activeGame?.gameUrl, activeGame?.label, collapsed]);
+  }, [activeGame?.core, activeGame?.discUrls?.join("|"), activeGame?.file, activeGame?.gameUrl, activeGame?.label, collapsed]);
 
   return (
     <aside className="pokemon-desktop-sidebar" style={{
@@ -1478,7 +1504,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "jellyfin" || activeLiveTvOption.id === "athf") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://half-pickup-jane-routine.trycloudflare.com/chat-only"
+                    src="https://arthur-validity-unless-towards.trycloudflare.com/chat-only"
                     height={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                     minHeight={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                   />
@@ -1513,7 +1539,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "southpark" || activeLiveTvOption.id === "youtube" || activeLiveTvOption.id === "fuit") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://half-pickup-jane-routine.trycloudflare.com/chat-only"
+                    src="https://arthur-validity-unless-towards.trycloudflare.com/chat-only"
                     height={250}
                     minHeight={250}
                   />

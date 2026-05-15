@@ -621,7 +621,7 @@ function PokemonSidebar() {
         .game-cover-carousel::-webkit-scrollbar { height: 6px; }
         .game-cover-carousel::-webkit-scrollbar-thumb { background: rgba(250,204,21,.55); border-radius: 999px; }
       `}</style>
-      <button onClick={() => setCollapsed(c => !c)} style={{
+      <button onClick={() => setCollapsed(false)} style={{
         width: "100%",
         border: "none",
         borderRadius: 16,
@@ -730,26 +730,27 @@ function PokemonSidebar() {
             </div>
           </div>
 
-          <div style={{
-            marginTop: 12,
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: 8
-          }}>
-            {GAME_SYSTEMS.map(system => (
-              <button key={system} onClick={() => handleSystemChange(system)} style={{
-                border: activeSystem === system ? "2px solid #facc15" : "1px solid rgba(255,255,255,.22)",
+          <div style={{ marginTop: 12 }}>
+            <select
+              value={activeSystem}
+              onChange={event => handleSystemChange(event.target.value)}
+              aria-label="Choose game system"
+              style={{
+                width: "100%",
+                border: "1px solid rgba(255,255,255,.22)",
                 borderRadius: 12,
-                padding: "9px 6px",
-                background: activeSystem === system ? "rgba(250,204,21,.2)" : "rgba(15,23,42,.82)",
+                padding: "10px 12px",
+                background: "rgba(15,23,42,.92)",
                 color: "#f8fafc",
                 fontWeight: 900,
                 cursor: "pointer",
-                boxShadow: activeSystem === system ? "0 0 16px rgba(250,204,21,.22)" : "none"
-              }}>
-                {system}
-              </button>
-            ))}
+                boxShadow: "inset 0 0 16px rgba(0,0,0,.22)"
+              }}
+            >
+              {GAME_SYSTEMS.map(system => (
+                <option key={system} value={system}>{system}</option>
+              ))}
+            </select>
           </div>
 
           <div style={{

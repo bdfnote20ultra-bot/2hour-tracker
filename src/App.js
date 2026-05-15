@@ -863,34 +863,11 @@ function PokemonSidebar() {
                 </div>
               )}
               {activeGame && gameLaunch && (
-                <>
-                  <div
-                    ref={emulatorHostRef}
-                    className={`pokemon-emulator-host${stretchGame ? " pokemon-emulator-stretch" : ""}`}
-                    style={{ width: "100%", height: "100%" }}
-                  />
-                  <button
-                    type="button"
-                    onClick={toggleGameFullscreen}
-                    style={{
-                      position: "absolute",
-                      right: 8,
-                      top: 8,
-                      zIndex: 20,
-                      border: "1px solid rgba(255,255,255,.26)",
-                      borderRadius: 999,
-                      padding: "7px 10px",
-                      background: stretchGame ? "rgba(34,197,94,.94)" : "rgba(15,23,42,.88)",
-                      color: stretchGame ? "#052e16" : "#fff",
-                      fontSize: 11,
-                      fontWeight: 1000,
-                      cursor: "pointer",
-                      boxShadow: "0 8px 18px rgba(0,0,0,.32)"
-                    }}
-                  >
-                    {stretchGame ? "Exit Fullscreen" : "Stretch Fullscreen"}
-                  </button>
-                </>
+                <div
+                  ref={emulatorHostRef}
+                  className={`pokemon-emulator-host${stretchGame ? " pokemon-emulator-stretch" : ""}`}
+                  style={{ width: "100%", height: "100%" }}
+                />
               )}
               {activeGame && !gameLaunch && (
                 <div style={{
@@ -951,6 +928,27 @@ function PokemonSidebar() {
                 </div>
               )}
             </div>
+            {activeGame && gameLaunch && (
+              <button
+                type="button"
+                onClick={toggleGameFullscreen}
+                style={{
+                  width: "100%",
+                  marginTop: 10,
+                  border: "1px solid rgba(255,255,255,.26)",
+                  borderRadius: 999,
+                  padding: "9px 12px",
+                  background: stretchGame ? "rgba(34,197,94,.94)" : "rgba(15,23,42,.88)",
+                  color: stretchGame ? "#052e16" : "#fff",
+                  fontSize: 12,
+                  fontWeight: 1000,
+                  cursor: "pointer",
+                  boxShadow: "0 8px 18px rgba(0,0,0,.32)"
+                }}
+              >
+                {stretchGame ? "Exit Fullscreen" : "Stretch Fullscreen"}
+              </button>
+            )}
           </div>
 
           <div style={{ marginTop: 12 }}>

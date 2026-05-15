@@ -493,11 +493,72 @@ function PokemonSidebar() {
   const [gameLaunch, setGameLaunch] = useState(null);
   const [selectedDiscIndex, setSelectedDiscIndex] = useState(0);
   const [stretchGame, setStretchGame] = useState(false);
+  const emulatorFrameRef = useRef(null);
   const emulatorHostRef = useRef(null);
 
   const stopRunningGame = () => {
     resetPokemonEmulator(emulatorHostRef.current);
+    setStretchGame(false);
+    try {
+      if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
+        (document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen)?.call(document);
+      }
+    } catch {}
     setGameLaunch(null);
+  };
+
+  const applyPokemonStretch = (shouldStretch) => {
+    const host = emulatorHostRef.current;
+    if (!host) return;
+
+    const targets = host.querySelectorAll("canvas, video, iframe, [id], [class]");
+    targets.forEach(element => {
+      const name = `${element.id || ""} ${element.className || ""}`.toLowerCase();
+      const isDisplayElement =
+        ["CANVAS", "VIDEO", "IFRAME"].includes(element.tagName) ||
+        name.includes("canvas") ||
+        name.includes("screen") ||
+        name.includes("game");
+
+      if (!isDisplayElement) return;
+
+      ["width", "height", "maxWidth", "maxHeight", "minWidth", "minHeight", "objectFit", "aspectRatio"].forEach(prop => {
+        element.style[prop] = shouldStretch ? {
+          width: "100%",
+          height: "100%",
+          maxWidth: "none",
+          maxHeight: "none",
+          minWidth: "100%",
+          minHeight: "100%",
+          objectFit: "fill",
+          aspectRatio: "auto"
+        }[prop] : "";
+      });
+    });
+  };
+
+  const toggleGameFullscreen = () => {
+    const frame = emulatorFrameRef.current;
+    if (!stretchGame) {
+      setStretchGame(true);
+      const requestFullscreen =
+        frame?.requestFullscreen ||
+        frame?.webkitRequestFullscreen ||
+        frame?.msRequestFullscreen;
+      try { requestFullscreen?.call(frame); } catch {}
+      return;
+    }
+
+    setStretchGame(false);
+    const exitFullscreen =
+      document.exitFullscreen ||
+      document.webkitExitFullscreen ||
+      document.msExitFullscreen;
+    try {
+      if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
+        exitFullscreen?.call(document);
+      }
+    } catch {}
   };
 
   const systemGames = games.filter(game => game.system === activeSystem);
@@ -595,6 +656,7 @@ function PokemonSidebar() {
   useEffect(() => {
     if (!gameLaunch) {
       resetPokemonEmulator();
+      setStretchGame(false);
       return;
     }
     if (collapsed || !emulatorHostRef.current) return;
@@ -655,6 +717,40 @@ function PokemonSidebar() {
     };
   }, [gameLaunch?.core, gameLaunch?.discUrls?.join("|"), gameLaunch?.file, gameLaunch?.gameUrl, gameLaunch?.label, selectedDiscIndex, collapsed]);
 
+  useEffect(() => {
+    if (!gameLaunch) return;
+
+    applyPokemonStretch(stretchGame);
+    const interval = window.setInterval(() => applyPokemonStretch(stretchGame), 500);
+    const timeout = window.setTimeout(() => window.clearInterval(interval), 5000);
+
+    return () => {
+      window.clearInterval(interval);
+      window.clearTimeout(timeout);
+    };
+  }, [gameLaunch, stretchGame]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const fullscreenElement =
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.msFullscreenElement;
+
+      if (!fullscreenElement && stretchGame) setStretchGame(false);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    document.addEventListener("MSFullscreenChange", handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+      document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
+    };
+  }, [stretchGame]);
+
   return (
     <aside className="pokemon-desktop-sidebar" style={{
       position: "fixed",
@@ -685,15 +781,33 @@ function PokemonSidebar() {
           width: 100% !important;
           height: 100% !important;
         }
+        .pokemon-emulator-frame:fullscreen,
+        .pokemon-emulator-frame:-webkit-full-screen {
+          width: 100vw !important;
+          height: 100vh !important;
+          min-height: 100vh !important;
+          border-radius: 0 !important;
+          border: none !important;
+          background: #000 !important;
+        }
+        .pokemon-emulator-frame:fullscreen .pokemon-emulator-host,
+        .pokemon-emulator-frame:-webkit-full-screen .pokemon-emulator-host {
+          width: 100vw !important;
+          height: 100vh !important;
+        }
         .pokemon-emulator-host.pokemon-emulator-stretch canvas,
         .pokemon-emulator-host.pokemon-emulator-stretch video,
         .pokemon-emulator-host.pokemon-emulator-stretch iframe,
         .pokemon-emulator-host.pokemon-emulator-stretch > div,
-        .pokemon-emulator-host.pokemon-emulator-stretch [id^="game"] {
+        .pokemon-emulator-host.pokemon-emulator-stretch [id^="game"],
+        .pokemon-emulator-host.pokemon-emulator-stretch [class*="canvas"],
+        .pokemon-emulator-host.pokemon-emulator-stretch [class*="screen"] {
           width: 100% !important;
           height: 100% !important;
           max-width: none !important;
           max-height: none !important;
+          min-width: 100% !important;
+          min-height: 100% !important;
           object-fit: fill !important;
           aspect-ratio: auto !important;
         }
@@ -723,7 +837,7 @@ function PokemonSidebar() {
             border: "2px solid rgba(248,250,252,.38)",
             boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)"
           }}>
-            <div style={{
+            <div ref={emulatorFrameRef} className="pokemon-emulator-frame" style={{
               width: "100%",
               aspectRatio: "4 / 3",
               minHeight: 245,
@@ -756,7 +870,7 @@ function PokemonSidebar() {
                   />
                   <button
                     type="button"
-                    onClick={() => setStretchGame(stretch => !stretch)}
+                    onClick={toggleGameFullscreen}
                     style={{
                       position: "absolute",
                       right: 8,
@@ -773,7 +887,7 @@ function PokemonSidebar() {
                       boxShadow: "0 8px 18px rgba(0,0,0,.32)"
                     }}
                   >
-                    {stretchGame ? "Normal" : "Stretch"}
+                    {stretchGame ? "Exit Fullscreen" : "Stretch Fullscreen"}
                   </button>
                 </>
               )}

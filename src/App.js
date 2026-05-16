@@ -976,7 +976,7 @@ function PokemonSidebar() {
         boxShadow: "0 8px 22px rgba(239,68,68,.35)",
         marginBottom: 12
       }}>
-        {collapsed ? "Game" : "Game Pokemon Side Quest"}
+        {collapsed ? "Game" : "FUIT GAMING CENTER"}
       </button>
 
       {!collapsed && (

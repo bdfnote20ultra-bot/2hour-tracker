@@ -2584,43 +2584,10 @@ export default function App() {
   useEffect(() => {
     const audio = musicRef.current;
     if (!audio || !activeMusicSrc) return;
-
-    const tryPlay = async () => {
-      try {
-        audio.muted = false;
-        await audio.play();
-        setIsMusicPlaying(true);
-        setMusicNeedsTap(false);
-        setMusicNeedsTap(false);
-        return true;
-      } catch {
-        setIsMusicPlaying(false);
-        setMusicNeedsTap(true);
-        return false;
-      }
-    };
-
-    tryPlay();
-
-    const unlockAudio = async () => {
-      if (!audio.paused) return;
-      const didPlay = await tryPlay();
-      if (didPlay) {
-        window.removeEventListener("pointerdown", unlockAudio);
-        window.removeEventListener("touchstart", unlockAudio);
-        window.removeEventListener("keydown", unlockAudio);
-      }
-    };
-
-    window.addEventListener("pointerdown", unlockAudio);
-    window.addEventListener("touchstart", unlockAudio);
-    window.addEventListener("keydown", unlockAudio);
-
-    return () => {
-      window.removeEventListener("pointerdown", unlockAudio);
-      window.removeEventListener("touchstart", unlockAudio);
-      window.removeEventListener("keydown", unlockAudio);
-    };
+    audio.pause();
+    audio.currentTime = 0;
+    setIsMusicPlaying(false);
+    setMusicNeedsTap(false);
   }, [activeMusicSrc]);
 
   const toggleMusic = async () => {
@@ -2639,7 +2606,7 @@ export default function App() {
     } catch {
       setIsMusicPlaying(false);
       setMusicNeedsTap(true);
-      alert("Tap anywhere on the app once to start the background song.");
+      alert("Click Play Soundtrack to start the background song.");
     }
   };
 
@@ -2877,7 +2844,7 @@ export default function App() {
                   textShadow: isMusicPlaying ? "none" : readableTextShadow
                 }}
               >
-                {isMusicPlaying ? "⏸ Pause Soundtrack" : musicNeedsTap ? "▶ Tap Anywhere To Start" : "▶ Play Soundtrack"}
+                {isMusicPlaying ? "⏸ Pause Soundtrack" : "▶ Play Soundtrack"}
               </button>
             </div>
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", margin: "-6px 0 14px" }}>

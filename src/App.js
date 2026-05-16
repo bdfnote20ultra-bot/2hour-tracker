@@ -511,9 +511,29 @@ function PokemonSidebar() {
   const [gameFullscreen, setGameFullscreen] = useState(false);
   const emulatorFrameRef = useRef(null);
   const emulatorHostRef = useRef(null);
+  const gamepadKeysRef = useRef(new Set());
+
+  const focusPokemonEmulator = () => {
+    const host = emulatorHostRef.current;
+    const frame = emulatorFrameRef.current;
+    const target =
+      host?.querySelector("canvas") ||
+      host?.querySelector(".ejs_canvas") ||
+      host?.querySelector(".ejs_game") ||
+      host ||
+      frame;
+
+    try { frame?.focus?.({ preventScroll: true }); } catch {}
+    try { host?.focus?.({ preventScroll: true }); } catch {}
+    try { target?.focus?.({ preventScroll: true }); } catch {}
+    try { target?.click?.(); } catch {}
+    try { window.EJS_emulator?.gameManager?.resume?.(); } catch {}
+    try { window.EJS_emulator?.resume?.(); } catch {}
+  };
 
   const stopRunningGame = () => {
     resetPokemonEmulator(emulatorHostRef.current);
+    gamepadKeysRef.current.clear();
     setStretchGame(false);
     setGameFullscreen(false);
     try {
@@ -729,11 +749,125 @@ function PokemonSidebar() {
     script.async = true;
     script.dataset.pokemonEmulatorLoader = "true";
     document.body.appendChild(script);
+    focusPokemonEmulator();
+
+    const focusTimers = [150, 400, 900, 1600, 2600].map(delay =>
+      window.setTimeout(focusPokemonEmulator, delay)
+    );
 
     return () => {
+      focusTimers.forEach(timer => window.clearTimeout(timer));
       resetPokemonEmulator(emulatorHostRef.current);
     };
   }, [gameLaunch?.core, gameLaunch?.discUrls?.join("|"), gameLaunch?.file, gameLaunch?.gameUrl, gameLaunch?.label, selectedDiscIndex, collapsed, stretchGame]);
+
+  useEffect(() => {
+    if (!gameLaunch || collapsed) return;
+
+    const keyMap = {
+      z: { key: "z", code: "KeyZ", keyCode: 90 },
+      x: { key: "x", code: "KeyX", keyCode: 88 },
+      a: { key: "a", code: "KeyA", keyCode: 65 },
+      s: { key: "s", code: "KeyS", keyCode: 83 },
+      q: { key: "q", code: "KeyQ", keyCode: 81 },
+      e: { key: "e", code: "KeyE", keyCode: 69 },
+      v: { key: "v", code: "KeyV", keyCode: 86 },
+      enter: { key: "Enter", code: "Enter", keyCode: 13 },
+      up: { key: "ArrowUp", code: "ArrowUp", keyCode: 38 },
+      down: { key: "ArrowDown", code: "ArrowDown", keyCode: 40 },
+      left: { key: "ArrowLeft", code: "ArrowLeft", keyCode: 37 },
+      right: { key: "ArrowRight", code: "ArrowRight", keyCode: 39 }
+    };
+
+    const buttonToKey = {
+      0: "z",
+      1: "x",
+      2: "a",
+      3: "s",
+      4: "q",
+      5: "e",
+      8: "v",
+      9: "enter",
+      12: "up",
+      13: "down",
+      14: "left",
+      15: "right"
+    };
+
+    const dispatchGameKey = (keyName, type) => {
+      const mapped = keyMap[keyName];
+      if (!mapped) return;
+
+      const canvas = emulatorHostRef.current?.querySelector("canvas");
+      const targets = [canvas || document.activeElement || document.body, document, window];
+      targets.forEach(target => {
+        const event = new KeyboardEvent(type, {
+          key: mapped.key,
+          code: mapped.code,
+          bubbles: true,
+          cancelable: true
+        });
+        Object.defineProperty(event, "keyCode", { get: () => mapped.keyCode });
+        Object.defineProperty(event, "which", { get: () => mapped.keyCode });
+        target.dispatchEvent(event);
+      });
+    };
+
+    const setGameKey = (keyName, pressed) => {
+      const activeKeys = gamepadKeysRef.current;
+      if (pressed && !activeKeys.has(keyName)) {
+        activeKeys.add(keyName);
+        dispatchGameKey(keyName, "keydown");
+      } else if (!pressed && activeKeys.has(keyName)) {
+        activeKeys.delete(keyName);
+        dispatchGameKey(keyName, "keyup");
+      }
+    };
+
+    const releaseAllKeys = () => {
+      Array.from(gamepadKeysRef.current).forEach(keyName => setGameKey(keyName, false));
+    };
+
+    let raf = 0;
+    let lastGamepadFocus = 0;
+    const pollGamepads = () => {
+      const pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : [];
+      const pad = pads[0];
+
+      if (!pad) {
+        releaseAllKeys();
+        raf = window.requestAnimationFrame(pollGamepads);
+        return;
+      }
+
+      const now = performance.now();
+      if (now - lastGamepadFocus > 1000) {
+        lastGamepadFocus = now;
+        focusPokemonEmulator();
+      }
+      Object.entries(buttonToKey).forEach(([index, keyName]) => {
+        setGameKey(keyName, Boolean(pad.buttons[Number(index)]?.pressed));
+      });
+
+      const xAxis = pad.axes[0] || 0;
+      const yAxis = pad.axes[1] || 0;
+      setGameKey("left", xAxis < -0.45);
+      setGameKey("right", xAxis > 0.45);
+      setGameKey("up", yAxis < -0.45);
+      setGameKey("down", yAxis > 0.45);
+
+      raf = window.requestAnimationFrame(pollGamepads);
+    };
+
+    raf = window.requestAnimationFrame(pollGamepads);
+    window.addEventListener("gamepadconnected", focusPokemonEmulator);
+
+    return () => {
+      window.cancelAnimationFrame(raf);
+      window.removeEventListener("gamepadconnected", focusPokemonEmulator);
+      releaseAllKeys();
+    };
+  }, [gameLaunch, collapsed]);
 
   useEffect(() => {
     if (!gameLaunch) return;
@@ -854,7 +988,7 @@ function PokemonSidebar() {
             border: "2px solid rgba(248,250,252,.38)",
             boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)"
           }}>
-            <div ref={emulatorFrameRef} className="pokemon-emulator-frame" style={{
+            <div ref={emulatorFrameRef} className="pokemon-emulator-frame" tabIndex={0} style={{
               width: "100%",
               aspectRatio: "4 / 3",
               minHeight: 245,
@@ -882,6 +1016,7 @@ function PokemonSidebar() {
                 <div
                   ref={emulatorHostRef}
                   className={`pokemon-emulator-host${stretchGame ? " pokemon-emulator-stretch" : ""}`}
+                  tabIndex={0}
                   style={{ width: "100%", height: "100%" }}
                 />
               )}

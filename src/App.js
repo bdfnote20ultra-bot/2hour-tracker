@@ -483,8 +483,8 @@ function PokemonCoverImage({ game, onZoom, compact = false, imageType = "cover" 
         else setFailed(true);
       }}
       style={{
-        width: compact ? 74 : 92,
-        height: compact ? 98 : 126,
+        width: compact ? 66 : 92,
+        height: compact ? 88 : 126,
         objectFit: "cover",
         borderRadius: 10,
         border: "2px solid rgba(255,255,255,.25)",
@@ -1160,7 +1160,7 @@ function PokemonSidebar() {
 
             <div className="game-cover-carousel" style={{
               display: "flex",
-              gap: 10,
+              gap: 8,
               overflowX: "auto",
               scrollSnapType: "x mandatory",
               paddingBottom: 4
@@ -1175,17 +1175,17 @@ function PokemonSidebar() {
                 const discCount = game.discUrls?.length || 0;
                 return (
                   <button key={game.file} onClick={() => chooseCarouselGame(game)} style={{
-                    minWidth: 108,
-                    maxWidth: 108,
+                    minWidth: 96,
+                    maxWidth: 96,
                     scrollSnapAlign: "center",
                     border: selected ? "2px solid #facc15" : "1px solid rgba(255,255,255,.18)",
-                    borderRadius: 16,
-                    padding: 8,
+                    borderRadius: 14,
+                    padding: 7,
                     background: selected ? "rgba(250,204,21,.18)" : "rgba(2,6,23,.72)",
                     color: "#fff",
                     cursor: "pointer",
                     boxShadow: selected ? "0 0 18px rgba(250,204,21,.32)" : "0 8px 18px rgba(0,0,0,.22)",
-                    transform: selected ? "translateY(-2px) scale(1.02)" : "none",
+                    transform: selected ? "translateY(-1px) scale(1.01)" : "none",
                     transition: "transform .18s ease, box-shadow .18s ease, border .18s ease",
                     textAlign: "center"
                   }}>
@@ -1193,16 +1193,16 @@ function PokemonSidebar() {
                       <PokemonCoverImage game={game} onZoom={() => {}} compact />
                     </div>
                     <div style={{
-                      marginTop: 7, fontSize: 10, fontWeight: 900, lineHeight: 1.15,
-                      height: 34, overflow: "hidden", color: selected ? "#fff" : "#cbd5e1"
+                      marginTop: 6, fontSize: 9, fontWeight: 900, lineHeight: 1.12,
+                      height: 31, overflow: "hidden", color: selected ? "#fff" : "#cbd5e1"
                     }}>
                       {game.label}
                     </div>
-                    <div style={{ marginTop: 5, fontSize: 10, fontWeight: 900, color: selected ? "#facc15" : "#94a3b8" }}>
+                    <div style={{ marginTop: 4, fontSize: 9, fontWeight: 900, color: selected ? "#facc15" : "#94a3b8" }}>
                       {game.system} • {game.year}
                     </div>
                     {discCount > 1 && (
-                      <div style={{ marginTop: 5, fontSize: 10, fontWeight: 1000, color: "#38bdf8" }}>
+                      <div style={{ marginTop: 4, fontSize: 9, fontWeight: 1000, color: "#38bdf8" }}>
                         {discCount} discs
                       </div>
                     )}

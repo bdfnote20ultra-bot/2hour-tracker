@@ -1260,6 +1260,11 @@ function MusicLibrarySidebar({ accentColor }) {
   const [zoomedDonationQr, setZoomedDonationQr] = useState(null);
   const jellyfinFrameRef = useRef(null);
   const adultSwimFrameRef = useRef(null);
+  const fuitsLiveTvEmbedUrl = useMemo(() => {
+    if (!fuitsLiveTvChannelUrl) return "";
+    const separator = fuitsLiveTvChannelUrl.includes("?") ? "&" : "?";
+    return `${fuitsLiveTvChannelUrl}${separator}embedReload=${Date.now()}`;
+  }, [fuitsLiveTvChannelUrl]);
 
   useEffect(() => {
     const handleFuitsBlankPage = event => {
@@ -1273,6 +1278,7 @@ function MusicLibrarySidebar({ accentColor }) {
           bannedUrl.hostname.endsWith(".trycloudflare.com");
 
         if (allowedHost) {
+          bannedUrl.searchParams.set("returnUrl", window.location.href);
           window.location.href = bannedUrl.href;
         }
       } catch {}
@@ -1705,7 +1711,7 @@ function MusicLibrarySidebar({ accentColor }) {
             {activeLiveTvOption.custom && !owncastOnline && fuitsLiveTvChannelUrl && (
               <iframe
                 title={FUITS_LIVE_TV_PLAYLIST.title}
-                src={fuitsLiveTvChannelUrl}
+                src={fuitsLiveTvEmbedUrl}
                 allow="fullscreen; autoplay; encrypted-media; picture-in-picture"
                 allowFullScreen
                 style={{

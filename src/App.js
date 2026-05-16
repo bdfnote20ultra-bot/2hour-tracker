@@ -1261,6 +1261,27 @@ function MusicLibrarySidebar({ accentColor }) {
   const jellyfinFrameRef = useRef(null);
   const adultSwimFrameRef = useRef(null);
 
+  useEffect(() => {
+    const handleFuitsBlankPage = event => {
+      if (event.data?.type !== "FUITS_SITE_BLANKED") return;
+
+      try {
+        const bannedUrl = new URL(event.data.url);
+        const allowedHost =
+          bannedUrl.hostname === "localhost" ||
+          bannedUrl.hostname === "127.0.0.1" ||
+          bannedUrl.hostname.endsWith(".trycloudflare.com");
+
+        if (allowedHost) {
+          window.location.href = bannedUrl.href;
+        }
+      } catch {}
+    };
+
+    window.addEventListener("message", handleFuitsBlankPage);
+    return () => window.removeEventListener("message", handleFuitsBlankPage);
+  }, []);
+
   const activeMusicChannelId = activeMusicView.startsWith("music-channel:")
     ? activeMusicView.slice("music-channel:".length)
     : "";

@@ -13,7 +13,7 @@
 
 export const FUITS_LIVE_TV_PLAYLIST = {
   title: "FUITS LIVE TV WORLD",
-  publicChannelUrl: "https://citysearch-marking-inquiries-chief.trycloudflare.com",
+  publicChannelUrl: "https://cope-brussels-towns-routines.trycloudflare.com",
   localPlaylistPath: "T:\\FattysLiveTV\\Playlists\\FuitsLiveTV\\fuits-live-tv-world.m3u",
   items: FATTYS_LIVE_TV
 };

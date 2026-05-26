@@ -1503,7 +1503,7 @@ function MusicLibrarySidebar({ accentColor }) {
     let cancelled = false;
     const checkOwncastStatus = async () => {
       try {
-        const response = await fetch("https://continuity-lobby-infections-stripes.trycloudflare.com/api/status", { cache: "no-store" });
+        const response = await fetch("https://alternatively-survivor-acm-expect.trycloudflare.com/api/status", { cache: "no-store" });
         const status = await response.json();
         if (!cancelled) setOwncastOnline(Boolean(status.online));
       } catch {
@@ -1529,7 +1529,7 @@ function MusicLibrarySidebar({ accentColor }) {
     { id: "athf", label: "ADULT SWIM ZONE", heading: "ADULT SWIM ZONE", url: "https://www.adultswim.com/streams/aqua-teen-hunger-force", embed: true },
     { id: "youtube", label: "YOUTUBE", heading: "YOUTUBE", url: "https://www.youtube.com/", embed: false },
     { id: "southpark", label: "SOUTH PARK WORLD", heading: "SOUTH PARK WORLD", url: "https://southpark.cc.com/seasons/south-park", embed: false },
-    { id: "jellyfin", label: "FUIT JELLYFIN", heading: "FUIT JELLYFIN", url: "https://billing-servers-doug-lowest.trycloudflare.com/web/", embed: true },
+    { id: "jellyfin", label: "FUIT JELLYFIN", heading: "FUIT JELLYFIN", url: "https://ins-optimum-minimum-examples.trycloudflare.com/web/", embed: true },
     { id: "fattys", label: "FUITS LIVE TV WORLD", heading: "FUITS LIVE TV WORLD", custom: true }
   ];
   const activeLiveTvOption = liveTvOptions.find(option => option.id === activeLiveTv) || liveTvOptions[0];
@@ -2021,7 +2021,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "jellyfin" || activeLiveTvOption.id === "athf") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://magic-lou-aware-memphis.trycloudflare.com/chat-only"
+                    src="https://seq-thesaurus-bedding-core.trycloudflare.com/chat-only"
                     height={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                     minHeight={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                   />
@@ -2056,7 +2056,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "southpark" || activeLiveTvOption.id === "youtube" || activeLiveTvOption.id === "fuit") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://magic-lou-aware-memphis.trycloudflare.com/chat-only"
+                    src="https://seq-thesaurus-bedding-core.trycloudflare.com/chat-only"
                     height={250}
                     minHeight={250}
                   />

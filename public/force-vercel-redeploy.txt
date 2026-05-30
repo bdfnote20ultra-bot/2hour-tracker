@@ -1,3 +1,1 @@
-Redeploy forced after FUITS tunnel and games fix: 2026-05-30 17:48 CT
-Current FUITS URL: https://academy-timber-belongs-integrated.trycloudflare.com
-Old broken FUITS tunnel removed from app source.
+﻿Force Vercel redeploy: 2026-05-30T18:16:54.7818349-05:00

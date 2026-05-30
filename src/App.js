@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { MUSIC_LIBRARY } from "./musicLibraryData";
 import { FATTYS_LIVE_TV, FUITS_LIVE_TV_PLAYLIST } from "./fattysLiveTvData";
 
@@ -165,7 +165,7 @@ const THEMES = {
     appBg: "linear-gradient(180deg, #0F1117 0%, #1A1D29 100%)", headerBg: "rgba(12,14,20,0.96)", statsBg: "rgba(34,38,52,0.92)", cardBg: "rgba(255,255,255,0.08)", modalBg: "#151822", text: "#F7F5F2", headerText: "#F7F5F2", muted: "#9CA3AF", line: "rgba(255,255,255,0.12)", buttonBg: "#F7F5F2", buttonText: "#111827", shadow: "0 8px 30px rgba(0,0,0,0.25)", font: "Georgia, serif"
   },
   ice: {
-    id: "ice", name: "Ice", emoji: "â„ï¸",
+    id: "ice", name: "Ice", emoji: "❄️",
     appBg: "linear-gradient(180deg, #EFF7FF 0%, #FFFFFF 100%)", headerBg: "#EAF4FF", statsBg: "rgba(255,255,255,0.9)", cardBg: "rgba(255,255,255,0.95)", modalBg: "#F7FBFF", text: "#172033", headerText: "#172033", muted: "#6B7280", line: "rgba(23,32,51,0.12)", buttonBg: "#172033", buttonText: "#FFFFFF", shadow: "0 8px 24px rgba(50,85,120,0.12)", font: "Georgia, serif"
   },
   construction: {
@@ -173,7 +173,7 @@ const THEMES = {
     appBg: "linear-gradient(180deg, #2A241D 0%, #403323 100%)", headerBg: "#1F1A14", statsBg: "#2E261B", cardBg: "#FFF4D6", modalBg: "#FFF4D6", text: "#251A0D", headerText: "#FFE4A3", muted: "#9B7A47", line: "rgba(255,196,84,0.35)", buttonBg: "#FFC145", buttonText: "#1F1A14", shadow: "0 8px 24px rgba(0,0,0,0.25)", font: "Georgia, serif"
   },
   cyber: {
-    id: "cyber", name: "Cyber", emoji: "âš¡",
+    id: "cyber", name: "Cyber", emoji: "⚡",
     appBg: "radial-gradient(circle at top, #22234B 0%, #090A12 58%, #050509 100%)", headerBg: "rgba(5,5,12,0.96)", statsBg: "rgba(22,20,45,0.94)", cardBg: "rgba(15,16,35,0.92)", modalBg: "#0B0C1A", text: "#ECFEFF", headerText: "#ECFEFF", muted: "#8B9BB4", line: "rgba(103,232,249,0.2)", buttonBg: "#67E8F9", buttonText: "#060712", shadow: "0 0 28px rgba(103,232,249,0.12)", font: "Georgia, serif"
   },
   classic: {
@@ -181,7 +181,7 @@ const THEMES = {
     appBg: "#F7F5F2", headerBg: "#1C1C1E", statsBg: "#FFFFFF", cardBg: "#FFFFFF", modalBg: "#F7F5F2", text: "#1C1C1E", headerText: "#F7F5F2", muted: "#4B5563", line: "rgba(0,0,0,0.12)", buttonBg: "#1C1C1E", buttonText: "#F7F5F2", shadow: "0 2px 10px rgba(0,0,0,0.10)", font: "Georgia, serif"
   },
   oled: {
-    id: "oled", name: "OLED Black", emoji: "â¬›",
+    id: "oled", name: "OLED Black", emoji: "⬛",
     appBg: "#000000", headerBg: "#000000", statsBg: "#0A0A0A", cardBg: "#111111", modalBg: "#050505", text: "#FFFFFF", headerText: "#FFFFFF", muted: "#8A8A8A", line: "rgba(255,255,255,0.12)", buttonBg: "#FFFFFF", buttonText: "#000000", shadow: "0 0 0 1px rgba(255,255,255,0.08)", font: "Georgia, serif"
   },
   custom: {
@@ -1143,7 +1143,7 @@ function PokemonSidebar() {
               <button onClick={() => moveCarousel(-1)} style={{
                 width: 38, height: 38, borderRadius: "50%", border: "1px solid rgba(255,255,255,.18)",
                 background: "rgba(2,6,23,.9)", color: "#fff", cursor: "pointer", fontSize: 22, fontWeight: 900
-              }}>â€¹</button>
+              }}>‹</button>
               <div style={{ textAlign: "center", flex: 1 }}>
                 <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: 1.2, color: "#facc15", textTransform: "uppercase" }}>
                   {activeSystem} Game Carousel
@@ -1155,7 +1155,7 @@ function PokemonSidebar() {
               <button onClick={() => moveCarousel(1)} style={{
                 width: 38, height: 38, borderRadius: "50%", border: "1px solid rgba(255,255,255,.18)",
                 background: "rgba(2,6,23,.9)", color: "#fff", cursor: "pointer", fontSize: 22, fontWeight: 900
-              }}>â€º</button>
+              }}>›</button>
             </div>
 
             <div className="game-cover-carousel" style={{
@@ -1199,7 +1199,7 @@ function PokemonSidebar() {
                       {game.label}
                     </div>
                     <div style={{ marginTop: 4, fontSize: 9, fontWeight: 900, color: selected ? "#facc15" : "#94a3b8" }}>
-                      {game.system} â€¢ {game.year}
+                      {game.system} • {game.year}
                     </div>
                     {discCount > 1 && (
                       <div style={{ marginTop: 4, fontSize: 9, fontWeight: 1000, color: "#38bdf8" }}>
@@ -1237,7 +1237,7 @@ function PokemonSidebar() {
             <PokemonCoverImage game={activeGame} imageType={selectedArt} onZoom={setZoomedCover} />
             <div>
               <div style={{ fontSize: 12, fontWeight: 900, lineHeight: 1.25, color: "#fff" }}>{activeGame.label}</div>
-              <div style={{ fontSize: 11, fontWeight: 800, color: "#cbd5e1", marginTop: 4 }}>{activeGame.system} â€¢ {activeGame.year}</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#cbd5e1", marginTop: 4 }}>{activeGame.system} • {activeGame.year}</div>
               {activeGame.discUrls?.length > 1 && (
                 <select
                   value={selectedDiscIndex}
@@ -1326,7 +1326,7 @@ function PokemonSidebar() {
                     fontWeight: 900
                   }}
                 >
-                  âœ• Close
+                  ✕ Close
                 </button>
                 <img
                   src={zoomedCover.src}
@@ -1503,7 +1503,7 @@ function MusicLibrarySidebar({ accentColor }) {
     let cancelled = false;
     const checkOwncastStatus = async () => {
       try {
-        const response = await fetch("https://has-upcoming-breakfast-jane.trycloudflare.com/api/status", { cache: "no-store" });
+        const response = await fetch("https://pacific-dollars-halifax-abroad.trycloudflare.com/api/status", { cache: "no-store" });
         const status = await response.json();
         if (!cancelled) setOwncastOnline(Boolean(status.online));
       } catch {
@@ -1529,7 +1529,7 @@ function MusicLibrarySidebar({ accentColor }) {
     { id: "athf", label: "ADULT SWIM ZONE", heading: "ADULT SWIM ZONE", url: "https://www.adultswim.com/streams/aqua-teen-hunger-force", embed: true },
     { id: "youtube", label: "YOUTUBE", heading: "YOUTUBE", url: "https://www.youtube.com/", embed: false },
     { id: "southpark", label: "SOUTH PARK WORLD", heading: "SOUTH PARK WORLD", url: "https://southpark.cc.com/seasons/south-park", embed: false },
-    { id: "jellyfin", label: "FUIT JELLYFIN", heading: "FUIT JELLYFIN", url: "https://shoot-notified-textiles-dry.trycloudflare.com/web/", embed: true },
+    { id: "jellyfin", label: "FUIT JELLYFIN", heading: "FUIT JELLYFIN", url: "https://pressure-orchestra-beach-cancellation.trycloudflare.com/web/", embed: true },
     { id: "fattys", label: "FUITS LIVE TV WORLD", heading: "FUITS LIVE TV WORLD", custom: true }
   ];
   const activeLiveTvOption = liveTvOptions.find(option => option.id === activeLiveTv) || liveTvOptions[0];
@@ -1651,7 +1651,7 @@ function MusicLibrarySidebar({ accentColor }) {
           gap: 10
         }}>
           <span>{activeMediaMenu === "music" ? "Fuit Music" : "Fuit LIVE TV"}</span>
-          <span style={{ fontSize: 12, fontWeight: 1000 }}>{mediaMenuOpen ? "â–²" : "â–¼"}</span>
+          <span style={{ fontSize: 12, fontWeight: 1000 }}>{mediaMenuOpen ? "▲" : "▼"}</span>
         </button>
         {mediaMenuOpen && (
           <div style={{
@@ -1771,7 +1771,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 gap: 10
               }}>
                 <span>{activeLiveTvOption.label}</span>
-                <span>{liveTvMenuOpen ? "â–²" : "â–¼"}</span>
+                <span>{liveTvMenuOpen ? "▲" : "▼"}</span>
               </button>
               {liveTvMenuOpen && (
                 <div style={{
@@ -2021,7 +2021,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "jellyfin" || activeLiveTvOption.id === "athf") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://potato-keywords-camp-stops.trycloudflare.com/chat-only"
+                    src="https://ver-videos-eden-treatments.trycloudflare.com/chat-only"
                     height={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                     minHeight={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                   />
@@ -2056,7 +2056,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "southpark" || activeLiveTvOption.id === "youtube" || activeLiveTvOption.id === "fuit") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://potato-keywords-camp-stops.trycloudflare.com/chat-only"
+                    src="https://ver-videos-eden-treatments.trycloudflare.com/chat-only"
                     height={250}
                     minHeight={250}
                   />
@@ -2169,7 +2169,7 @@ function MusicLibrarySidebar({ accentColor }) {
             fontWeight: 900,
             whiteSpace: "nowrap"
           }}>
-            {openMusicSections.liveTv ? "â–²" : "â–¼"}
+            {openMusicSections.liveTv ? "▲" : "▼"}
           </span>
         </button>
         {openMusicSections.liveTv && (
@@ -2282,7 +2282,7 @@ function MusicLibrarySidebar({ accentColor }) {
             {selectedTrack.title}
           </div>
           <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 800, marginBottom: 8 }}>
-            {selectedTrack.artist || "Unknown Artist"} â€¢ {selectedTrack.genre || "Other"}
+            {selectedTrack.artist || "Unknown Artist"} • {selectedTrack.genre || "Other"}
           </div>
 
           {selectedTrack.type === "video" ? (
@@ -2308,7 +2308,7 @@ function MusicLibrarySidebar({ accentColor }) {
                   padding: "0 1px",
                   lineHeight: 1
                 }}>
-                  â˜…
+                  ★
                 </button>
               ))}
             </div>
@@ -2378,7 +2378,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 fontWeight: 900,
                 whiteSpace: "nowrap"
               }}>
-                {section.items.length} {openMusicSections[section.key] ? "â–²" : "â–¼"}
+                {section.items.length} {openMusicSections[section.key] ? "▲" : "▼"}
               </span>
             </button>
             {openMusicSections[section.key] && (section.items.length > 0 ? section.items.map(item => (
@@ -2401,7 +2401,7 @@ function MusicLibrarySidebar({ accentColor }) {
                     </div>
                   </div>
                   <div style={{ color: "#facc15", fontSize: 12, whiteSpace: "nowrap" }}>
-                    {"â˜…".repeat(ratings[item.id] || 0)}{"â˜†".repeat(5 - (ratings[item.id] || 0))}
+                    {"★".repeat(ratings[item.id] || 0)}{"☆".repeat(5 - (ratings[item.id] || 0))}
                   </div>
                 </div>
               </button>
@@ -2503,6 +2503,402 @@ function MusicLibrarySidebar({ accentColor }) {
   );
 }
 
+function CreditHubPage({ onClose }) {
+  const ADMIN_PASSWORD = "FUCKNUTZ22!";
+  const FEE_RATE = 0.0005;
+  const SUPPORTED_COINS = ["USDC", "USDT", "POL", "SOL"];
+  const demoEvents = [
+    { id: "esp-001", league: "Esports", event: "CS2 - Falcons vs Liquid", market: "Prematch ML", odds: "+120", starts: "Tonight" },
+    { id: "esp-002", league: "Esports", event: "LoL - T1 vs Gen.G", market: "Prematch ML", odds: "-145", starts: "Tomorrow" },
+    { id: "spr-001", league: "Sports", event: "NBA Demo - Home vs Away", market: "Prematch spread", odds: "-110", starts: "Upcoming" }
+  ];
+
+  const loadCreditState = () => {
+    try {
+      return JSON.parse(localStorage.getItem("fuitCreditHubState_v1")) || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const [walletAddress, setWalletAddress] = useState("");
+  const [adminUnlocked, setAdminUnlocked] = useState(false);
+  const [adminPass, setAdminPass] = useState("");
+  const [selectedCoin, setSelectedCoin] = useState("USDC");
+  const [depositAmount, setDepositAmount] = useState("");
+  const [depositTx, setDepositTx] = useState("");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawCoin, setWithdrawCoin] = useState("USDC");
+  const [withdrawWallet, setWithdrawWallet] = useState("");
+  const [betAmount, setBetAmount] = useState("");
+  const [selectedEvent, setSelectedEvent] = useState(demoEvents[0]);
+  const [casinoAmount, setCasinoAmount] = useState("");
+  const [fuitMintAmount, setFuitMintAmount] = useState("");
+  const [state, setState] = useState(() => loadCreditState() || {
+    users: {},
+    deposits: [],
+    withdrawals: [],
+    bets: [],
+    casinoRounds: [],
+    fees: [],
+    fuitCoin: { supply: 0, backing: 0 },
+    house: { USDC: 0, USDT: 0, POL: 0, SOL: 0 }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem("fuitCreditHubState_v1", JSON.stringify(state)); } catch {}
+  }, [state]);
+
+  const shortWallet = walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : "Guest";
+  const user = state.users[walletAddress] || { credits: 0, online: !!walletAddress, wallet: walletAddress };
+  const feeOf = (amount) => Number((Number(amount || 0) * FEE_RATE).toFixed(6));
+  const netOf = (amount) => Number((Number(amount || 0) - feeOf(amount)).toFixed(6));
+  const totalFees = state.fees.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const totalActiveCredits = Object.values(state.users).reduce((sum, item) => sum + Number(item.credits || 0), 0);
+  const potentialLiability = state.bets.filter(b => b.status === "open").reduce((sum, b) => sum + Number(b.potentialPayout || 0), 0);
+
+  const updateUserCredits = (address, creditDelta) => {
+    if (!address) return;
+    setState(prev => {
+      const existing = prev.users[address] || { wallet: address, credits: 0, online: true };
+      return {
+        ...prev,
+        users: {
+          ...prev.users,
+          [address]: {
+            ...existing,
+            wallet: address,
+            online: true,
+            credits: Math.max(0, Number(((Number(existing.credits || 0) + Number(creditDelta || 0))).toFixed(6)))
+          }
+        }
+      };
+    });
+  };
+
+  const addFee = (source, amount, coin = "CREDITS") => {
+    const fee = feeOf(amount);
+    if (fee <= 0) return fee;
+    setState(prev => ({
+      ...prev,
+      fees: [{ id: `fee_${Date.now()}`, source, amount: fee, coin, time: new Date().toLocaleString() }, ...prev.fees]
+    }));
+    return fee;
+  };
+
+  const connectWallet = async () => {
+    try {
+      if (!window.ethereum) {
+        alert("No browser wallet found. Install MetaMask or open this app inside Trust Wallet browser.");
+        return;
+      }
+      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+      const address = accounts?.[0] || "";
+      if (!address) return;
+      setWalletAddress(address);
+      setWithdrawWallet(address);
+      setState(prev => ({
+        ...prev,
+        users: {
+          ...prev.users,
+          [address]: { ...(prev.users[address] || { credits: 0 }), wallet: address, online: true, username: `${address.slice(0, 6)}...${address.slice(-4)}` }
+        }
+      }));
+      try {
+        await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x89" }] });
+      } catch (switchError) {
+        if (switchError?.code === 4902) {
+          await window.ethereum.request({
+            method: "wallet_addEthereumChain",
+            params: [{ chainId: "0x89", chainName: "Polygon", nativeCurrency: { name: "POL", symbol: "POL", decimals: 18 }, rpcUrls: ["https://polygon-rpc.com/"], blockExplorerUrls: ["https://polygonscan.com/"] }]
+          });
+        }
+      }
+    } catch (err) {
+      alert(`Wallet connection failed: ${err?.message || err}`);
+    }
+  };
+
+  const openTrustWallet = () => {
+    window.open(`https://link.trustwallet.com/open_url?coin_id=966&url=${encodeURIComponent(window.location.href)}`, "_blank", "noopener,noreferrer");
+  };
+
+  const submitDeposit = () => {
+    const amount = Number(depositAmount);
+    if (!walletAddress) return alert("Connect a wallet first.");
+    if (!amount || amount <= 0) return alert("Enter deposit amount.");
+    const fee = feeOf(amount);
+    setState(prev => ({
+      ...prev,
+      deposits: [{ id: `dep_${Date.now()}`, wallet: walletAddress, coin: selectedCoin, amount, tx: depositTx.trim(), fee, creditsToAward: netOf(amount), status: "pending", time: new Date().toLocaleString() }, ...prev.deposits]
+    }));
+    setDepositAmount("");
+    setDepositTx("");
+  };
+
+  const submitWithdrawal = () => {
+    const amount = Number(withdrawAmount);
+    if (!walletAddress) return alert("Connect a wallet first.");
+    if (!amount || amount <= 0) return alert("Enter withdrawal amount.");
+    if (amount > user.credits) return alert("Not enough credits.");
+    const fee = feeOf(amount);
+    updateUserCredits(walletAddress, -amount);
+    addFee("withdrawal_request", amount);
+    setState(prev => ({
+      ...prev,
+      withdrawals: [{ id: `wd_${Date.now()}`, wallet: walletAddress, coin: withdrawCoin, amount, fee, userReceives: netOf(amount), sendTo: withdrawWallet || walletAddress, status: "pending", time: new Date().toLocaleString() }, ...prev.withdrawals]
+    }));
+    setWithdrawAmount("");
+  };
+
+  const approveDeposit = (id) => {
+    const dep = state.deposits.find(d => d.id === id);
+    if (!dep || dep.status !== "pending") return;
+    updateUserCredits(dep.wallet, dep.creditsToAward);
+    addFee("deposit", dep.amount, dep.coin);
+    setState(prev => ({
+      ...prev,
+      house: { ...prev.house, [dep.coin]: Number(((prev.house[dep.coin] || 0) + Number(dep.amount || 0)).toFixed(6)) },
+      deposits: prev.deposits.map(d => d.id === id ? { ...d, status: "approved" } : d)
+    }));
+  };
+
+  const rejectDeposit = (id) => setState(prev => ({ ...prev, deposits: prev.deposits.map(d => d.id === id ? { ...d, status: "rejected" } : d) }));
+  const completeWithdrawal = (id) => setState(prev => ({ ...prev, withdrawals: prev.withdrawals.map(w => w.id === id ? { ...w, status: "paid" } : w) }));
+  const rejectWithdrawal = (id) => {
+    const wd = state.withdrawals.find(w => w.id === id);
+    if (wd && wd.status === "pending") updateUserCredits(wd.wallet, wd.amount);
+    setState(prev => ({ ...prev, withdrawals: prev.withdrawals.map(w => w.id === id ? { ...w, status: "rejected/refunded" } : w) }));
+  };
+
+  const placeBet = () => {
+    const amount = Number(betAmount);
+    if (!walletAddress) return alert("Connect wallet first.");
+    if (!amount || amount <= 0) return alert("Enter bet amount.");
+    if (amount > user.credits) return alert("Not enough credits.");
+    const fee = addFee("sportsbook_bet", amount);
+    updateUserCredits(walletAddress, -amount);
+    const stake = Number((amount - fee).toFixed(6));
+    const potentialPayout = Number((stake * 1.9).toFixed(6));
+    setState(prev => ({
+      ...prev,
+      bets: [{ id: `bet_${Date.now()}`, wallet: walletAddress, event: selectedEvent.event, market: selectedEvent.market, odds: selectedEvent.odds, stake, fee, potentialPayout, status: "open", time: new Date().toLocaleString() }, ...prev.bets]
+    }));
+    setBetAmount("");
+  };
+
+  const settleBet = (id, result) => {
+    const bet = state.bets.find(b => b.id === id);
+    if (!bet || bet.status !== "open") return;
+    if (result === "win") updateUserCredits(bet.wallet, bet.potentialPayout);
+    if (result === "push") updateUserCredits(bet.wallet, bet.stake);
+    setState(prev => ({ ...prev, bets: prev.bets.map(b => b.id === id ? { ...b, status: result } : b) }));
+  };
+
+  const playCasinoDemo = (result) => {
+    const amount = Number(casinoAmount);
+    if (!walletAddress) return alert("Connect wallet first.");
+    if (!amount || amount <= 0) return alert("Enter casino wager amount.");
+    if (amount > user.credits) return alert("Not enough credits.");
+    const fee = addFee("casino_wager", amount);
+    const stake = Number((amount - fee).toFixed(6));
+    updateUserCredits(walletAddress, -amount);
+    if (result === "win") updateUserCredits(walletAddress, Number((stake * 2).toFixed(6)));
+    setState(prev => ({
+      ...prev,
+      casinoRounds: [{ id: `cas_${Date.now()}`, wallet: walletAddress, wager: stake, fee, result, payout: result === "win" ? stake * 2 : 0, time: new Date().toLocaleString() }, ...prev.casinoRounds]
+    }));
+    setCasinoAmount("");
+  };
+
+  const mintFuit = () => {
+    const amount = Number(fuitMintAmount);
+    if (!amount || amount <= 0) return alert("Enter FUIT amount.");
+    addFee("fuit_coin_mint", amount, "USDC");
+    setState(prev => ({
+      ...prev,
+      fuitCoin: { supply: Number((prev.fuitCoin.supply + amount).toFixed(6)), backing: Number((prev.fuitCoin.backing + amount).toFixed(6)) }
+    }));
+    setFuitMintAmount("");
+  };
+
+  const burnFuit = () => {
+    const amount = Number(fuitMintAmount);
+    if (!amount || amount <= 0) return alert("Enter FUIT amount.");
+    addFee("fuit_coin_burn", amount, "USDC");
+    setState(prev => ({
+      ...prev,
+      fuitCoin: { supply: Math.max(0, Number((prev.fuitCoin.supply - amount).toFixed(6))), backing: Math.max(0, Number((prev.fuitCoin.backing - amount).toFixed(6))) }
+    }));
+    setFuitMintAmount("");
+  };
+
+  const card = { background: "rgba(15,23,42,.92)", border: "1px solid rgba(148,163,184,.28)", borderRadius: 18, padding: 16, boxShadow: "0 12px 34px rgba(0,0,0,.35)", marginBottom: 14 };
+  const input = { width: "100%", boxSizing: "border-box", background: "#020617", color: "#f8fafc", border: "1px solid rgba(148,163,184,.35)", borderRadius: 12, padding: "11px 12px", marginTop: 8, marginBottom: 8, fontWeight: 800 };
+  const button = { border: "none", borderRadius: 12, padding: "11px 13px", fontWeight: 900, cursor: "pointer", background: "linear-gradient(135deg,#22c55e,#38bdf8)", color: "#04111d" };
+  const darkButton = { ...button, background: "rgba(255,255,255,.1)", color: "#f8fafc", border: "1px solid rgba(255,255,255,.18)" };
+
+  return (
+    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#020617,#111827,#3b0764)", color: "#f8fafc", fontFamily: "system-ui", padding: 16, boxSizing: "border-box" }}>
+      <div style={{ maxWidth: 1120, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 30, fontWeight: 1000, letterSpacing: .4 }}>FUIT Credit Hub</div>
+            <div style={{ color: "#cbd5e1", fontWeight: 800 }}>Credits sportsbook/casino + separate admin-only FUIT Coin vault</div>
+          </div>
+          <button onClick={onClose} style={darkButton}>Back to Hours</button>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
+          <div style={card}>
+            <div style={{ fontSize: 18, fontWeight: 1000 }}>Wallet / Username</div>
+            <div style={{ color: "#94a3b8", marginTop: 4 }}>Username is based on connected wallet.</div>
+            <div style={{ marginTop: 12, fontSize: 24, fontWeight: 1000 }}>{shortWallet}</div>
+            <div style={{ color: "#86efac", marginTop: 4, fontWeight: 900 }}>{Number(user.credits || 0).toFixed(4)} Credits</div>
+            <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+              <button onClick={connectWallet} style={button}>Connect Polygon Wallet</button>
+              <button onClick={openTrustWallet} style={darkButton}>Trust Wallet</button>
+            </div>
+          </div>
+
+          <div style={card}>
+            <div style={{ fontSize: 18, fontWeight: 1000 }}>0.05% Fee Rule</div>
+            <div style={{ color: "#cbd5e1", marginTop: 8, lineHeight: 1.5 }}>Fee applies to deposits, withdrawals, sportsbook wagers, casino wagers, and admin FUIT mint/burn actions.</div>
+            <div style={{ marginTop: 10, color: "#facc15", fontWeight: 1000 }}>Total fees: {totalFees.toFixed(6)}</div>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 14 }}>
+          <div style={card}>
+            <div style={{ fontSize: 20, fontWeight: 1000 }}>Deposit Request</div>
+            <select value={selectedCoin} onChange={e => setSelectedCoin(e.target.value)} style={input}>{SUPPORTED_COINS.map(c => <option key={c}>{c}</option>)}</select>
+            <input type="number" value={depositAmount} onChange={e => setDepositAmount(e.target.value)} placeholder="Amount deposited" style={input} />
+            <input value={depositTx} onChange={e => setDepositTx(e.target.value)} placeholder="TX hash / note" style={input} />
+            <div style={{ color: "#94a3b8", fontSize: 13, marginBottom: 8 }}>Credits after fee: {netOf(depositAmount).toFixed(6)}</div>
+            <button onClick={submitDeposit} style={button}>Submit Deposit For Admin Approval</button>
+          </div>
+
+          <div style={card}>
+            <div style={{ fontSize: 20, fontWeight: 1000 }}>Withdrawal Request</div>
+            <select value={withdrawCoin} onChange={e => setWithdrawCoin(e.target.value)} style={input}>{SUPPORTED_COINS.map(c => <option key={c}>{c}</option>)}</select>
+            <input type="number" value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)} placeholder="Credits to withdraw" style={input} />
+            <input value={withdrawWallet} onChange={e => setWithdrawWallet(e.target.value)} placeholder="Wallet to send to" style={input} />
+            <div style={{ color: "#94a3b8", fontSize: 13, marginBottom: 8 }}>User receives after fee: {netOf(withdrawAmount).toFixed(6)}</div>
+            <button onClick={submitWithdrawal} style={button}>Request Withdrawal</button>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 14 }}>
+          <div style={card}>
+            <div style={{ fontSize: 20, fontWeight: 1000 }}>Sportsbook Demo</div>
+            <div style={{ color: "#94a3b8", marginBottom: 8 }}>Prematch/esports layout. Odds API can replace these demo events later and should be cached every 20 minutes.</div>
+            <select value={selectedEvent.id} onChange={e => setSelectedEvent(demoEvents.find(x => x.id === e.target.value) || demoEvents[0])} style={input}>
+              {demoEvents.map(ev => <option key={ev.id} value={ev.id}>{ev.event} • {ev.odds}</option>)}
+            </select>
+            <input type="number" value={betAmount} onChange={e => setBetAmount(e.target.value)} placeholder="Bet credits" style={input} />
+            <div style={{ color: "#94a3b8", fontSize: 13, marginBottom: 8 }}>Stake after fee: {netOf(betAmount).toFixed(6)}</div>
+            <button onClick={placeBet} style={button}>Place Credit Bet</button>
+          </div>
+
+          <div style={card}>
+            <div style={{ fontSize: 20, fontWeight: 1000 }}>Casino Credits Demo</div>
+            <div style={{ color: "#94a3b8", marginBottom: 8 }}>Simple test controls so fee logic works on casino actions too.</div>
+            <input type="number" value={casinoAmount} onChange={e => setCasinoAmount(e.target.value)} placeholder="Casino wager credits" style={input} />
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button onClick={() => playCasinoDemo("win")} style={button}>Test Win</button>
+              <button onClick={() => playCasinoDemo("loss")} style={darkButton}>Test Loss</button>
+            </div>
+          </div>
+        </div>
+
+        <div style={card}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: 24, fontWeight: 1000 }}>Admin Area</div>
+              <div style={{ color: "#94a3b8" }}>Password protected admin controls. Password: saved in included TXT file.</div>
+            </div>
+            {!adminUnlocked ? (
+              <div style={{ display: "flex", gap: 8 }}>
+                <input type="password" value={adminPass} onChange={e => setAdminPass(e.target.value)} placeholder="Admin password" style={{ ...input, margin: 0, minWidth: 190 }} />
+                <button onClick={() => adminPass === ADMIN_PASSWORD ? setAdminUnlocked(true) : alert("Wrong password")} style={button}>Unlock</button>
+              </div>
+            ) : <button onClick={() => setAdminUnlocked(false)} style={darkButton}>Lock Admin</button>}
+          </div>
+
+          {adminUnlocked && (
+            <div style={{ marginTop: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 10, marginBottom: 14 }}>
+                <div style={card}><b>House USDC</b><br />{state.house.USDC.toFixed(4)}</div>
+                <div style={card}><b>House USDT</b><br />{state.house.USDT.toFixed(4)}</div>
+                <div style={card}><b>House POL</b><br />{state.house.POL.toFixed(4)}</div>
+                <div style={card}><b>House SOL</b><br />{state.house.SOL.toFixed(4)}</div>
+                <div style={card}><b>Active Credits</b><br />{totalActiveCredits.toFixed(4)}</div>
+                <div style={card}><b>Open Liability</b><br />{potentialLiability.toFixed(4)}</div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 14 }}>
+                <div style={card}>
+                  <div style={{ fontSize: 19, fontWeight: 1000 }}>Pending Deposits</div>
+                  {state.deposits.length === 0 && <div style={{ color: "#94a3b8" }}>No deposits yet.</div>}
+                  {state.deposits.map(d => <div key={d.id} style={{ borderTop: "1px solid rgba(255,255,255,.12)", paddingTop: 10, marginTop: 10 }}>
+                    <b>{d.coin} {d.amount}</b> → award {d.creditsToAward} credits<br />
+                    <span style={{ color: "#94a3b8", fontSize: 12 }}>{d.wallet} • {d.status} • {d.tx || "no tx"}</span>
+                    {d.status === "pending" && <div style={{ display: "flex", gap: 8, marginTop: 8 }}><button onClick={() => approveDeposit(d.id)} style={button}>Approve</button><button onClick={() => rejectDeposit(d.id)} style={darkButton}>Reject</button></div>}
+                  </div>)}
+                </div>
+
+                <div style={card}>
+                  <div style={{ fontSize: 19, fontWeight: 1000 }}>Pending Withdrawals</div>
+                  {state.withdrawals.length === 0 && <div style={{ color: "#94a3b8" }}>No withdrawals yet.</div>}
+                  {state.withdrawals.map(w => <div key={w.id} style={{ borderTop: "1px solid rgba(255,255,255,.12)", paddingTop: 10, marginTop: 10 }}>
+                    <b>{w.coin} {w.userReceives}</b> after fee from {w.amount} credits<br />
+                    <span style={{ color: "#94a3b8", fontSize: 12 }}>{w.sendTo} • {w.status}</span>
+                    {w.status === "pending" && <div style={{ display: "flex", gap: 8, marginTop: 8 }}><button onClick={() => completeWithdrawal(w.id)} style={button}>Mark Paid</button><button onClick={() => rejectWithdrawal(w.id)} style={darkButton}>Reject/Refund</button></div>}
+                  </div>)}
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 14 }}>
+                <div style={card}>
+                  <div style={{ fontSize: 19, fontWeight: 1000 }}>Open Bets</div>
+                  {state.bets.length === 0 && <div style={{ color: "#94a3b8" }}>No bets yet.</div>}
+                  {state.bets.map(b => <div key={b.id} style={{ borderTop: "1px solid rgba(255,255,255,.12)", paddingTop: 10, marginTop: 10 }}>
+                    <b>{b.event}</b><br />Stake {b.stake} • payout {b.potentialPayout} • {b.status}
+                    {b.status === "open" && <div style={{ display: "flex", gap: 8, marginTop: 8 }}><button onClick={() => settleBet(b.id, "win")} style={button}>Win</button><button onClick={() => settleBet(b.id, "loss")} style={darkButton}>Loss</button><button onClick={() => settleBet(b.id, "push")} style={darkButton}>Push</button></div>}
+                  </div>)}
+                </div>
+
+                <div style={card}>
+                  <div style={{ fontSize: 19, fontWeight: 1000 }}>Users Online / Credits</div>
+                  {Object.values(state.users).length === 0 && <div style={{ color: "#94a3b8" }}>No wallet users yet.</div>}
+                  {Object.values(state.users).map(u => <div key={u.wallet} style={{ borderTop: "1px solid rgba(255,255,255,.12)", paddingTop: 10, marginTop: 10 }}>
+                    <b>{u.username || `${u.wallet.slice(0, 6)}...${u.wallet.slice(-4)}`}</b> <span style={{ color: "#22c55e" }}>● online</span><br />
+                    <span style={{ color: "#94a3b8", fontSize: 12 }}>{u.wallet}</span><br />
+                    Credits: {Number(u.credits || 0).toFixed(4)}
+                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}><button onClick={() => updateUserCredits(u.wallet, 100)} style={button}>+100</button><button onClick={() => updateUserCredits(u.wallet, -100)} style={darkButton}>-100</button></div>
+                  </div>)}
+                </div>
+              </div>
+
+              <div style={card}>
+                <div style={{ fontSize: 22, fontWeight: 1000 }}>Admin-Only FUIT Coin Vault</div>
+                <div style={{ color: "#94a3b8", marginTop: 5 }}>Separate from casino/sportsbook credits. 1 FUIT = 1 stablecoin backing. This is a local admin tracker until you deploy the real Polygon token contract.</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10, marginTop: 12 }}>
+                  <div style={card}><b>FUIT Supply</b><br />{state.fuitCoin.supply.toFixed(6)}</div>
+                  <div style={card}><b>Stable Backing</b><br />{state.fuitCoin.backing.toFixed(6)}</div>
+                  <div style={card}><b>Backing Ratio</b><br />{state.fuitCoin.supply > 0 ? `${((state.fuitCoin.backing / state.fuitCoin.supply) * 100).toFixed(2)}%` : "100%"}</div>
+                </div>
+                <input type="number" value={fuitMintAmount} onChange={e => setFuitMintAmount(e.target.value)} placeholder="FUIT amount" style={input} />
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button onClick={mintFuit} style={button}>Mint FUIT / Add Backing</button><button onClick={burnFuit} style={darkButton}>Burn FUIT / Remove Backing</button></div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ProjectDropdown({ projects, activeId, onSelect, onManage }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -2529,7 +2925,7 @@ function ProjectDropdown({ projects, activeId, onSelect, onManage }) {
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 140 }}>
           {active?.name || "Select project"}
         </span>
-        <span style={{ color: "#888", fontSize: 10, marginLeft: 2 }}>{open ? "â–²" : "â–¼"}</span>
+        <span style={{ color: "#888", fontSize: 10, marginLeft: 2 }}>{open ? "▲" : "▼"}</span>
       </button>
       {open && (
         <div style={{
@@ -2553,7 +2949,7 @@ function ProjectDropdown({ projects, activeId, onSelect, onManage }) {
             >
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: p.color, flexShrink: 0 }} />
               <span style={{ flex: 1 }}>{p.name}</span>
-              {p.id === activeId && <span style={{ color: "#A8D5A2", fontSize: 11 }}>âœ“</span>}
+              {p.id === activeId && <span style={{ color: "#A8D5A2", fontSize: 11 }}>✓</span>}
             </button>
           ))}
           <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
@@ -2571,493 +2967,6 @@ function ProjectDropdown({ projects, activeId, onSelect, onManage }) {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-
-const CREDIT_HUB_KEY = "fuitCreditHub_v1";
-const CREDIT_HUB_FEE_RATE = 0.0005;
-const CREDIT_HUB_ODDS_CACHE_MS = 20 * 60 * 1000;
-const CREDIT_HUB_ADMIN_PASSWORD = "fuitadmin";
-const CREDIT_HUB_DEPOSIT_COINS = ["USDC", "USDT", "POL", "SOL"];
-
-function shortWallet(address) {
-  if (!address) return "Not connected";
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
-
-function money(n) {
-  const value = Number(n || 0);
-  return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 });
-}
-
-function calcFee(amount) {
-  return Math.max(0, Number(amount || 0) * CREDIT_HUB_FEE_RATE);
-}
-
-function makeCreditHubInitialState() {
-  return {
-    walletAddress: "",
-    username: "",
-    credits: 0,
-    lockedCredits: 0,
-    feeVault: 0,
-    casinoFees: 0,
-    sportsbookFees: 0,
-    adminFees: 0,
-    houseBalances: { USDC: 0, USDT: 0, POL: 0, SOL: 0 },
-    pendingDeposits: [],
-    pendingWithdrawals: [],
-    bets: [],
-    casinoHistory: [],
-    users: [],
-    fuitCoin: {
-      stableReserve: 0,
-      totalSupply: 0,
-      backingCoin: "USDC",
-      history: []
-    },
-    odds: { fetchedAt: 0, sports: [], events: [], error: "" }
-  };
-}
-
-function loadCreditHubState() {
-  try {
-    return { ...makeCreditHubInitialState(), ...(JSON.parse(localStorage.getItem(CREDIT_HUB_KEY)) || {}) };
-  } catch {
-    return makeCreditHubInitialState();
-  }
-}
-
-function saveCreditHubState(next) {
-  try { localStorage.setItem(CREDIT_HUB_KEY, JSON.stringify(next)); } catch {}
-}
-
-function CreditHubPage({ onClose }) {
-  const [hub, setHub] = useState(loadCreditHubState);
-  const [tab, setTab] = useState("sportsbook");
-  const [adminPassword, setAdminPassword] = useState("");
-  const [adminUnlocked, setAdminUnlocked] = useState(false);
-  const [depositForm, setDepositForm] = useState({ coin: "USDC", amount: "", txHash: "" });
-  const [withdrawForm, setWithdrawForm] = useState({ coin: "USDC", amount: "", wallet: "" });
-  const [betForm, setBetForm] = useState({ event: "", market: "Moneyline", pick: "", odds: "", stake: "" });
-  const [casinoForm, setCasinoForm] = useState({ game: "Slots", stake: "" });
-  const [oddsApiKey, setOddsApiKey] = useState(() => localStorage.getItem("fuitOddsApiKey") || "");
-  const [sportsKey, setSportsKey] = useState("esports");
-
-  useEffect(() => saveCreditHubState(hub), [hub]);
-  useEffect(() => { localStorage.setItem("fuitOddsApiKey", oddsApiKey); }, [oddsApiKey]);
-
-  const setHubSafe = (updater) => setHub(prev => {
-    const next = typeof updater === "function" ? updater(prev) : updater;
-    return { ...makeCreditHubInitialState(), ...next };
-  });
-
-  const walletUsername = hub.username || shortWallet(hub.walletAddress);
-  const activeCredits = Math.max(0, Number(hub.credits || 0) - Number(hub.lockedCredits || 0));
-  const totalHouseUsd = CREDIT_HUB_DEPOSIT_COINS.reduce((sum, coin) => sum + Number(hub.houseBalances?.[coin] || 0), 0);
-  const openLiability = (hub.bets || []).filter(b => b.status === "OPEN").reduce((sum, b) => sum + Math.max(0, Number(b.potentialPayout || 0)), 0);
-
-  const addFee = (amount, bucket) => {
-    const fee = calcFee(amount);
-    setHubSafe(prev => ({
-      ...prev,
-      feeVault: Number(prev.feeVault || 0) + fee,
-      casinoFees: bucket === "casino" ? Number(prev.casinoFees || 0) + fee : Number(prev.casinoFees || 0),
-      sportsbookFees: bucket === "sportsbook" ? Number(prev.sportsbookFees || 0) + fee : Number(prev.sportsbookFees || 0),
-      adminFees: bucket === "admin" ? Number(prev.adminFees || 0) + fee : Number(prev.adminFees || 0)
-    }));
-    return fee;
-  };
-
-  const connectWallet = async () => {
-    const eth = window.ethereum;
-    if (!eth) {
-      alert("No wallet extension detected. Install MetaMask, Trust Wallet extension, or use WalletConnect in a mobile browser.");
-      return;
-    }
-    try {
-      const accounts = await eth.request({ method: "eth_requestAccounts" });
-      const address = accounts?.[0] || "";
-      try {
-        await eth.request({
-          method: "wallet_addEthereumChain",
-          params: [{
-            chainId: "0x89",
-            chainName: "Polygon Mainnet",
-            nativeCurrency: { name: "POL", symbol: "POL", decimals: 18 },
-            rpcUrls: ["https://polygon-rpc.com"],
-            blockExplorerUrls: ["https://polygonscan.com/"]
-          }]
-        });
-      } catch {}
-      setHubSafe(prev => {
-        const username = `wallet_${address.slice(2, 8).toLowerCase()}`;
-        const users = [...(prev.users || []).filter(u => u.walletAddress?.toLowerCase() !== address.toLowerCase()), {
-          walletAddress: address,
-          username,
-          online: true,
-          lastSeen: new Date().toISOString(),
-          credits: prev.credits || 0
-        }];
-        return { ...prev, walletAddress: address, username, users };
-      });
-    } catch (err) {
-      alert("Wallet connection cancelled or failed.");
-    }
-  };
-
-  const submitDeposit = () => {
-    const amount = Number(depositForm.amount);
-    if (!amount || amount <= 0 || !hub.walletAddress) return alert("Connect wallet and enter a deposit amount.");
-    const fee = calcFee(amount);
-    const req = {
-      id: `dep_${Date.now()}`,
-      type: "DEPOSIT",
-      coin: depositForm.coin,
-      amount,
-      fee,
-      creditAmount: amount - fee,
-      txHash: depositForm.txHash,
-      walletAddress: hub.walletAddress,
-      username: walletUsername,
-      status: "PENDING",
-      createdAt: new Date().toISOString()
-    };
-    setHubSafe(prev => ({ ...prev, pendingDeposits: [req, ...(prev.pendingDeposits || [])] }));
-    setDepositForm({ coin: "USDC", amount: "", txHash: "" });
-  };
-
-  const submitWithdrawal = () => {
-    const amount = Number(withdrawForm.amount);
-    if (!amount || amount <= 0 || amount > activeCredits) return alert("Enter a valid withdrawal amount within your available credits.");
-    const fee = calcFee(amount);
-    const req = {
-      id: `wd_${Date.now()}`,
-      type: "WITHDRAWAL",
-      coin: withdrawForm.coin,
-      amount,
-      fee,
-      netAmount: amount - fee,
-      walletAddress: withdrawForm.wallet || hub.walletAddress,
-      username: walletUsername,
-      status: "PENDING",
-      createdAt: new Date().toISOString()
-    };
-    setHubSafe(prev => ({
-      ...prev,
-      lockedCredits: Number(prev.lockedCredits || 0) + amount,
-      pendingWithdrawals: [req, ...(prev.pendingWithdrawals || [])]
-    }));
-    setWithdrawForm({ coin: "USDC", amount: "", wallet: "" });
-  };
-
-  const approveDeposit = (id) => {
-    setHubSafe(prev => {
-      const dep = (prev.pendingDeposits || []).find(d => d.id === id);
-      if (!dep) return prev;
-      const fee = Number(dep.fee || calcFee(dep.amount));
-      return {
-        ...prev,
-        credits: Number(prev.credits || 0) + Number(dep.creditAmount || 0),
-        feeVault: Number(prev.feeVault || 0) + fee,
-        adminFees: Number(prev.adminFees || 0) + fee,
-        houseBalances: { ...(prev.houseBalances || {}), [dep.coin]: Number(prev.houseBalances?.[dep.coin] || 0) + Number(dep.amount || 0) },
-        pendingDeposits: (prev.pendingDeposits || []).map(d => d.id === id ? { ...d, status: "APPROVED", approvedAt: new Date().toISOString() } : d)
-      };
-    });
-  };
-
-  const rejectDeposit = (id) => setHubSafe(prev => ({ ...prev, pendingDeposits: (prev.pendingDeposits || []).map(d => d.id === id ? { ...d, status: "REJECTED" } : d) }));
-
-  const completeWithdrawal = (id) => {
-    setHubSafe(prev => {
-      const wd = (prev.pendingWithdrawals || []).find(w => w.id === id);
-      if (!wd) return prev;
-      const fee = Number(wd.fee || calcFee(wd.amount));
-      return {
-        ...prev,
-        credits: Math.max(0, Number(prev.credits || 0) - Number(wd.amount || 0)),
-        lockedCredits: Math.max(0, Number(prev.lockedCredits || 0) - Number(wd.amount || 0)),
-        feeVault: Number(prev.feeVault || 0) + fee,
-        adminFees: Number(prev.adminFees || 0) + fee,
-        houseBalances: { ...(prev.houseBalances || {}), [wd.coin]: Math.max(0, Number(prev.houseBalances?.[wd.coin] || 0) - Number(wd.netAmount || 0)) },
-        pendingWithdrawals: (prev.pendingWithdrawals || []).map(w => w.id === id ? { ...w, status: "PAID", paidAt: new Date().toISOString() } : w)
-      };
-    });
-  };
-
-  const rejectWithdrawal = (id) => setHubSafe(prev => {
-    const wd = (prev.pendingWithdrawals || []).find(w => w.id === id);
-    return {
-      ...prev,
-      lockedCredits: Math.max(0, Number(prev.lockedCredits || 0) - Number(wd?.amount || 0)),
-      pendingWithdrawals: (prev.pendingWithdrawals || []).map(w => w.id === id ? { ...w, status: "REJECTED" } : w)
-    };
-  });
-
-  const placeBet = () => {
-    const stake = Number(betForm.stake);
-    const odds = Number(betForm.odds);
-    if (!stake || stake <= 0 || !odds || stake > activeCredits) return alert("Enter valid bet stake and odds within available credits.");
-    const fee = calcFee(stake);
-    const netStake = stake - fee;
-    const potentialPayout = netStake * odds;
-    const bet = {
-      id: `bet_${Date.now()}`,
-      event: betForm.event || "Manual prematch / esports bet",
-      market: betForm.market,
-      pick: betForm.pick || "Manual pick",
-      odds,
-      stake,
-      fee,
-      netStake,
-      potentialPayout,
-      status: "OPEN",
-      username: walletUsername,
-      createdAt: new Date().toISOString()
-    };
-    setHubSafe(prev => ({
-      ...prev,
-      credits: Math.max(0, Number(prev.credits || 0) - stake),
-      feeVault: Number(prev.feeVault || 0) + fee,
-      sportsbookFees: Number(prev.sportsbookFees || 0) + fee,
-      bets: [bet, ...(prev.bets || [])]
-    }));
-    setBetForm({ event: "", market: "Moneyline", pick: "", odds: "", stake: "" });
-  };
-
-  const settleBet = (id, result) => setHubSafe(prev => {
-    const bet = (prev.bets || []).find(b => b.id === id);
-    if (!bet || bet.status !== "OPEN") return prev;
-    const payout = result === "WIN" ? Number(bet.potentialPayout || 0) : result === "PUSH" ? Number(bet.netStake || 0) : 0;
-    const fee = payout > 0 ? calcFee(payout) : 0;
-    return {
-      ...prev,
-      credits: Number(prev.credits || 0) + Math.max(0, payout - fee),
-      feeVault: Number(prev.feeVault || 0) + fee,
-      sportsbookFees: Number(prev.sportsbookFees || 0) + fee,
-      bets: (prev.bets || []).map(b => b.id === id ? { ...b, status: result, payout, payoutFee: fee, settledAt: new Date().toISOString() } : b)
-    };
-  });
-
-  const playCasino = () => {
-    const stake = Number(casinoForm.stake);
-    if (!stake || stake <= 0 || stake > activeCredits) return alert("Enter a valid casino stake within available credits.");
-    const fee = calcFee(stake);
-    const netStake = stake - fee;
-    const won = Math.random() > 0.55;
-    const multiplier = won ? (casinoForm.game === "Dice" ? 1.85 : casinoForm.game === "Blackjack" ? 2 : 1.5 + Math.random() * 3) : 0;
-    const grossPayout = netStake * multiplier;
-    const payoutFee = grossPayout > 0 ? calcFee(grossPayout) : 0;
-    const netPayout = Math.max(0, grossPayout - payoutFee);
-    const record = {
-      id: `casino_${Date.now()}`,
-      game: casinoForm.game,
-      stake,
-      fee,
-      result: won ? "WIN" : "LOSS",
-      grossPayout,
-      payoutFee,
-      netPayout,
-      username: walletUsername,
-      createdAt: new Date().toISOString()
-    };
-    setHubSafe(prev => ({
-      ...prev,
-      credits: Math.max(0, Number(prev.credits || 0) - stake + netPayout),
-      feeVault: Number(prev.feeVault || 0) + fee + payoutFee,
-      casinoFees: Number(prev.casinoFees || 0) + fee + payoutFee,
-      casinoHistory: [record, ...(prev.casinoHistory || [])]
-    }));
-  };
-
-  const fetchOdds = async (force = false) => {
-    if (!oddsApiKey.trim()) return alert("Add your free The Odds API key first.");
-    const age = Date.now() - Number(hub.odds?.fetchedAt || 0);
-    if (!force && age < CREDIT_HUB_ODDS_CACHE_MS && (hub.odds?.events || []).length) return alert("Using cached odds. Cache refreshes every 20 minutes.");
-    try {
-      const sport = sportsKey === "esports" ? "upcoming" : sportsKey;
-      const url = `https://api.the-odds-api.com/v4/sports/${sport}/odds/?apiKey=${encodeURIComponent(oddsApiKey)}&regions=us&markets=h2h&oddsFormat=decimal`;
-      const res = await fetch(url);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.message || "Odds API error");
-      const events = (Array.isArray(data) ? data : []).filter(e => sportsKey !== "esports" || String(e.sport_key || "").includes("esports")).slice(0, 25);
-      setHubSafe(prev => ({ ...prev, odds: { fetchedAt: Date.now(), sports: [], events, error: "" } }));
-    } catch (err) {
-      setHubSafe(prev => ({ ...prev, odds: { ...(prev.odds || {}), error: err.message || "Could not fetch odds." } }));
-    }
-  };
-
-  const mintFuit = (amount) => {
-    const value = Number(amount);
-    if (!value || value <= 0) return;
-    const fee = calcFee(value);
-    setHubSafe(prev => ({
-      ...prev,
-      feeVault: Number(prev.feeVault || 0) + fee,
-      adminFees: Number(prev.adminFees || 0) + fee,
-      fuitCoin: {
-        ...(prev.fuitCoin || {}),
-        stableReserve: Number(prev.fuitCoin?.stableReserve || 0) + value,
-        totalSupply: Number(prev.fuitCoin?.totalSupply || 0) + (value - fee),
-        history: [{ id: `fuit_${Date.now()}`, action: "MINT", amount: value, fee, createdAt: new Date().toISOString() }, ...(prev.fuitCoin?.history || [])]
-      }
-    }));
-  };
-
-  const burnFuit = (amount) => {
-    const value = Number(amount);
-    if (!value || value <= 0) return;
-    const fee = calcFee(value);
-    setHubSafe(prev => ({
-      ...prev,
-      feeVault: Number(prev.feeVault || 0) + fee,
-      adminFees: Number(prev.adminFees || 0) + fee,
-      fuitCoin: {
-        ...(prev.fuitCoin || {}),
-        stableReserve: Math.max(0, Number(prev.fuitCoin?.stableReserve || 0) - value),
-        totalSupply: Math.max(0, Number(prev.fuitCoin?.totalSupply || 0) - value),
-        history: [{ id: `fuit_${Date.now()}`, action: "BURN", amount: value, fee, createdAt: new Date().toISOString() }, ...(prev.fuitCoin?.history || [])]
-      }
-    }));
-  };
-
-  const card = { background: "rgba(15,23,42,.92)", border: "1px solid rgba(148,163,184,.28)", borderRadius: 18, padding: 16, boxShadow: "0 18px 45px rgba(0,0,0,.35)", marginBottom: 14 };
-  const input = { width: "100%", boxSizing: "border-box", borderRadius: 12, border: "1px solid rgba(148,163,184,.4)", background: "#020617", color: "#f8fafc", padding: "11px 12px", fontWeight: 800, outline: "none", marginTop: 6 };
-  const btn = { border: "none", borderRadius: 12, padding: "11px 13px", background: "linear-gradient(135deg,#22c55e,#38bdf8)", color: "#021019", fontWeight: 950, cursor: "pointer" };
-  const softBtn = { ...btn, background: "rgba(255,255,255,.1)", color: "#f8fafc", border: "1px solid rgba(255,255,255,.18)" };
-  const label = { fontSize: 11, color: "#cbd5e1", fontWeight: 900, textTransform: "uppercase", letterSpacing: 1 };
-  const stat = (name, value) => <div style={{ background: "rgba(255,255,255,.07)", borderRadius: 14, padding: 12 }}><div style={label}>{name}</div><div style={{ color: "#fff", fontSize: 20, fontWeight: 950, marginTop: 4 }}>{value}</div></div>;
-
-  return (
-    <div style={{ minHeight: "100vh", background: "radial-gradient(circle at top,#172554,#020617 62%)", color: "#f8fafc", padding: "18px 14px 110px", fontFamily: "system-ui" }}>
-      <div style={{ maxWidth: 980, margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", marginBottom: 14 }}>
-          <div>
-            <div style={{ fontSize: 28, fontWeight: 950, letterSpacing: -.5 }}>FUIT Credit Hub</div>
-            <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 800 }}>Casino + sportsbook use credits. FUIT Coin vault is admin-only and separate.</div>
-          </div>
-          <button onClick={onClose} style={softBtn}>â† Back</button>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 12 }}>
-          {stat("Available Credits", money(activeCredits))}
-          {stat("Locked", money(hub.lockedCredits))}
-          {stat("Fee Vault", money(hub.feeVault))}
-          {stat("House USD Value", money(totalHouseUsd))}
-        </div>
-
-        <div style={card}>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
-            <div>
-              <div style={label}>Connected Wallet Username</div>
-              <div style={{ fontSize: 18, fontWeight: 950 }}>{walletUsername}</div>
-              <div style={{ color: "#94a3b8", fontSize: 12 }}>{hub.walletAddress || "Connect a Polygon wallet to make wallet-based username."}</div>
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button onClick={connectWallet} style={btn}>Connect Polygon Wallet</button>
-              <button onClick={() => window.open("https://link.trustwallet.com/open_url?coin_id=966&url=" + encodeURIComponent(window.location.href), "_blank")} style={softBtn}>Open Trust Wallet</button>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-          {["sportsbook", "casino", "deposit", "withdraw", "admin"].map(t => (
-            <button key={t} onClick={() => setTab(t)} style={tab === t ? btn : softBtn}>{t === "admin" ? "Admin / FUIT" : t[0].toUpperCase() + t.slice(1)}</button>
-          ))}
-        </div>
-
-        {tab === "sportsbook" && <div style={card}>
-          <div style={{ fontSize: 21, fontWeight: 950, marginBottom: 8 }}>Prematch Sportsbook / Esports</div>
-          <div style={{ color: "#cbd5e1", fontSize: 13, marginBottom: 12 }}>Free-tier Odds API support. Odds are cached for 20 minutes in this browser.</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr auto", gap: 8, alignItems: "end" }}>
-            <div><div style={label}>The Odds API Key</div><input value={oddsApiKey} onChange={e => setOddsApiKey(e.target.value)} placeholder="Paste free API key" style={input} /></div>
-            <div><div style={label}>Mode</div><select value={sportsKey} onChange={e => setSportsKey(e.target.value)} style={input}><option value="esports">Esports only</option><option value="upcoming">All upcoming prematch</option></select></div>
-            <button onClick={() => fetchOdds(true)} style={btn}>Refresh Odds</button>
-          </div>
-          {hub.odds?.error && <div style={{ color: "#fecaca", marginTop: 8 }}>{hub.odds.error}</div>}
-          <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
-            {(hub.odds?.events || []).slice(0, 8).map(ev => (
-              <button key={ev.id} onClick={() => setBetForm(f => ({ ...f, event: `${ev.home_team || "Home"} vs ${ev.away_team || "Away"}`, pick: ev.home_team || "Home", odds: ev.bookmakers?.[0]?.markets?.[0]?.outcomes?.[0]?.price || "" }))} style={{ ...softBtn, textAlign: "left" }}>
-                {ev.sport_title} â€” {ev.home_team || "Home"} vs {ev.away_team || "Away"} Â· {ev.commence_time ? new Date(ev.commence_time).toLocaleString() : "Prematch"}
-              </button>
-            ))}
-          </div>
-          <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr", gap: 8 }}>
-            <input value={betForm.event} onChange={e => setBetForm(f => ({ ...f, event: e.target.value }))} placeholder="Event" style={input} />
-            <input value={betForm.pick} onChange={e => setBetForm(f => ({ ...f, pick: e.target.value }))} placeholder="Pick" style={input} />
-            <input value={betForm.odds} onChange={e => setBetForm(f => ({ ...f, odds: e.target.value }))} placeholder="Decimal odds" style={input} />
-            <input value={betForm.stake} onChange={e => setBetForm(f => ({ ...f, stake: e.target.value }))} placeholder="Stake credits" style={input} />
-          </div>
-          <div style={{ color: "#cbd5e1", fontSize: 12, margin: "8px 0" }}>0.05% fee: {money(calcFee(betForm.stake))} credits</div>
-          <button onClick={placeBet} style={btn}>Place Credit Bet</button>
-        </div>}
-
-        {tab === "casino" && <div style={card}>
-          <div style={{ fontSize: 21, fontWeight: 950, marginBottom: 8 }}>Credit Casino Demo</div>
-          <div style={{ color: "#cbd5e1", fontSize: 13, marginBottom: 12 }}>Every wager and winning payout logs the 0.05% admin fee.</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, alignItems: "end" }}>
-            <select value={casinoForm.game} onChange={e => setCasinoForm(f => ({ ...f, game: e.target.value }))} style={input}><option>Slots</option><option>Dice</option><option>Blackjack</option></select>
-            <input value={casinoForm.stake} onChange={e => setCasinoForm(f => ({ ...f, stake: e.target.value }))} placeholder="Stake credits" style={input} />
-            <button onClick={playCasino} style={btn}>Play</button>
-          </div>
-          <div style={{ color: "#cbd5e1", fontSize: 12, marginTop: 8 }}>0.05% fee: {money(calcFee(casinoForm.stake))} credits</div>
-        </div>}
-
-        {tab === "deposit" && <div style={card}>
-          <div style={{ fontSize: 21, fontWeight: 950, marginBottom: 8 }}>Deposit Request</div>
-          <div style={{ color: "#cbd5e1", fontSize: 13, marginBottom: 12 }}>User submits deposit info. Admin verifies TX and awards credits manually.</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr auto", gap: 8, alignItems: "end" }}>
-            <select value={depositForm.coin} onChange={e => setDepositForm(f => ({ ...f, coin: e.target.value }))} style={input}>{CREDIT_HUB_DEPOSIT_COINS.map(c => <option key={c}>{c}</option>)}</select>
-            <input value={depositForm.amount} onChange={e => setDepositForm(f => ({ ...f, amount: e.target.value }))} placeholder="Amount" style={input} />
-            <input value={depositForm.txHash} onChange={e => setDepositForm(f => ({ ...f, txHash: e.target.value }))} placeholder="TX hash / note" style={input} />
-            <button onClick={submitDeposit} style={btn}>Submit</button>
-          </div>
-          <div style={{ color: "#cbd5e1", fontSize: 12, marginTop: 8 }}>Deposit fee: {money(calcFee(depositForm.amount))}. Credits after fee: {money(Number(depositForm.amount || 0) - calcFee(depositForm.amount))}</div>
-        </div>}
-
-        {tab === "withdraw" && <div style={card}>
-          <div style={{ fontSize: 21, fontWeight: 950, marginBottom: 8 }}>Withdrawal Request</div>
-          <div style={{ color: "#cbd5e1", fontSize: 13, marginBottom: 12 }}>Credits lock pending admin approval. Admin manually sends USDC/USDT/POL/SOL and marks paid.</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr auto", gap: 8, alignItems: "end" }}>
-            <select value={withdrawForm.coin} onChange={e => setWithdrawForm(f => ({ ...f, coin: e.target.value }))} style={input}>{CREDIT_HUB_DEPOSIT_COINS.map(c => <option key={c}>{c}</option>)}</select>
-            <input value={withdrawForm.amount} onChange={e => setWithdrawForm(f => ({ ...f, amount: e.target.value }))} placeholder="Credits" style={input} />
-            <input value={withdrawForm.wallet} onChange={e => setWithdrawForm(f => ({ ...f, wallet: e.target.value }))} placeholder="Payout wallet" style={input} />
-            <button onClick={submitWithdrawal} style={btn}>Request</button>
-          </div>
-          <div style={{ color: "#cbd5e1", fontSize: 12, marginTop: 8 }}>Withdrawal fee: {money(calcFee(withdrawForm.amount))}. Net payout: {money(Number(withdrawForm.amount || 0) - calcFee(withdrawForm.amount))}</div>
-        </div>}
-
-        {tab === "admin" && <div style={card}>
-          {!adminUnlocked ? <div>
-            <div style={{ fontSize: 21, fontWeight: 950, marginBottom: 8 }}>Admin Login</div>
-            <div style={{ color: "#cbd5e1", fontSize: 13 }}>Default test password: fuitadmin. Change CREDIT_HUB_ADMIN_PASSWORD in App.js before serious use.</div>
-            <input type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} placeholder="Admin password" style={input} />
-            <button onClick={() => setAdminUnlocked(adminPassword === CREDIT_HUB_ADMIN_PASSWORD)} style={{ ...btn, marginTop: 8 }}>Unlock Admin</button>
-          </div> : <div>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", marginBottom: 12 }}>
-              <div><div style={{ fontSize: 23, fontWeight: 950 }}>Admin Dashboard</div><div style={{ color: "#cbd5e1", fontSize: 12 }}>House balance, pending approvals, online users, admin-only FUIT coin vault.</div></div>
-              <button onClick={() => setAdminUnlocked(false)} style={softBtn}>Lock</button>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginBottom: 14 }}>
-              {stat("Sportsbook Fees", money(hub.sportsbookFees))}
-              {stat("Casino Fees", money(hub.casinoFees))}
-              {stat("Open Liability", money(openLiability))}
-              {stat("Online Users", (hub.users || []).filter(u => u.online).length)}
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div style={card}><div style={{ fontWeight: 950, marginBottom: 8 }}>Pending Deposits</div>{(hub.pendingDeposits || []).filter(d => d.status === "PENDING").map(d => <div key={d.id} style={{ borderTop: "1px solid rgba(255,255,255,.12)", padding: "8px 0" }}>{d.username} Â· {money(d.amount)} {d.coin}<br/><small>{d.txHash || "No TX hash"}</small><div style={{ display: "flex", gap: 6, marginTop: 6 }}><button onClick={() => approveDeposit(d.id)} style={btn}>Approve</button><button onClick={() => rejectDeposit(d.id)} style={softBtn}>Reject</button></div></div>)}</div>
-              <div style={card}><div style={{ fontWeight: 950, marginBottom: 8 }}>Pending Withdrawals</div>{(hub.pendingWithdrawals || []).filter(w => w.status === "PENDING").map(w => <div key={w.id} style={{ borderTop: "1px solid rgba(255,255,255,.12)", padding: "8px 0" }}>{w.username} Â· {money(w.amount)} credits â†’ {money(w.netAmount)} {w.coin}<br/><small>{w.walletAddress}</small><div style={{ display: "flex", gap: 6, marginTop: 6 }}><button onClick={() => completeWithdrawal(w.id)} style={btn}>Paid</button><button onClick={() => rejectWithdrawal(w.id)} style={softBtn}>Reject</button></div></div>)}</div>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div style={card}><div style={{ fontWeight: 950, marginBottom: 8 }}>Open Bets</div>{(hub.bets || []).filter(b => b.status === "OPEN").map(b => <div key={b.id} style={{ borderTop: "1px solid rgba(255,255,255,.12)", padding: "8px 0" }}>{b.event}<br/><small>{b.pick} Â· stake {money(b.stake)} Â· payout {money(b.potentialPayout)}</small><div style={{ display: "flex", gap: 6, marginTop: 6 }}><button onClick={() => settleBet(b.id, "WIN")} style={btn}>Win</button><button onClick={() => settleBet(b.id, "LOSS")} style={softBtn}>Loss</button><button onClick={() => settleBet(b.id, "PUSH")} style={softBtn}>Push</button></div></div>)}</div>
-              <div style={card}><div style={{ fontWeight: 950, marginBottom: 8 }}>FUIT Coin Vault Admin Only</div><div style={{ color: "#cbd5e1", fontSize: 12 }}>1 FUIT = 1 stablecoin reserve target. This screen tracks it; actual Polygon token deployment is separate.</div>{stat("Stable Reserve", `${money(hub.fuitCoin?.stableReserve)} ${hub.fuitCoin?.backingCoin || "USDC"}`)}{stat("FUIT Supply", money(hub.fuitCoin?.totalSupply))}<div style={{ display: "flex", gap: 8, marginTop: 8 }}><input id="fuitMintAmount" placeholder="Amount" style={input} /><button onClick={() => { const el = document.getElementById("fuitMintAmount"); mintFuit(el.value); el.value = ""; }} style={btn}>Mint</button><button onClick={() => { const el = document.getElementById("fuitMintAmount"); burnFuit(el.value); el.value = ""; }} style={softBtn}>Burn</button></div></div>
-            </div>
-          </div>}
-        </div>}
-      </div>
     </div>
   );
 }
@@ -3339,6 +3248,10 @@ export default function App() {
   const totalWorked = calcTotalWorked(form);
   const totalPay = calcExactPay(totalWorked, hourlyRate);
 
+  if (view === "creditHub") {
+    return <CreditHubPage onClose={() => setView("week")} />;
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: "#000", position: "relative" }}>
       {view === "week" && <PokemonSidebar />}
@@ -3391,7 +3304,7 @@ export default function App() {
                   cursor: "pointer"
                 }}
               >
-                âœ• Close
+                ✕ Close
               </button>
               <input
                 value={inAppBrowserUrl}
@@ -3475,15 +3388,15 @@ export default function App() {
           />
           <button
             onClick={() => setView("creditHub")}
-            style={{ border: "none", borderRadius: 999, padding: "8px 12px", background: "linear-gradient(135deg,#22c55e,#38bdf8)", color: "#06111f", cursor: "pointer", fontSize: 12, fontWeight: 950, boxShadow: theme.shadow }}
+            style={{ background: "linear-gradient(135deg,#22c55e,#38bdf8)", border: "none", color: "#04111d", cursor: "pointer", fontSize: 12, fontWeight: 1000, borderRadius: 999, padding: "8px 10px", boxShadow: "0 6px 18px rgba(34,197,94,.28)" }}
           >
-            ðŸ’° Credit Hub
+            CREDIT HUB
           </button>
           <button
             onClick={() => setView(view === "settings" ? "week" : "settings")}
             style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, textShadow: readableTextShadow }}
           >
-            {view === "settings" ? "âœ•" : "âš™"}
+            {view === "settings" ? "✕" : "⚙"}
           </button>
         </div>
         {view === "week" && (
@@ -3511,7 +3424,7 @@ export default function App() {
                   textShadow: isMusicPlaying ? "none" : readableTextShadow
                 }}
               >
-                {isMusicPlaying ? "â¸ Pause Soundtrack" : "â–¶ Play Soundtrack"}
+                {isMusicPlaying ? "⏸ Pause Soundtrack" : "▶ Play Soundtrack"}
               </button>
             </div>
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", margin: "-6px 0 14px" }}>
@@ -3529,16 +3442,16 @@ export default function App() {
               />
             </div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <button onClick={() => setWeekOffset(w => w - 1)} style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, padding: "4px 8px" }}>â€¹</button>
+              <button onClick={() => setWeekOffset(w => w - 1)} style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, padding: "4px 8px" }}>‹</button>
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 13, color: headerLabelColor, fontFamily: "system-ui", fontWeight: 900, textShadow: readableTextShadow }}>
                   {weekOffset === 0 ? "This Week" : weekOffset === -1 ? "Last Week" : `${Math.abs(weekOffset)}w ${weekOffset < 0 ? "ago" : "ahead"}`}
                 </div>
                 <div style={{ fontSize: 12, color: headerMutedColor, fontFamily: "system-ui", fontWeight: 800, textShadow: readableTextShadow }}>
-                  {formatDate(weekDates[0])} â€“ {formatDate(weekDates[6])}
+                  {formatDate(weekDates[0])} – {formatDate(weekDates[6])}
                 </div>
               </div>
-              <button onClick={() => setWeekOffset(w => w + 1)} style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, padding: "4px 8px" }}>â€º</button>
+              <button onClick={() => setWeekOffset(w => w + 1)} style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, padding: "4px 8px" }}>›</button>
             </div>
             <div style={{ marginTop: 14, background: theme.statsBg, borderRadius: 12, padding: "14px 16px", boxShadow: theme.shadow, border: `1px solid ${theme.line}`, ...glassStyle }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
@@ -3615,10 +3528,6 @@ export default function App() {
         )}
       </div>
 
-      {view === "creditHub" && (
-        <CreditHubPage onClose={() => setView("week")} />
-      )}
-
       {/* Settings View */}
       {view === "settings" && (
         <div style={{ padding: 24 }}>
@@ -3627,7 +3536,7 @@ export default function App() {
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: accentColor, flexShrink: 0 }} />
               <label style={{ fontSize: 12, color: "#888", textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui" }}>
-                {activeProject?.name} â€” Hourly Rate
+                {activeProject?.name} — Hourly Rate
               </label>
             </div>
             <div style={{ display: "flex", alignItems: "center", marginTop: 8, gap: 10 }}>
@@ -3708,7 +3617,7 @@ export default function App() {
                 </div>
                 <button onClick={toggleMusic}
                   style={{ width: "100%", padding: "13px", background: accentColor, color: "#111827", border: "none", borderRadius: 12, fontSize: 15, cursor: "pointer", fontFamily: "Georgia, serif", marginBottom: 12, fontWeight: 900 }}>
-                  {isMusicPlaying ? "â¸ Pause Music" : "â–¶ Play Music"}
+                  {isMusicPlaying ? "⏸ Pause Music" : "▶ Play Music"}
                 </button>
                 <label style={{ display: "block", fontSize: 12, color: theme.muted, textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui", marginBottom: 8, fontWeight: 800 }}>
                   Volume: {Math.round((musicSettings.volume ?? 0.35) * 100)}%
@@ -3735,14 +3644,14 @@ export default function App() {
             <div style={{ fontSize: 12, color: theme.muted, textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui", marginBottom: 14 }}>Backup & Restore</div>
             <button onClick={exportData}
               style={{ width: "100%", padding: "13px", background: theme.buttonBg, color: theme.buttonText, border: "none", borderRadius: 12, fontSize: 15, cursor: "pointer", fontFamily: "Georgia, serif", marginBottom: 10 }}>
-              â†“ Export Backup
+              ↓ Export Backup
             </button>
             <input ref={importRef} type="file" accept=".json" onChange={importData} style={{ display: "none" }} />
             <button onClick={() => importRef.current?.click()}
               style={{ width: "100%", padding: "13px", background: "transparent", color: appTextColor, border: `2px solid ${theme.line}`, borderRadius: 12, fontSize: 15, cursor: "pointer", fontFamily: "Georgia, serif" }}>
-              â†‘ Import Backup
+              ↑ Import Backup
             </button>
-            <div style={{ fontSize: 12, color: "#aaa", marginTop: 10, fontFamily: "system-ui" }}>Export regularly to keep your data safe. Import restores everything â€” projects, rates, and all entries.</div>
+            <div style={{ fontSize: 12, color: "#aaa", marginTop: 10, fontFamily: "system-ui" }}>Export regularly to keep your data safe. Import restores everything — projects, rates, and all entries.</div>
           </div>
         </div>
       )}
@@ -3752,7 +3661,7 @@ export default function App() {
         <div style={{ padding: 24 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <div style={{ fontSize: 22, color: "#1C1C1E" }}>Projects</div>
-            <button onClick={() => setView("week")} style={{ background: "none", border: "none", color: vibrantLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, textShadow: readableTextShadow }}>âœ•</button>
+            <button onClick={() => setView("week")} style={{ background: "none", border: "none", color: vibrantLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, textShadow: readableTextShadow }}>✕</button>
           </div>
           <div style={{ marginBottom: 24 }}>
             {projects.map(p => (
@@ -3828,20 +3737,20 @@ export default function App() {
                   {hasEntry ? (
                     <div>
                       <div style={{ fontSize: 14, color: today_ ? theme.headerText : dayCardText, fontFamily: "system-ui", fontWeight: 800, textShadow: readableTextShadow }}>
-                        {to12Hour(e.start)} â†’ {to12Hour(e.end)}
+                        {to12Hour(e.start)} → {to12Hour(e.end)}
                         {e.breaks && e.breaks.length > 0 && (
-                          <span style={{ color: "#aaa", fontSize: 12 }}> âˆ’ {totalBreakMins(e.breaks)}m break</span>
+                          <span style={{ color: "#aaa", fontSize: 12 }}> − {totalBreakMins(e.breaks)}m break</span>
                         )}
                       </div>
                       {e.splitShift && e.start2 && e.end2 && (
                         <div style={{ fontSize: 12, color: today_ ? "#888" : "#aaa", fontFamily: "system-ui", marginTop: 2 }}>
-                          + {to12Hour(e.start2)} â†’ {to12Hour(e.end2)}
+                          + {to12Hour(e.start2)} → {to12Hour(e.end2)}
                         </div>
                       )}
                       {e.splitShift && (e.extraShifts || []).map((shift, idx) => (
                         shift.start && shift.end ? (
                           <div key={idx} style={{ fontSize: 12, color: today_ ? "#888" : "#aaa", fontFamily: "system-ui", marginTop: 2 }}>
-                            + {to12Hour(shift.start)} â†’ {to12Hour(shift.end)}
+                            + {to12Hour(shift.start)} → {to12Hour(shift.end)}
                           </div>
                         ) : null
                       ))}
@@ -3968,7 +3877,7 @@ export default function App() {
                 fontSize: 13, fontFamily: "system-ui", marginBottom: 16,
               }}
             >
-              <span style={{ fontSize: 16, lineHeight: 1 }}>{form.splitShift ? "âˆ’" : "+"}</span>
+              <span style={{ fontSize: 16, lineHeight: 1 }}>{form.splitShift ? "−" : "+"}</span>
               {form.splitShift ? "Remove split shift" : "Add split shift"}
             </button>
 

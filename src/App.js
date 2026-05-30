@@ -1738,7 +1738,7 @@ function MusicLibrarySidebar({ accentColor }) {
     let cancelled = false;
     const checkOwncastStatus = async () => {
       try {
-        const response = await fetch("https://divide-statistics-displaying-lauderdale.trycloudflare.com/api/status", { cache: "no-store" });
+        const response = await fetch(`${fuitsLiveTvChannelUrl}/owncast-status`, { cache: "no-store" });
         const status = await response.json();
         if (!cancelled) setOwncastOnline(Boolean(status.online));
       } catch {
@@ -2071,7 +2071,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 </div>
                 <iframe
                   title="Live Announcement"
-                  src="https://divide-statistics-displaying-lauderdale.trycloudflare.com"
+                  src={fuitsLiveTvChannelUrl}
                   allow="fullscreen; autoplay; encrypted-media; picture-in-picture"
                   allowFullScreen
                   style={{

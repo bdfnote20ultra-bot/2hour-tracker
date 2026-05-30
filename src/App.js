@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { MUSIC_LIBRARY } from "./musicLibraryData";
 import { FATTYS_LIVE_TV, FUITS_LIVE_TV_PLAYLIST } from "./fattysLiveTvData";
 
@@ -2575,6 +2575,493 @@ function ProjectDropdown({ projects, activeId, onSelect, onManage }) {
   );
 }
 
+
+const CREDIT_HUB_KEY = "fuitCreditHub_v1";
+const CREDIT_HUB_FEE_RATE = 0.0005;
+const CREDIT_HUB_ODDS_CACHE_MS = 20 * 60 * 1000;
+const CREDIT_HUB_ADMIN_PASSWORD = "fuitadmin";
+const CREDIT_HUB_DEPOSIT_COINS = ["USDC", "USDT", "POL", "SOL"];
+
+function shortWallet(address) {
+  if (!address) return "Not connected";
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
+function money(n) {
+  const value = Number(n || 0);
+  return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 });
+}
+
+function calcFee(amount) {
+  return Math.max(0, Number(amount || 0) * CREDIT_HUB_FEE_RATE);
+}
+
+function makeCreditHubInitialState() {
+  return {
+    walletAddress: "",
+    username: "",
+    credits: 0,
+    lockedCredits: 0,
+    feeVault: 0,
+    casinoFees: 0,
+    sportsbookFees: 0,
+    adminFees: 0,
+    houseBalances: { USDC: 0, USDT: 0, POL: 0, SOL: 0 },
+    pendingDeposits: [],
+    pendingWithdrawals: [],
+    bets: [],
+    casinoHistory: [],
+    users: [],
+    fuitCoin: {
+      stableReserve: 0,
+      totalSupply: 0,
+      backingCoin: "USDC",
+      history: []
+    },
+    odds: { fetchedAt: 0, sports: [], events: [], error: "" }
+  };
+}
+
+function loadCreditHubState() {
+  try {
+    return { ...makeCreditHubInitialState(), ...(JSON.parse(localStorage.getItem(CREDIT_HUB_KEY)) || {}) };
+  } catch {
+    return makeCreditHubInitialState();
+  }
+}
+
+function saveCreditHubState(next) {
+  try { localStorage.setItem(CREDIT_HUB_KEY, JSON.stringify(next)); } catch {}
+}
+
+function CreditHubPage({ onClose }) {
+  const [hub, setHub] = useState(loadCreditHubState);
+  const [tab, setTab] = useState("sportsbook");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [adminUnlocked, setAdminUnlocked] = useState(false);
+  const [depositForm, setDepositForm] = useState({ coin: "USDC", amount: "", txHash: "" });
+  const [withdrawForm, setWithdrawForm] = useState({ coin: "USDC", amount: "", wallet: "" });
+  const [betForm, setBetForm] = useState({ event: "", market: "Moneyline", pick: "", odds: "", stake: "" });
+  const [casinoForm, setCasinoForm] = useState({ game: "Slots", stake: "" });
+  const [oddsApiKey, setOddsApiKey] = useState(() => localStorage.getItem("fuitOddsApiKey") || "");
+  const [sportsKey, setSportsKey] = useState("esports");
+
+  useEffect(() => saveCreditHubState(hub), [hub]);
+  useEffect(() => { localStorage.setItem("fuitOddsApiKey", oddsApiKey); }, [oddsApiKey]);
+
+  const setHubSafe = (updater) => setHub(prev => {
+    const next = typeof updater === "function" ? updater(prev) : updater;
+    return { ...makeCreditHubInitialState(), ...next };
+  });
+
+  const walletUsername = hub.username || shortWallet(hub.walletAddress);
+  const activeCredits = Math.max(0, Number(hub.credits || 0) - Number(hub.lockedCredits || 0));
+  const totalHouseUsd = CREDIT_HUB_DEPOSIT_COINS.reduce((sum, coin) => sum + Number(hub.houseBalances?.[coin] || 0), 0);
+  const openLiability = (hub.bets || []).filter(b => b.status === "OPEN").reduce((sum, b) => sum + Math.max(0, Number(b.potentialPayout || 0)), 0);
+
+  const addFee = (amount, bucket) => {
+    const fee = calcFee(amount);
+    setHubSafe(prev => ({
+      ...prev,
+      feeVault: Number(prev.feeVault || 0) + fee,
+      casinoFees: bucket === "casino" ? Number(prev.casinoFees || 0) + fee : Number(prev.casinoFees || 0),
+      sportsbookFees: bucket === "sportsbook" ? Number(prev.sportsbookFees || 0) + fee : Number(prev.sportsbookFees || 0),
+      adminFees: bucket === "admin" ? Number(prev.adminFees || 0) + fee : Number(prev.adminFees || 0)
+    }));
+    return fee;
+  };
+
+  const connectWallet = async () => {
+    const eth = window.ethereum;
+    if (!eth) {
+      alert("No wallet extension detected. Install MetaMask, Trust Wallet extension, or use WalletConnect in a mobile browser.");
+      return;
+    }
+    try {
+      const accounts = await eth.request({ method: "eth_requestAccounts" });
+      const address = accounts?.[0] || "";
+      try {
+        await eth.request({
+          method: "wallet_addEthereumChain",
+          params: [{
+            chainId: "0x89",
+            chainName: "Polygon Mainnet",
+            nativeCurrency: { name: "POL", symbol: "POL", decimals: 18 },
+            rpcUrls: ["https://polygon-rpc.com"],
+            blockExplorerUrls: ["https://polygonscan.com/"]
+          }]
+        });
+      } catch {}
+      setHubSafe(prev => {
+        const username = `wallet_${address.slice(2, 8).toLowerCase()}`;
+        const users = [...(prev.users || []).filter(u => u.walletAddress?.toLowerCase() !== address.toLowerCase()), {
+          walletAddress: address,
+          username,
+          online: true,
+          lastSeen: new Date().toISOString(),
+          credits: prev.credits || 0
+        }];
+        return { ...prev, walletAddress: address, username, users };
+      });
+    } catch (err) {
+      alert("Wallet connection cancelled or failed.");
+    }
+  };
+
+  const submitDeposit = () => {
+    const amount = Number(depositForm.amount);
+    if (!amount || amount <= 0 || !hub.walletAddress) return alert("Connect wallet and enter a deposit amount.");
+    const fee = calcFee(amount);
+    const req = {
+      id: `dep_${Date.now()}`,
+      type: "DEPOSIT",
+      coin: depositForm.coin,
+      amount,
+      fee,
+      creditAmount: amount - fee,
+      txHash: depositForm.txHash,
+      walletAddress: hub.walletAddress,
+      username: walletUsername,
+      status: "PENDING",
+      createdAt: new Date().toISOString()
+    };
+    setHubSafe(prev => ({ ...prev, pendingDeposits: [req, ...(prev.pendingDeposits || [])] }));
+    setDepositForm({ coin: "USDC", amount: "", txHash: "" });
+  };
+
+  const submitWithdrawal = () => {
+    const amount = Number(withdrawForm.amount);
+    if (!amount || amount <= 0 || amount > activeCredits) return alert("Enter a valid withdrawal amount within your available credits.");
+    const fee = calcFee(amount);
+    const req = {
+      id: `wd_${Date.now()}`,
+      type: "WITHDRAWAL",
+      coin: withdrawForm.coin,
+      amount,
+      fee,
+      netAmount: amount - fee,
+      walletAddress: withdrawForm.wallet || hub.walletAddress,
+      username: walletUsername,
+      status: "PENDING",
+      createdAt: new Date().toISOString()
+    };
+    setHubSafe(prev => ({
+      ...prev,
+      lockedCredits: Number(prev.lockedCredits || 0) + amount,
+      pendingWithdrawals: [req, ...(prev.pendingWithdrawals || [])]
+    }));
+    setWithdrawForm({ coin: "USDC", amount: "", wallet: "" });
+  };
+
+  const approveDeposit = (id) => {
+    setHubSafe(prev => {
+      const dep = (prev.pendingDeposits || []).find(d => d.id === id);
+      if (!dep) return prev;
+      const fee = Number(dep.fee || calcFee(dep.amount));
+      return {
+        ...prev,
+        credits: Number(prev.credits || 0) + Number(dep.creditAmount || 0),
+        feeVault: Number(prev.feeVault || 0) + fee,
+        adminFees: Number(prev.adminFees || 0) + fee,
+        houseBalances: { ...(prev.houseBalances || {}), [dep.coin]: Number(prev.houseBalances?.[dep.coin] || 0) + Number(dep.amount || 0) },
+        pendingDeposits: (prev.pendingDeposits || []).map(d => d.id === id ? { ...d, status: "APPROVED", approvedAt: new Date().toISOString() } : d)
+      };
+    });
+  };
+
+  const rejectDeposit = (id) => setHubSafe(prev => ({ ...prev, pendingDeposits: (prev.pendingDeposits || []).map(d => d.id === id ? { ...d, status: "REJECTED" } : d) }));
+
+  const completeWithdrawal = (id) => {
+    setHubSafe(prev => {
+      const wd = (prev.pendingWithdrawals || []).find(w => w.id === id);
+      if (!wd) return prev;
+      const fee = Number(wd.fee || calcFee(wd.amount));
+      return {
+        ...prev,
+        credits: Math.max(0, Number(prev.credits || 0) - Number(wd.amount || 0)),
+        lockedCredits: Math.max(0, Number(prev.lockedCredits || 0) - Number(wd.amount || 0)),
+        feeVault: Number(prev.feeVault || 0) + fee,
+        adminFees: Number(prev.adminFees || 0) + fee,
+        houseBalances: { ...(prev.houseBalances || {}), [wd.coin]: Math.max(0, Number(prev.houseBalances?.[wd.coin] || 0) - Number(wd.netAmount || 0)) },
+        pendingWithdrawals: (prev.pendingWithdrawals || []).map(w => w.id === id ? { ...w, status: "PAID", paidAt: new Date().toISOString() } : w)
+      };
+    });
+  };
+
+  const rejectWithdrawal = (id) => setHubSafe(prev => {
+    const wd = (prev.pendingWithdrawals || []).find(w => w.id === id);
+    return {
+      ...prev,
+      lockedCredits: Math.max(0, Number(prev.lockedCredits || 0) - Number(wd?.amount || 0)),
+      pendingWithdrawals: (prev.pendingWithdrawals || []).map(w => w.id === id ? { ...w, status: "REJECTED" } : w)
+    };
+  });
+
+  const placeBet = () => {
+    const stake = Number(betForm.stake);
+    const odds = Number(betForm.odds);
+    if (!stake || stake <= 0 || !odds || stake > activeCredits) return alert("Enter valid bet stake and odds within available credits.");
+    const fee = calcFee(stake);
+    const netStake = stake - fee;
+    const potentialPayout = netStake * odds;
+    const bet = {
+      id: `bet_${Date.now()}`,
+      event: betForm.event || "Manual prematch / esports bet",
+      market: betForm.market,
+      pick: betForm.pick || "Manual pick",
+      odds,
+      stake,
+      fee,
+      netStake,
+      potentialPayout,
+      status: "OPEN",
+      username: walletUsername,
+      createdAt: new Date().toISOString()
+    };
+    setHubSafe(prev => ({
+      ...prev,
+      credits: Math.max(0, Number(prev.credits || 0) - stake),
+      feeVault: Number(prev.feeVault || 0) + fee,
+      sportsbookFees: Number(prev.sportsbookFees || 0) + fee,
+      bets: [bet, ...(prev.bets || [])]
+    }));
+    setBetForm({ event: "", market: "Moneyline", pick: "", odds: "", stake: "" });
+  };
+
+  const settleBet = (id, result) => setHubSafe(prev => {
+    const bet = (prev.bets || []).find(b => b.id === id);
+    if (!bet || bet.status !== "OPEN") return prev;
+    const payout = result === "WIN" ? Number(bet.potentialPayout || 0) : result === "PUSH" ? Number(bet.netStake || 0) : 0;
+    const fee = payout > 0 ? calcFee(payout) : 0;
+    return {
+      ...prev,
+      credits: Number(prev.credits || 0) + Math.max(0, payout - fee),
+      feeVault: Number(prev.feeVault || 0) + fee,
+      sportsbookFees: Number(prev.sportsbookFees || 0) + fee,
+      bets: (prev.bets || []).map(b => b.id === id ? { ...b, status: result, payout, payoutFee: fee, settledAt: new Date().toISOString() } : b)
+    };
+  });
+
+  const playCasino = () => {
+    const stake = Number(casinoForm.stake);
+    if (!stake || stake <= 0 || stake > activeCredits) return alert("Enter a valid casino stake within available credits.");
+    const fee = calcFee(stake);
+    const netStake = stake - fee;
+    const won = Math.random() > 0.55;
+    const multiplier = won ? (casinoForm.game === "Dice" ? 1.85 : casinoForm.game === "Blackjack" ? 2 : 1.5 + Math.random() * 3) : 0;
+    const grossPayout = netStake * multiplier;
+    const payoutFee = grossPayout > 0 ? calcFee(grossPayout) : 0;
+    const netPayout = Math.max(0, grossPayout - payoutFee);
+    const record = {
+      id: `casino_${Date.now()}`,
+      game: casinoForm.game,
+      stake,
+      fee,
+      result: won ? "WIN" : "LOSS",
+      grossPayout,
+      payoutFee,
+      netPayout,
+      username: walletUsername,
+      createdAt: new Date().toISOString()
+    };
+    setHubSafe(prev => ({
+      ...prev,
+      credits: Math.max(0, Number(prev.credits || 0) - stake + netPayout),
+      feeVault: Number(prev.feeVault || 0) + fee + payoutFee,
+      casinoFees: Number(prev.casinoFees || 0) + fee + payoutFee,
+      casinoHistory: [record, ...(prev.casinoHistory || [])]
+    }));
+  };
+
+  const fetchOdds = async (force = false) => {
+    if (!oddsApiKey.trim()) return alert("Add your free The Odds API key first.");
+    const age = Date.now() - Number(hub.odds?.fetchedAt || 0);
+    if (!force && age < CREDIT_HUB_ODDS_CACHE_MS && (hub.odds?.events || []).length) return alert("Using cached odds. Cache refreshes every 20 minutes.");
+    try {
+      const sport = sportsKey === "esports" ? "upcoming" : sportsKey;
+      const url = `https://api.the-odds-api.com/v4/sports/${sport}/odds/?apiKey=${encodeURIComponent(oddsApiKey)}&regions=us&markets=h2h&oddsFormat=decimal`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || "Odds API error");
+      const events = (Array.isArray(data) ? data : []).filter(e => sportsKey !== "esports" || String(e.sport_key || "").includes("esports")).slice(0, 25);
+      setHubSafe(prev => ({ ...prev, odds: { fetchedAt: Date.now(), sports: [], events, error: "" } }));
+    } catch (err) {
+      setHubSafe(prev => ({ ...prev, odds: { ...(prev.odds || {}), error: err.message || "Could not fetch odds." } }));
+    }
+  };
+
+  const mintFuit = (amount) => {
+    const value = Number(amount);
+    if (!value || value <= 0) return;
+    const fee = calcFee(value);
+    setHubSafe(prev => ({
+      ...prev,
+      feeVault: Number(prev.feeVault || 0) + fee,
+      adminFees: Number(prev.adminFees || 0) + fee,
+      fuitCoin: {
+        ...(prev.fuitCoin || {}),
+        stableReserve: Number(prev.fuitCoin?.stableReserve || 0) + value,
+        totalSupply: Number(prev.fuitCoin?.totalSupply || 0) + (value - fee),
+        history: [{ id: `fuit_${Date.now()}`, action: "MINT", amount: value, fee, createdAt: new Date().toISOString() }, ...(prev.fuitCoin?.history || [])]
+      }
+    }));
+  };
+
+  const burnFuit = (amount) => {
+    const value = Number(amount);
+    if (!value || value <= 0) return;
+    const fee = calcFee(value);
+    setHubSafe(prev => ({
+      ...prev,
+      feeVault: Number(prev.feeVault || 0) + fee,
+      adminFees: Number(prev.adminFees || 0) + fee,
+      fuitCoin: {
+        ...(prev.fuitCoin || {}),
+        stableReserve: Math.max(0, Number(prev.fuitCoin?.stableReserve || 0) - value),
+        totalSupply: Math.max(0, Number(prev.fuitCoin?.totalSupply || 0) - value),
+        history: [{ id: `fuit_${Date.now()}`, action: "BURN", amount: value, fee, createdAt: new Date().toISOString() }, ...(prev.fuitCoin?.history || [])]
+      }
+    }));
+  };
+
+  const card = { background: "rgba(15,23,42,.92)", border: "1px solid rgba(148,163,184,.28)", borderRadius: 18, padding: 16, boxShadow: "0 18px 45px rgba(0,0,0,.35)", marginBottom: 14 };
+  const input = { width: "100%", boxSizing: "border-box", borderRadius: 12, border: "1px solid rgba(148,163,184,.4)", background: "#020617", color: "#f8fafc", padding: "11px 12px", fontWeight: 800, outline: "none", marginTop: 6 };
+  const btn = { border: "none", borderRadius: 12, padding: "11px 13px", background: "linear-gradient(135deg,#22c55e,#38bdf8)", color: "#021019", fontWeight: 950, cursor: "pointer" };
+  const softBtn = { ...btn, background: "rgba(255,255,255,.1)", color: "#f8fafc", border: "1px solid rgba(255,255,255,.18)" };
+  const label = { fontSize: 11, color: "#cbd5e1", fontWeight: 900, textTransform: "uppercase", letterSpacing: 1 };
+  const stat = (name, value) => <div style={{ background: "rgba(255,255,255,.07)", borderRadius: 14, padding: 12 }}><div style={label}>{name}</div><div style={{ color: "#fff", fontSize: 20, fontWeight: 950, marginTop: 4 }}>{value}</div></div>;
+
+  return (
+    <div style={{ minHeight: "100vh", background: "radial-gradient(circle at top,#172554,#020617 62%)", color: "#f8fafc", padding: "18px 14px 110px", fontFamily: "system-ui" }}>
+      <div style={{ maxWidth: 980, margin: "0 auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", marginBottom: 14 }}>
+          <div>
+            <div style={{ fontSize: 28, fontWeight: 950, letterSpacing: -.5 }}>FUIT Credit Hub</div>
+            <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 800 }}>Casino + sportsbook use credits. FUIT Coin vault is admin-only and separate.</div>
+          </div>
+          <button onClick={onClose} style={softBtn}>← Back</button>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 12 }}>
+          {stat("Available Credits", money(activeCredits))}
+          {stat("Locked", money(hub.lockedCredits))}
+          {stat("Fee Vault", money(hub.feeVault))}
+          {stat("House USD Value", money(totalHouseUsd))}
+        </div>
+
+        <div style={card}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <div style={label}>Connected Wallet Username</div>
+              <div style={{ fontSize: 18, fontWeight: 950 }}>{walletUsername}</div>
+              <div style={{ color: "#94a3b8", fontSize: 12 }}>{hub.walletAddress || "Connect a Polygon wallet to make wallet-based username."}</div>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button onClick={connectWallet} style={btn}>Connect Polygon Wallet</button>
+              <button onClick={() => window.open("https://link.trustwallet.com/open_url?coin_id=966&url=" + encodeURIComponent(window.location.href), "_blank")} style={softBtn}>Open Trust Wallet</button>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+          {["sportsbook", "casino", "deposit", "withdraw", "admin"].map(t => (
+            <button key={t} onClick={() => setTab(t)} style={tab === t ? btn : softBtn}>{t === "admin" ? "Admin / FUIT" : t[0].toUpperCase() + t.slice(1)}</button>
+          ))}
+        </div>
+
+        {tab === "sportsbook" && <div style={card}>
+          <div style={{ fontSize: 21, fontWeight: 950, marginBottom: 8 }}>Prematch Sportsbook / Esports</div>
+          <div style={{ color: "#cbd5e1", fontSize: 13, marginBottom: 12 }}>Free-tier Odds API support. Odds are cached for 20 minutes in this browser.</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr auto", gap: 8, alignItems: "end" }}>
+            <div><div style={label}>The Odds API Key</div><input value={oddsApiKey} onChange={e => setOddsApiKey(e.target.value)} placeholder="Paste free API key" style={input} /></div>
+            <div><div style={label}>Mode</div><select value={sportsKey} onChange={e => setSportsKey(e.target.value)} style={input}><option value="esports">Esports only</option><option value="upcoming">All upcoming prematch</option></select></div>
+            <button onClick={() => fetchOdds(true)} style={btn}>Refresh Odds</button>
+          </div>
+          {hub.odds?.error && <div style={{ color: "#fecaca", marginTop: 8 }}>{hub.odds.error}</div>}
+          <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
+            {(hub.odds?.events || []).slice(0, 8).map(ev => (
+              <button key={ev.id} onClick={() => setBetForm(f => ({ ...f, event: `${ev.home_team || "Home"} vs ${ev.away_team || "Away"}`, pick: ev.home_team || "Home", odds: ev.bookmakers?.[0]?.markets?.[0]?.outcomes?.[0]?.price || "" }))} style={{ ...softBtn, textAlign: "left" }}>
+                {ev.sport_title} — {ev.home_team || "Home"} vs {ev.away_team || "Away"} · {ev.commence_time ? new Date(ev.commence_time).toLocaleString() : "Prematch"}
+              </button>
+            ))}
+          </div>
+          <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr", gap: 8 }}>
+            <input value={betForm.event} onChange={e => setBetForm(f => ({ ...f, event: e.target.value }))} placeholder="Event" style={input} />
+            <input value={betForm.pick} onChange={e => setBetForm(f => ({ ...f, pick: e.target.value }))} placeholder="Pick" style={input} />
+            <input value={betForm.odds} onChange={e => setBetForm(f => ({ ...f, odds: e.target.value }))} placeholder="Decimal odds" style={input} />
+            <input value={betForm.stake} onChange={e => setBetForm(f => ({ ...f, stake: e.target.value }))} placeholder="Stake credits" style={input} />
+          </div>
+          <div style={{ color: "#cbd5e1", fontSize: 12, margin: "8px 0" }}>0.05% fee: {money(calcFee(betForm.stake))} credits</div>
+          <button onClick={placeBet} style={btn}>Place Credit Bet</button>
+        </div>}
+
+        {tab === "casino" && <div style={card}>
+          <div style={{ fontSize: 21, fontWeight: 950, marginBottom: 8 }}>Credit Casino Demo</div>
+          <div style={{ color: "#cbd5e1", fontSize: 13, marginBottom: 12 }}>Every wager and winning payout logs the 0.05% admin fee.</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, alignItems: "end" }}>
+            <select value={casinoForm.game} onChange={e => setCasinoForm(f => ({ ...f, game: e.target.value }))} style={input}><option>Slots</option><option>Dice</option><option>Blackjack</option></select>
+            <input value={casinoForm.stake} onChange={e => setCasinoForm(f => ({ ...f, stake: e.target.value }))} placeholder="Stake credits" style={input} />
+            <button onClick={playCasino} style={btn}>Play</button>
+          </div>
+          <div style={{ color: "#cbd5e1", fontSize: 12, marginTop: 8 }}>0.05% fee: {money(calcFee(casinoForm.stake))} credits</div>
+        </div>}
+
+        {tab === "deposit" && <div style={card}>
+          <div style={{ fontSize: 21, fontWeight: 950, marginBottom: 8 }}>Deposit Request</div>
+          <div style={{ color: "#cbd5e1", fontSize: 13, marginBottom: 12 }}>User submits deposit info. Admin verifies TX and awards credits manually.</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr auto", gap: 8, alignItems: "end" }}>
+            <select value={depositForm.coin} onChange={e => setDepositForm(f => ({ ...f, coin: e.target.value }))} style={input}>{CREDIT_HUB_DEPOSIT_COINS.map(c => <option key={c}>{c}</option>)}</select>
+            <input value={depositForm.amount} onChange={e => setDepositForm(f => ({ ...f, amount: e.target.value }))} placeholder="Amount" style={input} />
+            <input value={depositForm.txHash} onChange={e => setDepositForm(f => ({ ...f, txHash: e.target.value }))} placeholder="TX hash / note" style={input} />
+            <button onClick={submitDeposit} style={btn}>Submit</button>
+          </div>
+          <div style={{ color: "#cbd5e1", fontSize: 12, marginTop: 8 }}>Deposit fee: {money(calcFee(depositForm.amount))}. Credits after fee: {money(Number(depositForm.amount || 0) - calcFee(depositForm.amount))}</div>
+        </div>}
+
+        {tab === "withdraw" && <div style={card}>
+          <div style={{ fontSize: 21, fontWeight: 950, marginBottom: 8 }}>Withdrawal Request</div>
+          <div style={{ color: "#cbd5e1", fontSize: 13, marginBottom: 12 }}>Credits lock pending admin approval. Admin manually sends USDC/USDT/POL/SOL and marks paid.</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr auto", gap: 8, alignItems: "end" }}>
+            <select value={withdrawForm.coin} onChange={e => setWithdrawForm(f => ({ ...f, coin: e.target.value }))} style={input}>{CREDIT_HUB_DEPOSIT_COINS.map(c => <option key={c}>{c}</option>)}</select>
+            <input value={withdrawForm.amount} onChange={e => setWithdrawForm(f => ({ ...f, amount: e.target.value }))} placeholder="Credits" style={input} />
+            <input value={withdrawForm.wallet} onChange={e => setWithdrawForm(f => ({ ...f, wallet: e.target.value }))} placeholder="Payout wallet" style={input} />
+            <button onClick={submitWithdrawal} style={btn}>Request</button>
+          </div>
+          <div style={{ color: "#cbd5e1", fontSize: 12, marginTop: 8 }}>Withdrawal fee: {money(calcFee(withdrawForm.amount))}. Net payout: {money(Number(withdrawForm.amount || 0) - calcFee(withdrawForm.amount))}</div>
+        </div>}
+
+        {tab === "admin" && <div style={card}>
+          {!adminUnlocked ? <div>
+            <div style={{ fontSize: 21, fontWeight: 950, marginBottom: 8 }}>Admin Login</div>
+            <div style={{ color: "#cbd5e1", fontSize: 13 }}>Default test password: fuitadmin. Change CREDIT_HUB_ADMIN_PASSWORD in App.js before serious use.</div>
+            <input type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} placeholder="Admin password" style={input} />
+            <button onClick={() => setAdminUnlocked(adminPassword === CREDIT_HUB_ADMIN_PASSWORD)} style={{ ...btn, marginTop: 8 }}>Unlock Admin</button>
+          </div> : <div>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", marginBottom: 12 }}>
+              <div><div style={{ fontSize: 23, fontWeight: 950 }}>Admin Dashboard</div><div style={{ color: "#cbd5e1", fontSize: 12 }}>House balance, pending approvals, online users, admin-only FUIT coin vault.</div></div>
+              <button onClick={() => setAdminUnlocked(false)} style={softBtn}>Lock</button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginBottom: 14 }}>
+              {stat("Sportsbook Fees", money(hub.sportsbookFees))}
+              {stat("Casino Fees", money(hub.casinoFees))}
+              {stat("Open Liability", money(openLiability))}
+              {stat("Online Users", (hub.users || []).filter(u => u.online).length)}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={card}><div style={{ fontWeight: 950, marginBottom: 8 }}>Pending Deposits</div>{(hub.pendingDeposits || []).filter(d => d.status === "PENDING").map(d => <div key={d.id} style={{ borderTop: "1px solid rgba(255,255,255,.12)", padding: "8px 0" }}>{d.username} · {money(d.amount)} {d.coin}<br/><small>{d.txHash || "No TX hash"}</small><div style={{ display: "flex", gap: 6, marginTop: 6 }}><button onClick={() => approveDeposit(d.id)} style={btn}>Approve</button><button onClick={() => rejectDeposit(d.id)} style={softBtn}>Reject</button></div></div>)}</div>
+              <div style={card}><div style={{ fontWeight: 950, marginBottom: 8 }}>Pending Withdrawals</div>{(hub.pendingWithdrawals || []).filter(w => w.status === "PENDING").map(w => <div key={w.id} style={{ borderTop: "1px solid rgba(255,255,255,.12)", padding: "8px 0" }}>{w.username} · {money(w.amount)} credits → {money(w.netAmount)} {w.coin}<br/><small>{w.walletAddress}</small><div style={{ display: "flex", gap: 6, marginTop: 6 }}><button onClick={() => completeWithdrawal(w.id)} style={btn}>Paid</button><button onClick={() => rejectWithdrawal(w.id)} style={softBtn}>Reject</button></div></div>)}</div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={card}><div style={{ fontWeight: 950, marginBottom: 8 }}>Open Bets</div>{(hub.bets || []).filter(b => b.status === "OPEN").map(b => <div key={b.id} style={{ borderTop: "1px solid rgba(255,255,255,.12)", padding: "8px 0" }}>{b.event}<br/><small>{b.pick} · stake {money(b.stake)} · payout {money(b.potentialPayout)}</small><div style={{ display: "flex", gap: 6, marginTop: 6 }}><button onClick={() => settleBet(b.id, "WIN")} style={btn}>Win</button><button onClick={() => settleBet(b.id, "LOSS")} style={softBtn}>Loss</button><button onClick={() => settleBet(b.id, "PUSH")} style={softBtn}>Push</button></div></div>)}</div>
+              <div style={card}><div style={{ fontWeight: 950, marginBottom: 8 }}>FUIT Coin Vault Admin Only</div><div style={{ color: "#cbd5e1", fontSize: 12 }}>1 FUIT = 1 stablecoin reserve target. This screen tracks it; actual Polygon token deployment is separate.</div>{stat("Stable Reserve", `${money(hub.fuitCoin?.stableReserve)} ${hub.fuitCoin?.backingCoin || "USDC"}`)}{stat("FUIT Supply", money(hub.fuitCoin?.totalSupply))}<div style={{ display: "flex", gap: 8, marginTop: 8 }}><input id="fuitMintAmount" placeholder="Amount" style={input} /><button onClick={() => { const el = document.getElementById("fuitMintAmount"); mintFuit(el.value); el.value = ""; }} style={btn}>Mint</button><button onClick={() => { const el = document.getElementById("fuitMintAmount"); burnFuit(el.value); el.value = ""; }} style={softBtn}>Burn</button></div></div>
+            </div>
+          </div>}
+        </div>}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [entries, setEntries] = useState(loadData);
@@ -2987,6 +3474,12 @@ export default function App() {
             onManage={() => setView("projects")}
           />
           <button
+            onClick={() => setView("creditHub")}
+            style={{ border: "none", borderRadius: 999, padding: "8px 12px", background: "linear-gradient(135deg,#22c55e,#38bdf8)", color: "#06111f", cursor: "pointer", fontSize: 12, fontWeight: 950, boxShadow: theme.shadow }}
+          >
+            💰 Credit Hub
+          </button>
+          <button
             onClick={() => setView(view === "settings" ? "week" : "settings")}
             style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, textShadow: readableTextShadow }}
           >
@@ -3121,6 +3614,10 @@ export default function App() {
           </>
         )}
       </div>
+
+      {view === "creditHub" && (
+        <CreditHubPage onClose={() => setView("week")} />
+      )}
 
       {/* Settings View */}
       {view === "settings" && (

@@ -165,7 +165,7 @@ const THEMES = {
     appBg: "linear-gradient(180deg, #0F1117 0%, #1A1D29 100%)", headerBg: "rgba(12,14,20,0.96)", statsBg: "rgba(34,38,52,0.92)", cardBg: "rgba(255,255,255,0.08)", modalBg: "#151822", text: "#F7F5F2", headerText: "#F7F5F2", muted: "#9CA3AF", line: "rgba(255,255,255,0.12)", buttonBg: "#F7F5F2", buttonText: "#111827", shadow: "0 8px 30px rgba(0,0,0,0.25)", font: "Georgia, serif"
   },
   ice: {
-    id: "ice", name: "Ice", emoji: "â„ï¸",
+    id: "ice", name: "Ice", emoji: "Ice",
     appBg: "linear-gradient(180deg, #EFF7FF 0%, #FFFFFF 100%)", headerBg: "#EAF4FF", statsBg: "rgba(255,255,255,0.9)", cardBg: "rgba(255,255,255,0.95)", modalBg: "#F7FBFF", text: "#172033", headerText: "#172033", muted: "#6B7280", line: "rgba(23,32,51,0.12)", buttonBg: "#172033", buttonText: "#FFFFFF", shadow: "0 8px 24px rgba(50,85,120,0.12)", font: "Georgia, serif"
   },
   construction: {
@@ -173,7 +173,7 @@ const THEMES = {
     appBg: "linear-gradient(180deg, #2A241D 0%, #403323 100%)", headerBg: "#1F1A14", statsBg: "#2E261B", cardBg: "#FFF4D6", modalBg: "#FFF4D6", text: "#251A0D", headerText: "#FFE4A3", muted: "#9B7A47", line: "rgba(255,196,84,0.35)", buttonBg: "#FFC145", buttonText: "#1F1A14", shadow: "0 8px 24px rgba(0,0,0,0.25)", font: "Georgia, serif"
   },
   cyber: {
-    id: "cyber", name: "Cyber", emoji: "âš¡",
+    id: "cyber", name: "Cyber", emoji: "Power",
     appBg: "radial-gradient(circle at top, #22234B 0%, #090A12 58%, #050509 100%)", headerBg: "rgba(5,5,12,0.96)", statsBg: "rgba(22,20,45,0.94)", cardBg: "rgba(15,16,35,0.92)", modalBg: "#0B0C1A", text: "#ECFEFF", headerText: "#ECFEFF", muted: "#8B9BB4", line: "rgba(103,232,249,0.2)", buttonBg: "#67E8F9", buttonText: "#060712", shadow: "0 0 28px rgba(103,232,249,0.12)", font: "Georgia, serif"
   },
   classic: {
@@ -181,7 +181,7 @@ const THEMES = {
     appBg: "#F7F5F2", headerBg: "#1C1C1E", statsBg: "#FFFFFF", cardBg: "#FFFFFF", modalBg: "#F7F5F2", text: "#1C1C1E", headerText: "#F7F5F2", muted: "#4B5563", line: "rgba(0,0,0,0.12)", buttonBg: "#1C1C1E", buttonText: "#F7F5F2", shadow: "0 2px 10px rgba(0,0,0,0.10)", font: "Georgia, serif"
   },
   oled: {
-    id: "oled", name: "OLED Black", emoji: "â¬›",
+    id: "oled", name: "OLED Black", emoji: "Black",
     appBg: "#000000", headerBg: "#000000", statsBg: "#0A0A0A", cardBg: "#111111", modalBg: "#050505", text: "#FFFFFF", headerText: "#FFFFFF", muted: "#8A8A8A", line: "rgba(255,255,255,0.12)", buttonBg: "#FFFFFF", buttonText: "#000000", shadow: "0 0 0 1px rgba(255,255,255,0.08)", font: "Georgia, serif"
   },
   custom: {
@@ -493,6 +493,116 @@ function PokemonCoverImage({ game, onZoom, compact = false, imageType = "cover" 
         boxShadow: "0 8px 22px rgba(0,0,0,.35)"
       }}
     />
+  );
+}
+
+function GamingCenterSecondPanel() {
+  const areas = [
+    {
+      title: "Casino / Sportsbook",
+      eyebrow: "Credits Area",
+      lines: ["Prematch esports board", "USDC / USDT deposit review", "0.05% admin fee ledger"],
+      active: true
+    },
+    {
+      title: "Blank Area 2",
+      eyebrow: "Ready",
+      lines: ["Black blank slot", "Reserved for next panel", "Matches the row format"],
+      active: false
+    },
+    {
+      title: "Blank Area 3",
+      eyebrow: "Ready",
+      lines: ["Black blank slot", "Reserved for admin tools", "Matches the row format"],
+      active: false
+    }
+  ];
+
+  return (
+    <section style={{
+      width: "100%",
+      boxSizing: "border-box",
+      borderRadius: 14,
+      border: "2px solid rgba(250,204,21,.24)",
+      background: "linear-gradient(180deg, rgba(2,6,23,.96), rgba(2,6,23,.9))",
+      boxShadow: "0 1px 4px rgba(0,0,0,0.16)",
+      padding: 12,
+      color: "#f8fafc",
+      fontFamily: "system-ui, sans-serif",
+      pointerEvents: "auto"
+    }}>
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        gap: 8,
+        alignItems: "center",
+        marginBottom: 10
+      }}>
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 1000, letterSpacing: 1.1, color: "#facc15", textTransform: "uppercase" }}>
+            Casino Row
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 1000, color: "#fff", marginTop: 2 }}>
+            Casino / Sportsbook Expansion
+          </div>
+        </div>
+        <div style={{
+          borderRadius: 999,
+          padding: "5px 8px",
+          background: "rgba(34,197,94,.16)",
+          border: "1px solid rgba(34,197,94,.35)",
+          color: "#bbf7d0",
+          fontSize: 10,
+          fontWeight: 1000
+        }}>
+          3 AREAS
+        </div>
+      </div>
+
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+        gap: 8,
+        overflow: "hidden",
+        paddingBottom: 3
+      }}>
+        {areas.map(area => (
+          <div key={area.title} style={{
+            minHeight: 132,
+            minWidth: 0,
+            borderRadius: 14,
+            padding: 8,
+            background: area.active
+              ? "linear-gradient(180deg, rgba(20,83,45,.96), rgba(2,6,23,.96))"
+              : "#000",
+            border: area.active ? "1px solid rgba(250,204,21,.42)" : "1px solid rgba(255,255,255,.12)",
+            boxShadow: area.active ? "0 10px 28px rgba(0,0,0,.35)" : "inset 0 0 18px rgba(255,255,255,.04)"
+          }}>
+            <div style={{ fontSize: 9, fontWeight: 1000, color: area.active ? "#facc15" : "#64748b", letterSpacing: 1, textTransform: "uppercase" }}>
+              {area.eyebrow}
+            </div>
+            <div style={{ marginTop: 5, fontSize: 12, fontWeight: 1000, lineHeight: 1.15, color: area.active ? "#fff" : "#94a3b8" }}>
+              {area.title}
+            </div>
+            <div style={{ display: "grid", gap: 4, marginTop: 9 }}>
+              {area.lines.map(line => (
+                <div key={line} style={{
+                  borderRadius: 8,
+                  padding: "5px 6px",
+                  background: area.active ? "rgba(15,23,42,.68)" : "rgba(15,23,42,.35)",
+                  color: area.active ? "#e2e8f0" : "#475569",
+                  fontSize: 9,
+                  fontWeight: 900,
+                  lineHeight: 1.15
+                }}>
+                  {line}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -904,13 +1014,24 @@ function PokemonSidebar() {
   }, [gameFullscreen]);
 
   return (
-    <aside className="pokemon-desktop-sidebar" style={{
+    <div className="pokemon-desktop-stack" style={{
       position: "fixed",
       left: 18,
       top: 18,
       bottom: 18,
       width: collapsed ? 72 : 390,
       zIndex: 4,
+      display: "flex",
+      flexDirection: "column",
+      gap: 14,
+      overflowX: "hidden",
+      overflowY: collapsed ? "hidden" : "auto",
+      pointerEvents: "none",
+      transition: "width .25s ease"
+    }}>
+    <aside className="pokemon-desktop-sidebar" style={{
+      width: "100%",
+      flex: "0 0 auto",
       borderRadius: 24,
       border: "2px solid rgba(255,255,255,0.22)",
       background: `linear-gradient(rgba(2,6,23,0.62), rgba(2,6,23,0.82)), url(${process.env.PUBLIC_URL}/${backgroundImage})`,
@@ -921,10 +1042,14 @@ function PokemonSidebar() {
       color: "#f8fafc",
       fontFamily: "system-ui, sans-serif",
       transition: "width .25s ease, padding .25s ease",
-      overflow: "hidden"
+      overflow: "hidden",
+      pointerEvents: "auto"
     }}>
       <style>{`
+        @media (max-width: 1180px) { .pokemon-desktop-stack { display: none !important; } }
         @media (max-width: 1180px) { .pokemon-desktop-sidebar { display: none !important; } }
+        .pokemon-desktop-stack::-webkit-scrollbar { width: 6px; }
+        .pokemon-desktop-stack::-webkit-scrollbar-thumb { background: rgba(250,204,21,.45); border-radius: 999px; }
         .pokemon-desktop-sidebar button:hover { transform: translateY(-1px); }
         .game-cover-carousel::-webkit-scrollbar { height: 6px; }
         .game-cover-carousel::-webkit-scrollbar-thumb { background: rgba(250,204,21,.55); border-radius: 999px; }
@@ -964,6 +1089,9 @@ function PokemonSidebar() {
         }
       `}</style>
       <button onClick={() => setCollapsed(false)} style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 6,
         width: "100%",
         border: "none",
         borderRadius: 16,
@@ -1143,7 +1271,7 @@ function PokemonSidebar() {
               <button onClick={() => moveCarousel(-1)} style={{
                 width: 38, height: 38, borderRadius: "50%", border: "1px solid rgba(255,255,255,.18)",
                 background: "rgba(2,6,23,.9)", color: "#fff", cursor: "pointer", fontSize: 22, fontWeight: 900
-              }}>â€¹</button>
+              }}>{"<"}</button>
               <div style={{ textAlign: "center", flex: 1 }}>
                 <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: 1.2, color: "#facc15", textTransform: "uppercase" }}>
                   {activeSystem} Game Carousel
@@ -1155,7 +1283,7 @@ function PokemonSidebar() {
               <button onClick={() => moveCarousel(1)} style={{
                 width: 38, height: 38, borderRadius: "50%", border: "1px solid rgba(255,255,255,.18)",
                 background: "rgba(2,6,23,.9)", color: "#fff", cursor: "pointer", fontSize: 22, fontWeight: 900
-              }}>â€º</button>
+              }}>{">"}</button>
             </div>
 
             <div className="game-cover-carousel" style={{
@@ -1199,7 +1327,7 @@ function PokemonSidebar() {
                       {game.label}
                     </div>
                     <div style={{ marginTop: 4, fontSize: 9, fontWeight: 900, color: selected ? "#facc15" : "#94a3b8" }}>
-                      {game.system} â€¢ {game.year}
+                      {game.system} - {game.year}
                     </div>
                     {discCount > 1 && (
                       <div style={{ marginTop: 4, fontSize: 9, fontWeight: 1000, color: "#38bdf8" }}>
@@ -1237,7 +1365,7 @@ function PokemonSidebar() {
             <PokemonCoverImage game={activeGame} imageType={selectedArt} onZoom={setZoomedCover} />
             <div>
               <div style={{ fontSize: 12, fontWeight: 900, lineHeight: 1.25, color: "#fff" }}>{activeGame.label}</div>
-              <div style={{ fontSize: 11, fontWeight: 800, color: "#cbd5e1", marginTop: 4 }}>{activeGame.system} â€¢ {activeGame.year}</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#cbd5e1", marginTop: 4 }}>{activeGame.system} - {activeGame.year}</div>
               {activeGame.discUrls?.length > 1 && (
                 <select
                   value={selectedDiscIndex}
@@ -1326,7 +1454,7 @@ function PokemonSidebar() {
                     fontWeight: 900
                   }}
                 >
-                  âœ• Close
+                  X Close
                 </button>
                 <img
                   src={zoomedCover.src}
@@ -1350,6 +1478,7 @@ function PokemonSidebar() {
         </>
       )}
     </aside>
+    </div>
   );
 }
 
@@ -1372,6 +1501,108 @@ function LiveChatBox({ title = "Live Chat", src, height = 250, minHeight = 250 }
   );
 }
 
+function FuitsLiveTvPlayer({ baseUrl }) {
+  const videoRef = useRef(null);
+  const [channel, setChannel] = useState(null);
+  const [status, setStatus] = useState("Loading FUITS Live TV...");
+  const currentItem = channel?.playlist?.[channel.currentIndex] || null;
+  const videoSrc = currentItem?.src
+    ? `${baseUrl}${currentItem.src.startsWith("/") ? "" : "/"}${currentItem.src}`
+    : "";
+
+  useEffect(() => {
+    if (!baseUrl) return;
+    let cancelled = false;
+
+    const loadChannel = async () => {
+      try {
+        const response = await fetch(`${baseUrl}/channel.json?cache=${Date.now()}`, { cache: "no-store" });
+        const data = await response.json();
+        if (!cancelled) {
+          setChannel(data);
+          setStatus(data?.playlist?.length ? "" : "No videos found in FUITS Live TV.");
+        }
+      } catch {
+        if (!cancelled) setStatus("FUITS Live TV did not load. Check the Cloudflare tunnel.");
+      }
+    };
+
+    loadChannel();
+    const timer = window.setInterval(loadChannel, 15000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [baseUrl]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !channel || !currentItem) return;
+
+    const offset = Math.max(0, Math.min(channel.offsetSeconds || 0, Math.max(0, (currentItem.duration || 1) - 1)));
+    const syncTime = () => {
+      if (Number.isFinite(video.duration) && Math.abs(video.currentTime - offset) > 3) {
+        video.currentTime = offset;
+      }
+    };
+
+    if (video.readyState >= 1) syncTime();
+    else video.addEventListener("loadedmetadata", syncTime, { once: true });
+  }, [channel, currentItem]);
+
+  return (
+    <div style={{
+      width: "100%",
+      border: "1px solid rgba(148,163,184,.22)",
+      borderRadius: 14,
+      background: "#020617",
+      overflow: "hidden"
+    }}>
+      {videoSrc ? (
+        <video
+          ref={videoRef}
+          key={videoSrc}
+          src={videoSrc}
+          controls
+          playsInline
+          muted
+          autoPlay
+          style={{
+            width: "100%",
+            minHeight: 260,
+            maxHeight: 420,
+            background: "#000",
+            display: "block"
+          }}
+        />
+      ) : (
+        <div style={{
+          minHeight: 260,
+          display: "grid",
+          placeItems: "center",
+          color: "#94a3b8",
+          fontSize: 12,
+          fontWeight: 900,
+          padding: 16,
+          textAlign: "center"
+        }}>
+          {status}
+        </div>
+      )}
+      <div style={{
+        padding: "8px 10px",
+        color: "#cbd5e1",
+        fontSize: 12,
+        fontWeight: 900,
+        lineHeight: 1.3,
+        borderTop: "1px solid rgba(148,163,184,.16)"
+      }}>
+        {currentItem ? `${channel.channel?.label || "FUITS"} now playing: ${currentItem.title}` : status}
+      </div>
+    </div>
+  );
+}
+
 function MusicLibrarySidebar({ accentColor }) {
   const fuitsLiveTvChannelUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
   const [musicLibrary, setMusicLibrary] = useState(MUSIC_LIBRARY);
@@ -1386,7 +1617,7 @@ function MusicLibrarySidebar({ accentColor }) {
   const [activeMusicView, setActiveMusicView] = useState("library");
   const [musicChannels, setMusicChannels] = useState([]);
   const [liveTvMenuOpen, setLiveTvMenuOpen] = useState(false);
-  const [activeLiveTv, setActiveLiveTv] = useState("fuit");
+  const [activeLiveTv, setActiveLiveTv] = useState("fattys");
   const [customTvItems, setCustomTvItems] = useState([]);
   const [selectedCustomTvId, setSelectedCustomTvId] = useState(null);
   const [customTvUrl, setCustomTvUrl] = useState("");
@@ -1395,12 +1626,6 @@ function MusicLibrarySidebar({ accentColor }) {
   const [zoomedDonationQr, setZoomedDonationQr] = useState(null);
   const jellyfinFrameRef = useRef(null);
   const adultSwimFrameRef = useRef(null);
-  const fuitsLiveTvEmbedUrl = useMemo(() => {
-    if (!fuitsLiveTvChannelUrl) return "";
-    const separator = fuitsLiveTvChannelUrl.includes("?") ? "&" : "?";
-    return `${fuitsLiveTvChannelUrl}${separator}embedReload=${Date.now()}`;
-  }, [fuitsLiveTvChannelUrl]);
-
   useEffect(() => {
     const handleFuitsBlankPage = event => {
       if (event.data?.type !== "FUITS_SITE_BLANKED") return;
@@ -1525,12 +1750,12 @@ function MusicLibrarySidebar({ accentColor }) {
     item.type === "audio" || (item.src || "").toLowerCase().endsWith(".mp3")
   );
   const liveTvOptions = [
+    { id: "fattys", label: "FUITS LIVE TV WORLD", heading: "FUITS LIVE TV WORLD", custom: true },
     { id: "fuit", label: "Open Fuit LIVE TV", heading: "SPORTS + CABLE TV", url: "https://thetvapp.to/", embed: false },
     { id: "athf", label: "ADULT SWIM ZONE", heading: "ADULT SWIM ZONE", url: "https://www.adultswim.com/streams/aqua-teen-hunger-force", embed: true },
     { id: "youtube", label: "YOUTUBE", heading: "YOUTUBE", url: "https://www.youtube.com/", embed: false },
     { id: "southpark", label: "SOUTH PARK WORLD", heading: "SOUTH PARK WORLD", url: "https://southpark.cc.com/seasons/south-park", embed: false },
-    { id: "jellyfin", label: "FUIT JELLYFIN", heading: "FUIT JELLYFIN", url: "https://earth-steady-meeting-yesterday.trycloudflare.com/web/", embed: true },
-    { id: "fattys", label: "FUITS LIVE TV WORLD", heading: "FUITS LIVE TV WORLD", custom: true }
+    { id: "jellyfin", label: "FUIT JELLYFIN", heading: "FUIT JELLYFIN", url: "https://earth-steady-meeting-yesterday.trycloudflare.com/web/", embed: true }
   ];
   const activeLiveTvOption = liveTvOptions.find(option => option.id === activeLiveTv) || liveTvOptions[0];
   const musicViewOptions = [
@@ -1651,7 +1876,7 @@ function MusicLibrarySidebar({ accentColor }) {
           gap: 10
         }}>
           <span>{activeMediaMenu === "music" ? "Fuit Music" : "Fuit LIVE TV"}</span>
-          <span style={{ fontSize: 12, fontWeight: 1000 }}>{mediaMenuOpen ? "â–²" : "â–¼"}</span>
+          <span style={{ fontSize: 12, fontWeight: 1000 }}>{mediaMenuOpen ? "^" : "v"}</span>
         </button>
         {mediaMenuOpen && (
           <div style={{
@@ -1771,7 +1996,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 gap: 10
               }}>
                 <span>{activeLiveTvOption.label}</span>
-                <span>{liveTvMenuOpen ? "â–²" : "â–¼"}</span>
+                <span>{liveTvMenuOpen ? "^" : "v"}</span>
               </button>
               {liveTvMenuOpen && (
                 <div style={{
@@ -1831,7 +2056,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 </div>
                 <iframe
                   title="Live Announcement"
-                  src="https://exhibits-jimmy-referred-spotlight.trycloudflare.com"
+                  src="https://instrumental-months-wider-minus.trycloudflare.com"
                   allow="fullscreen; autoplay; encrypted-media; picture-in-picture"
                   allowFullScreen
                   style={{
@@ -1844,20 +2069,7 @@ function MusicLibrarySidebar({ accentColor }) {
               </div>
             )}
             {activeLiveTvOption.custom && !owncastOnline && fuitsLiveTvChannelUrl && (
-              <iframe
-                title={FUITS_LIVE_TV_PLAYLIST.title}
-                src={fuitsLiveTvEmbedUrl}
-                allow="fullscreen; autoplay; encrypted-media; picture-in-picture"
-                allowFullScreen
-                style={{
-                  width: "100%",
-                  flex: 1,
-                  minHeight: 360,
-                  border: "1px solid rgba(148,163,184,.22)",
-                  borderRadius: 14,
-                  background: "#020617"
-                }}
-              />
+              <FuitsLiveTvPlayer baseUrl={fuitsLiveTvChannelUrl} />
             )}
             {activeLiveTvOption.custom && !owncastOnline && !fuitsLiveTvChannelUrl && (
               <>
@@ -2169,7 +2381,7 @@ function MusicLibrarySidebar({ accentColor }) {
             fontWeight: 900,
             whiteSpace: "nowrap"
           }}>
-            {openMusicSections.liveTv ? "â–²" : "â–¼"}
+            {openMusicSections.liveTv ? "^" : "v"}
           </span>
         </button>
         {openMusicSections.liveTv && (
@@ -2282,7 +2494,7 @@ function MusicLibrarySidebar({ accentColor }) {
             {selectedTrack.title}
           </div>
           <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 800, marginBottom: 8 }}>
-            {selectedTrack.artist || "Unknown Artist"} â€¢ {selectedTrack.genre || "Other"}
+            {selectedTrack.artist || "Unknown Artist"} - {selectedTrack.genre || "Other"}
           </div>
 
           {selectedTrack.type === "video" ? (
@@ -2308,7 +2520,7 @@ function MusicLibrarySidebar({ accentColor }) {
                   padding: "0 1px",
                   lineHeight: 1
                 }}>
-                  â˜…
+                  *
                 </button>
               ))}
             </div>
@@ -2378,7 +2590,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 fontWeight: 900,
                 whiteSpace: "nowrap"
               }}>
-                {section.items.length} {openMusicSections[section.key] ? "â–²" : "â–¼"}
+                {section.items.length} {openMusicSections[section.key] ? "^" : "v"}
               </span>
             </button>
             {openMusicSections[section.key] && (section.items.length > 0 ? section.items.map(item => (
@@ -2401,7 +2613,7 @@ function MusicLibrarySidebar({ accentColor }) {
                     </div>
                   </div>
                   <div style={{ color: "#facc15", fontSize: 12, whiteSpace: "nowrap" }}>
-                    {"â˜…".repeat(ratings[item.id] || 0)}{"â˜†".repeat(5 - (ratings[item.id] || 0))}
+                    {"*".repeat(ratings[item.id] || 0)}{"-".repeat(5 - (ratings[item.id] || 0))}
                   </div>
                 </div>
               </button>
@@ -2793,7 +3005,7 @@ function CreditHubPage({ onClose }) {
             <div style={{ fontSize: 20, fontWeight: 1000 }}>Sportsbook Demo</div>
             <div style={{ color: "#94a3b8", marginBottom: 8 }}>Prematch/esports layout. Odds API can replace these demo events later and should be cached every 20 minutes.</div>
             <select value={selectedEvent.id} onChange={e => setSelectedEvent(demoEvents.find(x => x.id === e.target.value) || demoEvents[0])} style={input}>
-              {demoEvents.map(ev => <option key={ev.id} value={ev.id}>{ev.event} â€¢ {ev.odds}</option>)}
+              {demoEvents.map(ev => <option key={ev.id} value={ev.id}>{ev.event} - {ev.odds}</option>)}
             </select>
             <input type="number" value={betAmount} onChange={e => setBetAmount(e.target.value)} placeholder="Bet credits" style={input} />
             <div style={{ color: "#94a3b8", fontSize: 13, marginBottom: 8 }}>Stake after fee: {netOf(betAmount).toFixed(6)}</div>
@@ -2841,8 +3053,8 @@ function CreditHubPage({ onClose }) {
                   <div style={{ fontSize: 19, fontWeight: 1000 }}>Pending Deposits</div>
                   {state.deposits.length === 0 && <div style={{ color: "#94a3b8" }}>No deposits yet.</div>}
                   {state.deposits.map(d => <div key={d.id} style={{ borderTop: "1px solid rgba(255,255,255,.12)", paddingTop: 10, marginTop: 10 }}>
-                    <b>{d.coin} {d.amount}</b> â†’ award {d.creditsToAward} credits<br />
-                    <span style={{ color: "#94a3b8", fontSize: 12 }}>{d.wallet} â€¢ {d.status} â€¢ {d.tx || "no tx"}</span>
+                    <b>{d.coin} {d.amount}</b> -> award {d.creditsToAward} credits<br />
+                    <span style={{ color: "#94a3b8", fontSize: 12 }}>{d.wallet} - {d.status} - {d.tx || "no tx"}</span>
                     {d.status === "pending" && <div style={{ display: "flex", gap: 8, marginTop: 8 }}><button onClick={() => approveDeposit(d.id)} style={button}>Approve</button><button onClick={() => rejectDeposit(d.id)} style={darkButton}>Reject</button></div>}
                   </div>)}
                 </div>
@@ -2852,7 +3064,7 @@ function CreditHubPage({ onClose }) {
                   {state.withdrawals.length === 0 && <div style={{ color: "#94a3b8" }}>No withdrawals yet.</div>}
                   {state.withdrawals.map(w => <div key={w.id} style={{ borderTop: "1px solid rgba(255,255,255,.12)", paddingTop: 10, marginTop: 10 }}>
                     <b>{w.coin} {w.userReceives}</b> after fee from {w.amount} credits<br />
-                    <span style={{ color: "#94a3b8", fontSize: 12 }}>{w.sendTo} â€¢ {w.status}</span>
+                    <span style={{ color: "#94a3b8", fontSize: 12 }}>{w.sendTo} - {w.status}</span>
                     {w.status === "pending" && <div style={{ display: "flex", gap: 8, marginTop: 8 }}><button onClick={() => completeWithdrawal(w.id)} style={button}>Mark Paid</button><button onClick={() => rejectWithdrawal(w.id)} style={darkButton}>Reject/Refund</button></div>}
                   </div>)}
                 </div>
@@ -2863,7 +3075,7 @@ function CreditHubPage({ onClose }) {
                   <div style={{ fontSize: 19, fontWeight: 1000 }}>Open Bets</div>
                   {state.bets.length === 0 && <div style={{ color: "#94a3b8" }}>No bets yet.</div>}
                   {state.bets.map(b => <div key={b.id} style={{ borderTop: "1px solid rgba(255,255,255,.12)", paddingTop: 10, marginTop: 10 }}>
-                    <b>{b.event}</b><br />Stake {b.stake} â€¢ payout {b.potentialPayout} â€¢ {b.status}
+                    <b>{b.event}</b><br />Stake {b.stake} - payout {b.potentialPayout} - {b.status}
                     {b.status === "open" && <div style={{ display: "flex", gap: 8, marginTop: 8 }}><button onClick={() => settleBet(b.id, "win")} style={button}>Win</button><button onClick={() => settleBet(b.id, "loss")} style={darkButton}>Loss</button><button onClick={() => settleBet(b.id, "push")} style={darkButton}>Push</button></div>}
                   </div>)}
                 </div>
@@ -2872,7 +3084,7 @@ function CreditHubPage({ onClose }) {
                   <div style={{ fontSize: 19, fontWeight: 1000 }}>Users Online / Credits</div>
                   {Object.values(state.users).length === 0 && <div style={{ color: "#94a3b8" }}>No wallet users yet.</div>}
                   {Object.values(state.users).map(u => <div key={u.wallet} style={{ borderTop: "1px solid rgba(255,255,255,.12)", paddingTop: 10, marginTop: 10 }}>
-                    <b>{u.username || `${u.wallet.slice(0, 6)}...${u.wallet.slice(-4)}`}</b> <span style={{ color: "#22c55e" }}>â— online</span><br />
+                    <b>{u.username || `${u.wallet.slice(0, 6)}...${u.wallet.slice(-4)}`}</b> <span style={{ color: "#22c55e" }}>- online</span><br />
                     <span style={{ color: "#94a3b8", fontSize: 12 }}>{u.wallet}</span><br />
                     Credits: {Number(u.credits || 0).toFixed(4)}
                     <div style={{ display: "flex", gap: 8, marginTop: 8 }}><button onClick={() => updateUserCredits(u.wallet, 100)} style={button}>+100</button><button onClick={() => updateUserCredits(u.wallet, -100)} style={darkButton}>-100</button></div>
@@ -2925,7 +3137,7 @@ function ProjectDropdown({ projects, activeId, onSelect, onManage }) {
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 140 }}>
           {active?.name || "Select project"}
         </span>
-        <span style={{ color: "#888", fontSize: 10, marginLeft: 2 }}>{open ? "â–²" : "â–¼"}</span>
+        <span style={{ color: "#888", fontSize: 10, marginLeft: 2 }}>{open ? "^" : "v"}</span>
       </button>
       {open && (
         <div style={{
@@ -2949,7 +3161,7 @@ function ProjectDropdown({ projects, activeId, onSelect, onManage }) {
             >
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: p.color, flexShrink: 0 }} />
               <span style={{ flex: 1 }}>{p.name}</span>
-              {p.id === activeId && <span style={{ color: "#A8D5A2", fontSize: 11 }}>âœ“</span>}
+              {p.id === activeId && <span style={{ color: "#A8D5A2", fontSize: 11 }}>OK</span>}
             </button>
           ))}
           <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
@@ -3304,7 +3516,7 @@ export default function App() {
                   cursor: "pointer"
                 }}
               >
-                âœ• Close
+                X Close
               </button>
               <input
                 value={inAppBrowserUrl}
@@ -3396,7 +3608,7 @@ export default function App() {
             onClick={() => setView(view === "settings" ? "week" : "settings")}
             style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, textShadow: readableTextShadow }}
           >
-            {view === "settings" ? "âœ•" : "âš™"}
+            {view === "settings" ? "X" : "Settings"}
           </button>
         </div>
         {view === "week" && (
@@ -3424,7 +3636,7 @@ export default function App() {
                   textShadow: isMusicPlaying ? "none" : readableTextShadow
                 }}
               >
-                {isMusicPlaying ? "â¸ Pause Soundtrack" : "â–¶ Play Soundtrack"}
+                {isMusicPlaying ? "Pause Soundtrack" : "Play Soundtrack"}
               </button>
             </div>
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", margin: "-6px 0 14px" }}>
@@ -3442,16 +3654,16 @@ export default function App() {
               />
             </div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <button onClick={() => setWeekOffset(w => w - 1)} style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, padding: "4px 8px" }}>â€¹</button>
+              <button onClick={() => setWeekOffset(w => w - 1)} style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, padding: "4px 8px" }}>{"<"}</button>
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 13, color: headerLabelColor, fontFamily: "system-ui", fontWeight: 900, textShadow: readableTextShadow }}>
                   {weekOffset === 0 ? "This Week" : weekOffset === -1 ? "Last Week" : `${Math.abs(weekOffset)}w ${weekOffset < 0 ? "ago" : "ahead"}`}
                 </div>
                 <div style={{ fontSize: 12, color: headerMutedColor, fontFamily: "system-ui", fontWeight: 800, textShadow: readableTextShadow }}>
-                  {formatDate(weekDates[0])} â€“ {formatDate(weekDates[6])}
+                  {formatDate(weekDates[0])} - {formatDate(weekDates[6])}
                 </div>
               </div>
-              <button onClick={() => setWeekOffset(w => w + 1)} style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, padding: "4px 8px" }}>â€º</button>
+              <button onClick={() => setWeekOffset(w => w + 1)} style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, padding: "4px 8px" }}>{">"}</button>
             </div>
             <div style={{ marginTop: 14, background: theme.statsBg, borderRadius: 12, padding: "14px 16px", boxShadow: theme.shadow, border: `1px solid ${theme.line}`, ...glassStyle }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
@@ -3536,7 +3748,7 @@ export default function App() {
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: accentColor, flexShrink: 0 }} />
               <label style={{ fontSize: 12, color: "#888", textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui" }}>
-                {activeProject?.name} â€” Hourly Rate
+                {activeProject?.name} - Hourly Rate
               </label>
             </div>
             <div style={{ display: "flex", alignItems: "center", marginTop: 8, gap: 10 }}>
@@ -3617,7 +3829,7 @@ export default function App() {
                 </div>
                 <button onClick={toggleMusic}
                   style={{ width: "100%", padding: "13px", background: accentColor, color: "#111827", border: "none", borderRadius: 12, fontSize: 15, cursor: "pointer", fontFamily: "Georgia, serif", marginBottom: 12, fontWeight: 900 }}>
-                  {isMusicPlaying ? "â¸ Pause Music" : "â–¶ Play Music"}
+                  {isMusicPlaying ? "Pause Music" : "Play Music"}
                 </button>
                 <label style={{ display: "block", fontSize: 12, color: theme.muted, textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui", marginBottom: 8, fontWeight: 800 }}>
                   Volume: {Math.round((musicSettings.volume ?? 0.35) * 100)}%
@@ -3644,14 +3856,14 @@ export default function App() {
             <div style={{ fontSize: 12, color: theme.muted, textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui", marginBottom: 14 }}>Backup & Restore</div>
             <button onClick={exportData}
               style={{ width: "100%", padding: "13px", background: theme.buttonBg, color: theme.buttonText, border: "none", borderRadius: 12, fontSize: 15, cursor: "pointer", fontFamily: "Georgia, serif", marginBottom: 10 }}>
-              â†“ Export Backup
+              Export Export Backup
             </button>
             <input ref={importRef} type="file" accept=".json" onChange={importData} style={{ display: "none" }} />
             <button onClick={() => importRef.current?.click()}
               style={{ width: "100%", padding: "13px", background: "transparent", color: appTextColor, border: `2px solid ${theme.line}`, borderRadius: 12, fontSize: 15, cursor: "pointer", fontFamily: "Georgia, serif" }}>
-              â†‘ Import Backup
+              Import Import Backup
             </button>
-            <div style={{ fontSize: 12, color: "#aaa", marginTop: 10, fontFamily: "system-ui" }}>Export regularly to keep your data safe. Import restores everything â€” projects, rates, and all entries.</div>
+            <div style={{ fontSize: 12, color: "#aaa", marginTop: 10, fontFamily: "system-ui" }}>Export regularly to keep your data safe. Import restores everything - projects, rates, and all entries.</div>
           </div>
         </div>
       )}
@@ -3661,7 +3873,7 @@ export default function App() {
         <div style={{ padding: 24 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <div style={{ fontSize: 22, color: "#1C1C1E" }}>Projects</div>
-            <button onClick={() => setView("week")} style={{ background: "none", border: "none", color: vibrantLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, textShadow: readableTextShadow }}>âœ•</button>
+            <button onClick={() => setView("week")} style={{ background: "none", border: "none", color: vibrantLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, textShadow: readableTextShadow }}>X</button>
           </div>
           <div style={{ marginBottom: 24 }}>
             {projects.map(p => (
@@ -3712,7 +3924,7 @@ export default function App() {
 
       {/* Week View */}
       {view === "week" && (
-        <div style={{ padding: "12px 16px 100px" }}>
+        <div style={{ padding: "12px 16px 18px" }}>
           {weekDates.map((date, i) => {
             const e = getEntry(date, activeProjectId);
             const worked = calcTotalWorked(e);
@@ -3737,20 +3949,20 @@ export default function App() {
                   {hasEntry ? (
                     <div>
                       <div style={{ fontSize: 14, color: today_ ? theme.headerText : dayCardText, fontFamily: "system-ui", fontWeight: 800, textShadow: readableTextShadow }}>
-                        {to12Hour(e.start)} â†’ {to12Hour(e.end)}
+                        {to12Hour(e.start)} -> {to12Hour(e.end)}
                         {e.breaks && e.breaks.length > 0 && (
-                          <span style={{ color: "#aaa", fontSize: 12 }}> âˆ’ {totalBreakMins(e.breaks)}m break</span>
+                          <span style={{ color: "#aaa", fontSize: 12 }}> - {totalBreakMins(e.breaks)}m break</span>
                         )}
                       </div>
                       {e.splitShift && e.start2 && e.end2 && (
                         <div style={{ fontSize: 12, color: today_ ? "#888" : "#aaa", fontFamily: "system-ui", marginTop: 2 }}>
-                          + {to12Hour(e.start2)} â†’ {to12Hour(e.end2)}
+                          + {to12Hour(e.start2)} -> {to12Hour(e.end2)}
                         </div>
                       )}
                       {e.splitShift && (e.extraShifts || []).map((shift, idx) => (
                         shift.start && shift.end ? (
                           <div key={idx} style={{ fontSize: 12, color: today_ ? "#888" : "#aaa", fontFamily: "system-ui", marginTop: 2 }}>
-                            + {to12Hour(shift.start)} â†’ {to12Hour(shift.end)}
+                            + {to12Hour(shift.start)} -> {to12Hour(shift.end)}
                           </div>
                         ) : null
                       ))}
@@ -3775,6 +3987,12 @@ export default function App() {
               </button>
             );
           })}
+        </div>
+      )}
+
+      {view === "week" && (
+        <div style={{ padding: "0 16px 100px" }}>
+          <GamingCenterSecondPanel />
         </div>
       )}
 
@@ -3877,7 +4095,7 @@ export default function App() {
                 fontSize: 13, fontFamily: "system-ui", marginBottom: 16,
               }}
             >
-              <span style={{ fontSize: 16, lineHeight: 1 }}>{form.splitShift ? "âˆ’" : "+"}</span>
+              <span style={{ fontSize: 16, lineHeight: 1 }}>{form.splitShift ? "-" : "+"}</span>
               {form.splitShift ? "Remove split shift" : "Add split shift"}
             </button>
 

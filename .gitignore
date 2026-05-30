@@ -1,4 +1,4 @@
 # Keep game files local on T:\FattysLiveTV only.
+node_modules/
 public/roms/
 public/rom-images/
-

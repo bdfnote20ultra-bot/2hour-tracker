@@ -1510,7 +1510,7 @@ function LiveChatBox({ title = "Live Chat", src, height = 250, minHeight = 250 }
   );
 }
 
-function FuitsLiveTvPlayer({ baseUrl }) {
+function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
   const videoRef = useRef(null);
   const [channel, setChannel] = useState(null);
   const [status, setStatus] = useState("Loading FUITS Live TV...");
@@ -1525,7 +1525,7 @@ function FuitsLiveTvPlayer({ baseUrl }) {
 
     const loadChannel = async () => {
       try {
-        const response = await fetch(`${baseUrl}/channel.json?cache=${Date.now()}`, { cache: "no-store" });
+        const response = await fetch(`${baseUrl}/channel.json?channel=${encodeURIComponent(channelId)}&cache=${Date.now()}`, { cache: "no-store" });
         const data = await response.json();
         if (!cancelled) {
           setChannel(data);
@@ -1542,7 +1542,7 @@ function FuitsLiveTvPlayer({ baseUrl }) {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [baseUrl]);
+  }, [baseUrl, channelId]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -1621,12 +1621,13 @@ function MusicLibrarySidebar({ accentColor }) {
     try { return JSON.parse(localStorage.getItem("hoursTrackerStaticMusicRatings_v1")) || {}; } catch { return {}; }
   });
   const [musicSearch, setMusicSearch] = useState("");
-  const [activeMediaMenu, setActiveMediaMenu] = useState("music");
+  const [activeMediaMenu, setActiveMediaMenu] = useState("liveTv");
   const [mediaMenuOpen, setMediaMenuOpen] = useState(false);
   const [activeMusicView, setActiveMusicView] = useState("library");
   const [musicChannels, setMusicChannels] = useState([]);
   const [liveTvMenuOpen, setLiveTvMenuOpen] = useState(false);
   const [activeLiveTv, setActiveLiveTv] = useState("fattys");
+  const [activeFuitsLiveTvChannel, setActiveFuitsLiveTvChannel] = useState("channel-a");
   const [customTvItems, setCustomTvItems] = useState([]);
   const [selectedCustomTvId, setSelectedCustomTvId] = useState(null);
   const [customTvUrl, setCustomTvUrl] = useState("");
@@ -1765,6 +1766,11 @@ function MusicLibrarySidebar({ accentColor }) {
     { id: "youtube", label: "YOUTUBE", heading: "YOUTUBE", url: "https://www.youtube.com/", embed: false },
     { id: "southpark", label: "SOUTH PARK WORLD", heading: "SOUTH PARK WORLD", url: "https://southpark.cc.com/seasons/south-park", embed: false },
     { id: "jellyfin", label: "FUIT JELLYFIN", heading: "FUIT JELLYFIN", url: "https://earth-steady-meeting-yesterday.trycloudflare.com/web/", embed: true }
+  ];
+  const fuitsLiveTvChannels = [
+    { id: "channel-a", label: "Channel A" },
+    { id: "channel-b", label: "Channel B" },
+    { id: "channel-sleep-chill", label: "SLEEP CHILL" }
   ];
   const activeLiveTvOption = liveTvOptions.find(option => option.id === activeLiveTv) || liveTvOptions[0];
   const musicViewOptions = [
@@ -2078,7 +2084,36 @@ function MusicLibrarySidebar({ accentColor }) {
               </div>
             )}
             {activeLiveTvOption.custom && !owncastOnline && fuitsLiveTvChannelUrl && (
-              <FuitsLiveTvPlayer baseUrl={fuitsLiveTvChannelUrl} />
+              <>
+                <select
+                  value={activeFuitsLiveTvChannel}
+                  onChange={event => setActiveFuitsLiveTvChannel(event.target.value)}
+                  style={{
+                    width: "100%",
+                    border: "1px solid rgba(148,163,184,.28)",
+                    borderRadius: 12,
+                    background: "#020617",
+                    color: "#f8fafc",
+                    padding: "11px 12px",
+                    outline: "none",
+                    fontSize: 13,
+                    fontWeight: 1000,
+                    textTransform: "uppercase",
+                    letterSpacing: .7
+                  }}
+                >
+                  {fuitsLiveTvChannels.map(channel => (
+                    <option key={channel.id} value={channel.id}>{channel.label}</option>
+                  ))}
+                </select>
+                <FuitsLiveTvPlayer baseUrl={fuitsLiveTvChannelUrl} channelId={activeFuitsLiveTvChannel} />
+                <LiveChatBox
+                  title="FUITS Live TV Chat"
+                  src={`${fuitsLiveTvChannelUrl}/chat-only`}
+                  height={250}
+                  minHeight={250}
+                />
+              </>
             )}
             {activeLiveTvOption.custom && !owncastOnline && !fuitsLiveTvChannelUrl && (
               <>

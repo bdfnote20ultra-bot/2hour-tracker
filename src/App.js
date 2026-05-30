@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+﻿import { useState, useEffect, useRef, useMemo } from "react";
 import { MUSIC_LIBRARY } from "./musicLibraryData";
 import { FATTYS_LIVE_TV, FUITS_LIVE_TV_PLAYLIST } from "./fattysLiveTvData";
 
@@ -165,7 +165,7 @@ const THEMES = {
     appBg: "linear-gradient(180deg, #0F1117 0%, #1A1D29 100%)", headerBg: "rgba(12,14,20,0.96)", statsBg: "rgba(34,38,52,0.92)", cardBg: "rgba(255,255,255,0.08)", modalBg: "#151822", text: "#F7F5F2", headerText: "#F7F5F2", muted: "#9CA3AF", line: "rgba(255,255,255,0.12)", buttonBg: "#F7F5F2", buttonText: "#111827", shadow: "0 8px 30px rgba(0,0,0,0.25)", font: "Georgia, serif"
   },
   ice: {
-    id: "ice", name: "Ice", emoji: "❄️",
+    id: "ice", name: "Ice", emoji: "â„ï¸",
     appBg: "linear-gradient(180deg, #EFF7FF 0%, #FFFFFF 100%)", headerBg: "#EAF4FF", statsBg: "rgba(255,255,255,0.9)", cardBg: "rgba(255,255,255,0.95)", modalBg: "#F7FBFF", text: "#172033", headerText: "#172033", muted: "#6B7280", line: "rgba(23,32,51,0.12)", buttonBg: "#172033", buttonText: "#FFFFFF", shadow: "0 8px 24px rgba(50,85,120,0.12)", font: "Georgia, serif"
   },
   construction: {
@@ -173,7 +173,7 @@ const THEMES = {
     appBg: "linear-gradient(180deg, #2A241D 0%, #403323 100%)", headerBg: "#1F1A14", statsBg: "#2E261B", cardBg: "#FFF4D6", modalBg: "#FFF4D6", text: "#251A0D", headerText: "#FFE4A3", muted: "#9B7A47", line: "rgba(255,196,84,0.35)", buttonBg: "#FFC145", buttonText: "#1F1A14", shadow: "0 8px 24px rgba(0,0,0,0.25)", font: "Georgia, serif"
   },
   cyber: {
-    id: "cyber", name: "Cyber", emoji: "⚡",
+    id: "cyber", name: "Cyber", emoji: "âš¡",
     appBg: "radial-gradient(circle at top, #22234B 0%, #090A12 58%, #050509 100%)", headerBg: "rgba(5,5,12,0.96)", statsBg: "rgba(22,20,45,0.94)", cardBg: "rgba(15,16,35,0.92)", modalBg: "#0B0C1A", text: "#ECFEFF", headerText: "#ECFEFF", muted: "#8B9BB4", line: "rgba(103,232,249,0.2)", buttonBg: "#67E8F9", buttonText: "#060712", shadow: "0 0 28px rgba(103,232,249,0.12)", font: "Georgia, serif"
   },
   classic: {
@@ -181,7 +181,7 @@ const THEMES = {
     appBg: "#F7F5F2", headerBg: "#1C1C1E", statsBg: "#FFFFFF", cardBg: "#FFFFFF", modalBg: "#F7F5F2", text: "#1C1C1E", headerText: "#F7F5F2", muted: "#4B5563", line: "rgba(0,0,0,0.12)", buttonBg: "#1C1C1E", buttonText: "#F7F5F2", shadow: "0 2px 10px rgba(0,0,0,0.10)", font: "Georgia, serif"
   },
   oled: {
-    id: "oled", name: "OLED Black", emoji: "⬛",
+    id: "oled", name: "OLED Black", emoji: "â¬›",
     appBg: "#000000", headerBg: "#000000", statsBg: "#0A0A0A", cardBg: "#111111", modalBg: "#050505", text: "#FFFFFF", headerText: "#FFFFFF", muted: "#8A8A8A", line: "rgba(255,255,255,0.12)", buttonBg: "#FFFFFF", buttonText: "#000000", shadow: "0 0 0 1px rgba(255,255,255,0.08)", font: "Georgia, serif"
   },
   custom: {
@@ -1143,7 +1143,7 @@ function PokemonSidebar() {
               <button onClick={() => moveCarousel(-1)} style={{
                 width: 38, height: 38, borderRadius: "50%", border: "1px solid rgba(255,255,255,.18)",
                 background: "rgba(2,6,23,.9)", color: "#fff", cursor: "pointer", fontSize: 22, fontWeight: 900
-              }}>‹</button>
+              }}>â€¹</button>
               <div style={{ textAlign: "center", flex: 1 }}>
                 <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: 1.2, color: "#facc15", textTransform: "uppercase" }}>
                   {activeSystem} Game Carousel
@@ -1155,7 +1155,7 @@ function PokemonSidebar() {
               <button onClick={() => moveCarousel(1)} style={{
                 width: 38, height: 38, borderRadius: "50%", border: "1px solid rgba(255,255,255,.18)",
                 background: "rgba(2,6,23,.9)", color: "#fff", cursor: "pointer", fontSize: 22, fontWeight: 900
-              }}>›</button>
+              }}>â€º</button>
             </div>
 
             <div className="game-cover-carousel" style={{
@@ -1199,7 +1199,7 @@ function PokemonSidebar() {
                       {game.label}
                     </div>
                     <div style={{ marginTop: 4, fontSize: 9, fontWeight: 900, color: selected ? "#facc15" : "#94a3b8" }}>
-                      {game.system} • {game.year}
+                      {game.system} â€¢ {game.year}
                     </div>
                     {discCount > 1 && (
                       <div style={{ marginTop: 4, fontSize: 9, fontWeight: 1000, color: "#38bdf8" }}>
@@ -1237,7 +1237,7 @@ function PokemonSidebar() {
             <PokemonCoverImage game={activeGame} imageType={selectedArt} onZoom={setZoomedCover} />
             <div>
               <div style={{ fontSize: 12, fontWeight: 900, lineHeight: 1.25, color: "#fff" }}>{activeGame.label}</div>
-              <div style={{ fontSize: 11, fontWeight: 800, color: "#cbd5e1", marginTop: 4 }}>{activeGame.system} • {activeGame.year}</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#cbd5e1", marginTop: 4 }}>{activeGame.system} â€¢ {activeGame.year}</div>
               {activeGame.discUrls?.length > 1 && (
                 <select
                   value={selectedDiscIndex}
@@ -1326,7 +1326,7 @@ function PokemonSidebar() {
                     fontWeight: 900
                   }}
                 >
-                  ✕ Close
+                  âœ• Close
                 </button>
                 <img
                   src={zoomedCover.src}
@@ -1503,7 +1503,7 @@ function MusicLibrarySidebar({ accentColor }) {
     let cancelled = false;
     const checkOwncastStatus = async () => {
       try {
-        const response = await fetch("https://pacific-dollars-halifax-abroad.trycloudflare.com/api/status", { cache: "no-store" });
+        const response = await fetch("https://university-seems-luther-environmental.trycloudflare.com/api/status", { cache: "no-store" });
         const status = await response.json();
         if (!cancelled) setOwncastOnline(Boolean(status.online));
       } catch {
@@ -1529,7 +1529,7 @@ function MusicLibrarySidebar({ accentColor }) {
     { id: "athf", label: "ADULT SWIM ZONE", heading: "ADULT SWIM ZONE", url: "https://www.adultswim.com/streams/aqua-teen-hunger-force", embed: true },
     { id: "youtube", label: "YOUTUBE", heading: "YOUTUBE", url: "https://www.youtube.com/", embed: false },
     { id: "southpark", label: "SOUTH PARK WORLD", heading: "SOUTH PARK WORLD", url: "https://southpark.cc.com/seasons/south-park", embed: false },
-    { id: "jellyfin", label: "FUIT JELLYFIN", heading: "FUIT JELLYFIN", url: "https://pressure-orchestra-beach-cancellation.trycloudflare.com/web/", embed: true },
+    { id: "jellyfin", label: "FUIT JELLYFIN", heading: "FUIT JELLYFIN", url: "https://journalists-contracts-cottage-institution.trycloudflare.com/web/", embed: true },
     { id: "fattys", label: "FUITS LIVE TV WORLD", heading: "FUITS LIVE TV WORLD", custom: true }
   ];
   const activeLiveTvOption = liveTvOptions.find(option => option.id === activeLiveTv) || liveTvOptions[0];
@@ -1651,7 +1651,7 @@ function MusicLibrarySidebar({ accentColor }) {
           gap: 10
         }}>
           <span>{activeMediaMenu === "music" ? "Fuit Music" : "Fuit LIVE TV"}</span>
-          <span style={{ fontSize: 12, fontWeight: 1000 }}>{mediaMenuOpen ? "▲" : "▼"}</span>
+          <span style={{ fontSize: 12, fontWeight: 1000 }}>{mediaMenuOpen ? "â–²" : "â–¼"}</span>
         </button>
         {mediaMenuOpen && (
           <div style={{
@@ -1771,7 +1771,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 gap: 10
               }}>
                 <span>{activeLiveTvOption.label}</span>
-                <span>{liveTvMenuOpen ? "▲" : "▼"}</span>
+                <span>{liveTvMenuOpen ? "â–²" : "â–¼"}</span>
               </button>
               {liveTvMenuOpen && (
                 <div style={{
@@ -2021,7 +2021,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "jellyfin" || activeLiveTvOption.id === "athf") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://ver-videos-eden-treatments.trycloudflare.com/chat-only"
+                    src="https://wishlist-attended-retrieve-earnings.trycloudflare.com/chat-only"
                     height={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                     minHeight={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                   />
@@ -2056,7 +2056,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 {(activeLiveTvOption.id === "southpark" || activeLiveTvOption.id === "youtube" || activeLiveTvOption.id === "fuit") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src="https://ver-videos-eden-treatments.trycloudflare.com/chat-only"
+                    src="https://wishlist-attended-retrieve-earnings.trycloudflare.com/chat-only"
                     height={250}
                     minHeight={250}
                   />
@@ -2169,7 +2169,7 @@ function MusicLibrarySidebar({ accentColor }) {
             fontWeight: 900,
             whiteSpace: "nowrap"
           }}>
-            {openMusicSections.liveTv ? "▲" : "▼"}
+            {openMusicSections.liveTv ? "â–²" : "â–¼"}
           </span>
         </button>
         {openMusicSections.liveTv && (
@@ -2282,7 +2282,7 @@ function MusicLibrarySidebar({ accentColor }) {
             {selectedTrack.title}
           </div>
           <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 800, marginBottom: 8 }}>
-            {selectedTrack.artist || "Unknown Artist"} • {selectedTrack.genre || "Other"}
+            {selectedTrack.artist || "Unknown Artist"} â€¢ {selectedTrack.genre || "Other"}
           </div>
 
           {selectedTrack.type === "video" ? (
@@ -2308,7 +2308,7 @@ function MusicLibrarySidebar({ accentColor }) {
                   padding: "0 1px",
                   lineHeight: 1
                 }}>
-                  ★
+                  â˜…
                 </button>
               ))}
             </div>
@@ -2378,7 +2378,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 fontWeight: 900,
                 whiteSpace: "nowrap"
               }}>
-                {section.items.length} {openMusicSections[section.key] ? "▲" : "▼"}
+                {section.items.length} {openMusicSections[section.key] ? "â–²" : "â–¼"}
               </span>
             </button>
             {openMusicSections[section.key] && (section.items.length > 0 ? section.items.map(item => (
@@ -2401,7 +2401,7 @@ function MusicLibrarySidebar({ accentColor }) {
                     </div>
                   </div>
                   <div style={{ color: "#facc15", fontSize: 12, whiteSpace: "nowrap" }}>
-                    {"★".repeat(ratings[item.id] || 0)}{"☆".repeat(5 - (ratings[item.id] || 0))}
+                    {"â˜…".repeat(ratings[item.id] || 0)}{"â˜†".repeat(5 - (ratings[item.id] || 0))}
                   </div>
                 </div>
               </button>
@@ -2529,7 +2529,7 @@ function ProjectDropdown({ projects, activeId, onSelect, onManage }) {
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 140 }}>
           {active?.name || "Select project"}
         </span>
-        <span style={{ color: "#888", fontSize: 10, marginLeft: 2 }}>{open ? "▲" : "▼"}</span>
+        <span style={{ color: "#888", fontSize: 10, marginLeft: 2 }}>{open ? "â–²" : "â–¼"}</span>
       </button>
       {open && (
         <div style={{
@@ -2553,7 +2553,7 @@ function ProjectDropdown({ projects, activeId, onSelect, onManage }) {
             >
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: p.color, flexShrink: 0 }} />
               <span style={{ flex: 1 }}>{p.name}</span>
-              {p.id === activeId && <span style={{ color: "#A8D5A2", fontSize: 11 }}>✓</span>}
+              {p.id === activeId && <span style={{ color: "#A8D5A2", fontSize: 11 }}>âœ“</span>}
             </button>
           ))}
           <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
@@ -2939,7 +2939,7 @@ function CreditHubPage({ onClose }) {
             <div style={{ fontSize: 28, fontWeight: 950, letterSpacing: -.5 }}>FUIT Credit Hub</div>
             <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 800 }}>Casino + sportsbook use credits. FUIT Coin vault is admin-only and separate.</div>
           </div>
-          <button onClick={onClose} style={softBtn}>← Back</button>
+          <button onClick={onClose} style={softBtn}>â† Back</button>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 12 }}>
@@ -2981,7 +2981,7 @@ function CreditHubPage({ onClose }) {
           <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
             {(hub.odds?.events || []).slice(0, 8).map(ev => (
               <button key={ev.id} onClick={() => setBetForm(f => ({ ...f, event: `${ev.home_team || "Home"} vs ${ev.away_team || "Away"}`, pick: ev.home_team || "Home", odds: ev.bookmakers?.[0]?.markets?.[0]?.outcomes?.[0]?.price || "" }))} style={{ ...softBtn, textAlign: "left" }}>
-                {ev.sport_title} — {ev.home_team || "Home"} vs {ev.away_team || "Away"} · {ev.commence_time ? new Date(ev.commence_time).toLocaleString() : "Prematch"}
+                {ev.sport_title} â€” {ev.home_team || "Home"} vs {ev.away_team || "Away"} Â· {ev.commence_time ? new Date(ev.commence_time).toLocaleString() : "Prematch"}
               </button>
             ))}
           </div>
@@ -3048,11 +3048,11 @@ function CreditHubPage({ onClose }) {
               {stat("Online Users", (hub.users || []).filter(u => u.online).length)}
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div style={card}><div style={{ fontWeight: 950, marginBottom: 8 }}>Pending Deposits</div>{(hub.pendingDeposits || []).filter(d => d.status === "PENDING").map(d => <div key={d.id} style={{ borderTop: "1px solid rgba(255,255,255,.12)", padding: "8px 0" }}>{d.username} · {money(d.amount)} {d.coin}<br/><small>{d.txHash || "No TX hash"}</small><div style={{ display: "flex", gap: 6, marginTop: 6 }}><button onClick={() => approveDeposit(d.id)} style={btn}>Approve</button><button onClick={() => rejectDeposit(d.id)} style={softBtn}>Reject</button></div></div>)}</div>
-              <div style={card}><div style={{ fontWeight: 950, marginBottom: 8 }}>Pending Withdrawals</div>{(hub.pendingWithdrawals || []).filter(w => w.status === "PENDING").map(w => <div key={w.id} style={{ borderTop: "1px solid rgba(255,255,255,.12)", padding: "8px 0" }}>{w.username} · {money(w.amount)} credits → {money(w.netAmount)} {w.coin}<br/><small>{w.walletAddress}</small><div style={{ display: "flex", gap: 6, marginTop: 6 }}><button onClick={() => completeWithdrawal(w.id)} style={btn}>Paid</button><button onClick={() => rejectWithdrawal(w.id)} style={softBtn}>Reject</button></div></div>)}</div>
+              <div style={card}><div style={{ fontWeight: 950, marginBottom: 8 }}>Pending Deposits</div>{(hub.pendingDeposits || []).filter(d => d.status === "PENDING").map(d => <div key={d.id} style={{ borderTop: "1px solid rgba(255,255,255,.12)", padding: "8px 0" }}>{d.username} Â· {money(d.amount)} {d.coin}<br/><small>{d.txHash || "No TX hash"}</small><div style={{ display: "flex", gap: 6, marginTop: 6 }}><button onClick={() => approveDeposit(d.id)} style={btn}>Approve</button><button onClick={() => rejectDeposit(d.id)} style={softBtn}>Reject</button></div></div>)}</div>
+              <div style={card}><div style={{ fontWeight: 950, marginBottom: 8 }}>Pending Withdrawals</div>{(hub.pendingWithdrawals || []).filter(w => w.status === "PENDING").map(w => <div key={w.id} style={{ borderTop: "1px solid rgba(255,255,255,.12)", padding: "8px 0" }}>{w.username} Â· {money(w.amount)} credits â†’ {money(w.netAmount)} {w.coin}<br/><small>{w.walletAddress}</small><div style={{ display: "flex", gap: 6, marginTop: 6 }}><button onClick={() => completeWithdrawal(w.id)} style={btn}>Paid</button><button onClick={() => rejectWithdrawal(w.id)} style={softBtn}>Reject</button></div></div>)}</div>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div style={card}><div style={{ fontWeight: 950, marginBottom: 8 }}>Open Bets</div>{(hub.bets || []).filter(b => b.status === "OPEN").map(b => <div key={b.id} style={{ borderTop: "1px solid rgba(255,255,255,.12)", padding: "8px 0" }}>{b.event}<br/><small>{b.pick} · stake {money(b.stake)} · payout {money(b.potentialPayout)}</small><div style={{ display: "flex", gap: 6, marginTop: 6 }}><button onClick={() => settleBet(b.id, "WIN")} style={btn}>Win</button><button onClick={() => settleBet(b.id, "LOSS")} style={softBtn}>Loss</button><button onClick={() => settleBet(b.id, "PUSH")} style={softBtn}>Push</button></div></div>)}</div>
+              <div style={card}><div style={{ fontWeight: 950, marginBottom: 8 }}>Open Bets</div>{(hub.bets || []).filter(b => b.status === "OPEN").map(b => <div key={b.id} style={{ borderTop: "1px solid rgba(255,255,255,.12)", padding: "8px 0" }}>{b.event}<br/><small>{b.pick} Â· stake {money(b.stake)} Â· payout {money(b.potentialPayout)}</small><div style={{ display: "flex", gap: 6, marginTop: 6 }}><button onClick={() => settleBet(b.id, "WIN")} style={btn}>Win</button><button onClick={() => settleBet(b.id, "LOSS")} style={softBtn}>Loss</button><button onClick={() => settleBet(b.id, "PUSH")} style={softBtn}>Push</button></div></div>)}</div>
               <div style={card}><div style={{ fontWeight: 950, marginBottom: 8 }}>FUIT Coin Vault Admin Only</div><div style={{ color: "#cbd5e1", fontSize: 12 }}>1 FUIT = 1 stablecoin reserve target. This screen tracks it; actual Polygon token deployment is separate.</div>{stat("Stable Reserve", `${money(hub.fuitCoin?.stableReserve)} ${hub.fuitCoin?.backingCoin || "USDC"}`)}{stat("FUIT Supply", money(hub.fuitCoin?.totalSupply))}<div style={{ display: "flex", gap: 8, marginTop: 8 }}><input id="fuitMintAmount" placeholder="Amount" style={input} /><button onClick={() => { const el = document.getElementById("fuitMintAmount"); mintFuit(el.value); el.value = ""; }} style={btn}>Mint</button><button onClick={() => { const el = document.getElementById("fuitMintAmount"); burnFuit(el.value); el.value = ""; }} style={softBtn}>Burn</button></div></div>
             </div>
           </div>}
@@ -3391,7 +3391,7 @@ export default function App() {
                   cursor: "pointer"
                 }}
               >
-                ✕ Close
+                âœ• Close
               </button>
               <input
                 value={inAppBrowserUrl}
@@ -3477,13 +3477,13 @@ export default function App() {
             onClick={() => setView("creditHub")}
             style={{ border: "none", borderRadius: 999, padding: "8px 12px", background: "linear-gradient(135deg,#22c55e,#38bdf8)", color: "#06111f", cursor: "pointer", fontSize: 12, fontWeight: 950, boxShadow: theme.shadow }}
           >
-            💰 Credit Hub
+            ðŸ’° Credit Hub
           </button>
           <button
             onClick={() => setView(view === "settings" ? "week" : "settings")}
             style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, textShadow: readableTextShadow }}
           >
-            {view === "settings" ? "✕" : "⚙"}
+            {view === "settings" ? "âœ•" : "âš™"}
           </button>
         </div>
         {view === "week" && (
@@ -3511,7 +3511,7 @@ export default function App() {
                   textShadow: isMusicPlaying ? "none" : readableTextShadow
                 }}
               >
-                {isMusicPlaying ? "⏸ Pause Soundtrack" : "▶ Play Soundtrack"}
+                {isMusicPlaying ? "â¸ Pause Soundtrack" : "â–¶ Play Soundtrack"}
               </button>
             </div>
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", margin: "-6px 0 14px" }}>
@@ -3529,16 +3529,16 @@ export default function App() {
               />
             </div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <button onClick={() => setWeekOffset(w => w - 1)} style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, padding: "4px 8px" }}>‹</button>
+              <button onClick={() => setWeekOffset(w => w - 1)} style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, padding: "4px 8px" }}>â€¹</button>
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 13, color: headerLabelColor, fontFamily: "system-ui", fontWeight: 900, textShadow: readableTextShadow }}>
                   {weekOffset === 0 ? "This Week" : weekOffset === -1 ? "Last Week" : `${Math.abs(weekOffset)}w ${weekOffset < 0 ? "ago" : "ahead"}`}
                 </div>
                 <div style={{ fontSize: 12, color: headerMutedColor, fontFamily: "system-ui", fontWeight: 800, textShadow: readableTextShadow }}>
-                  {formatDate(weekDates[0])} – {formatDate(weekDates[6])}
+                  {formatDate(weekDates[0])} â€“ {formatDate(weekDates[6])}
                 </div>
               </div>
-              <button onClick={() => setWeekOffset(w => w + 1)} style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, padding: "4px 8px" }}>›</button>
+              <button onClick={() => setWeekOffset(w => w + 1)} style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, padding: "4px 8px" }}>â€º</button>
             </div>
             <div style={{ marginTop: 14, background: theme.statsBg, borderRadius: 12, padding: "14px 16px", boxShadow: theme.shadow, border: `1px solid ${theme.line}`, ...glassStyle }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
@@ -3627,7 +3627,7 @@ export default function App() {
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: accentColor, flexShrink: 0 }} />
               <label style={{ fontSize: 12, color: "#888", textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui" }}>
-                {activeProject?.name} — Hourly Rate
+                {activeProject?.name} â€” Hourly Rate
               </label>
             </div>
             <div style={{ display: "flex", alignItems: "center", marginTop: 8, gap: 10 }}>
@@ -3708,7 +3708,7 @@ export default function App() {
                 </div>
                 <button onClick={toggleMusic}
                   style={{ width: "100%", padding: "13px", background: accentColor, color: "#111827", border: "none", borderRadius: 12, fontSize: 15, cursor: "pointer", fontFamily: "Georgia, serif", marginBottom: 12, fontWeight: 900 }}>
-                  {isMusicPlaying ? "⏸ Pause Music" : "▶ Play Music"}
+                  {isMusicPlaying ? "â¸ Pause Music" : "â–¶ Play Music"}
                 </button>
                 <label style={{ display: "block", fontSize: 12, color: theme.muted, textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui", marginBottom: 8, fontWeight: 800 }}>
                   Volume: {Math.round((musicSettings.volume ?? 0.35) * 100)}%
@@ -3735,14 +3735,14 @@ export default function App() {
             <div style={{ fontSize: 12, color: theme.muted, textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui", marginBottom: 14 }}>Backup & Restore</div>
             <button onClick={exportData}
               style={{ width: "100%", padding: "13px", background: theme.buttonBg, color: theme.buttonText, border: "none", borderRadius: 12, fontSize: 15, cursor: "pointer", fontFamily: "Georgia, serif", marginBottom: 10 }}>
-              ↓ Export Backup
+              â†“ Export Backup
             </button>
             <input ref={importRef} type="file" accept=".json" onChange={importData} style={{ display: "none" }} />
             <button onClick={() => importRef.current?.click()}
               style={{ width: "100%", padding: "13px", background: "transparent", color: appTextColor, border: `2px solid ${theme.line}`, borderRadius: 12, fontSize: 15, cursor: "pointer", fontFamily: "Georgia, serif" }}>
-              ↑ Import Backup
+              â†‘ Import Backup
             </button>
-            <div style={{ fontSize: 12, color: "#aaa", marginTop: 10, fontFamily: "system-ui" }}>Export regularly to keep your data safe. Import restores everything — projects, rates, and all entries.</div>
+            <div style={{ fontSize: 12, color: "#aaa", marginTop: 10, fontFamily: "system-ui" }}>Export regularly to keep your data safe. Import restores everything â€” projects, rates, and all entries.</div>
           </div>
         </div>
       )}
@@ -3752,7 +3752,7 @@ export default function App() {
         <div style={{ padding: 24 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <div style={{ fontSize: 22, color: "#1C1C1E" }}>Projects</div>
-            <button onClick={() => setView("week")} style={{ background: "none", border: "none", color: vibrantLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, textShadow: readableTextShadow }}>✕</button>
+            <button onClick={() => setView("week")} style={{ background: "none", border: "none", color: vibrantLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, textShadow: readableTextShadow }}>âœ•</button>
           </div>
           <div style={{ marginBottom: 24 }}>
             {projects.map(p => (
@@ -3828,20 +3828,20 @@ export default function App() {
                   {hasEntry ? (
                     <div>
                       <div style={{ fontSize: 14, color: today_ ? theme.headerText : dayCardText, fontFamily: "system-ui", fontWeight: 800, textShadow: readableTextShadow }}>
-                        {to12Hour(e.start)} → {to12Hour(e.end)}
+                        {to12Hour(e.start)} â†’ {to12Hour(e.end)}
                         {e.breaks && e.breaks.length > 0 && (
-                          <span style={{ color: "#aaa", fontSize: 12 }}> − {totalBreakMins(e.breaks)}m break</span>
+                          <span style={{ color: "#aaa", fontSize: 12 }}> âˆ’ {totalBreakMins(e.breaks)}m break</span>
                         )}
                       </div>
                       {e.splitShift && e.start2 && e.end2 && (
                         <div style={{ fontSize: 12, color: today_ ? "#888" : "#aaa", fontFamily: "system-ui", marginTop: 2 }}>
-                          + {to12Hour(e.start2)} → {to12Hour(e.end2)}
+                          + {to12Hour(e.start2)} â†’ {to12Hour(e.end2)}
                         </div>
                       )}
                       {e.splitShift && (e.extraShifts || []).map((shift, idx) => (
                         shift.start && shift.end ? (
                           <div key={idx} style={{ fontSize: 12, color: today_ ? "#888" : "#aaa", fontFamily: "system-ui", marginTop: 2 }}>
-                            + {to12Hour(shift.start)} → {to12Hour(shift.end)}
+                            + {to12Hour(shift.start)} â†’ {to12Hour(shift.end)}
                           </div>
                         ) : null
                       ))}
@@ -3968,7 +3968,7 @@ export default function App() {
                 fontSize: 13, fontFamily: "system-ui", marginBottom: 16,
               }}
             >
-              <span style={{ fontSize: 16, lineHeight: 1 }}>{form.splitShift ? "−" : "+"}</span>
+              <span style={{ fontSize: 16, lineHeight: 1 }}>{form.splitShift ? "âˆ’" : "+"}</span>
               {form.splitShift ? "Remove split shift" : "Add split shift"}
             </button>
 

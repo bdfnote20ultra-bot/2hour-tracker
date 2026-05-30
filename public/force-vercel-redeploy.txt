@@ -1,2 +1,1 @@
-Force redeploy update
-2026-05-12T08:42:59.801781Z
+Redeploy forced after Cloudflare URL cleanup: 2026-05-30 16:34 CT

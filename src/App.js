@@ -608,9 +608,9 @@ function GamingCenterSecondPanel() {
 
 function PokemonSidebar() {
   const fuitsLiveTvChannelUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
-  const [games, setGames] = useState([]);
+  const [games, setGames] = useState(POKEMON_ROMS);
   const [activeSystem, setActiveSystem] = useState("GB");
-  const [activeGame, setActiveGame] = useState(null);
+  const [activeGame, setActiveGame] = useState(() => POKEMON_ROMS.find(game => game.system === "GB") || POKEMON_ROMS[0] || null);
   const [collapsed, setCollapsed] = useState(false);
   const [selectedArt, setSelectedArt] = useState("cover");
   const [zoomedCover, setZoomedCover] = useState(null);
@@ -701,6 +701,20 @@ function PokemonSidebar() {
   useEffect(() => {
     let cancelled = false;
     const loadGames = async () => {
+      const applyGames = (nextGames) => {
+        if (cancelled || !Array.isArray(nextGames) || !nextGames.length) return;
+        setGames(nextGames);
+        setActiveGame(current => {
+          const currentStillExists = current && nextGames.find(game => game.file === current.file && game.system === current.system);
+          if (currentStillExists) return currentStillExists;
+          return nextGames.find(game => game.system === activeSystem) || nextGames[0] || current;
+        });
+      };
+
+      applyGames(POKEMON_ROMS);
+
+      if (!fuitsLiveTvChannelUrl) return;
+
       try {
         const response = await fetch(`${fuitsLiveTvChannelUrl}/games.json`, { cache: "no-store" });
         const serverGames = await response.json();
@@ -715,12 +729,7 @@ function PokemonSidebar() {
             };
             return known ? { ...known, ...normalizedGame, year: known.year || game.year } : normalizedGame;
           });
-          setGames(merged);
-          setActiveGame(current => {
-            const currentStillExists = current && merged.find(game => game.file === current.file && game.system === current.system);
-            if (currentStillExists) return currentStillExists;
-            return merged.find(game => game.system === activeSystem) || merged[0] || current;
-          });
+          applyGames(merged);
         }
       } catch {}
     };

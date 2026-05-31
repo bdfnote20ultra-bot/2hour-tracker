@@ -612,6 +612,7 @@ function PokemonSidebar() {
   const [activeSystem, setActiveSystem] = useState("GB");
   const [activeGame, setActiveGame] = useState(() => POKEMON_ROMS.find(game => game.system === "GB") || POKEMON_ROMS[0] || null);
   const [collapsed, setCollapsed] = useState(false);
+  const [activeGamingApp, setActiveGamingApp] = useState("gaming-center");
   const [selectedArt, setSelectedArt] = useState("cover");
   const [zoomedCover, setZoomedCover] = useState(null);
   const [activeGameAssets, setActiveGameAssets] = useState({ manualUrl: "", backUrl: "" });
@@ -1097,7 +1098,14 @@ function PokemonSidebar() {
           image-rendering: pixelated;
         }
       `}</style>
-      <button onClick={() => setCollapsed(false)} style={{
+      <select
+        value={activeGamingApp}
+        onChange={event => {
+          setActiveGamingApp(event.target.value);
+          setCollapsed(false);
+        }}
+        aria-label="Choose gaming app"
+        style={{
         position: "sticky",
         top: 0,
         zIndex: 6,
@@ -1111,10 +1119,15 @@ function PokemonSidebar() {
         letterSpacing: 1,
         cursor: "pointer",
         boxShadow: "0 8px 22px rgba(239,68,68,.35)",
-        marginBottom: 12
-      }}>
-        {collapsed ? "Game" : "FUIT GAMING CENTER"}
-      </button>
+        marginBottom: 12,
+        textAlign: "center",
+        textAlignLast: "center",
+        appearance: "none"
+      }}
+      >
+        <option value="gaming-center">{collapsed ? "Game" : "FUIT GAMING CENTER"}</option>
+        <option value="live-gaming">FUIT LIVE GAMING</option>
+      </select>
 
       {!collapsed && (
         <>

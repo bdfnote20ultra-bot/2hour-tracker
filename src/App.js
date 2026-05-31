@@ -1121,7 +1121,15 @@ function PokemonSidebar() {
             gap: 10
           }}
         >
-          <span style={{ flex: 1 }}>{collapsed ? "Game" : activeGamingApp === "live-gaming" ? "FUIT LIVE GAMING" : "FUIT GAMING CENTER"}</span>
+          <span style={{ flex: 1 }}>
+            {collapsed
+              ? "Game"
+              : activeGamingApp === "live-gaming"
+                ? "FUIT LIVE GAMING"
+                : activeGamingApp === "multiplayer"
+                  ? "FUIT MULTIPLAYER"
+                  : "FUIT GAMING CENTER"}
+          </span>
           {!collapsed && <span style={{ fontSize: 12, fontWeight: 1000 }}>{gamingMenuOpen ? "^" : "v"}</span>}
         </button>
         {gamingMenuOpen && !collapsed && (
@@ -1139,6 +1147,7 @@ function PokemonSidebar() {
           }}>
             {[
               { value: "gaming-center", label: "FUIT GAMING CENTER" },
+              { value: "multiplayer", label: "FUIT MULTIPLAYER" },
               { value: "live-gaming", label: "FUIT LIVE GAMING" }
             ].map(option => (
               <button
@@ -1179,6 +1188,26 @@ function PokemonSidebar() {
           border: "2px solid rgba(56,189,248,.28)",
           boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)"
         }} />
+      ) : activeGamingApp === "multiplayer" ? (
+        <div style={{
+          width: "100%",
+          minHeight: 245,
+          borderRadius: 22,
+          background: "linear-gradient(180deg, rgba(20,83,45,.92), rgba(15,23,42,.96))",
+          border: "2px solid rgba(34,197,94,.42)",
+          boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)",
+          display: "grid",
+          placeItems: "center",
+          padding: 18,
+          color: "#dcfce7",
+          textAlign: "center",
+          fontWeight: 1000
+        }}>
+          <div>
+            <div style={{ fontSize: 18, color: "#bbf7d0", marginBottom: 8 }}>FUIT MULTIPLAYER</div>
+            <div style={{ fontSize: 12, color: "#86efac", lineHeight: 1.35 }}>Multiplayer lobby coming online here.</div>
+          </div>
+        </div>
       ) : (
         <>
           <div style={{
@@ -1599,6 +1628,35 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
     return Math.max(0, Math.min(channel.offsetSeconds || 0, Math.max(0, (currentItem.duration || 1) - 1)));
   }, [channel, currentItem]);
 
+  const getLiveOffsetSeconds = useCallback((snapshot = channel, item = currentItem) => {
+    if (!snapshot || !item) return 0;
+    const duration = Number(item.duration) || 1;
+    const generatedAtMs = Number(snapshot.generatedAtMs);
+    const elapsedSinceSnapshot = Number.isFinite(generatedAtMs)
+      ? Math.max(0, (Date.now() - generatedAtMs) / 1000)
+      : 0;
+    return Math.max(0, Math.min((snapshot.offsetSeconds || 0) + elapsedSinceSnapshot, Math.max(0, duration - 0.25)));
+  }, [channel, currentItem]);
+
+  const syncVideoToLiveOffset = useCallback((force = false) => {
+    const video = videoRef.current;
+    if (!video || !channel || !currentItem || !Number.isFinite(video.duration)) return;
+
+    const liveOffset = getLiveOffsetSeconds(channel, currentItem);
+    const driftSeconds = video.currentTime - liveOffset;
+    if (force || Math.abs(driftSeconds) > 1.25) {
+      try {
+        video.currentTime = liveOffset;
+        video.playbackRate = 1;
+      } catch {
+        setVideoError("Video loaded, but the stream could not seek. Try Next or restart the tunnel.");
+      }
+      return;
+    }
+
+    video.playbackRate = driftSeconds < -0.35 ? 1.08 : 1;
+  }, [channel, currentItem, getLiveOffsetSeconds]);
+
   useEffect(() => {
     if (!baseUrl) return;
     const preconnect = document.createElement("link");
@@ -1668,13 +1726,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
 
     const syncTime = () => {
       if (!Number.isFinite(video.duration)) return;
-      if (Math.abs(video.currentTime - currentOffsetSeconds) > 3) {
-        try {
-          video.currentTime = currentOffsetSeconds;
-        } catch {
-          setVideoError("Video loaded, but the stream could not seek. Try Next or restart the tunnel.");
-        }
-      }
+      syncVideoToLiveOffset(true);
       syncedVideoSrcRef.current = videoSrc;
     };
 
@@ -1683,7 +1735,13 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
       video.addEventListener("loadedmetadata", syncTime, { once: true });
       return () => video.removeEventListener("loadedmetadata", syncTime);
     }
-  }, [channel, currentItem, currentOffsetSeconds, videoSrc]);
+  }, [channel, currentItem, currentOffsetSeconds, videoSrc, syncVideoToLiveOffset]);
+
+  useEffect(() => {
+    if (!videoSrc) return undefined;
+    const timer = window.setInterval(() => syncVideoToLiveOffset(false), 2000);
+    return () => window.clearInterval(timer);
+  }, [videoSrc, syncVideoToLiveOffset]);
 
   const playCurrentVideo = () => {
     const video = videoRef.current;

@@ -743,7 +743,8 @@ function getRadioSnapshot(channelId) {
     playlist,
     currentIndex,
     offsetSeconds: Math.max(0, elapsed - cursor),
-    totalDuration
+    totalDuration,
+    generatedAtMs: Date.now()
   };
 }
 
@@ -842,7 +843,8 @@ function getChannelSnapshot(channelId) {
     playlist,
     currentIndex,
     offsetSeconds: Math.max(0, elapsed - cursor),
-    totalDuration
+    totalDuration,
+    generatedAtMs: Date.now()
   };
 }
 
@@ -2075,6 +2077,7 @@ function pageHtml() {
     let currentIndex = 0;
     let currentItemId = null;
     let currentItemSrc = null;
+    let syncMainPlayerToLive = () => {};
     let ownerPassword = "";
     let liveAnnouncementOnline = false;
     let liveHls = null;
@@ -2259,11 +2262,23 @@ function pageHtml() {
       }
 
       const offset = Math.max(0, Math.min(channel.offsetSeconds || 0, Math.max(0, item.duration - 1)));
+      const getLiveOffset = () => {
+        const generatedAtMs = Number(channel.generatedAtMs);
+        const elapsedSinceSnapshot = Number.isFinite(generatedAtMs) ? Math.max(0, (Date.now() - generatedAtMs) / 1000) : 0;
+        return Math.max(0, Math.min(offset + elapsedSinceSnapshot, Math.max(0, item.duration - 0.25)));
+      };
       const syncTime = () => {
-        if (Number.isFinite(player.duration) && Math.abs(player.currentTime - offset) > 3) {
-          player.currentTime = offset;
+        if (!Number.isFinite(player.duration)) return;
+        const liveOffset = getLiveOffset();
+        const driftSeconds = player.currentTime - liveOffset;
+        if (Math.abs(driftSeconds) > 1.25) {
+          player.currentTime = liveOffset;
+          player.playbackRate = 1;
+        } else {
+          player.playbackRate = driftSeconds < -0.35 ? 1.08 : 1;
         }
       };
+      syncMainPlayerToLive = syncTime;
 
       if (isNewItem && player.readyState >= 1) {
         syncTime();
@@ -2556,6 +2571,7 @@ function pageHtml() {
     loadChatGifs().catch(() => {});
     loadChat().catch(() => {});
     setInterval(() => loadChat().catch(() => {}), 5000);
+    setInterval(() => syncMainPlayerToLive(), 2000);
 
     async function safeSyncChannel() {
       try {
@@ -2950,6 +2966,7 @@ const server = http.createServer((req, res) => {
       currentIndex: channel.currentIndex,
       offsetSeconds: channel.offsetSeconds,
       totalDuration: channel.totalDuration,
+      generatedAtMs: channel.generatedAtMs,
       playlist: channel.playlist.map(item => ({
         id: item.id,
         title: item.title,

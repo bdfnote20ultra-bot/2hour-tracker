@@ -3723,8 +3723,8 @@ export default function App() {
           onClick={() => setView("week")}
           style={{
             position: "fixed",
-            top: 64,
-            left: "calc(50% - 220px)",
+            top: 58,
+            left: 86,
             zIndex: 20,
             background: "transparent",
             border: "none",

@@ -3719,6 +3719,29 @@ export default function App() {
   return (
     <div style={{ minHeight: "100vh", background: "#000", position: "relative" }}>
       {view === "week" && <PokemonSidebar />}
+      {view === "week" && (
+        <button
+          onClick={() => setView("gambling")}
+          style={{
+            position: "fixed",
+            top: 64,
+            left: 475,
+            zIndex: 20,
+            background: "transparent",
+            border: "none",
+            color: "#38bdf8",
+            cursor: "pointer",
+            fontSize: 22,
+            fontWeight: 1000,
+            letterSpacing: .6,
+            textTransform: "uppercase",
+            textShadow: "0 2px 10px rgba(56,189,248,.45)",
+            fontFamily: "system-ui"
+          }}
+        >
+          GAMBLING
+        </button>
+      )}
       {view === "week" && <MusicLibrarySidebar accentColor={accentColor} />}
       <div style={{ minHeight: "100vh", background: pageBackground, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed", fontFamily: theme.font, maxWidth: 480, margin: "0 auto", color: appTextColor, transition: "background 0.25s ease, color 0.25s ease", position: "relative", zIndex: 5 }}>
       {activeMusicSrc && <audio ref={musicRef} src={activeMusicSrc} loop playsInline onPlay={() => setIsMusicPlaying(true)} onPause={() => setIsMusicPlaying(false)} onEnded={() => setIsMusicPlaying(false)} />}
@@ -3991,6 +4014,28 @@ export default function App() {
           </>
         )}
       </div>
+
+      {view === "gambling" && (
+        <div style={{ minHeight: "100vh", background: "#000", padding: "28px 32px", boxSizing: "border-box" }}>
+          <button
+            onClick={() => setView("week")}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#38bdf8",
+              cursor: "pointer",
+              fontSize: 20,
+              fontWeight: 1000,
+              letterSpacing: .6,
+              textTransform: "uppercase",
+              textShadow: "0 2px 10px rgba(56,189,248,.45)",
+              fontFamily: "system-ui"
+            }}
+          >
+            HOME
+          </button>
+        </div>
+      )}
 
       {/* Settings View */}
       {view === "settings" && (

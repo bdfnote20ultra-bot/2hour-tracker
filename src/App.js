@@ -1637,7 +1637,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
     video.preload = "auto";
     video.load();
     if (video.readyState >= 1) playWhenBuffered();
-  }, [videoSrc, playerMuted, playerVolume, currentOffsetSeconds]);
+  }, [videoSrc, playerMuted, playerVolume]);
 
   const retryVideo = () => {
     const video = videoRef.current;

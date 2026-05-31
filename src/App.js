@@ -1921,6 +1921,7 @@ function MusicLibrarySidebar({ accentColor }) {
     { id: "channel-a", label: "Channel A" },
     { id: "channel-b", label: "Channel B" },
     { id: "channel-fuits-live-tv-world", label: "FUITS LIVE TV WORLD" },
+    { id: "channel-movie-night", label: "MOVIE NIGHT" },
     { id: "channel-new-releases", label: "NEW RELEASES" },
     { id: "channel-sleep-chill", label: "SLEEP CHILL" }
   ];

@@ -1513,6 +1513,7 @@ function LiveChatBox({ title = "Live Chat", src, height = 250, minHeight = 250 }
 function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
   const STARTUP_BUFFER_SECONDS = 8;
   const videoRef = useRef(null);
+  const syncedVideoSrcRef = useRef("");
   const [channel, setChannel] = useState(null);
   const [status, setStatus] = useState("Loading FUITS Live TV...");
   const [playerMuted, setPlayerMuted] = useState(false);
@@ -1572,7 +1573,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !channel || !currentItem) return;
+    if (!video || !channel || !currentItem || !videoSrc || syncedVideoSrcRef.current === videoSrc) return;
 
     const syncTime = () => {
       if (!Number.isFinite(video.duration)) return;
@@ -1583,6 +1584,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
           setVideoError("Video loaded, but the stream could not seek. Try Next or restart the tunnel.");
         }
       }
+      syncedVideoSrcRef.current = videoSrc;
     };
 
     if (video.readyState >= 1) syncTime();
@@ -1590,19 +1592,11 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
       video.addEventListener("loadedmetadata", syncTime, { once: true });
       return () => video.removeEventListener("loadedmetadata", syncTime);
     }
-  }, [channel, currentItem, currentOffsetSeconds]);
+  }, [channel, currentItem, currentOffsetSeconds, videoSrc]);
 
   const playCurrentVideo = () => {
     const video = videoRef.current;
     if (!video) return;
-    if (Number.isFinite(video.duration) && Math.abs(video.currentTime - currentOffsetSeconds) > 3) {
-      try {
-        video.currentTime = currentOffsetSeconds;
-      } catch {
-        setVideoError("Video loaded, but the stream could not seek. Try Next or restart the tunnel.");
-        return;
-      }
-    }
     const playPromise = video.play();
     if (playPromise?.catch) playPromise.catch(() => {});
   };
@@ -1632,12 +1626,20 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
 
     setVideoLoading(true);
     setVideoError("");
+    syncedVideoSrcRef.current = "";
     video.muted = playerMuted;
     video.volume = playerVolume;
     video.preload = "auto";
     video.load();
     if (video.readyState >= 1) playWhenBuffered();
-  }, [videoSrc, playerMuted, playerVolume]);
+  }, [videoSrc]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = playerMuted;
+    video.volume = playerVolume;
+  }, [playerMuted, playerVolume]);
 
   const retryVideo = () => {
     const video = videoRef.current;

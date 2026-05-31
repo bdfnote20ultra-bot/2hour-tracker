@@ -2232,7 +2232,8 @@ function pageHtml() {
       const item = playlist[currentIndex];
       if (!item) return;
 
-      if (item.id !== currentItemId || item.src !== currentItemSrc) {
+      const isNewItem = item.id !== currentItemId || item.src !== currentItemSrc;
+      if (isNewItem) {
         rememberSoundUnlocked();
         currentItemId = item.id;
         currentItemSrc = item.src;
@@ -2249,10 +2250,10 @@ function pageHtml() {
         }
       };
 
-      if (player.readyState >= 1) {
+      if (isNewItem && player.readyState >= 1) {
         syncTime();
         playMainPlayerWhenBuffered();
-      } else {
+      } else if (isNewItem) {
         player.addEventListener("loadedmetadata", () => {
           syncTime();
           playMainPlayerWhenBuffered();

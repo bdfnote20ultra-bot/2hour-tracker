@@ -2129,7 +2129,7 @@ function pageHtml() {
     }
 
     function getStartupBufferSeconds() {
-      return activeChannelId === "channel-new-releases" ? 5 : 8;
+      return 4;
     }
 
     function playMainPlayerWhenBuffered() {

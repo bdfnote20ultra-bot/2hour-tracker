@@ -1510,7 +1510,7 @@ function LiveChatBox({ title = "Live Chat", src, height = 250, minHeight = 250 }
   );
 }
 
-function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 8 }) {
+function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 4 }) {
   const videoRef = useRef(null);
   const syncedVideoSrcRef = useRef("");
   const [channel, setChannel] = useState(null);
@@ -2310,7 +2310,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 <FuitsLiveTvPlayer
                   baseUrl={fuitsLiveTvChannelUrl}
                   channelId={activeFuitsLiveTvChannel}
-                  startupBufferSeconds={activeFuitsLiveTvChannel === "channel-new-releases" ? 5 : 8}
+                  startupBufferSeconds={4}
                 />
                 {renderFuitsOwnerControls()}
                 <LiveChatBox

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { MUSIC_LIBRARY } from "./musicLibraryData";
 import { FATTYS_LIVE_TV, FUITS_LIVE_TV_PLAYLIST } from "./fattysLiveTvData";
 
@@ -1558,30 +1558,34 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
     };
   }, [baseUrl]);
 
+  const loadChannel = useCallback(async () => {
+    const response = await fetch(`${baseUrl}/channel.json?channel=${encodeURIComponent(channelId)}&cache=${Date.now()}`, { cache: "no-store" });
+    const data = await response.json();
+    setChannel(data);
+    setStatus(data?.playlist?.length ? "" : "No videos found in FUITS Live TV.");
+    return data;
+  }, [baseUrl, channelId]);
+
   useEffect(() => {
     if (!baseUrl) return;
     let cancelled = false;
 
-    const loadChannel = async () => {
+    const refreshChannel = async () => {
       try {
-        const response = await fetch(`${baseUrl}/channel.json?channel=${encodeURIComponent(channelId)}&cache=${Date.now()}`, { cache: "no-store" });
-        const data = await response.json();
-        if (!cancelled) {
-          setChannel(data);
-          setStatus(data?.playlist?.length ? "" : "No videos found in FUITS Live TV.");
-        }
+        const data = await loadChannel();
+        if (cancelled || data?.playlist?.length) return;
       } catch {
         if (!cancelled) setStatus("FUITS Live TV did not load. Check the Cloudflare tunnel.");
       }
     };
 
-    loadChannel();
-    const timer = window.setInterval(loadChannel, 15000);
+    refreshChannel();
+    const timer = window.setInterval(refreshChannel, 15000);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [baseUrl, channelId]);
+  }, [baseUrl, loadChannel]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -1663,6 +1667,28 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
     if (playPromise?.catch) playPromise.catch(() => {});
   };
 
+  const handleVideoEnded = () => {
+    let attempts = 0;
+    const pollForNextItem = async () => {
+      attempts += 1;
+      setVideoLoading(true);
+      syncedVideoSrcRef.current = "";
+      try {
+        await loadChannel();
+      } catch {
+        setVideoError("FUITS Live TV did not load. Check the Cloudflare tunnel.");
+        return;
+      }
+
+      const video = videoRef.current;
+      if (video?.ended && attempts < 8) {
+        window.setTimeout(pollForNextItem, 1000);
+      }
+    };
+
+    pollForNextItem();
+  };
+
   return (
     <div style={{
       width: "100%",
@@ -1697,6 +1723,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
               setVideoLoading(false);
               setVideoError("");
             }}
+            onEnded={handleVideoEnded}
             onWaiting={() => setVideoLoading(true)}
             onStalled={() => setVideoError("Stream stalled. The tunnel or source video is not sending data fast enough.")}
             onError={() => setVideoError("This video did not load. Try Next, Shuffle, or restart the FUITS tunnel.")}

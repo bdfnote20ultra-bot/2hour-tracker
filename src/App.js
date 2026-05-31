@@ -2149,51 +2149,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 </div>
               )}
             </div>
-            {activeLiveTvOption.custom && owncastOnline && (
-              <>
-                <div style={{
-                  width: "100%",
-                  borderRadius: 14,
-                  border: "1px solid rgba(248,113,113,.42)",
-                  background: "rgba(127,29,29,.22)",
-                  overflow: "hidden"
-                }}>
-                  <div style={{
-                    padding: "9px 11px",
-                    color: "#fecaca",
-                    fontSize: 12,
-                    fontWeight: 1000,
-                    textTransform: "uppercase",
-                    letterSpacing: .8,
-                    borderBottom: "1px solid rgba(248,113,113,.24)"
-                  }}>
-                    Live Announcement On Air
-                  </div>
-                  <iframe
-                    title="Live Announcement"
-                    src="https://required-students-exist-offer.trycloudflare.com"
-                    allow="fullscreen; autoplay; encrypted-media; picture-in-picture"
-                    allowFullScreen
-                    style={{
-                      width: "100%",
-                      minHeight: 360,
-                      border: "none",
-                      background: "#020617"
-                    }}
-                  />
-                </div>
-                {renderFuitsOwnerControls()}
-                {fuitsLiveTvChatUrl && (
-                  <LiveChatBox
-                    title={`${FUITS_LIVE_TV_PLAYLIST.title} Chat`}
-                    src={fuitsLiveTvChatUrl}
-                    height={250}
-                    minHeight={250}
-                  />
-                )}
-              </>
-            )}
-            {activeLiveTvOption.custom && !owncastOnline && fuitsLiveTvChannelUrl && (
+            {activeLiveTvOption.custom && fuitsLiveTvChannelUrl && (
               <>
                 <select
                   value={activeFuitsLiveTvChannel}

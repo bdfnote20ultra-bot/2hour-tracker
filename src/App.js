@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { MUSIC_LIBRARY } from "./musicLibraryData";
-import { FATTYS_LIVE_TV, FUITS_LIVE_TV_PLAYLIST } from "./fattysLiveTvData";
+import { FATTYS_LIVE_TV, FUITS_LIVE_TV_PLAYLIST, APP_COPY_LABEL, APP_COPY_NOTE } from "./fattysLiveTvData";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const FULL_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -1504,6 +1504,14 @@ function PokemonSidebar() {
   );
 }
 
+function CopyBadge() {
+  return (
+    <div title={APP_COPY_NOTE} style={{ position: "fixed", left: 10, bottom: 10, zIndex: 30000, border: "1px solid rgba(56,189,248,.5)", borderRadius: 999, background: "rgba(2,6,23,.88)", color: "#bae6fd", padding: "5px 8px", fontSize: 10, fontWeight: 1000, fontFamily: "system-ui", letterSpacing: .6, pointerEvents: "none" }}>
+      {APP_COPY_LABEL}
+    </div>
+  );
+}
+
 function LiveChatBox({ title = "Live Chat", src, height = 250, minHeight = 250 }) {
   return (
     <iframe
@@ -1559,11 +1567,28 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
   }, [baseUrl]);
 
   const loadChannel = useCallback(async () => {
-    const response = await fetch(`${baseUrl}/channel.json?channel=${encodeURIComponent(channelId)}&cache=${Date.now()}`, { cache: "no-store" });
-    const data = await response.json();
-    setChannel(data);
-    setStatus(data?.playlist?.length ? "" : "No videos found in FUITS Live TV.");
-    return data;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 4000);
+    try {
+      const response = await fetch(`${baseUrl}/channel.json?channel=${encodeURIComponent(channelId)}&cache=${Date.now()}`, {
+        cache: "no-store",
+        signal: controller.signal
+      });
+      if (!response.ok) throw new Error("Channel feed failed");
+      const data = await response.json();
+      setChannel(data);
+      setStatus(data?.playlist?.length ? "" : "No videos found in FUITS Live TV.");
+      setVideoError("");
+      return data;
+    } catch (error) {
+      const message = "FUITS Live TV tunnel is offline or not answering. Use Restart Services, then refresh after the updater finishes.";
+      setVideoLoading(false);
+      setVideoError(message);
+      setStatus(message);
+      throw error;
+    } finally {
+      window.clearTimeout(timeout);
+    }
   }, [baseUrl, channelId]);
 
   useEffect(() => {
@@ -1575,7 +1600,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
         const data = await loadChannel();
         if (cancelled || data?.playlist?.length) return;
       } catch {
-        if (!cancelled) setStatus("FUITS Live TV did not load. Check the Cloudflare tunnel.");
+        if (!cancelled) setStatus("FUITS Live TV tunnel is offline or not answering. Use Restart Services, then refresh after the updater finishes.");
       }
     };
 
@@ -1667,6 +1692,27 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
     if (playPromise?.catch) playPromise.catch(() => {});
   };
 
+
+  const restartFuitsServices = async () => {
+    const password = window.prompt("Restart password");
+    if (!password) return;
+    try {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 5000);
+      const response = await fetch(`${baseUrl}/admin/restart-services`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+        signal: controller.signal
+      });
+      window.clearTimeout(timeout);
+      if (!response.ok) throw new Error("Restart failed");
+      window.alert("FUITS restart started. Wait for the updater to finish, then refresh this page.");
+    } catch {
+      window.alert("Restart command could not reach FUITS. Run START-ALL-SERVICES-UPDATE-URLS from the Desktop.");
+    }
+  };
+
   const handleVideoEnded = () => {
     let attempts = 0;
     const pollForNextItem = async () => {
@@ -1754,6 +1800,22 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
               lineHeight: 1.3
             }}>
               <span>{videoError || "Loading stream..."}</span>
+              <button
+                onClick={restartFuitsServices}
+                style={{
+                  border: "none",
+                  borderRadius: 10,
+                  background: "#22c55e",
+                  color: "#04111d",
+                  padding: "7px 9px",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontWeight: 1000,
+                  whiteSpace: "nowrap"
+                }}
+              >
+                Restart Services
+              </button>
               {videoError && (
                 <button
                   onClick={retryVideo}
@@ -1777,8 +1839,11 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
       ) : (
         <div style={{
           minHeight: 260,
-          display: "grid",
-          placeItems: "center",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 10,
           color: "#94a3b8",
           fontSize: 12,
           fontWeight: 900,
@@ -2049,15 +2114,22 @@ function MusicLibrarySidebar({ accentColor }) {
     {
       label: "Next",
       path: "/admin/next",
-      body: password => ({ password }),
+      body: password => ({ password, channel: activeFuitsLiveTvChannel }),
       success: "Next video started."
+    },
+    {
+      label: "Restart",
+      path: "/admin/restart-services",
+      body: password => ({ password }),
+      confirm: "Restart FUITS Live TV, Owncast, Jellyfin, and refresh Cloudflare URLs?",
+      success: "FUITS restart started. Use the new URL after the updater finishes."
     }
   ];
 
   const renderFuitsOwnerControls = () => (
     <div style={{
       display: "grid",
-      gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+      gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
       gap: 8,
       width: "100%"
     }}>
@@ -3402,6 +3474,17 @@ function CreditHubPage({ onClose }) {
   );
 }
 
+function EmptyUtilityPage({ title, onClose }) {
+  return (
+    <div style={{ minHeight: "100vh", background: "#020617", color: "#f8fafc", fontFamily: "system-ui, sans-serif", padding: 24 }}>
+      <button onClick={onClose} style={{ border: "1px solid rgba(148,163,184,.3)", borderRadius: 999, background: "rgba(15,23,42,.9)", color: "#f8fafc", cursor: "pointer", fontSize: 13, fontWeight: 900, padding: "9px 14px" }}>
+        Back
+      </button>
+      <h1 style={{ marginTop: 28, fontSize: 32, fontWeight: 1000, letterSpacing: .4 }}>{title}</h1>
+    </div>
+  );
+}
+
 function ProjectDropdown({ projects, activeId, onSelect, onManage }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -3757,9 +3840,19 @@ export default function App() {
     return <CreditHubPage onClose={() => setView("week")} />;
   }
 
-  if (view === "gambling") {
+  
+  if (view === "admin") {
+    return <EmptyUtilityPage title="ADMIN" onClose={() => setView("week")} />;
+  }
+
+  if (view === "news") {
+    return <EmptyUtilityPage title="NEWS" onClose={() => setView("week")} />;
+  }
+
+if (view === "gambling") {
     return (
       <div style={{ minHeight: "100vh", background: "#000", position: "relative" }}>
+      <CopyBadge />
         <aside className="pokemon-desktop-sidebar" style={{
           position: "fixed",
           left: 18,
@@ -3856,29 +3949,39 @@ export default function App() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#000", position: "relative" }}>
+      <CopyBadge />
       {view === "week" && <PokemonSidebar />}
       {view === "week" && (
-        <button
-          onClick={() => setView("gambling")}
-          style={{
-            position: "fixed",
-            top: 64,
-            left: 475,
-            zIndex: 20,
-            background: "transparent",
-            border: "none",
-            color: "#38bdf8",
-            cursor: "pointer",
-            fontSize: 22,
-            fontWeight: 1000,
-            letterSpacing: .6,
-            textTransform: "uppercase",
-            textShadow: "0 2px 10px rgba(56,189,248,.45)",
-            fontFamily: "system-ui"
-          }}
-        >
-          GAMBLING
-        </button>
+        <>
+          {[
+            { label: "GAMBLING", nextView: "gambling", top: 64 },
+            { label: "ADMIN", nextView: "admin", top: 104 },
+            { label: "NEWS", nextView: "news", top: 144 }
+          ].map(link => (
+            <button
+              key={link.nextView}
+              onClick={() => setView(link.nextView)}
+              style={{
+                position: "fixed",
+                top: link.top,
+                left: 475,
+                zIndex: 20,
+                background: "transparent",
+                border: "none",
+                color: "#38bdf8",
+                cursor: "pointer",
+                fontSize: 22,
+                fontWeight: 1000,
+                letterSpacing: .6,
+                textTransform: "uppercase",
+                textShadow: "0 2px 10px rgba(56,189,248,.45)",
+                fontFamily: "system-ui"
+              }}
+            >
+              {link.label}
+            </button>
+          ))}
+        </>
       )}
       {view === "week" && <MusicLibrarySidebar accentColor={accentColor} />}
       <div style={{ minHeight: "100vh", background: pageBackground, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed", fontFamily: theme.font, maxWidth: 480, margin: "0 auto", color: appTextColor, transition: "background 0.25s ease, color 0.25s ease", position: "relative", zIndex: 5 }}>

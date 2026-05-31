@@ -1,7 +1,7 @@
 const fs = require("fs");
 const http = require("http");
 const path = require("path");
-const { execSync } = require("child_process");
+const { execSync, spawn } = require("child_process");
 const { URL } = require("url");
 
 const PORT = Number(process.env.FUITS_TV_PORT || 8099);
@@ -13,6 +13,8 @@ const SHUFFLE_PASSWORD = "FOOLIO";
 const SITE_BLANK_PATH = path.join(__dirname, "site-blank.json");
 const FALLBACK_DURATION_SECONDS = 30 * 60;
 const OWNCAST_LOCAL_URL = "http://localhost:8080";
+const START_ALL_SERVICES_BAT = "C:\\Users\\newer\\Desktop\\START-ALL-SERVICES-UPDATE-URLS.bat";
+const START_ALL_SERVICES_PS1 = "T:\\FattysLiveTV\\Tools\\Start-AllServicesAndUpdateUrls.ps1";
 const CHAT_LOG_PATH = path.join(__dirname, "chat-log.json");
 const CHAT_MAX_AGE_MS = 4 * 60 * 60 * 1000;
 const CHAT_GIFS_DIR = path.join(ROOT, "ChatGifs");
@@ -3209,6 +3211,42 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+
+  if (url.pathname === "/admin/restart-services" && req.method === "POST") {
+    readRequestBody(req)
+      .then(body => {
+        const payload = JSON.parse(body || "{}");
+        if (payload.password !== SHUFFLE_PASSWORD) {
+          send(res, 401, "Unauthorized");
+          return;
+        }
+
+        const restartTarget = fs.existsSync(START_ALL_SERVICES_BAT)
+          ? { command: "cmd.exe", args: ["/c", "start", "", START_ALL_SERVICES_BAT] }
+          : fs.existsSync(START_ALL_SERVICES_PS1)
+            ? { command: "powershell.exe", args: ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", START_ALL_SERVICES_PS1] }
+            : null;
+
+        if (!restartTarget) {
+          send(res, 404, "Restart script not found");
+          return;
+        }
+
+        sendJson(res, 200, { ok: true, message: "FUITS services restart started." });
+        setTimeout(() => {
+          const child = spawn(restartTarget.command, restartTarget.args, {
+            detached: true,
+            windowsHide: false,
+            stdio: "ignore"
+          });
+          child.unref();
+        }, 250);
+      })
+      .catch(() => {
+        send(res, 400, "Bad request");
+      });
+    return;
+  }
   if (url.pathname === "/admin/site-blank" && req.method === "POST") {
     readRequestBody(req)
       .then(body => {

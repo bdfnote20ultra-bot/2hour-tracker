@@ -1128,6 +1128,8 @@ function PokemonSidebar() {
                 ? "FUIT LIVE GAMING"
                 : activeGamingApp === "multiplayer"
                   ? "FUIT MULTIPLAYER"
+                  : activeGamingApp === "free-games"
+                    ? "FREE GAMES"
                   : "FUIT GAMING CENTER"}
           </span>
           {!collapsed && <span style={{ fontSize: 12, fontWeight: 1000 }}>{gamingMenuOpen ? "^" : "v"}</span>}
@@ -1148,6 +1150,7 @@ function PokemonSidebar() {
             {[
               { value: "gaming-center", label: "FUIT GAMING CENTER" },
               { value: "multiplayer", label: "FUIT MULTIPLAYER" },
+              { value: "free-games", label: "FREE GAMES" },
               { value: "live-gaming", label: "FUIT LIVE GAMING" }
             ].map(option => (
               <button
@@ -1206,6 +1209,26 @@ function PokemonSidebar() {
           <div>
             <div style={{ fontSize: 18, color: "#bbf7d0", marginBottom: 8 }}>FUIT MULTIPLAYER</div>
             <div style={{ fontSize: 12, color: "#86efac", lineHeight: 1.35 }}>Multiplayer lobby coming online here.</div>
+          </div>
+        </div>
+      ) : activeGamingApp === "free-games" ? (
+        <div style={{
+          width: "100%",
+          minHeight: 245,
+          borderRadius: 22,
+          background: "linear-gradient(180deg, rgba(30,64,175,.92), rgba(15,23,42,.96))",
+          border: "2px solid rgba(96,165,250,.42)",
+          boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)",
+          display: "grid",
+          placeItems: "center",
+          padding: 18,
+          color: "#dbeafe",
+          textAlign: "center",
+          fontWeight: 1000
+        }}>
+          <div>
+            <div style={{ fontSize: 18, color: "#bfdbfe", marginBottom: 8 }}>FREE GAMES</div>
+            <div style={{ fontSize: 12, color: "#93c5fd", lineHeight: 1.35 }}>Free game links and launches will live here.</div>
           </div>
         </div>
       ) : (

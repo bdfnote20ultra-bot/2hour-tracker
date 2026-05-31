@@ -117,6 +117,11 @@ function getChannel(channelId) {
   return channels.find(channel => channel.id === channelId) || channels[0];
 }
 
+function shouldStartVideoFromBeginning(playlist, item) {
+  if (!item) return false;
+  return playlist.length === 1;
+}
+
 function getRadioChannels() {
   ensureRadioFolders();
   return fs.readdirSync(RADIO_PLAYLIST_DIR)
@@ -823,6 +828,7 @@ function getChannelSnapshot(channelId) {
       totalDuration: 0
     };
   }
+
   let elapsed = Math.floor(Date.now() / 1000) - state.startedAt;
   elapsed = ((elapsed % totalDuration) + totalDuration) % totalDuration;
 
@@ -836,6 +842,17 @@ function getChannelSnapshot(channelId) {
       break;
     }
     cursor += duration;
+  }
+
+  if (shouldStartVideoFromBeginning(playlist, playlist[currentIndex])) {
+    return {
+      channel,
+      playlist,
+      currentIndex,
+      offsetSeconds: 0,
+      totalDuration,
+      generatedAtMs: Date.now()
+    };
   }
 
   return {
@@ -1024,7 +1041,7 @@ function serveMediaFile(req, res, file, contentType) {
   const stat = fs.statSync(file);
   const range = req.headers.range;
   const isVideo = contentType.startsWith("video/");
-  const maxVideoChunkSize = 4 * 1024 * 1024;
+  const maxVideoChunkSize = 1024 * 1024;
 
   if (!range) {
     if (isVideo && req.method !== "HEAD") {

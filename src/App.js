@@ -1645,7 +1645,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
             playsInline
             muted={playerMuted}
             autoPlay
-            preload="auto"
+            preload="metadata"
             onLoadedMetadata={playCurrentVideo}
             onCanPlay={() => {
               setVideoLoading(false);

@@ -1514,6 +1514,8 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
   const videoRef = useRef(null);
   const [channel, setChannel] = useState(null);
   const [status, setStatus] = useState("Loading FUITS Live TV...");
+  const [playerMuted, setPlayerMuted] = useState(false);
+  const [playerVolume, setPlayerVolume] = useState(1);
   const currentItem = channel?.playlist?.[channel.currentIndex] || null;
   const videoSrc = currentItem?.src
     ? `${baseUrl}${currentItem.src.startsWith("/") ? "" : "/"}${currentItem.src}`
@@ -1559,6 +1561,16 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
     else video.addEventListener("loadedmetadata", syncTime, { once: true });
   }, [channel, currentItem]);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !videoSrc) return;
+
+    video.muted = playerMuted;
+    video.volume = playerVolume;
+    const playPromise = video.play();
+    if (playPromise?.catch) playPromise.catch(() => {});
+  }, [videoSrc, playerMuted, playerVolume]);
+
   return (
     <div style={{
       width: "100%",
@@ -1574,8 +1586,12 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
           src={videoSrc}
           controls
           playsInline
-          muted
+          muted={playerMuted}
           autoPlay
+          onVolumeChange={event => {
+            setPlayerMuted(event.currentTarget.muted);
+            setPlayerVolume(event.currentTarget.volume);
+          }}
           style={{
             width: "100%",
             minHeight: 260,
@@ -2134,52 +2150,9 @@ function MusicLibrarySidebar({ accentColor }) {
                 </div>
               )}
             </div>
-            {activeLiveTvOption.custom && owncastOnline && (
+            {activeLiveTvOption.custom && fuitsLiveTvChannelUrl && (
               <>
-                <div style={{
-                  width: "100%",
-                  borderRadius: 14,
-                  border: "1px solid rgba(248,113,113,.42)",
-                  background: "rgba(127,29,29,.22)",
-                  overflow: "hidden"
-                }}>
-                  <div style={{
-                    padding: "9px 11px",
-                    color: "#fecaca",
-                    fontSize: 12,
-                    fontWeight: 1000,
-                    textTransform: "uppercase",
-                    letterSpacing: .8,
-                    borderBottom: "1px solid rgba(248,113,113,.24)"
-                  }}>
-                    Live Announcement On Air
-                  </div>
-                  <iframe
-                    title="Live Announcement"
-                    src="https://required-students-exist-offer.trycloudflare.com"
-                    allow="fullscreen; autoplay; encrypted-media; picture-in-picture"
-                    allowFullScreen
-                    style={{
-                      width: "100%",
-                      minHeight: 360,
-                      border: "none",
-                      background: "#020617"
-                    }}
-                  />
-                </div>
-                {renderFuitsOwnerControls()}
-                {fuitsLiveTvChatUrl && (
-                  <LiveChatBox
-                    title={`${FUITS_LIVE_TV_PLAYLIST.title} Chat`}
-                    src={fuitsLiveTvChatUrl}
-                    height={250}
-                    minHeight={250}
-                  />
-                )}
-              </>
-            )}
-            {activeLiveTvOption.custom && !owncastOnline && fuitsLiveTvChannelUrl && (
-              <>`r`n                <select
+                <select
                   value={activeFuitsLiveTvChannel}
                   onChange={event => setActiveFuitsLiveTvChannel(event.target.value)}
                   style={{

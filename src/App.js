@@ -1516,9 +1516,17 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
   const [status, setStatus] = useState("Loading FUITS Live TV...");
   const [playerMuted, setPlayerMuted] = useState(false);
   const [playerVolume, setPlayerVolume] = useState(1);
+  const [videoLoading, setVideoLoading] = useState(false);
+  const [videoError, setVideoError] = useState("");
   const currentItem = channel?.playlist?.[channel.currentIndex] || null;
   const videoSrc = currentItem?.src
     ? `${baseUrl}${currentItem.src.startsWith("/") ? "" : "/"}${currentItem.src}`
+    : "";
+  const nextItem = channel?.playlist?.length
+    ? channel.playlist[(channel.currentIndex + 1) % channel.playlist.length]
+    : null;
+  const nextVideoSrc = nextItem?.src
+    ? `${baseUrl}${nextItem.src.startsWith("/") ? "" : "/"}${nextItem.src}`
     : "";
 
   useEffect(() => {
@@ -1552,24 +1560,45 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
 
     const offset = Math.max(0, Math.min(channel.offsetSeconds || 0, Math.max(0, (currentItem.duration || 1) - 1)));
     const syncTime = () => {
-      if (Number.isFinite(video.duration) && Math.abs(video.currentTime - offset) > 3) {
-        video.currentTime = offset;
+      if (!Number.isFinite(video.duration)) return;
+      if (Math.abs(video.currentTime - offset) > 3) {
+        try {
+          video.currentTime = offset;
+        } catch {
+          setVideoError("Video loaded, but the stream could not seek. Try Next or restart the tunnel.");
+        }
       }
     };
 
     if (video.readyState >= 1) syncTime();
-    else video.addEventListener("loadedmetadata", syncTime, { once: true });
+    else {
+      video.addEventListener("loadedmetadata", syncTime, { once: true });
+      return () => video.removeEventListener("loadedmetadata", syncTime);
+    }
   }, [channel, currentItem]);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !videoSrc) return;
 
+    setVideoLoading(true);
+    setVideoError("");
     video.muted = playerMuted;
     video.volume = playerVolume;
+    video.load();
     const playPromise = video.play();
     if (playPromise?.catch) playPromise.catch(() => {});
   }, [videoSrc, playerMuted, playerVolume]);
+
+  const retryVideo = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    setVideoLoading(true);
+    setVideoError("");
+    video.load();
+    const playPromise = video.play();
+    if (playPromise?.catch) playPromise.catch(() => {});
+  };
 
   return (
     <div style={{
@@ -1580,26 +1609,86 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
       overflow: "hidden"
     }}>
       {videoSrc ? (
-        <video
-          ref={videoRef}
-          key={videoSrc}
-          src={videoSrc}
-          controls
-          playsInline
-          muted={playerMuted}
-          autoPlay
-          onVolumeChange={event => {
-            setPlayerMuted(event.currentTarget.muted);
-            setPlayerVolume(event.currentTarget.volume);
-          }}
-          style={{
-            width: "100%",
-            minHeight: 260,
-            maxHeight: 420,
-            background: "#000",
-            display: "block"
-          }}
-        />
+        <>
+          <video
+            ref={videoRef}
+            src={videoSrc}
+            controls
+            playsInline
+            muted={playerMuted}
+            autoPlay
+            preload="auto"
+            onCanPlay={() => {
+              setVideoLoading(false);
+              setVideoError("");
+            }}
+            onLoadedData={() => {
+              setVideoLoading(false);
+              setVideoError("");
+            }}
+            onPlaying={() => {
+              setVideoLoading(false);
+              setVideoError("");
+            }}
+            onWaiting={() => setVideoLoading(true)}
+            onStalled={() => setVideoError("Stream stalled. The tunnel or source video is not sending data fast enough.")}
+            onError={() => setVideoError("This video did not load. Try Next, Shuffle, or restart the FUITS tunnel.")}
+            onVolumeChange={event => {
+              setPlayerMuted(event.currentTarget.muted);
+              setPlayerVolume(event.currentTarget.volume);
+            }}
+            style={{
+              width: "100%",
+              minHeight: 260,
+              maxHeight: 420,
+              background: "#000",
+              display: "block"
+            }}
+          />
+          {nextVideoSrc && nextVideoSrc !== videoSrc && (
+            <video
+              aria-hidden="true"
+              src={nextVideoSrc}
+              muted
+              preload="auto"
+              style={{ display: "none" }}
+            />
+          )}
+          {(videoLoading || videoError) && (
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10,
+              padding: "8px 10px",
+              color: videoError ? "#fecaca" : "#bfdbfe",
+              background: videoError ? "rgba(127,29,29,.36)" : "rgba(30,64,175,.24)",
+              borderTop: "1px solid rgba(148,163,184,.16)",
+              fontSize: 12,
+              fontWeight: 900,
+              lineHeight: 1.3
+            }}>
+              <span>{videoError || "Loading stream..."}</span>
+              {videoError && (
+                <button
+                  onClick={retryVideo}
+                  style={{
+                    border: "1px solid rgba(255,255,255,.24)",
+                    borderRadius: 999,
+                    padding: "6px 10px",
+                    background: "#111827",
+                    color: "#fff",
+                    cursor: "pointer",
+                    fontSize: 12,
+                    fontWeight: 900
+                  }}
+                >
+                  Retry
+                </button>
+              )}
+            </div>
+          )}
+        </>
       ) : (
         <div style={{
           minHeight: 260,

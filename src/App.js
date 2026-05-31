@@ -3415,8 +3415,7 @@ export default function App() {
   useEffect(() => { saveThemeId(themeId); }, [themeId]);
   useEffect(() => { saveCustomBackground(customBackground); }, [customBackground]);
   useEffect(() => { saveMusicSettings(musicSettings); }, [musicSettings]);
-  const builtInMusicSrc = `${process.env.PUBLIC_URL}/rickroll.mp3`;
-  const activeMusicSrc = musicData || builtInMusicSrc;
+  const activeMusicSrc = musicData || "";
 
   const hourlyRate = projectRates[activeProjectId] || 0;
   const setHourlyRate = (val) => setProjectRates(prev => ({ ...prev, [activeProjectId]: val }));
@@ -3575,7 +3574,10 @@ export default function App() {
 
   const toggleMusic = async () => {
     const audio = musicRef.current;
-    if (!audio) return;
+    if (!audio || !activeMusicSrc) {
+      alert("Choose a soundtrack file first.");
+      return;
+    }
     try {
       if (isMusicPlaying) {
         audio.pause();
@@ -3670,7 +3672,7 @@ export default function App() {
       {view === "week" && <PokemonSidebar />}
       {view === "week" && <MusicLibrarySidebar accentColor={accentColor} />}
       <div style={{ minHeight: "100vh", background: pageBackground, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed", fontFamily: theme.font, maxWidth: 480, margin: "0 auto", color: appTextColor, transition: "background 0.25s ease, color 0.25s ease", position: "relative", zIndex: 5 }}>
-      <audio ref={musicRef} src={activeMusicSrc} loop playsInline onPlay={() => setIsMusicPlaying(true)} onPause={() => setIsMusicPlaying(false)} onEnded={() => setIsMusicPlaying(false)} />
+      {activeMusicSrc && <audio ref={musicRef} src={activeMusicSrc} loop playsInline onPlay={() => setIsMusicPlaying(true)} onPause={() => setIsMusicPlaying(false)} onEnded={() => setIsMusicPlaying(false)} />}
       {inAppBrowserOpen && (
         <div
           style={{

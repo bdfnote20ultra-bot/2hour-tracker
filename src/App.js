@@ -1511,6 +1511,7 @@ function LiveChatBox({ title = "Live Chat", src, height = 250, minHeight = 250 }
 }
 
 function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
+  const STARTUP_BUFFER_SECONDS = 8;
   const videoRef = useRef(null);
   const [channel, setChannel] = useState(null);
   const [status, setStatus] = useState("Loading FUITS Live TV...");
@@ -1606,6 +1607,25 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
     if (playPromise?.catch) playPromise.catch(() => {});
   };
 
+  const getBufferedAheadSeconds = video => {
+    if (!video?.buffered?.length) return 0;
+    for (let i = 0; i < video.buffered.length; i += 1) {
+      if (video.currentTime >= video.buffered.start(i) && video.currentTime <= video.buffered.end(i)) {
+        return video.buffered.end(i) - video.currentTime;
+      }
+    }
+    return 0;
+  };
+
+  const playWhenBuffered = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    const enoughBuffered = getBufferedAheadSeconds(video) >= STARTUP_BUFFER_SECONDS;
+    if (video.readyState >= 3 && (enoughBuffered || video.duration - video.currentTime < STARTUP_BUFFER_SECONDS)) {
+      playCurrentVideo();
+    }
+  };
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !videoSrc) return;
@@ -1614,8 +1634,9 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
     setVideoError("");
     video.muted = playerMuted;
     video.volume = playerVolume;
+    video.preload = "auto";
     video.load();
-    if (video.readyState >= 1) playCurrentVideo();
+    if (video.readyState >= 1) playWhenBuffered();
   }, [videoSrc, playerMuted, playerVolume, currentOffsetSeconds]);
 
   const retryVideo = () => {
@@ -1645,11 +1666,14 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
             playsInline
             muted={playerMuted}
             autoPlay
-            preload="metadata"
-            onLoadedMetadata={playCurrentVideo}
+            preload="auto"
+            onLoadedMetadata={playWhenBuffered}
+            onProgress={playWhenBuffered}
+            onCanPlayThrough={playCurrentVideo}
             onCanPlay={() => {
               setVideoLoading(false);
               setVideoError("");
+              playWhenBuffered();
             }}
             onLoadedData={() => {
               setVideoLoading(false);

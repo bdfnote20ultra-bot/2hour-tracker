@@ -1011,7 +1011,7 @@ function serveMediaFile(req, res, file, contentType) {
   const stat = fs.statSync(file);
   const range = req.headers.range;
   const isVideo = contentType.startsWith("video/");
-  const maxVideoChunkSize = 16 * 1024 * 1024;
+  const maxVideoChunkSize = 256 * 1024 * 1024;
 
   if (!range) {
     if (isVideo && req.method !== "HEAD") {
@@ -1024,7 +1024,7 @@ function serveMediaFile(req, res, file, contentType) {
         "Content-Length": chunkSize,
         "Content-Type": contentType,
         "Access-Control-Allow-Origin": "*",
-        "Cache-Control": "no-store"
+        "Cache-Control": isVideo ? "public, max-age=3600" : "no-store"
       });
       fs.createReadStream(file, { start, end }).pipe(res);
       return;
@@ -1035,7 +1035,7 @@ function serveMediaFile(req, res, file, contentType) {
       "Content-Length": stat.size,
       "Accept-Ranges": "bytes",
       "Access-Control-Allow-Origin": "*",
-      "Cache-Control": "no-store"
+      "Cache-Control": isVideo ? "public, max-age=3600" : "no-store"
     });
     if (req.method === "HEAD") {
       res.end();
@@ -1061,7 +1061,7 @@ function serveMediaFile(req, res, file, contentType) {
       "Content-Range": `bytes */${stat.size}`,
       "Accept-Ranges": "bytes",
       "Access-Control-Allow-Origin": "*",
-      "Cache-Control": "no-store"
+      "Cache-Control": isVideo ? "public, max-age=3600" : "no-store"
     });
     res.end();
     return;
@@ -1076,7 +1076,7 @@ function serveMediaFile(req, res, file, contentType) {
     "Content-Length": chunkSize,
     "Content-Type": contentType,
     "Access-Control-Allow-Origin": "*",
-    "Cache-Control": "no-store"
+    "Cache-Control": isVideo ? "public, max-age=3600" : "no-store"
   });
   if (req.method === "HEAD") {
     res.end();
@@ -1975,7 +1975,7 @@ function pageHtml() {
       <div class="live">LIVE</div>
     </div>
     <div id="empty" class="empty" hidden>No MP4s found in the playlist yet.</div>
-    <video id="player" controls muted playsinline></video>
+    <video id="player" controls muted playsinline preload="auto"></video>
     <video id="livePlayer" class="live-video" controls muted playsinline hidden></video>
     <div class="now" id="now">Loading channel...</div>
     <div class="controls">
@@ -2070,6 +2070,7 @@ function pageHtml() {
     let activeChannelId = new URLSearchParams(window.location.search).get("channel") || localStorage.getItem("fuitsLiveTvChannel") || "channel-a";
     let stretchVideo = localStorage.getItem("fuitsLiveTvStretch") === "1";
     let soundUnlocked = localStorage.getItem("fuitsLiveTvSoundUnlocked") === "1";
+    const STARTUP_BUFFER_SECONDS = 8;
     chatName.value = localStorage.getItem("fuitsLiveTvChatName") || "";
 
     function updateChatNameUi() {
@@ -2116,6 +2117,23 @@ function pageHtml() {
           player.play().catch(() => {});
         }
       });
+    }
+
+    function getBufferedAheadSeconds(video) {
+      if (!video || !video.buffered || !video.buffered.length) return 0;
+      for (let i = 0; i < video.buffered.length; i += 1) {
+        if (video.currentTime >= video.buffered.start(i) && video.currentTime <= video.buffered.end(i)) {
+          return video.buffered.end(i) - video.currentTime;
+        }
+      }
+      return 0;
+    }
+
+    function playMainPlayerWhenBuffered() {
+      const enoughBuffered = getBufferedAheadSeconds(player) >= STARTUP_BUFFER_SECONDS;
+      if (player.readyState >= 3 && (enoughBuffered || player.duration - player.currentTime < STARTUP_BUFFER_SECONDS)) {
+        playMainPlayerWithBrowserFallback();
+      }
     }
 
     function renderChat(messages) {
@@ -2219,6 +2237,7 @@ function pageHtml() {
         currentItemId = item.id;
         currentItemSrc = item.src;
         player.src = item.src;
+        player.preload = "auto";
         player.load();
         applySoundPreference();
       }
@@ -2232,11 +2251,11 @@ function pageHtml() {
 
       if (player.readyState >= 1) {
         syncTime();
-        playMainPlayerWithBrowserFallback();
+        playMainPlayerWhenBuffered();
       } else {
         player.addEventListener("loadedmetadata", () => {
           syncTime();
-          playMainPlayerWithBrowserFallback();
+          playMainPlayerWhenBuffered();
         }, { once: true });
       }
 
@@ -2443,6 +2462,8 @@ function pageHtml() {
     }
 
     player.addEventListener("ended", syncChannel);
+    player.addEventListener("progress", playMainPlayerWhenBuffered);
+    player.addEventListener("canplaythrough", playMainPlayerWithBrowserFallback);
     player.addEventListener("play", rememberSoundUnlocked);
     player.addEventListener("volumechange", rememberSoundUnlocked);
     unmuteButton.addEventListener("click", unmutePlayer);

@@ -1,0 +1,7 @@
+THIS IS THE CORRECT PROJECT FOR https://2hour-tracker.vercel.app/
+
+Vercel project: 2hour-tracker
+GitHub remote: https://github.com/bdfnote20ultra-bot/2hour-tracker
+
+Do not use old T-drive copies or any copy that starts rickroll.mp3 on first touch.
+Use this folder when editing, committing, pushing, or deploying.

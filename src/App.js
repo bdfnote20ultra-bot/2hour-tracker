@@ -455,8 +455,8 @@ function PokemonCoverImage({ game, onZoom, compact = false, imageType = "cover" 
         type="button"
         disabled
         style={{
-          width: compact ? 74 : 92,
-          height: compact ? 98 : 126,
+          width: compact ? 66 : 92,
+          height: compact ? 88 : 126,
           borderRadius: 10,
           border: "2px dashed rgba(255,255,255,.28)",
           background: "rgba(255,255,255,.08)",
@@ -1808,6 +1808,88 @@ function MusicLibrarySidebar({ accentColor }) {
     link.remove();
   };
 
+  const getFuitsLiveTvUrl = (path = "") => {
+    if (!fuitsLiveTvChannelUrl) return "";
+    return `${fuitsLiveTvChannelUrl.replace(/\/+$/, "")}${path}`;
+  };
+
+  const fuitsLiveTvVideoUrl = getFuitsLiveTvUrl("/embed/video");
+  const fuitsLiveTvChatUrl = getFuitsLiveTvUrl("/chat-only");
+
+  const runFuitsOwnerCommand = async (command) => {
+    if (!fuitsLiveTvChannelUrl) return;
+    const password = window.prompt(`${command.label} password`);
+    if (!password) return;
+    if (command.confirm && !window.confirm(command.confirm)) return;
+
+    try {
+      const response = await fetch(getFuitsLiveTvUrl(command.path), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(command.body(password))
+      });
+
+      if (!response.ok) {
+        window.alert(`${command.label} failed. Check the password and tunnel.`);
+        return;
+      }
+
+      window.alert(command.success);
+    } catch {
+      window.alert(`${command.label} failed. Check the Cloudflare tunnel.`);
+    }
+  };
+
+  const fuitsOwnerCommands = [
+    {
+      label: "Owner",
+      path: "/admin/site-blank",
+      body: password => ({ password, blank: true }),
+      confirm: "Blank the FUITS site for everyone?",
+      success: "FUITS site blanked."
+    },
+    {
+      label: "Shuffle",
+      path: "/admin/shuffle",
+      body: password => ({ password }),
+      success: "Playlist shuffled."
+    },
+    {
+      label: "Next",
+      path: "/admin/next",
+      body: password => ({ password }),
+      success: "Next video started."
+    }
+  ];
+
+  const renderFuitsOwnerControls = () => (
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+      gap: 8,
+      width: "100%"
+    }}>
+      {fuitsOwnerCommands.map(command => (
+        <button
+          key={command.label}
+          onClick={() => runFuitsOwnerCommand(command)}
+          style={{
+            border: "1px solid rgba(34,211,238,.4)",
+            borderRadius: 12,
+            background: "linear-gradient(135deg, rgba(187,247,208,.95), rgba(56,189,248,.95))",
+            color: "#020617",
+            padding: "10px 8px",
+            fontWeight: 1000,
+            cursor: "pointer",
+            boxShadow: "0 12px 26px rgba(34,211,238,.18)"
+          }}
+        >
+          {command.label}
+        </button>
+      ))}
+    </div>
+  );
+
   const addCustomTvItem = (item) => {
     setCustomTvItems(prev => [item, ...prev]);
     setSelectedCustomTvId(item.id);
@@ -2052,41 +2134,51 @@ function MusicLibrarySidebar({ accentColor }) {
               )}
             </div>
             {activeLiveTvOption.custom && owncastOnline && (
-              <div style={{
-                width: "100%",
-                borderRadius: 14,
-                border: "1px solid rgba(248,113,113,.42)",
-                background: "rgba(127,29,29,.22)",
-                overflow: "hidden"
-              }}>
+              <>
                 <div style={{
-                  padding: "9px 11px",
-                  color: "#fecaca",
-                  fontSize: 12,
-                  fontWeight: 1000,
-                  textTransform: "uppercase",
-                  letterSpacing: .8,
-                  borderBottom: "1px solid rgba(248,113,113,.24)"
+                  width: "100%",
+                  borderRadius: 14,
+                  border: "1px solid rgba(248,113,113,.42)",
+                  background: "rgba(127,29,29,.22)",
+                  overflow: "hidden"
                 }}>
-                  Live Announcement On Air
+                  <div style={{
+                    padding: "9px 11px",
+                    color: "#fecaca",
+                    fontSize: 12,
+                    fontWeight: 1000,
+                    textTransform: "uppercase",
+                    letterSpacing: .8,
+                    borderBottom: "1px solid rgba(248,113,113,.24)"
+                  }}>
+                    Live Announcement On Air
+                  </div>
+                  <iframe
+                    title="Live Announcement"
+                    src="https://required-students-exist-offer.trycloudflare.com"
+                    allow="fullscreen; autoplay; encrypted-media; picture-in-picture"
+                    allowFullScreen
+                    style={{
+                      width: "100%",
+                      minHeight: 360,
+                      border: "none",
+                      background: "#020617"
+                    }}
+                  />
                 </div>
-                <iframe
-                  title="Live Announcement"
-                  src={fuitsLiveTvChannelUrl}
-                  allow="fullscreen; autoplay; encrypted-media; picture-in-picture"
-                  allowFullScreen
-                  style={{
-                    width: "100%",
-                    minHeight: 360,
-                    border: "none",
-                    background: "#020617"
-                  }}
-                />
-              </div>
+                {renderFuitsOwnerControls()}
+                {fuitsLiveTvChatUrl && (
+                  <LiveChatBox
+                    title={`${FUITS_LIVE_TV_PLAYLIST.title} Chat`}
+                    src={fuitsLiveTvChatUrl}
+                    height={250}
+                    minHeight={250}
+                  />
+                )}
+              </>
             )}
             {activeLiveTvOption.custom && !owncastOnline && fuitsLiveTvChannelUrl && (
-              <>
-                <select
+              <>`r`n                <select
                   value={activeFuitsLiveTvChannel}
                   onChange={event => setActiveFuitsLiveTvChannel(event.target.value)}
                   style={{
@@ -2108,9 +2200,10 @@ function MusicLibrarySidebar({ accentColor }) {
                   ))}
                 </select>
                 <FuitsLiveTvPlayer baseUrl={fuitsLiveTvChannelUrl} channelId={activeFuitsLiveTvChannel} />
+                {renderFuitsOwnerControls()}
                 <LiveChatBox
                   title="FUITS Live TV Chat"
-                  src={`${fuitsLiveTvChannelUrl}/chat-only`}
+                  src={fuitsLiveTvChatUrl || `${fuitsLiveTvChannelUrl}/chat-only`}
                   height={250}
                   minHeight={250}
                 />

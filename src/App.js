@@ -3716,6 +3716,34 @@ export default function App() {
     return <CreditHubPage onClose={() => setView("week")} />;
   }
 
+  if (view === "gambling") {
+    return (
+      <div style={{ minHeight: "100vh", background: "#000", position: "relative" }}>
+        <button
+          onClick={() => setView("week")}
+          style={{
+            position: "fixed",
+            top: 64,
+            left: "calc(50% - 220px)",
+            zIndex: 20,
+            background: "transparent",
+            border: "none",
+            color: "#38bdf8",
+            cursor: "pointer",
+            fontSize: 22,
+            fontWeight: 1000,
+            letterSpacing: .6,
+            textTransform: "uppercase",
+            textShadow: "0 2px 10px rgba(56,189,248,.45)",
+            fontFamily: "system-ui"
+          }}
+        >
+          HOME
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: "#000", position: "relative" }}>
       {view === "week" && <PokemonSidebar />}
@@ -4014,28 +4042,6 @@ export default function App() {
           </>
         )}
       </div>
-
-      {view === "gambling" && (
-        <div style={{ minHeight: "100vh", background: "#000", padding: "28px 32px", boxSizing: "border-box" }}>
-          <button
-            onClick={() => setView("week")}
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "#38bdf8",
-              cursor: "pointer",
-              fontSize: 20,
-              fontWeight: 1000,
-              letterSpacing: .6,
-              textTransform: "uppercase",
-              textShadow: "0 2px 10px rgba(56,189,248,.45)",
-              fontFamily: "system-ui"
-            }}
-          >
-            HOME
-          </button>
-        </div>
-      )}
 
       {/* Settings View */}
       {view === "settings" && (

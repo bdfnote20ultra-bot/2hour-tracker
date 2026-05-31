@@ -811,6 +811,15 @@ function getChannelSnapshot(channelId) {
 
   const state = ensureChannelStartedAt(channel.id, readState(channel.id));
   const totalDuration = playlist.reduce((sum, item) => sum + item.duration, 0);
+  if (totalDuration <= 0) {
+    return {
+      channel,
+      playlist,
+      currentIndex: 0,
+      offsetSeconds: 0,
+      totalDuration: 0
+    };
+  }
   let elapsed = Math.floor(Date.now() / 1000) - state.startedAt;
   elapsed = ((elapsed % totalDuration) + totalDuration) % totalDuration;
 

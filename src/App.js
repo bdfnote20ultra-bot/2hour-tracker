@@ -3719,12 +3719,64 @@ export default function App() {
   if (view === "gambling") {
     return (
       <div style={{ minHeight: "100vh", background: "#000", position: "relative" }}>
+        <aside className="pokemon-desktop-sidebar" style={{
+          position: "fixed",
+          left: 18,
+          top: 18,
+          bottom: 18,
+          width: 390,
+          zIndex: 4,
+          borderRadius: 24,
+          border: "2px solid rgba(255,255,255,0.22)",
+          background: "linear-gradient(180deg, rgba(15,23,42,.96), rgba(2,6,23,.98))",
+          boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
+          padding: 16,
+          color: "#f8fafc",
+          fontFamily: "system-ui, sans-serif",
+          overflow: "hidden",
+          boxSizing: "border-box"
+        }}>
+          <div style={{
+            width: "100%",
+            border: "none",
+            borderRadius: 16,
+            padding: "10px 12px",
+            background: "linear-gradient(135deg, #0ea5e9, #2563eb)",
+            color: "white",
+            fontWeight: 900,
+            letterSpacing: 1,
+            boxShadow: "0 8px 22px rgba(37,99,235,.35)",
+            marginBottom: 12,
+            textAlign: "center"
+          }}>
+            FUITS SPORTSBOOK + CASINO
+          </div>
+
+          <div style={{
+            borderRadius: 22,
+            background: "linear-gradient(180deg, rgba(51,65,85,.92), rgba(15,23,42,.96))",
+            padding: 12,
+            border: "2px solid rgba(248,250,252,.38)",
+            boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)"
+          }}>
+            <div style={{
+              width: "100%",
+              aspectRatio: "4 / 3",
+              minHeight: 245,
+              borderRadius: 14,
+              overflow: "hidden",
+              background: "#020617",
+              border: "4px solid #0f172a"
+            }} />
+          </div>
+        </aside>
+
         <button
           onClick={() => setView("week")}
           style={{
             position: "fixed",
-            top: 58,
-            left: 86,
+            top: 64,
+            left: 475,
             zIndex: 20,
             background: "transparent",
             border: "none",
@@ -3740,6 +3792,23 @@ export default function App() {
         >
           HOME
         </button>
+
+        <main style={{
+          minHeight: "100vh",
+          maxWidth: 480,
+          margin: "0 auto",
+          background: "#000"
+        }} />
+
+        <aside style={{
+          position: "fixed",
+          right: 18,
+          top: 18,
+          bottom: 18,
+          width: 360,
+          borderRadius: 24,
+          background: "#000"
+        }} />
       </div>
     );
   }

@@ -2475,7 +2475,21 @@ function pageHtml() {
       syncChannel();
     }
 
-    player.addEventListener("ended", syncChannel);
+    async function handleMainPlayerEnded() {
+      let attempts = 0;
+      async function pollForNextItem() {
+        attempts += 1;
+        currentItemId = null;
+        currentItemSrc = null;
+        await syncChannel();
+        if (player.ended && attempts < 8) {
+          setTimeout(pollForNextItem, 1000);
+        }
+      }
+      pollForNextItem();
+    }
+
+    player.addEventListener("ended", handleMainPlayerEnded);
     player.addEventListener("progress", playMainPlayerWhenBuffered);
     player.addEventListener("canplaythrough", playMainPlayerWithBrowserFallback);
     player.addEventListener("play", rememberSoundUnlocked);

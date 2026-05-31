@@ -1169,7 +1169,17 @@ function PokemonSidebar() {
           </div>
         )}
       </div>
-{!collapsed && (
+      {!collapsed && (activeGamingApp === "live-gaming" ? (
+        <div style={{
+          width: "100%",
+          aspectRatio: "4 / 3",
+          minHeight: 245,
+          borderRadius: 22,
+          background: "#020617",
+          border: "2px solid rgba(56,189,248,.28)",
+          boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)"
+        }} />
+      ) : (
         <>
           <div style={{
             borderRadius: 22,
@@ -1538,7 +1548,7 @@ function PokemonSidebar() {
             </div>
           )}
         </>
-      )}
+      ))}
     </aside>
     </div>
   );

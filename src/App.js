@@ -1510,8 +1510,7 @@ function LiveChatBox({ title = "Live Chat", src, height = 250, minHeight = 250 }
   );
 }
 
-function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
-  const STARTUP_BUFFER_SECONDS = 8;
+function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 8 }) {
   const videoRef = useRef(null);
   const syncedVideoSrcRef = useRef("");
   const [channel, setChannel] = useState(null);
@@ -1614,8 +1613,8 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
   const playWhenBuffered = () => {
     const video = videoRef.current;
     if (!video) return;
-    const enoughBuffered = getBufferedAheadSeconds(video) >= STARTUP_BUFFER_SECONDS;
-    if (video.readyState >= 3 && (enoughBuffered || video.duration - video.currentTime < STARTUP_BUFFER_SECONDS)) {
+    const enoughBuffered = getBufferedAheadSeconds(video) >= startupBufferSeconds;
+    if (video.readyState >= 3 && (enoughBuffered || video.duration - video.currentTime < startupBufferSeconds)) {
       playCurrentVideo();
     }
   };
@@ -2308,7 +2307,11 @@ function MusicLibrarySidebar({ accentColor }) {
                     <option key={channel.id} value={channel.id}>{channel.label}</option>
                   ))}
                 </select>
-                <FuitsLiveTvPlayer baseUrl={fuitsLiveTvChannelUrl} channelId={activeFuitsLiveTvChannel} />
+                <FuitsLiveTvPlayer
+                  baseUrl={fuitsLiveTvChannelUrl}
+                  channelId={activeFuitsLiveTvChannel}
+                  startupBufferSeconds={activeFuitsLiveTvChannel === "channel-new-releases" ? 5 : 8}
+                />
                 {renderFuitsOwnerControls()}
                 <LiveChatBox
                   title="FUITS Live TV Chat"

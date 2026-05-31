@@ -2070,7 +2070,6 @@ function pageHtml() {
     let activeChannelId = new URLSearchParams(window.location.search).get("channel") || localStorage.getItem("fuitsLiveTvChannel") || "channel-a";
     let stretchVideo = localStorage.getItem("fuitsLiveTvStretch") === "1";
     let soundUnlocked = localStorage.getItem("fuitsLiveTvSoundUnlocked") === "1";
-    const STARTUP_BUFFER_SECONDS = 8;
     chatName.value = localStorage.getItem("fuitsLiveTvChatName") || "";
 
     function updateChatNameUi() {
@@ -2129,9 +2128,14 @@ function pageHtml() {
       return 0;
     }
 
+    function getStartupBufferSeconds() {
+      return activeChannelId === "channel-new-releases" ? 5 : 8;
+    }
+
     function playMainPlayerWhenBuffered() {
-      const enoughBuffered = getBufferedAheadSeconds(player) >= STARTUP_BUFFER_SECONDS;
-      if (player.readyState >= 3 && (enoughBuffered || player.duration - player.currentTime < STARTUP_BUFFER_SECONDS)) {
+      const startupBufferSeconds = getStartupBufferSeconds();
+      const enoughBuffered = getBufferedAheadSeconds(player) >= startupBufferSeconds;
+      if (player.readyState >= 3 && (enoughBuffered || player.duration - player.currentTime < startupBufferSeconds)) {
         playMainPlayerWithBrowserFallback();
       }
     }

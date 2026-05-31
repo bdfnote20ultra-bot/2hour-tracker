@@ -1613,6 +1613,7 @@ function LiveChatBox({ title = "Live Chat", src, height = 250, minHeight = 250 }
 function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 1.5 }) {
   const videoRef = useRef(null);
   const syncedVideoSrcRef = useRef("");
+  const refreshQueuedRef = useRef(false);
   const [channel, setChannel] = useState(null);
   const [status, setStatus] = useState("Loading FUITS Live TV...");
   const [playerMuted, setPlayerMuted] = useState(false);
@@ -1631,20 +1632,31 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
   const getLiveOffsetSeconds = useCallback((snapshot = channel, item = currentItem) => {
     if (!snapshot || !item) return 0;
     const duration = Number(item.duration) || 1;
+    const snapshotOffset = Number(snapshot.offsetSeconds) || 0;
     const generatedAtMs = Number(snapshot.generatedAtMs);
     const elapsedSinceSnapshot = Number.isFinite(generatedAtMs)
       ? Math.max(0, (Date.now() - generatedAtMs) / 1000)
       : 0;
-    return Math.max(0, Math.min((snapshot.offsetSeconds || 0) + elapsedSinceSnapshot, Math.max(0, duration - 0.25)));
+    return Math.max(0, snapshotOffset + elapsedSinceSnapshot);
   }, [channel, currentItem]);
 
   const syncVideoToLiveOffset = useCallback((force = false) => {
     const video = videoRef.current;
     if (!video || !channel || !currentItem || !Number.isFinite(video.duration)) return;
 
-    const liveOffset = getLiveOffsetSeconds(channel, currentItem);
+    const duration = Number(currentItem.duration) || video.duration || 1;
+    const rawLiveOffset = getLiveOffsetSeconds(channel, currentItem);
+    if (rawLiveOffset >= duration - 0.5) {
+      if (!refreshQueuedRef.current) {
+        refreshQueuedRef.current = true;
+        window.setTimeout(() => loadChannel().catch(() => {}), 0);
+      }
+      return;
+    }
+
+    const liveOffset = Math.max(0, Math.min(rawLiveOffset, Math.max(0, duration - 1.5)));
     const driftSeconds = video.currentTime - liveOffset;
-    if (force || Math.abs(driftSeconds) > 1.25) {
+    if (force || Math.abs(driftSeconds) > 1.75) {
       try {
         video.currentTime = liveOffset;
         video.playbackRate = 1;
@@ -1684,6 +1696,8 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
       });
       if (!response.ok) throw new Error("Channel feed failed");
       const data = await response.json();
+      refreshQueuedRef.current = false;
+      if (!Number.isFinite(Number(data.generatedAtMs))) data.generatedAtMs = Date.now();
       setChannel(data);
       setStatus(data?.playlist?.length ? "" : "No videos found in FUITS Live TV.");
       setVideoError("");
@@ -1713,7 +1727,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
     };
 
     refreshChannel();
-    const timer = window.setInterval(refreshChannel, 15000);
+    const timer = window.setInterval(refreshChannel, 3000);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
@@ -1764,7 +1778,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
     const video = videoRef.current;
     if (!video) return;
     const enoughBuffered = getBufferedAheadSeconds(video) >= startupBufferSeconds;
-    if (video.readyState >= 3 && (enoughBuffered || video.duration - video.currentTime < startupBufferSeconds)) {
+    if (video.readyState >= 2 && (enoughBuffered || video.duration - video.currentTime < startupBufferSeconds)) {
       setVideoLoading(false);
       playCurrentVideo();
     }
@@ -2547,7 +2561,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 <FuitsLiveTvPlayer
                   baseUrl={fuitsLiveTvChannelUrl}
                   channelId={activeFuitsLiveTvChannel}
-                  startupBufferSeconds={1.5}
+                  startupBufferSeconds={0.2}
                 />
                 {renderFuitsOwnerControls()}
                 <LiveChatBox

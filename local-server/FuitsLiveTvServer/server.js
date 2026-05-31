@@ -2143,7 +2143,7 @@ function pageHtml() {
     }
 
     function getStartupBufferSeconds() {
-      return 4;
+      return 0.2;
     }
 
     function playMainPlayerWhenBuffered() {
@@ -2265,13 +2265,18 @@ function pageHtml() {
       const getLiveOffset = () => {
         const generatedAtMs = Number(channel.generatedAtMs);
         const elapsedSinceSnapshot = Number.isFinite(generatedAtMs) ? Math.max(0, (Date.now() - generatedAtMs) / 1000) : 0;
-        return Math.max(0, Math.min(offset + elapsedSinceSnapshot, Math.max(0, item.duration - 0.25)));
+        return Math.max(0, offset + elapsedSinceSnapshot);
       };
       const syncTime = () => {
         if (!Number.isFinite(player.duration)) return;
-        const liveOffset = getLiveOffset();
+        const rawLiveOffset = getLiveOffset();
+        if (rawLiveOffset >= item.duration - 0.5) {
+          syncChannel();
+          return;
+        }
+        const liveOffset = Math.max(0, Math.min(rawLiveOffset, Math.max(0, item.duration - 1.5)));
         const driftSeconds = player.currentTime - liveOffset;
-        if (Math.abs(driftSeconds) > 1.25) {
+        if (Math.abs(driftSeconds) > 1.75) {
           player.currentTime = liveOffset;
           player.playbackRate = 1;
         } else {
@@ -2508,7 +2513,7 @@ function pageHtml() {
 
     player.addEventListener("ended", handleMainPlayerEnded);
     player.addEventListener("progress", playMainPlayerWhenBuffered);
-    player.addEventListener("canplaythrough", playMainPlayerWithBrowserFallback);
+    player.addEventListener("canplay", playMainPlayerWithBrowserFallback);
     player.addEventListener("play", rememberSoundUnlocked);
     player.addEventListener("volumechange", rememberSoundUnlocked);
     unmuteButton.addEventListener("click", unmutePlayer);

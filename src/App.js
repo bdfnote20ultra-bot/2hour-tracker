@@ -1581,7 +1581,7 @@ function LiveChatBox({ title = "Live Chat", src, height = 250, minHeight = 250 }
   );
 }
 
-function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 4 }) {
+function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 1.5 }) {
   const videoRef = useRef(null);
   const syncedVideoSrcRef = useRef("");
   const [channel, setChannel] = useState(null);
@@ -1687,7 +1687,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
 
   const playCurrentVideo = () => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !video.paused) return;
     const playPromise = video.play();
     if (playPromise?.catch) playPromise.catch(() => {});
   };
@@ -1707,7 +1707,17 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
     if (!video) return;
     const enoughBuffered = getBufferedAheadSeconds(video) >= startupBufferSeconds;
     if (video.readyState >= 3 && (enoughBuffered || video.duration - video.currentTime < startupBufferSeconds)) {
+      setVideoLoading(false);
       playCurrentVideo();
+    }
+  };
+
+  const showBufferingIfNeeded = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused || video.ended) return;
+    if (video.readyState < 3 && getBufferedAheadSeconds(video) < 0.35) {
+      setVideoLoading(true);
     }
   };
 
@@ -1746,21 +1756,25 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
   const restartFuitsServices = async () => {
     const password = window.prompt("Restart password");
     if (!password) return;
-    try {
-      const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), 5000);
-      const response = await fetch(`${baseUrl}/admin/restart-services`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-        signal: controller.signal
-      });
-      window.clearTimeout(timeout);
-      if (!response.ok) throw new Error("Restart failed");
-      window.alert("FUITS restart started. Wait for the updater to finish, then refresh this page.");
-    } catch {
-      window.alert("Restart command could not reach FUITS. Run START-ALL-SERVICES-UPDATE-URLS from the Desktop.");
+    const restartUrls = [baseUrl, "http://127.0.0.1:8099", "http://localhost:8099"].filter(Boolean);
+    for (const url of [...new Set(restartUrls)]) {
+      try {
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 5000);
+        const response = await fetch(`${url.replace(/\/+$/, "")}/admin/restart-services`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password }),
+          signal: controller.signal
+        });
+        window.clearTimeout(timeout);
+        if (!response.ok) throw new Error("Restart failed");
+        window.alert("FUITS restart started. Wait for the updater to finish, then refresh this page.");
+        return;
+      } catch {}
     }
+
+    window.alert("Restart command could not reach FUITS. The tunnel/server is fully offline from this page, so run START-ALL-SERVICES-UPDATE-URLS from the Desktop.");
   };
 
   const handleVideoEnded = () => {
@@ -1803,9 +1817,11 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
             muted={playerMuted}
             autoPlay
             preload="auto"
-            onLoadedMetadata={playWhenBuffered}
-            onProgress={playWhenBuffered}
-            onCanPlayThrough={playCurrentVideo}
+            onLoadedMetadata={() => {
+              setVideoLoading(false);
+              playWhenBuffered();
+            }}
+            onCanPlayThrough={playWhenBuffered}
             onCanPlay={() => {
               setVideoLoading(false);
               setVideoError("");
@@ -1820,7 +1836,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
               setVideoError("");
             }}
             onEnded={handleVideoEnded}
-            onWaiting={() => setVideoLoading(true)}
+            onWaiting={showBufferingIfNeeded}
             onStalled={() => setVideoError("Stream stalled. The tunnel or source video is not sending data fast enough.")}
             onError={() => setVideoError("This video did not load. Try Next, Shuffle, or restart the FUITS tunnel.")}
             onVolumeChange={event => {
@@ -2473,7 +2489,7 @@ function MusicLibrarySidebar({ accentColor }) {
                 <FuitsLiveTvPlayer
                   baseUrl={fuitsLiveTvChannelUrl}
                   channelId={activeFuitsLiveTvChannel}
-                  startupBufferSeconds={4}
+                  startupBufferSeconds={1.5}
                 />
                 {renderFuitsOwnerControls()}
                 <LiveChatBox

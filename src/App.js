@@ -613,6 +613,7 @@ function PokemonSidebar() {
   const [activeGame, setActiveGame] = useState(() => POKEMON_ROMS.find(game => game.system === "GB") || POKEMON_ROMS[0] || null);
   const [collapsed, setCollapsed] = useState(false);
   const [activeGamingApp, setActiveGamingApp] = useState("gaming-center");
+  const [gamingMenuOpen, setGamingMenuOpen] = useState(false);
   const [selectedArt, setSelectedArt] = useState("cover");
   const [zoomedCover, setZoomedCover] = useState(null);
   const [activeGameAssets, setActiveGameAssets] = useState({ manualUrl: "", backUrl: "" });
@@ -1098,38 +1099,77 @@ function PokemonSidebar() {
           image-rendering: pixelated;
         }
       `}</style>
-      <select
-        value={activeGamingApp}
-        onChange={event => {
-          setActiveGamingApp(event.target.value);
-          setCollapsed(false);
-        }}
-        aria-label="Choose gaming app"
-        style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 6,
-        width: "100%",
-        border: "none",
-        borderRadius: 16,
-        padding: collapsed ? "12px 0" : "10px 12px",
-        background: "linear-gradient(135deg, #ef4444, #f97316)",
-        color: "white",
-        fontWeight: 900,
-        letterSpacing: 1,
-        cursor: "pointer",
-        boxShadow: "0 8px 22px rgba(239,68,68,.35)",
-        marginBottom: 12,
-        textAlign: "center",
-        textAlignLast: "center",
-        appearance: "none"
-      }}
-      >
-        <option value="gaming-center">{collapsed ? "Game" : "FUIT GAMING CENTER"}</option>
-        <option value="live-gaming">FUIT LIVE GAMING</option>
-      </select>
-
-      {!collapsed && (
+      <div style={{ position: "sticky", top: 0, zIndex: 6, marginBottom: 12 }}>
+        <button
+          onClick={() => setGamingMenuOpen(open => !open)}
+          style={{
+            width: "100%",
+            border: "none",
+            borderRadius: 16,
+            padding: collapsed ? "12px 0" : "10px 12px",
+            background: "linear-gradient(135deg, #facc15, #38bdf8)",
+            color: "#06111f",
+            fontWeight: 1000,
+            letterSpacing: 1,
+            cursor: "pointer",
+            boxShadow: "0 8px 22px rgba(56,189,248,.32)",
+            textAlign: "center",
+            textTransform: "uppercase",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 10
+          }}
+        >
+          <span style={{ flex: 1 }}>{collapsed ? "Game" : activeGamingApp === "live-gaming" ? "FUIT LIVE GAMING" : "FUIT GAMING CENTER"}</span>
+          {!collapsed && <span style={{ fontSize: 12, fontWeight: 1000 }}>{gamingMenuOpen ? "^" : "v"}</span>}
+        </button>
+        {gamingMenuOpen && !collapsed && (
+          <div style={{
+            position: "absolute",
+            top: "calc(100% + 8px)",
+            left: 0,
+            right: 0,
+            zIndex: 12,
+            borderRadius: 14,
+            overflow: "hidden",
+            border: "1px solid rgba(148,163,184,.28)",
+            background: "rgba(2,6,23,.98)",
+            boxShadow: "0 16px 36px rgba(0,0,0,.45)"
+          }}>
+            {[
+              { value: "gaming-center", label: "FUIT GAMING CENTER" },
+              { value: "live-gaming", label: "FUIT LIVE GAMING" }
+            ].map(option => (
+              <button
+                key={option.value}
+                onClick={() => {
+                  setActiveGamingApp(option.value);
+                  setGamingMenuOpen(false);
+                  setCollapsed(false);
+                }}
+                style={{
+                  width: "100%",
+                  border: "none",
+                  borderBottom: "1px solid rgba(148,163,184,.14)",
+                  background: activeGamingApp === option.value ? "rgba(255,255,255,.14)" : "transparent",
+                  color: "#f8fafc",
+                  padding: "12px 14px",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontSize: 13,
+                  fontWeight: 1000,
+                  textTransform: "uppercase",
+                  letterSpacing: .7
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+{!collapsed && (
         <>
           <div style={{
             borderRadius: 22,
@@ -3886,6 +3926,26 @@ if (view === "gambling") {
             FUITS SPORTSBOOK + CASINO
           </div>
 
+          <button
+            onClick={() => setView("creditHub")}
+            style={{
+              width: "100%",
+              border: "none",
+              borderRadius: 16,
+              padding: "10px 12px",
+              marginBottom: 12,
+              background: "linear-gradient(135deg,#22c55e,#38bdf8)",
+              color: "#04111d",
+              cursor: "pointer",
+              fontSize: 13,
+              fontWeight: 1000,
+              letterSpacing: 1,
+              textTransform: "uppercase",
+              boxShadow: "0 8px 22px rgba(34,197,94,.3)"
+            }}
+          >
+            CREDIT HUB
+          </button>
           <div style={{
             borderRadius: 22,
             background: "linear-gradient(180deg, rgba(51,65,85,.92), rgba(15,23,42,.96))",
@@ -4114,12 +4174,6 @@ if (view === "gambling") {
             onSelect={setActiveProjectId}
             onManage={() => setView("projects")}
           />
-          <button
-            onClick={() => setView("creditHub")}
-            style={{ background: "linear-gradient(135deg,#22c55e,#38bdf8)", border: "none", color: "#04111d", cursor: "pointer", fontSize: 12, fontWeight: 1000, borderRadius: 999, padding: "8px 10px", boxShadow: "0 6px 18px rgba(34,197,94,.28)" }}
-          >
-            CREDIT HUB
-          </button>
           <button
             onClick={() => setView(view === "settings" ? "week" : "settings")}
             style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, textShadow: readableTextShadow }}

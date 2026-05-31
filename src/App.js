@@ -1514,6 +1514,8 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
   const videoRef = useRef(null);
   const [channel, setChannel] = useState(null);
   const [status, setStatus] = useState("Loading FUITS Live TV...");
+  const [playerMuted, setPlayerMuted] = useState(false);
+  const [playerVolume, setPlayerVolume] = useState(1);
   const currentItem = channel?.playlist?.[channel.currentIndex] || null;
   const videoSrc = currentItem?.src
     ? `${baseUrl}${currentItem.src.startsWith("/") ? "" : "/"}${currentItem.src}`
@@ -1559,6 +1561,16 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
     else video.addEventListener("loadedmetadata", syncTime, { once: true });
   }, [channel, currentItem]);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !videoSrc) return;
+
+    video.muted = playerMuted;
+    video.volume = playerVolume;
+    const playPromise = video.play();
+    if (playPromise?.catch) playPromise.catch(() => {});
+  }, [videoSrc, playerMuted, playerVolume]);
+
   return (
     <div style={{
       width: "100%",
@@ -1574,8 +1586,12 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
           src={videoSrc}
           controls
           playsInline
-          muted
+          muted={playerMuted}
           autoPlay
+          onVolumeChange={event => {
+            setPlayerMuted(event.currentTarget.muted);
+            setPlayerVolume(event.currentTarget.volume);
+          }}
           style={{
             width: "100%",
             minHeight: 260,

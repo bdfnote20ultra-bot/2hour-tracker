@@ -2178,7 +2178,8 @@ function MusicLibrarySidebar({ accentColor }) {
               </>
             )}
             {activeLiveTvOption.custom && !owncastOnline && fuitsLiveTvChannelUrl && (
-              <>`r`n                <select
+              <>
+                <select
                   value={activeFuitsLiveTvChannel}
                   onChange={event => setActiveFuitsLiveTvChannel(event.target.value)}
                   style={{

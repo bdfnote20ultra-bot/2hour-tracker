@@ -1522,12 +1522,27 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
   const videoSrc = currentItem?.src
     ? `${baseUrl}${currentItem.src.startsWith("/") ? "" : "/"}${currentItem.src}`
     : "";
-  const nextItem = channel?.playlist?.length
-    ? channel.playlist[(channel.currentIndex + 1) % channel.playlist.length]
-    : null;
-  const nextVideoSrc = nextItem?.src
-    ? `${baseUrl}${nextItem.src.startsWith("/") ? "" : "/"}${nextItem.src}`
-    : "";
+  const currentOffsetSeconds = useMemo(() => {
+    if (!channel || !currentItem) return 0;
+    return Math.max(0, Math.min(channel.offsetSeconds || 0, Math.max(0, (currentItem.duration || 1) - 1)));
+  }, [channel, currentItem]);
+
+  useEffect(() => {
+    if (!baseUrl) return;
+    const preconnect = document.createElement("link");
+    preconnect.rel = "preconnect";
+    preconnect.href = baseUrl;
+    preconnect.crossOrigin = "anonymous";
+    const dnsPrefetch = document.createElement("link");
+    dnsPrefetch.rel = "dns-prefetch";
+    dnsPrefetch.href = baseUrl;
+    document.head.appendChild(preconnect);
+    document.head.appendChild(dnsPrefetch);
+    return () => {
+      preconnect.remove();
+      dnsPrefetch.remove();
+    };
+  }, [baseUrl]);
 
   useEffect(() => {
     if (!baseUrl) return;
@@ -1558,12 +1573,11 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
     const video = videoRef.current;
     if (!video || !channel || !currentItem) return;
 
-    const offset = Math.max(0, Math.min(channel.offsetSeconds || 0, Math.max(0, (currentItem.duration || 1) - 1)));
     const syncTime = () => {
       if (!Number.isFinite(video.duration)) return;
-      if (Math.abs(video.currentTime - offset) > 3) {
+      if (Math.abs(video.currentTime - currentOffsetSeconds) > 3) {
         try {
-          video.currentTime = offset;
+          video.currentTime = currentOffsetSeconds;
         } catch {
           setVideoError("Video loaded, but the stream could not seek. Try Next or restart the tunnel.");
         }
@@ -1575,7 +1589,22 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
       video.addEventListener("loadedmetadata", syncTime, { once: true });
       return () => video.removeEventListener("loadedmetadata", syncTime);
     }
-  }, [channel, currentItem]);
+  }, [channel, currentItem, currentOffsetSeconds]);
+
+  const playCurrentVideo = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (Number.isFinite(video.duration) && Math.abs(video.currentTime - currentOffsetSeconds) > 3) {
+      try {
+        video.currentTime = currentOffsetSeconds;
+      } catch {
+        setVideoError("Video loaded, but the stream could not seek. Try Next or restart the tunnel.");
+        return;
+      }
+    }
+    const playPromise = video.play();
+    if (playPromise?.catch) playPromise.catch(() => {});
+  };
 
   useEffect(() => {
     const video = videoRef.current;
@@ -1586,9 +1615,8 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
     video.muted = playerMuted;
     video.volume = playerVolume;
     video.load();
-    const playPromise = video.play();
-    if (playPromise?.catch) playPromise.catch(() => {});
-  }, [videoSrc, playerMuted, playerVolume]);
+    if (video.readyState >= 1) playCurrentVideo();
+  }, [videoSrc, playerMuted, playerVolume, currentOffsetSeconds]);
 
   const retryVideo = () => {
     const video = videoRef.current;
@@ -1618,6 +1646,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
             muted={playerMuted}
             autoPlay
             preload="auto"
+            onLoadedMetadata={playCurrentVideo}
             onCanPlay={() => {
               setVideoLoading(false);
               setVideoError("");
@@ -1645,15 +1674,6 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a" }) {
               display: "block"
             }}
           />
-          {nextVideoSrc && nextVideoSrc !== videoSrc && (
-            <video
-              aria-hidden="true"
-              src={nextVideoSrc}
-              muted
-              preload="auto"
-              style={{ display: "none" }}
-            />
-          )}
           {(videoLoading || videoError) && (
             <div style={{
               display: "flex",

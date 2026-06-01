@@ -2336,6 +2336,7 @@ function MusicLibrarySidebar({ accentColor }) {
   const [activeMediaMenu, setActiveMediaMenu] = useState("liveTv");
   const [mediaMenuOpen, setMediaMenuOpen] = useState(false);
   const [activeMusicView, setActiveMusicView] = useState("library");
+  const [musicViewMenuOpen, setMusicViewMenuOpen] = useState(false);
   const [radioFrameVersion, setRadioFrameVersion] = useState(0);
   const [musicChannels, setMusicChannels] = useState([]);
   const [liveTvMenuOpen, setLiveTvMenuOpen] = useState(false);
@@ -2492,9 +2493,12 @@ function MusicLibrarySidebar({ accentColor }) {
   const musicViewOptions = [
     { id: "library", label: "Music Library" },
     { id: "radio", label: "FUIT RADIO WORLD" },
+    { id: "podcast", label: "Podcast" },
     ...musicChannels.map(channel => ({ id: `music-channel:${channel.id}`, label: channel.label })),
   ];
+  const activeMusicViewOption = musicViewOptions.find(option => option.id === activeMusicView) || musicViewOptions[0];
   const isRadioMusicView = activeMusicView === "radio" || activeMusicView.startsWith("radio:");
+  const isPodcastMusicView = activeMusicView === "podcast";
   const activeRadioChannelId = activeMusicView.startsWith("radio:") ? activeMusicView.slice("radio:".length) : "";
   const radioIframeParams = new URLSearchParams();
   if (activeRadioChannelId) radioIframeParams.set("channel", activeRadioChannelId);
@@ -2517,6 +2521,7 @@ function MusicLibrarySidebar({ accentColor }) {
 
   const chooseMusicView = (view) => {
     setActiveMusicView(view);
+    setMusicViewMenuOpen(false);
     if (view === "radio" || view.startsWith("radio:")) {
       setRadioFrameVersion(Date.now());
     }
@@ -3232,35 +3237,68 @@ function MusicLibrarySidebar({ accentColor }) {
         )}
       </div>
 
-      <div style={{
-        display: "grid",
-        gap: 8,
-        marginBottom: 10
-      }}>
-        {musicViewOptions.map(option => (
-          <button
-            key={option.id}
-            onClick={() => chooseMusicView(option.id)}
-            style={{
-              width: "100%",
-              boxSizing: "border-box",
-              borderRadius: 12,
-              border: activeMusicView === option.id ? `1px solid ${accentColor}` : "1px solid rgba(148,163,184,.18)",
-              background: activeMusicView === option.id ? `linear-gradient(135deg, ${accentColor}, #38bdf8)` : "rgba(15,23,42,.72)",
-              color: activeMusicView === option.id ? "#06111f" : "#f8fafc",
-              padding: "9px 11px",
-              cursor: "pointer",
-              fontSize: 12,
-              fontWeight: 1000,
-              textAlign: "left",
-              textTransform: "uppercase",
-              letterSpacing: .8,
-              boxShadow: activeMusicView === option.id ? `0 8px 22px ${accentColor}44` : "none"
-            }}
-          >
-            {option.label}
-          </button>
-        ))}
+      <div style={{ position: "relative", marginBottom: 10 }}>
+        <button
+          onClick={() => setMusicViewMenuOpen(open => !open)}
+          style={{
+            width: "100%",
+            border: "none",
+            borderRadius: 16,
+            padding: "10px 12px",
+            background: `linear-gradient(135deg, ${accentColor}, #38bdf8)`,
+            color: "#06111f",
+            fontWeight: 1000,
+            letterSpacing: 1,
+            cursor: "pointer",
+            boxShadow: `0 8px 22px ${accentColor}44`,
+            textAlign: "center",
+            textTransform: "uppercase",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 10
+          }}
+        >
+          <span style={{ flex: 1 }}>{activeMusicViewOption.label}</span>
+          <span style={{ fontSize: 12, fontWeight: 1000 }}>{musicViewMenuOpen ? "^" : "v"}</span>
+        </button>
+        {musicViewMenuOpen && (
+          <div style={{
+            position: "absolute",
+            top: "calc(100% + 8px)",
+            left: 0,
+            right: 0,
+            zIndex: 12,
+            borderRadius: 14,
+            overflow: "hidden",
+            border: "1px solid rgba(148,163,184,.28)",
+            background: "rgba(2,6,23,.98)",
+            boxShadow: "0 16px 36px rgba(0,0,0,.45)"
+          }}>
+            {musicViewOptions.map(option => (
+              <button
+                key={option.id}
+                onClick={() => chooseMusicView(option.id)}
+                style={{
+                  width: "100%",
+                  border: "none",
+                  borderBottom: "1px solid rgba(148,163,184,.14)",
+                  background: activeMusicView === option.id ? "rgba(255,255,255,.14)" : "transparent",
+                  color: "#f8fafc",
+                  padding: "12px 14px",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontSize: 13,
+                  fontWeight: 1000,
+                  textTransform: "uppercase",
+                  letterSpacing: .7
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {isRadioMusicView ? (
@@ -3280,6 +3318,14 @@ function MusicLibrarySidebar({ accentColor }) {
             }}
           />
         </div>
+      ) : isPodcastMusicView ? (
+        <div style={{
+          flex: 1,
+          minHeight: 245,
+          borderRadius: 14,
+          border: "1px solid rgba(148,163,184,.22)",
+          background: "#020617"
+        }} />
       ) : (
         <>
 
@@ -4996,12 +5042,6 @@ if (view === "gambling") {
               </button>
             );
           })}
-        </div>
-      )}
-
-      {view === "week" && (
-        <div style={{ padding: "0 16px 100px" }}>
-          <GamingCenterSecondPanel />
         </div>
       )}
 

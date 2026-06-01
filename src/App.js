@@ -1634,8 +1634,9 @@ function LiveChatBox({ title = "Live Chat", src, height = 250, minHeight = 250 }
 }
 
 const LARGE_FUITS_VIDEO_BYTES = 1024 * 1024 * 1024;
-const LARGE_FUITS_PRELOAD_FRACTION = 0.3;
+const LARGE_FUITS_PRELOAD_FRACTION = 0.1;
 const LARGE_FUITS_PRELOAD_CHUNK_BYTES = 1024 * 1024;
+const LARGE_FUITS_PRELOAD_PARALLEL_CHUNKS = 4;
 
 function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 1.5 }) {
   const videoRef = useRef(null);
@@ -1820,15 +1821,22 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
 
     try {
       let loadedBytes = 0;
+      const chunks = [];
       for (let byte = startByte; byte <= endByte; byte += LARGE_FUITS_PRELOAD_CHUNK_BYTES) {
-        const chunkEnd = Math.min(endByte, byte + LARGE_FUITS_PRELOAD_CHUNK_BYTES - 1);
-        const response = await fetch(videoSrc, {
-          cache: "force-cache",
-          headers: { Range: `bytes=${byte}-${chunkEnd}` }
-        });
-        if (!response.ok && response.status !== 206) throw new Error("Preload failed");
-        const buffer = await response.arrayBuffer();
-        loadedBytes += buffer.byteLength;
+        chunks.push([byte, Math.min(endByte, byte + LARGE_FUITS_PRELOAD_CHUNK_BYTES - 1)]);
+      }
+
+      for (let index = 0; index < chunks.length; index += LARGE_FUITS_PRELOAD_PARALLEL_CHUNKS) {
+        const batch = chunks.slice(index, index + LARGE_FUITS_PRELOAD_PARALLEL_CHUNKS);
+        const buffers = await Promise.all(batch.map(async ([byte, chunkEnd]) => {
+          const response = await fetch(videoSrc, {
+            cache: "force-cache",
+            headers: { Range: `bytes=${byte}-${chunkEnd}` }
+          });
+          if (!response.ok && response.status !== 206) throw new Error("Preload failed");
+          return response.arrayBuffer();
+        }));
+        loadedBytes += buffers.reduce((sum, buffer) => sum + buffer.byteLength, 0);
         setLargePreloadProgress(Math.min(100, Math.round((loadedBytes / (endByte - startByte + 1)) * 100)));
       }
 
@@ -1892,6 +1900,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
     video.preload = "auto";
     video.load();
     if (needsLargeVideoPreload) {
+      video.pause();
       setVideoLoading(false);
       return;
     }
@@ -1979,48 +1988,78 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
     }}>
       {videoSrc ? (
         <>
-          <video
-            ref={videoRef}
-            src={videoSrc}
-            controls
-            playsInline
-            muted={playerMuted}
-            autoPlay={!needsLargeVideoPreload}
-            preload="auto"
-            onLoadedMetadata={() => {
-              setVideoLoading(false);
-              playWhenBuffered();
-            }}
-            onCanPlayThrough={playWhenBuffered}
-            onCanPlay={() => {
-              setVideoLoading(false);
-              setVideoError("");
-              playWhenBuffered();
-            }}
-            onLoadedData={() => {
-              setVideoLoading(false);
-              setVideoError("");
-            }}
-            onPlaying={() => {
-              setVideoLoading(false);
-              setVideoError("");
-            }}
-            onEnded={handleVideoEnded}
-            onWaiting={showBufferingIfNeeded}
-            onStalled={() => setVideoError("Stream stalled. The tunnel or source video is not sending data fast enough.")}
-            onError={() => setVideoError("This video did not load. Try Next, Shuffle, or restart the FUITS tunnel.")}
-            onVolumeChange={event => {
-              setPlayerMuted(event.currentTarget.muted);
-              setPlayerVolume(event.currentTarget.volume);
-            }}
-            style={{
-              width: "100%",
-              minHeight: 260,
-              maxHeight: 420,
-              background: "#000",
-              display: "block"
-            }}
-          />
+          <div style={{ position: "relative", background: "#000" }}>
+            <video
+              ref={videoRef}
+              src={videoSrc}
+              controls
+              playsInline
+              muted={playerMuted}
+              autoPlay={!needsLargeVideoPreload}
+              preload="auto"
+              onLoadedMetadata={() => {
+                setVideoLoading(false);
+                if (needsLargeVideoPreload) {
+                  videoRef.current?.pause();
+                  return;
+                }
+                playWhenBuffered();
+              }}
+              onCanPlayThrough={() => {
+                if (needsLargeVideoPreload) return;
+                playWhenBuffered();
+              }}
+              onCanPlay={event => {
+                setVideoLoading(false);
+                setVideoError("");
+                if (needsLargeVideoPreload) {
+                  event.currentTarget.pause();
+                  return;
+                }
+                playWhenBuffered();
+              }}
+              onLoadedData={() => {
+                setVideoLoading(false);
+                setVideoError("");
+              }}
+              onPlaying={() => {
+                setVideoLoading(false);
+                setVideoError("");
+              }}
+              onEnded={handleVideoEnded}
+              onWaiting={showBufferingIfNeeded}
+              onStalled={() => setVideoError("Stream stalled. The tunnel or source video is not sending data fast enough.")}
+              onError={() => setVideoError("This video did not load. Try Next, Shuffle, or restart the FUITS tunnel.")}
+              onVolumeChange={event => {
+                setPlayerMuted(event.currentTarget.muted);
+                setPlayerVolume(event.currentTarget.volume);
+              }}
+              style={{
+                width: "100%",
+                minHeight: 260,
+                maxHeight: 420,
+                background: "#000",
+                display: "block"
+              }}
+            />
+            {needsLargeVideoPreload && (
+              <div style={{
+                position: "absolute",
+                inset: 0,
+                display: "grid",
+                placeItems: "center",
+                background: "rgba(0,0,0,.78)",
+                color: "#fef3c7",
+                fontSize: 18,
+                fontWeight: 1000,
+                textAlign: "center",
+                padding: 18,
+                pointerEvents: "none"
+              }}>
+                Preloading {largePreloadProgress}%
+              </div>
+            )}
+          </div>
           {(videoLoading || videoError) && (
             <div style={{
               display: "flex",

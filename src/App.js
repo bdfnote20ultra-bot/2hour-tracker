@@ -2493,18 +2493,23 @@ function MusicLibrarySidebar({ accentColor }) {
   const musicViewOptions = [
     { id: "library", label: "Music Library" },
     { id: "radio", label: "FUIT RADIO WORLD" },
-    { id: "podcast", label: "Podcast" },
-    ...musicChannels.map(channel => ({ id: `music-channel:${channel.id}`, label: channel.label })),
+    ...musicChannels
+      .filter(channel => (channel.items || []).length > 0)
+      .map(channel => ({ id: `music-channel:${channel.id}`, label: channel.label })),
   ];
   const activeMusicViewOption = musicViewOptions.find(option => option.id === activeMusicView) || musicViewOptions[0];
   const isRadioMusicView = activeMusicView === "radio" || activeMusicView.startsWith("radio:");
-  const isPodcastMusicView = activeMusicView === "podcast";
   const activeRadioChannelId = activeMusicView.startsWith("radio:") ? activeMusicView.slice("radio:".length) : "";
   const radioIframeParams = new URLSearchParams();
   if (activeRadioChannelId) radioIframeParams.set("channel", activeRadioChannelId);
-  if (radioFrameVersion) radioIframeParams.set("load", String(radioFrameVersion));
   const radioIframeQuery = radioIframeParams.toString();
-  const radioIframeSrc = `${fuitsLiveTvChannelUrl}/fuits-radio${radioIframeQuery ? `?${radioIframeQuery}` : ""}`;
+  const radioIframeSrc = `${fuitsLiveTvChannelUrl.replace(/\/+$/, "")}/fuits-radio${radioIframeQuery ? `?${radioIframeQuery}` : ""}`;
+
+  useEffect(() => {
+    if (!musicViewOptions.some(option => option.id === activeMusicView)) {
+      setActiveMusicView("library");
+    }
+  }, [activeMusicView, musicViewOptions]);
 
   const rateTrack = (id, rating) => {
     setRatings(prev => ({ ...prev, [id]: rating }));
@@ -3304,7 +3309,7 @@ function MusicLibrarySidebar({ accentColor }) {
       {isRadioMusicView ? (
         <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           <iframe
-            key={radioIframeSrc}
+            key={`${radioIframeSrc}:${radioFrameVersion}`}
             title="FUIT RADIO WORLD"
             src={radioIframeSrc}
             allow="autoplay; encrypted-media"
@@ -3318,14 +3323,6 @@ function MusicLibrarySidebar({ accentColor }) {
             }}
           />
         </div>
-      ) : isPodcastMusicView ? (
-        <div style={{
-          flex: 1,
-          minHeight: 245,
-          borderRadius: 14,
-          border: "1px solid rgba(148,163,184,.22)",
-          background: "#020617"
-        }} />
       ) : (
         <>
 

@@ -54,6 +54,7 @@ function getRadioStatePath(channelId) {
 
 function makeRadioChannelFromPlaylist(file) {
   const baseName = path.basename(file, ".m3u");
+  const normalizedBase = baseName.toLowerCase().replace(/[^a-z0-9]+/g, "");
   const id = `radio-${baseName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
   const label = normalizedBase === "fuitslivetvworld"
     ? "FUITS LIVE TV WORLD"

@@ -2483,7 +2483,7 @@ function MusicLibrarySidebar({ accentColor }) {
     { id: "southpark", label: "SOUTH PARK WORLD", heading: "SOUTH PARK WORLD", url: "https://southpark.cc.com/seasons/south-park", embed: false },
     { id: "jellyfin", label: "FUIT JELLYFIN", heading: "FUIT JELLYFIN", url: "https://jellyfin.flivetv.qzz.io/web/", embed: true }
   ];
-  const fuitsLiveTvChannels = [
+  const fuitsLiveTvChannels = useMemo(() => ([
     { id: "channel-a", label: "Channel A" },
     { id: "channel-b", label: "Channel B" },
     { id: "channel-fuit-mom-channel", label: "FUIT MOM CHANNEL" },
@@ -2491,7 +2491,8 @@ function MusicLibrarySidebar({ accentColor }) {
     { id: "channel-movie-night", label: "MOVIE NIGHT" },
     { id: "channel-new-releases", label: "NEW RELEASES" },
     { id: "channel-sleep-chill", label: "SLEEP CHILL" }
-  ];
+  ]), []);
+  const [liveFuitsLiveTvChannels, setLiveFuitsLiveTvChannels] = useState(fuitsLiveTvChannels);
   const activeLiveTvOption = liveTvOptions.find(option => option.id === activeLiveTv) || liveTvOptions[0];
   const musicViewOptions = [
     { id: "library", label: "Music Library" },
@@ -2507,6 +2508,55 @@ function MusicLibrarySidebar({ accentColor }) {
   if (activeRadioChannelId) radioIframeParams.set("channel", activeRadioChannelId);
   const radioIframeQuery = radioIframeParams.toString();
   const radioIframeSrc = `${fuitsLiveTvChannelUrl.replace(/\/+$/, "")}/fuits-radio${radioIframeQuery ? `?${radioIframeQuery}` : ""}`;
+
+  useEffect(() => {
+    if (!fuitsLiveTvChannelUrl) {
+      setLiveFuitsLiveTvChannels(fuitsLiveTvChannels);
+      return undefined;
+    }
+
+    let canceled = false;
+    const loadLiveChannels = async () => {
+      try {
+        const response = await fetch(`${fuitsLiveTvChannelUrl.replace(/\/+$/, "")}/fuits-live-tv?cache=${Date.now()}`, { cache: "no-store" });
+        if (!response.ok) return;
+
+        const html = await response.text();
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        const parsedChannels = Array.from(doc.querySelectorAll("#channelSelect option"))
+          .map(option => ({
+            id: option.getAttribute("value") || "",
+            label: option.textContent.trim()
+          }))
+          .filter(channel => channel.id && channel.label);
+
+        if (!parsedChannels.length || canceled) return;
+
+        const mergedChannels = [...fuitsLiveTvChannels];
+        const seen = new Set(mergedChannels.map(channel => channel.id));
+        parsedChannels.forEach(channel => {
+          if (!seen.has(channel.id)) {
+            seen.add(channel.id);
+            mergedChannels.push(channel);
+          }
+        });
+
+        setLiveFuitsLiveTvChannels(mergedChannels);
+        if (!seen.has(activeFuitsLiveTvChannel)) {
+          setActiveFuitsLiveTvChannel(mergedChannels[0].id);
+        }
+      } catch {
+        if (!canceled) {
+          setLiveFuitsLiveTvChannels(fuitsLiveTvChannels);
+        }
+      }
+    };
+
+    loadLiveChannels();
+    return () => {
+      canceled = true;
+    };
+  }, [activeFuitsLiveTvChannel, fuitsLiveTvChannelUrl, fuitsLiveTvChannels]);
 
   useEffect(() => {
     if (!musicViewOptions.some(option => option.id === activeMusicView)) {
@@ -2897,7 +2947,7 @@ function MusicLibrarySidebar({ accentColor }) {
                     letterSpacing: .7
                   }}
                 >
-                  {fuitsLiveTvChannels.map(channel => (
+                  {liveFuitsLiveTvChannels.map(channel => (
                     <option key={channel.id} value={channel.id}>{channel.label}</option>
                   ))}
                 </select>

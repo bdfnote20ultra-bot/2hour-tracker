@@ -1668,7 +1668,12 @@ function FuitsLiveAnnouncementPlayer({ baseUrl, playerMuted, playerVolume, onVol
 
       if (window.Hls?.isSupported()) {
         hlsRef.current?.destroy?.();
-        const hls = new window.Hls({ liveSyncDurationCount: 2 });
+        const hls = new window.Hls({
+          liveSyncDurationCount: 1,
+          liveMaxLatencyDurationCount: 3,
+          maxBufferLength: 6,
+          lowLatencyMode: true
+        });
         hlsRef.current = hls;
         hls.on(window.Hls.Events.MANIFEST_PARSED, playLive);
         hls.on(window.Hls.Events.ERROR, (event, data) => {
@@ -1706,59 +1711,49 @@ function FuitsLiveAnnouncementPlayer({ baseUrl, playerMuted, playerVolume, onVol
   }, [baseUrl]);
 
   return (
-    <div style={{
-      position: "relative",
-      background: "#000",
-      border: "2px solid rgba(239,68,68,.72)",
-      boxShadow: "0 0 24px rgba(239,68,68,.28)"
-    }}>
-      <video
-        ref={liveVideoRef}
-        controls
-        autoPlay
-        playsInline
-        muted={playerMuted}
-        preload="auto"
-        onVolumeChange={onVolumeChange}
-        style={{
-          width: "100%",
-          minHeight: 260,
-          maxHeight: 420,
-          background: "#000",
-          display: "block"
-        }}
-      />
+    <div>
       <div style={{
-        position: "absolute",
-        left: 10,
-        top: 10,
-        borderRadius: 999,
-        padding: "7px 10px",
-        color: "#fff",
-        background: "rgba(185,28,28,.92)",
-        border: "1px solid rgba(254,202,202,.7)",
-        fontSize: 12,
-        fontWeight: 1000,
-        letterSpacing: .8,
-        pointerEvents: "none",
-        textTransform: "uppercase"
+        background: "#000",
+        border: "2px solid rgba(239,68,68,.72)",
+        boxShadow: "0 0 24px rgba(239,68,68,.28)"
       }}>
-        Live Announcement On Air
+        <video
+          ref={liveVideoRef}
+          controls
+          autoPlay
+          playsInline
+          muted={playerMuted}
+          preload="auto"
+          onVolumeChange={onVolumeChange}
+          style={{
+            width: "100%",
+            minHeight: 260,
+            maxHeight: 420,
+            background: "#000",
+            display: "block"
+          }}
+        />
       </div>
-      <div style={{
-        position: "absolute",
-        right: 10,
-        top: 10,
-        borderRadius: 999,
-        padding: "7px 10px",
-        color: "#fee2e2",
-        background: "rgba(15,23,42,.84)",
-        border: "1px solid rgba(239,68,68,.7)",
-        fontSize: 12,
-        fontWeight: 1000,
-        pointerEvents: "none",
-        textTransform: "uppercase"
-      }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 7,
+          marginTop: 7,
+          color: "#ef4444",
+          fontSize: 12,
+          fontWeight: 900,
+          textTransform: "uppercase"
+        }}
+      >
+        <span style={{
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          background: "#ef4444",
+          boxShadow: "0 0 10px rgba(239,68,68,.75)",
+          flex: "0 0 auto"
+        }} />
         Livestream Active
       </div>
     </div>

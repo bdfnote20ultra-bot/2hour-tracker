@@ -1860,7 +1860,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
 
   const loadChannel = useCallback(async () => {
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 4000);
+    const timeout = window.setTimeout(() => controller.abort(), 12000);
     try {
       const response = await fetch(`${baseUrl}/channel.json?channel=${encodeURIComponent(channelId)}&cache=${Date.now()}`, {
         cache: "no-store",
@@ -1875,7 +1875,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
       setVideoError("");
       return data;
     } catch (error) {
-      const message = "FUITS Live TV tunnel is offline or not answering. Use Restart Services, then refresh after the updater finishes.";
+      const message = "FUITS Live TV is not answering at the saved START BAT URL yet. Keep the FUITS server and Cloudflare windows open, then refresh.";
       setVideoLoading(false);
       setVideoError(message);
       setStatus(message);
@@ -1894,7 +1894,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
         const data = await loadChannel();
         if (cancelled || data?.playlist?.length) return;
       } catch {
-        if (!cancelled) setStatus("FUITS Live TV tunnel is offline or not answering. Use Restart Services, then refresh after the updater finishes.");
+        if (!cancelled) setStatus("FUITS Live TV is not answering at the saved START BAT URL yet. Keep the FUITS server and Cloudflare windows open, then refresh.");
       }
     };
 
@@ -2104,7 +2104,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
       try {
         await loadChannel();
       } catch {
-        setVideoError("FUITS Live TV did not load. Check the Cloudflare tunnel.");
+        setVideoError("FUITS Live TV did not load from the saved START BAT URL yet. Keep the FUITS server and Cloudflare windows open, then try again.");
         return;
       }
 

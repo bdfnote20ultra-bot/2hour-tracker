@@ -2336,6 +2336,7 @@ function MusicLibrarySidebar({ accentColor }) {
   const [activeMediaMenu, setActiveMediaMenu] = useState("liveTv");
   const [mediaMenuOpen, setMediaMenuOpen] = useState(false);
   const [activeMusicView, setActiveMusicView] = useState("library");
+  const [radioFrameVersion, setRadioFrameVersion] = useState(0);
   const [musicChannels, setMusicChannels] = useState([]);
   const [liveTvMenuOpen, setLiveTvMenuOpen] = useState(false);
   const [activeLiveTv, setActiveLiveTv] = useState("fattys");
@@ -2490,13 +2491,16 @@ function MusicLibrarySidebar({ accentColor }) {
   const activeLiveTvOption = liveTvOptions.find(option => option.id === activeLiveTv) || liveTvOptions[0];
   const musicViewOptions = [
     { id: "library", label: "Music Library" },
+    { id: "radio", label: "FUIT RADIO WORLD" },
     ...musicChannels.map(channel => ({ id: `music-channel:${channel.id}`, label: channel.label })),
-    { id: "radio", label: "FUITS Radio World" }
   ];
+  const isRadioMusicView = activeMusicView === "radio" || activeMusicView.startsWith("radio:");
   const activeRadioChannelId = activeMusicView.startsWith("radio:") ? activeMusicView.slice("radio:".length) : "";
-  const radioIframeSrc = activeRadioChannelId
-    ? `${fuitsLiveTvChannelUrl}/fuits-radio?channel=${encodeURIComponent(activeRadioChannelId)}`
-    : `${fuitsLiveTvChannelUrl}/fuits-radio`;
+  const radioIframeParams = new URLSearchParams();
+  if (activeRadioChannelId) radioIframeParams.set("channel", activeRadioChannelId);
+  if (radioFrameVersion) radioIframeParams.set("load", String(radioFrameVersion));
+  const radioIframeQuery = radioIframeParams.toString();
+  const radioIframeSrc = `${fuitsLiveTvChannelUrl}/fuits-radio${radioIframeQuery ? `?${radioIframeQuery}` : ""}`;
 
   const rateTrack = (id, rating) => {
     setRatings(prev => ({ ...prev, [id]: rating }));
@@ -2509,6 +2513,13 @@ function MusicLibrarySidebar({ accentColor }) {
   const chooseMediaMenu = (menu) => {
     setActiveMediaMenu(menu);
     setMediaMenuOpen(false);
+  };
+
+  const chooseMusicView = (view) => {
+    setActiveMusicView(view);
+    if (view === "radio" || view.startsWith("radio:")) {
+      setRadioFrameVersion(Date.now());
+    }
   };
 
   const openExternalLink = (url) => {
@@ -3221,32 +3232,42 @@ function MusicLibrarySidebar({ accentColor }) {
         )}
       </div>
 
-      <select
-        value={activeMusicView}
-        onChange={event => setActiveMusicView(event.target.value)}
-        style={{
-          width: "100%",
-          boxSizing: "border-box",
-          borderRadius: 12,
-          border: "1px solid rgba(148,163,184,.18)",
-          background: "rgba(15,23,42,.72)",
-          color: "#f8fafc",
-          padding: "9px 11px",
-          marginBottom: 10,
-          fontSize: 12,
-          fontWeight: 1000,
-          textTransform: "uppercase"
-        }}
-      >
+      <div style={{
+        display: "grid",
+        gap: 8,
+        marginBottom: 10
+      }}>
         {musicViewOptions.map(option => (
-          <option key={option.id} value={option.id}>{option.label}</option>
+          <button
+            key={option.id}
+            onClick={() => chooseMusicView(option.id)}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              borderRadius: 12,
+              border: activeMusicView === option.id ? `1px solid ${accentColor}` : "1px solid rgba(148,163,184,.18)",
+              background: activeMusicView === option.id ? `linear-gradient(135deg, ${accentColor}, #38bdf8)` : "rgba(15,23,42,.72)",
+              color: activeMusicView === option.id ? "#06111f" : "#f8fafc",
+              padding: "9px 11px",
+              cursor: "pointer",
+              fontSize: 12,
+              fontWeight: 1000,
+              textAlign: "left",
+              textTransform: "uppercase",
+              letterSpacing: .8,
+              boxShadow: activeMusicView === option.id ? `0 8px 22px ${accentColor}44` : "none"
+            }}
+          >
+            {option.label}
+          </button>
         ))}
-      </select>
+      </div>
 
-      {activeMusicView === "radio" || activeMusicView.startsWith("radio:") ? (
+      {isRadioMusicView ? (
         <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           <iframe
-            title="FUITS RADIO WORLD"
+            key={radioIframeSrc}
+            title="FUIT RADIO WORLD"
             src={radioIframeSrc}
             allow="autoplay; encrypted-media"
             style={{

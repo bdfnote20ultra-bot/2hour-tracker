@@ -13,3 +13,14 @@ if ('serviceWorker' in navigator) {
       .catch(() => {});
   });
 }
+
+function clearBrowserCaches() {
+  if ('caches' in window) {
+    caches.keys()
+      .then(keys => Promise.all(keys.map(key => caches.delete(key))))
+      .catch(() => {});
+  }
+}
+
+window.addEventListener('pagehide', clearBrowserCaches);
+window.addEventListener('beforeunload', clearBrowserCaches);

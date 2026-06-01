@@ -1633,10 +1633,18 @@ function LiveChatBox({ title = "Live Chat", src, height = 250, minHeight = 250 }
   );
 }
 
+const LARGE_FUITS_VIDEO_BYTES = 1024 * 1024 * 1024;
+const LARGE_FUITS_PRELOAD_FRACTION = 0.3;
+const LARGE_FUITS_PRELOAD_CHUNK_BYTES = 1024 * 1024;
+
 function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 1.5 }) {
   const videoRef = useRef(null);
   const syncedVideoSrcRef = useRef("");
   const refreshQueuedRef = useRef(false);
+  const [preloadedLargeVideoKey, setPreloadedLargeVideoKey] = useState("");
+  const autoPreloadKeyRef = useRef("");
+  const [largePreloadProgress, setLargePreloadProgress] = useState(0);
+  const [largePreloadActive, setLargePreloadActive] = useState(false);
   const [channel, setChannel] = useState(null);
   const [status, setStatus] = useState("Loading FUITS Live TV...");
   const [playerMuted, setPlayerMuted] = useState(false);
@@ -1647,6 +1655,13 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
   const videoSrc = currentItem?.src
     ? `${baseUrl}${currentItem.src.startsWith("/") ? "" : "/"}${currentItem.src}`
     : "";
+  const largeVideoKey = currentItem && videoSrc ? `${channelId}:${currentItem.id}:${currentItem.sizeBytes || 0}` : "";
+  const needsLargeVideoPreload = Boolean(
+    currentItem &&
+    videoSrc &&
+    Number(currentItem.sizeBytes) >= LARGE_FUITS_VIDEO_BYTES &&
+    preloadedLargeVideoKey !== largeVideoKey
+  );
   const currentOffsetSeconds = useMemo(() => {
     if (!channel || !currentItem) return 0;
     return Math.max(0, Math.min(channel.offsetSeconds || 0, Math.max(0, (currentItem.duration || 1) - 1)));
@@ -1783,9 +1798,57 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
   const playCurrentVideo = () => {
     const video = videoRef.current;
     if (!video || !video.paused) return;
+    if (needsLargeVideoPreload) return;
     const playPromise = video.play();
     if (playPromise?.catch) playPromise.catch(() => {});
   };
+
+  const preloadLargeVideoFromTimestamp = useCallback(async () => {
+    if (!currentItem || !videoSrc || !needsLargeVideoPreload || largePreloadActive) return;
+
+    const sizeBytes = Number(currentItem.sizeBytes);
+    const duration = Number(currentItem.duration) || 1;
+    const liveOffset = Math.max(0, Math.min(getLiveOffsetSeconds(channel, currentItem), Math.max(0, duration - 1)));
+    const startByte = Math.max(0, Math.min(sizeBytes - 1, Math.floor((liveOffset / duration) * sizeBytes)));
+    const targetBytes = Math.max(LARGE_FUITS_PRELOAD_CHUNK_BYTES, Math.floor(sizeBytes * LARGE_FUITS_PRELOAD_FRACTION));
+    const endByte = Math.min(sizeBytes - 1, startByte + targetBytes - 1);
+
+    setLargePreloadActive(true);
+    setLargePreloadProgress(0);
+    setVideoLoading(true);
+    setVideoError("");
+
+    try {
+      let loadedBytes = 0;
+      for (let byte = startByte; byte <= endByte; byte += LARGE_FUITS_PRELOAD_CHUNK_BYTES) {
+        const chunkEnd = Math.min(endByte, byte + LARGE_FUITS_PRELOAD_CHUNK_BYTES - 1);
+        const response = await fetch(videoSrc, {
+          cache: "force-cache",
+          headers: { Range: `bytes=${byte}-${chunkEnd}` }
+        });
+        if (!response.ok && response.status !== 206) throw new Error("Preload failed");
+        const buffer = await response.arrayBuffer();
+        loadedBytes += buffer.byteLength;
+        setLargePreloadProgress(Math.min(100, Math.round((loadedBytes / (endByte - startByte + 1)) * 100)));
+      }
+
+      setPreloadedLargeVideoKey(largeVideoKey);
+      setLargePreloadProgress(100);
+      window.setTimeout(() => {
+        const video = videoRef.current;
+        if (!video) return;
+        video.preload = "auto";
+        syncVideoToLiveOffset(true);
+        const playPromise = video.play();
+        if (playPromise?.catch) playPromise.catch(() => {});
+      }, 0);
+    } catch {
+      setVideoError("Large movie preload did not finish. Check the FUITS tunnel, then try preload again.");
+    } finally {
+      setLargePreloadActive(false);
+      setVideoLoading(false);
+    }
+  }, [channel, currentItem, getLiveOffsetSeconds, largePreloadActive, largeVideoKey, needsLargeVideoPreload, syncVideoToLiveOffset, videoSrc]);
 
   const getBufferedAheadSeconds = video => {
     if (!video?.buffered?.length) return 0;
@@ -1822,13 +1885,25 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
 
     setVideoLoading(true);
     setVideoError("");
+    setLargePreloadProgress(0);
     syncedVideoSrcRef.current = "";
     video.muted = playerMuted;
     video.volume = playerVolume;
     video.preload = "auto";
     video.load();
+    if (needsLargeVideoPreload) {
+      setVideoLoading(false);
+      return;
+    }
     if (video.readyState >= 1) playWhenBuffered();
-  }, [videoSrc]);
+  }, [videoSrc, needsLargeVideoPreload]);
+
+  useEffect(() => {
+    if (!needsLargeVideoPreload || !largeVideoKey || largePreloadActive) return;
+    if (autoPreloadKeyRef.current === largeVideoKey) return;
+    autoPreloadKeyRef.current = largeVideoKey;
+    preloadLargeVideoFromTimestamp();
+  }, [largePreloadActive, largeVideoKey, needsLargeVideoPreload, preloadLargeVideoFromTimestamp]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -1910,7 +1985,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
             controls
             playsInline
             muted={playerMuted}
-            autoPlay
+            autoPlay={!needsLargeVideoPreload}
             preload="auto"
             onLoadedMetadata={() => {
               setVideoLoading(false);
@@ -1994,6 +2069,37 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
                   Retry
                 </button>
               )}
+            </div>
+          )}
+          {needsLargeVideoPreload && (
+            <div style={{
+              display: "grid",
+              gap: 8,
+              padding: "10px",
+              color: "#fef3c7",
+              background: "rgba(120,53,15,.42)",
+              borderTop: "1px solid rgba(251,191,36,.32)",
+              fontSize: 12,
+              fontWeight: 900,
+              lineHeight: 1.3
+            }}>
+              <span>Large file preloading from the live timestamp: {largePreloadProgress}%</span>
+              <button
+                type="button"
+                onClick={preloadLargeVideoFromTimestamp}
+                disabled={largePreloadActive}
+                style={{
+                  border: "none",
+                  borderRadius: 10,
+                  background: largePreloadActive ? "#64748b" : "#facc15",
+                  color: "#111827",
+                  padding: "8px 10px",
+                  fontWeight: 1000,
+                  cursor: largePreloadActive ? "default" : "pointer"
+                }}
+              >
+                {largePreloadActive ? `Preloading ${largePreloadProgress}%` : "Preload now"}
+              </button>
             </div>
           )}
         </>

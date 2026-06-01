@@ -117,11 +117,6 @@ function getChannel(channelId) {
   return channels.find(channel => channel.id === channelId) || channels[0];
 }
 
-function shouldStartVideoFromBeginning(playlist, item) {
-  if (!item) return false;
-  return playlist.length === 1;
-}
-
 function getRadioChannels() {
   ensureRadioFolders();
   return fs.readdirSync(RADIO_PLAYLIST_DIR)
@@ -842,17 +837,6 @@ function getChannelSnapshot(channelId) {
       break;
     }
     cursor += duration;
-  }
-
-  if (shouldStartVideoFromBeginning(playlist, playlist[currentIndex])) {
-    return {
-      channel,
-      playlist,
-      currentIndex,
-      offsetSeconds: 0,
-      totalDuration,
-      generatedAtMs: Date.now()
-    };
   }
 
   return {
@@ -2993,6 +2977,7 @@ const server = http.createServer((req, res) => {
         id: item.id,
         title: item.title,
         duration: item.duration,
+        sizeBytes: fs.statSync(item.file).size,
         src: `/video/${channel.channel.id}/${item.id}/${encodeURIComponent(path.basename(item.file))}`
       }))
     });

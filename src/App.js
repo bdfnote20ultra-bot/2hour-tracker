@@ -1770,7 +1770,7 @@ const LARGE_FUITS_PRELOAD_FRACTION = 0.07;
 const LARGE_FUITS_PRELOAD_CHUNK_BYTES = 4 * 1024 * 1024;
 const LARGE_FUITS_PRELOAD_PARALLEL_CHUNKS = 6;
 
-function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 1.5, liveAnnouncementOnline = false }) {
+function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 0, liveAnnouncementOnline = false }) {
   const videoRef = useRef(null);
   const syncedVideoSrcRef = useRef("");
   const refreshQueuedRef = useRef(false);
@@ -1780,22 +1780,16 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
   const [largePreloadActive, setLargePreloadActive] = useState(false);
   const [channel, setChannel] = useState(null);
   const [status, setStatus] = useState("Loading FUITS Live TV...");
-  const [playerMuted, setPlayerMuted] = useState(false);
+  const [playerMuted, setPlayerMuted] = useState(true);
   const [playerVolume, setPlayerVolume] = useState(1);
   const [videoLoading, setVideoLoading] = useState(false);
   const [videoError, setVideoError] = useState("");
   const currentItem = channel?.playlist?.[channel.currentIndex] || null;
   const videoSrc = currentItem?.src
-    ? `${baseUrl}${currentItem.src.startsWith("/") ? "" : "/"}${currentItem.src}`
+    ? `${baseUrl}${currentItem.src.startsWith("/") ? "" : "/"}${currentItem.src}${currentItem.src.includes("?") ? "&" : "?"}stream=${encodeURIComponent(`${channelId}-${currentItem.id}-${currentItem.sizeBytes || currentItem.duration || ""}`)}`
     : "";
   const largeVideoKey = currentItem && videoSrc ? `${channelId}:${currentItem.id}:${currentItem.sizeBytes || 0}` : "";
-  const needsLargeVideoPreload = Boolean(
-    currentItem &&
-    videoSrc &&
-    !liveAnnouncementOnline &&
-    Number(currentItem.sizeBytes) >= LARGE_FUITS_VIDEO_BYTES &&
-    preloadedLargeVideoKey !== largeVideoKey
-  );
+  const needsLargeVideoPreload = false;
   const currentOffsetSeconds = useMemo(() => {
     if (!channel || !currentItem) return 0;
     return Math.max(0, Math.min(channel.offsetSeconds || 0, Math.max(0, (currentItem.duration || 1) - 1)));
@@ -1938,7 +1932,6 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
   const playCurrentVideo = () => {
     const video = videoRef.current;
     if (!video || !video.paused) return;
-    if (needsLargeVideoPreload) return;
     const playPromise = video.play();
     if (playPromise?.catch) playPromise.catch(() => {});
   };
@@ -2010,8 +2003,8 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
   const playWhenBuffered = () => {
     const video = videoRef.current;
     if (!video) return;
-    const enoughBuffered = getBufferedAheadSeconds(video) >= startupBufferSeconds;
-    if (video.readyState >= 2 && (enoughBuffered || video.duration - video.currentTime < startupBufferSeconds)) {
+    const enoughBuffered = startupBufferSeconds <= 0 || getBufferedAheadSeconds(video) >= startupBufferSeconds;
+    if (video.readyState >= 1 && (enoughBuffered || video.duration - video.currentTime < startupBufferSeconds)) {
       setVideoLoading(false);
       playCurrentVideo();
     }
@@ -2038,13 +2031,9 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
     video.volume = playerVolume;
     video.preload = "auto";
     video.load();
-    if (needsLargeVideoPreload) {
-      video.pause();
-      setVideoLoading(false);
-      return;
-    }
+    playCurrentVideo();
     if (video.readyState >= 1) playWhenBuffered();
-  }, [videoSrc, needsLargeVideoPreload]);
+  }, [videoSrc]);
 
   useEffect(() => {
     if (!needsLargeVideoPreload || !largeVideoKey || largePreloadActive) return;

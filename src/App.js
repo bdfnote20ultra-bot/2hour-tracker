@@ -2359,7 +2359,9 @@ function MusicLibrarySidebar({ accentColor }) {
         const allowedHost =
           bannedUrl.hostname === "localhost" ||
           bannedUrl.hostname === "127.0.0.1" ||
-          bannedUrl.hostname.endsWith(".trycloudflare.com");
+          bannedUrl.hostname.endsWith(".trycloudflare.com") ||
+          bannedUrl.hostname === "flivetv.qzz.io" ||
+          bannedUrl.hostname.endsWith(".flivetv.qzz.io");
 
         if (allowedHost) {
           bannedUrl.searchParams.set("returnUrl", window.location.href);
@@ -2479,7 +2481,7 @@ function MusicLibrarySidebar({ accentColor }) {
     { id: "athf", label: "ADULT SWIM ZONE", heading: "ADULT SWIM ZONE", url: "https://www.adultswim.com/streams/aqua-teen-hunger-force", embed: true },
     { id: "youtube", label: "YOUTUBE", heading: "YOUTUBE", url: "https://www.youtube.com/", embed: false },
     { id: "southpark", label: "SOUTH PARK WORLD", heading: "SOUTH PARK WORLD", url: "https://southpark.cc.com/seasons/south-park", embed: false },
-    { id: "jellyfin", label: "FUIT JELLYFIN", heading: "FUIT JELLYFIN", url: "https://star-compete-genetic-incentive.trycloudflare.com/web/", embed: true }
+    { id: "jellyfin", label: "FUIT JELLYFIN", heading: "FUIT JELLYFIN", url: "https://jellyfin.flivetv.qzz.io/web/", embed: true }
   ];
   const fuitsLiveTvChannels = [
     { id: "channel-a", label: "Channel A" },

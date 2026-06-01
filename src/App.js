@@ -2479,7 +2479,7 @@ function MusicLibrarySidebar({ accentColor }) {
     { id: "athf", label: "ADULT SWIM ZONE", heading: "ADULT SWIM ZONE", url: "https://www.adultswim.com/streams/aqua-teen-hunger-force", embed: true },
     { id: "youtube", label: "YOUTUBE", heading: "YOUTUBE", url: "https://www.youtube.com/", embed: false },
     { id: "southpark", label: "SOUTH PARK WORLD", heading: "SOUTH PARK WORLD", url: "https://southpark.cc.com/seasons/south-park", embed: false },
-    { id: "jellyfin", label: "FUIT JELLYFIN", heading: "FUIT JELLYFIN", url: "https://periodic-sox-approximate-beginning.trycloudflare.com/web/", embed: true }
+    { id: "jellyfin", label: "FUIT JELLYFIN", heading: "FUIT JELLYFIN", url: "https://tasks-stickers-cleveland-pay.trycloudflare.com/web/", embed: true }
   ];
   const fuitsLiveTvChannels = [
     { id: "channel-a", label: "Channel A" },

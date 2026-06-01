@@ -1633,12 +1633,144 @@ function LiveChatBox({ title = "Live Chat", src, height = 250, minHeight = 250 }
   );
 }
 
+function FuitsLiveAnnouncementPlayer({ baseUrl, playerMuted, playerVolume, onVolumeChange }) {
+  const liveVideoRef = useRef(null);
+  const hlsRef = useRef(null);
+
+  useEffect(() => {
+    const video = liveVideoRef.current;
+    if (!video) return;
+    video.muted = playerMuted;
+    video.volume = playerVolume;
+  }, [playerMuted, playerVolume]);
+
+  useEffect(() => {
+    const video = liveVideoRef.current;
+    if (!video || !baseUrl) return undefined;
+
+    const liveSrc = `${baseUrl.replace(/\/+$/, "")}/owncast-hls/stream.m3u8`;
+    let cancelled = false;
+
+    const playLive = () => {
+      if (cancelled) return;
+      const playPromise = video.play();
+      if (playPromise?.catch) playPromise.catch(() => {});
+    };
+
+    const loadHls = () => {
+      if (cancelled) return;
+      if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        video.src = liveSrc;
+        video.load();
+        playLive();
+        return;
+      }
+
+      if (window.Hls?.isSupported()) {
+        hlsRef.current?.destroy?.();
+        const hls = new window.Hls({ liveSyncDurationCount: 2 });
+        hlsRef.current = hls;
+        hls.on(window.Hls.Events.MANIFEST_PARSED, playLive);
+        hls.on(window.Hls.Events.ERROR, (event, data) => {
+          if (!data?.fatal) return;
+          if (data.type === window.Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+          else {
+            hls.destroy();
+            hlsRef.current = null;
+            window.setTimeout(loadHls, 1000);
+          }
+        });
+        hls.loadSource(liveSrc);
+        hls.attachMedia(video);
+      }
+    };
+
+    if (window.Hls || video.canPlayType("application/vnd.apple.mpegurl")) {
+      loadHls();
+    } else {
+      const script = document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/npm/hls.js@1";
+      script.async = true;
+      script.onload = loadHls;
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      cancelled = true;
+      hlsRef.current?.destroy?.();
+      hlsRef.current = null;
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+    };
+  }, [baseUrl]);
+
+  return (
+    <div style={{
+      position: "relative",
+      background: "#000",
+      border: "2px solid rgba(239,68,68,.72)",
+      boxShadow: "0 0 24px rgba(239,68,68,.28)"
+    }}>
+      <video
+        ref={liveVideoRef}
+        controls
+        autoPlay
+        playsInline
+        muted={playerMuted}
+        preload="auto"
+        onVolumeChange={onVolumeChange}
+        style={{
+          width: "100%",
+          minHeight: 260,
+          maxHeight: 420,
+          background: "#000",
+          display: "block"
+        }}
+      />
+      <div style={{
+        position: "absolute",
+        left: 10,
+        top: 10,
+        borderRadius: 999,
+        padding: "7px 10px",
+        color: "#fff",
+        background: "rgba(185,28,28,.92)",
+        border: "1px solid rgba(254,202,202,.7)",
+        fontSize: 12,
+        fontWeight: 1000,
+        letterSpacing: .8,
+        pointerEvents: "none",
+        textTransform: "uppercase"
+      }}>
+        Live Announcement On Air
+      </div>
+      <div style={{
+        position: "absolute",
+        right: 10,
+        top: 10,
+        borderRadius: 999,
+        padding: "7px 10px",
+        color: "#fee2e2",
+        background: "rgba(15,23,42,.84)",
+        border: "1px solid rgba(239,68,68,.7)",
+        fontSize: 12,
+        fontWeight: 1000,
+        pointerEvents: "none",
+        textTransform: "uppercase"
+      }}>
+        Livestream Active
+      </div>
+    </div>
+  );
+}
+
 const LARGE_FUITS_VIDEO_BYTES = 1024 * 1024 * 1024;
 const LARGE_FUITS_PRELOAD_FRACTION = 0.07;
 const LARGE_FUITS_PRELOAD_CHUNK_BYTES = 4 * 1024 * 1024;
 const LARGE_FUITS_PRELOAD_PARALLEL_CHUNKS = 6;
 
-function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 1.5 }) {
+function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 1.5, liveAnnouncementOnline = false }) {
   const videoRef = useRef(null);
   const syncedVideoSrcRef = useRef("");
   const refreshQueuedRef = useRef(false);
@@ -1660,6 +1792,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
   const needsLargeVideoPreload = Boolean(
     currentItem &&
     videoSrc &&
+    !liveAnnouncementOnline &&
     Number(currentItem.sizeBytes) >= LARGE_FUITS_VIDEO_BYTES &&
     preloadedLargeVideoKey !== largeVideoKey
   );
@@ -1795,6 +1928,12 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
     const timer = window.setInterval(() => syncVideoToLiveOffset(false), 2000);
     return () => window.clearInterval(timer);
   }, [videoSrc, syncVideoToLiveOffset]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !liveAnnouncementOnline) return;
+    video.pause();
+  }, [liveAnnouncementOnline]);
 
   const playCurrentVideo = () => {
     const video = videoRef.current;
@@ -1988,6 +2127,17 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
     }}>
       {videoSrc ? (
         <>
+          {liveAnnouncementOnline ? (
+            <FuitsLiveAnnouncementPlayer
+              baseUrl={baseUrl}
+              playerMuted={playerMuted}
+              playerVolume={playerVolume}
+              onVolumeChange={event => {
+                setPlayerMuted(event.currentTarget.muted);
+                setPlayerVolume(event.currentTarget.volume);
+              }}
+            />
+          ) : (
           <div style={{ position: "relative", background: "#000" }}>
             <video
               ref={videoRef}
@@ -2060,6 +2210,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
               </div>
             )}
           </div>
+          )}
           {(videoLoading || videoError) && (
             <div style={{
               display: "flex",
@@ -2307,7 +2458,7 @@ function MusicLibrarySidebar({ accentColor }) {
       }
     };
     checkOwncastStatus();
-    const timer = setInterval(checkOwncastStatus, 30000);
+    const timer = setInterval(checkOwncastStatus, 5000);
     return () => {
       cancelled = true;
       clearInterval(timer);
@@ -2730,6 +2881,7 @@ function MusicLibrarySidebar({ accentColor }) {
                   baseUrl={fuitsLiveTvChannelUrl}
                   channelId={activeFuitsLiveTvChannel}
                   startupBufferSeconds={0.2}
+                  liveAnnouncementOnline={owncastOnline}
                 />
                 {renderFuitsOwnerControls()}
                 <LiveChatBox

@@ -1634,9 +1634,9 @@ function LiveChatBox({ title = "Live Chat", src, height = 250, minHeight = 250 }
 }
 
 const LARGE_FUITS_VIDEO_BYTES = 1024 * 1024 * 1024;
-const LARGE_FUITS_PRELOAD_FRACTION = 0.1;
-const LARGE_FUITS_PRELOAD_CHUNK_BYTES = 1024 * 1024;
-const LARGE_FUITS_PRELOAD_PARALLEL_CHUNKS = 4;
+const LARGE_FUITS_PRELOAD_FRACTION = 0.07;
+const LARGE_FUITS_PRELOAD_CHUNK_BYTES = 4 * 1024 * 1024;
+const LARGE_FUITS_PRELOAD_PARALLEL_CHUNKS = 6;
 
 function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 1.5 }) {
   const videoRef = useRef(null);

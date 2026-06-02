@@ -1903,6 +1903,7 @@ const FUITS_RESTART_PASSWORD = "FOOLIO";
 
 function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 0, liveAnnouncementOnline = false, restartSignal = 0 }) {
   const videoRef = useRef(null);
+  const videoShellRef = useRef(null);
   const syncedVideoSrcRef = useRef("");
   const refreshQueuedRef = useRef(false);
   const [preloadedLargeVideoKey, setPreloadedLargeVideoKey] = useState("");
@@ -1913,6 +1914,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
   const [status, setStatus] = useState("Loading FUITS Live TV...");
   const [playerMuted, setPlayerMuted] = useState(true);
   const [playerVolume, setPlayerVolume] = useState(1);
+  const [stretchVideoFullscreen, setStretchVideoFullscreen] = useState(false);
   const [videoLoading, setVideoLoading] = useState(false);
   const [videoError, setVideoError] = useState("");
   const [restartAnchor, setRestartAnchor] = useState(null);
@@ -2185,6 +2187,26 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
   }, [playerMuted, playerVolume]);
 
   useEffect(() => {
+    const handleFullscreenChange = () => {
+      const fullscreenElement =
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.msFullscreenElement;
+
+      if (fullscreenElement !== videoShellRef.current) setStretchVideoFullscreen(false);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    document.addEventListener("MSFullscreenChange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+      document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
+    };
+  }, []);
+
+  useEffect(() => {
     const unmuteOnFirstPageClick = () => {
       const video = videoRef.current;
       setPlayerMuted(false);
@@ -2209,6 +2231,28 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
     video.load();
     const playPromise = video.play();
     if (playPromise?.catch) playPromise.catch(() => {});
+  };
+
+  const stretchVideoToFullscreen = () => {
+    const shell = videoShellRef.current;
+    const video = videoRef.current;
+    if (!shell) return;
+
+    setStretchVideoFullscreen(true);
+    if (video) {
+      video.muted = false;
+      video.volume = 1;
+      setPlayerMuted(false);
+      setPlayerVolume(1);
+      const playPromise = video.play();
+      if (playPromise?.catch) playPromise.catch(() => {});
+    }
+
+    const requestFullscreen =
+      shell.requestFullscreen ||
+      shell.webkitRequestFullscreen ||
+      shell.msRequestFullscreen;
+    try { requestFullscreen?.call(shell); } catch {}
   };
 
   const confirmRestartPassword = () => {
@@ -2289,7 +2333,28 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
               }}
             />
           ) : (
-          <div style={{ position: "relative", background: "#000" }}>
+          <div
+            ref={videoShellRef}
+            className={stretchVideoFullscreen ? "fuits-video-shell-stretch" : "fuits-video-shell"}
+            style={{ position: "relative", background: "#000" }}
+          >
+            <style>{`
+              .fuits-video-shell:fullscreen,
+              .fuits-video-shell-stretch:fullscreen,
+              .fuits-video-shell:-webkit-full-screen,
+              .fuits-video-shell-stretch:-webkit-full-screen {
+                width: 100vw !important;
+                height: 100vh !important;
+                background: #000 !important;
+              }
+              .fuits-video-shell-stretch:fullscreen video,
+              .fuits-video-shell-stretch:-webkit-full-screen video {
+                width: 100vw !important;
+                height: 100vh !important;
+                max-height: none !important;
+                object-fit: fill !important;
+              }
+            `}</style>
             <video
               ref={videoRef}
               src={videoSrc}
@@ -2340,9 +2405,32 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
                 minHeight: 260,
                 maxHeight: 420,
                 background: "#000",
-                display: "block"
+                display: "block",
+                objectFit: stretchVideoFullscreen ? "fill" : "contain"
               }}
             />
+            <button
+              type="button"
+              onClick={stretchVideoToFullscreen}
+              style={{
+                position: "absolute",
+                right: 10,
+                bottom: 46,
+                zIndex: 3,
+                border: "1px solid rgba(255,255,255,.42)",
+                borderRadius: 10,
+                background: "rgba(2,6,23,.86)",
+                color: "#f8fafc",
+                padding: "6px 8px",
+                cursor: "pointer",
+                fontSize: 10,
+                fontWeight: 1000,
+                textTransform: "uppercase",
+                boxShadow: "0 8px 18px rgba(0,0,0,.45)"
+              }}
+            >
+              Stretch Fullscreen
+            </button>
             {needsLargeVideoPreload && (
               <div style={{
                 position: "absolute",

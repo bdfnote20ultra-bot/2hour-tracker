@@ -2951,6 +2951,10 @@ const server = http.createServer((req, res) => {
   const requestProtocol = req.headers["x-forwarded-proto"] || (String(req.headers.host || "").includes("trycloudflare.com") ? "https" : url.protocol.replace(":", ""));
   const requestOrigin = `${requestProtocol}://${req.headers.host}`;
 
+  if (req.method === "GET" && url.pathname !== "/online-stats") {
+    getOnlineStats(req, url.searchParams.get("device"));
+  }
+
   if (req.method === "OPTIONS") {
     res.writeHead(204, {
       "Access-Control-Allow-Origin": "*",

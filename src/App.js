@@ -2479,7 +2479,7 @@ function MusicLibrarySidebar({ accentColor }) {
   const [selectedCustomTvId, setSelectedCustomTvId] = useState(null);
   const [customTvUrl, setCustomTvUrl] = useState("");
   const [owncastOnline, setOwncastOnline] = useState(false);
-  const [onlineStats, setOnlineStats] = useState({ devices: 0, households: 0 });
+  const [onlineStats, setOnlineStats] = useState({ devices: null, households: null });
   const [openMusicSections, setOpenMusicSections] = useState({ videos: false, music: false });
   const [zoomedDonationQr, setZoomedDonationQr] = useState(null);
   const jellyfinFrameRef = useRef(null);
@@ -2620,8 +2620,20 @@ function MusicLibrarySidebar({ accentColor }) {
 
     const loadOnlineStats = async () => {
       try {
-        const response = await fetch(`${fuitsLiveTvChannelUrl.replace(/\/+$/, "")}/online-stats?device=${encodeURIComponent(deviceId)}&cache=${Date.now()}`, { cache: "no-store" });
-        const stats = await response.json();
+        const statsUrls = [
+          `${window.location.origin.replace(/\/+$/, "")}/online-stats?device=${encodeURIComponent(deviceId)}&cache=${Date.now()}`,
+          `${fuitsLiveTvChannelUrl.replace(/\/+$/, "")}/online-stats?device=${encodeURIComponent(deviceId)}&cache=${Date.now()}`
+        ];
+        let stats = null;
+        for (const statsUrl of statsUrls) {
+          try {
+            const response = await fetch(statsUrl, { cache: "no-store" });
+            if (!response.ok) continue;
+            stats = await response.json();
+            break;
+          } catch {}
+        }
+        if (!stats) throw new Error("online stats unavailable");
         if (!cancelled) {
           setOnlineStats({
             devices: Number(stats.devices) || 0,
@@ -2629,7 +2641,7 @@ function MusicLibrarySidebar({ accentColor }) {
           });
         }
       } catch {
-        if (!cancelled) setOnlineStats({ devices: 0, households: 0 });
+        if (!cancelled) setOnlineStats(current => current.devices === null ? { devices: null, households: null } : current);
       }
     };
 
@@ -2935,7 +2947,7 @@ function MusicLibrarySidebar({ accentColor }) {
 
       <div className="fuits-online-indicator" style={{
         position: "fixed",
-        right: 392,
+        right: 430,
         top: 18,
         zIndex: 8,
         width: 220,
@@ -2962,10 +2974,10 @@ function MusicLibrarySidebar({ accentColor }) {
           </div>
         </div>
         <div style={{ fontSize: 12, fontWeight: 1000, textTransform: "uppercase", lineHeight: 1.15 }}>
-          {onlineStats.devices} Devices Online
+          {onlineStats.devices === null ? "Checking" : onlineStats.devices} Devices Online
         </div>
         <div style={{ fontSize: 11, fontWeight: 900, color: "#cbd5e1", textTransform: "uppercase", lineHeight: 1.15 }}>
-          {onlineStats.households} Households Logged In
+          {onlineStats.households === null ? "Checking" : onlineStats.households} Households Logged In
         </div>
       </div>
 
@@ -4812,7 +4824,7 @@ if (view === "gambling") {
             { label: "DISPATCHING", nextView: "dispatching", top: 704 },
             { label: "SYSTEM UPGRADES", nextView: "systemUpgrades", top: 744 },
             { label: "CARD + COIN COLLECTING", nextView: "cardCoinCollecting", top: 784 },
-            { label: "EXIT THE MATRIX", nextView: "exitMatrix", top: 824 }
+            { label: "EXIT THE MATRIX", nextView: "exitMatrix", top: 814 }
           ].map(link => (
             <div key={link.nextView || link.label}>
               <button

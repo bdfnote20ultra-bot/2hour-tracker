@@ -641,6 +641,8 @@ function PokemonSidebar() {
   const [gameFullscreen, setGameFullscreen] = useState(false);
   const emulatorFrameRef = useRef(null);
   const emulatorHostRef = useRef(null);
+  const gameCarouselRef = useRef(null);
+  const gameCardRefs = useRef({});
   const gamepadKeysRef = useRef(new Set());
 
   const focusPokemonEmulator = () => {
@@ -723,6 +725,18 @@ function PokemonSidebar() {
   useEffect(() => {
     try { localStorage.setItem(KICK_GAMING_CHANNEL_KEY, kickGamingChannel); } catch {}
   }, [kickGamingChannel]);
+
+  useEffect(() => {
+    const carousel = gameCarouselRef.current;
+    const selectedCard = activeGame ? gameCardRefs.current[activeGame.file] : null;
+    if (!carousel || !selectedCard) return;
+
+    selectedCard.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "center"
+    });
+  }, [activeGame?.file, activeSystem]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1493,7 +1507,7 @@ function PokemonSidebar() {
               }}>{">"}</button>
             </div>
 
-            <div className="game-cover-carousel" style={{
+            <div ref={gameCarouselRef} className="game-cover-carousel" style={{
               display: "flex",
               gap: 8,
               overflowX: "auto",
@@ -1510,7 +1524,14 @@ function PokemonSidebar() {
                 const selected = activeGame && game.file === activeGame.file;
                 const discCount = game.discUrls?.length || 0;
                 return (
-                  <button key={game.file} onClick={() => chooseCarouselGame(game)} style={{
+                  <button
+                    key={game.file}
+                    ref={element => {
+                      if (element) gameCardRefs.current[game.file] = element;
+                      else delete gameCardRefs.current[game.file];
+                    }}
+                    onClick={() => chooseCarouselGame(game)}
+                    style={{
                     minWidth: 94,
                     maxWidth: 94,
                     scrollSnapAlign: "center",

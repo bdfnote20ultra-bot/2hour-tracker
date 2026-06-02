@@ -4498,7 +4498,8 @@ export default function App() {
     itemsServicesForSale: "ITEMS / SERVICES FOR SALE",
     foodCooking: "FOOD AND COOKING",
     dispatching: "DISPATCHING",
-    systemUpgrades: "SYSTEM UPGRADES"
+    systemUpgrades: "SYSTEM UPGRADES",
+    exitMatrix: "EXIT THE MATRIX"
   };
 
   if (blankPages[view]) {
@@ -4647,7 +4648,8 @@ if (view === "gambling") {
             { label: "ITEMS / SERVICES FOR SALE", nextView: "itemsServicesForSale", top: 624 },
             { label: "FOOD AND COOKING", nextView: "foodCooking", top: 664 },
             { label: "DISPATCHING", nextView: "dispatching", top: 704 },
-            { label: "SYSTEM UPGRADES", nextView: "systemUpgrades", top: 744 }
+            { label: "SYSTEM UPGRADES", nextView: "systemUpgrades", top: 744 },
+            { label: "EXIT THE MATRIX", nextView: "exitMatrix", top: 784 }
           ].map(link => (
             <div key={link.nextView || link.label}>
               <button
@@ -4678,27 +4680,27 @@ if (view === "gambling") {
           ))}
           <div style={{
             position: "fixed",
-            top: 790,
+            top: 832,
             left: 430,
             zIndex: 20,
-            width: 430,
-            minHeight: 48,
-            borderRadius: 14,
+            width: 250,
+            minHeight: 34,
+            borderRadius: 11,
             background: "rgba(0,0,0,.82)",
             border: "1px solid rgba(250,204,21,.34)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            gap: 10,
-            padding: "10px 14px",
+            gap: 8,
+            padding: "7px 10px",
             color: "#f8fafc",
             boxShadow: "inset 0 0 18px rgba(250,204,21,.08), 0 8px 20px rgba(0,0,0,.32)",
             boxSizing: "border-box"
           }}>
-            <span style={{ fontSize: 14, color: "#facc15", fontWeight: 1000, letterSpacing: 1, textTransform: "uppercase", fontFamily: "system-ui" }}>
+            <span style={{ fontSize: 10, color: "#facc15", fontWeight: 1000, letterSpacing: .8, textTransform: "uppercase", fontFamily: "system-ui" }}>
               FUITS WEALTH
             </span>
-            <span style={{ fontSize: 14, color: "#f8fafc", fontWeight: 1000, fontFamily: "system-ui" }}>
+            <span style={{ fontSize: 10, color: "#f8fafc", fontWeight: 1000, fontFamily: "system-ui" }}>
               0 FUIT COINS
             </span>
           </div>

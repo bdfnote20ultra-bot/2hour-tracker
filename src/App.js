@@ -114,6 +114,7 @@ const STORAGE_KEY = "hoursTrackerData_v2";
 const PROJECTS_KEY = "hoursTrackerProjects_v2";
 const RATES_KEY = "hoursTrackerRates_v1";
 const MONTHLY_TRACKER_KEY = "hoursTrackerMonthlyTrackerMonths_v1";
+const KICK_GAMING_CHANNEL_KEY = "fuitLiveGamingKickChannel_v1";
 
 function loadData() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
@@ -146,6 +147,20 @@ function loadMonthlyTrackerMonths() {
 }
 function saveMonthlyTrackerMonths(months) {
   try { localStorage.setItem(MONTHLY_TRACKER_KEY, JSON.stringify(months)); } catch {}
+}
+
+function normalizeKickChannel(value) {
+  const trimmed = (value || "").trim();
+  if (!trimmed) return "";
+
+  try {
+    const url = new URL(trimmed.startsWith("http") ? trimmed : `https://${trimmed}`);
+    if (url.hostname.toLowerCase().endsWith("kick.com")) {
+      return (url.pathname.split("/").filter(Boolean)[0] || "").replace(/^@/, "");
+    }
+  } catch {}
+
+  return trimmed.replace(/^@/, "").replace(/^kick\.com\//i, "").split(/[/?#]/)[0];
 }
 
 const PROJECT_COLORS = [
@@ -614,6 +629,9 @@ function PokemonSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [activeGamingApp, setActiveGamingApp] = useState("gaming-center");
   const [gamingMenuOpen, setGamingMenuOpen] = useState(false);
+  const [kickGamingChannelInput, setKickGamingChannelInput] = useState(() => {
+    try { return localStorage.getItem(KICK_GAMING_CHANNEL_KEY) || "flivetv"; } catch { return "flivetv"; }
+  });
   const [selectedArt, setSelectedArt] = useState("cover");
   const [zoomedCover, setZoomedCover] = useState(null);
   const [activeGameAssets, setActiveGameAssets] = useState({ manualUrl: "", backUrl: "" });
@@ -699,6 +717,12 @@ function PokemonSidebar() {
   const systemGames = games.filter(game => game.system === activeSystem);
   const activeGameIndex = activeGame ? Math.max(0, systemGames.findIndex(game => game.file === activeGame.file)) : 0;
   const backgroundImage = SYSTEM_BACKGROUNDS[activeSystem] || SYSTEM_BACKGROUNDS.GB;
+  const kickGamingChannel = normalizeKickChannel(kickGamingChannelInput) || "flivetv";
+  const kickGamingEmbedUrl = `https://player.kick.com/${encodeURIComponent(kickGamingChannel)}?autoplay=true&muted=true`;
+
+  useEffect(() => {
+    try { localStorage.setItem(KICK_GAMING_CHANNEL_KEY, kickGamingChannel); } catch {}
+  }, [kickGamingChannel]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1184,13 +1208,72 @@ function PokemonSidebar() {
       {!collapsed && (activeGamingApp === "live-gaming" ? (
         <div style={{
           width: "100%",
-          aspectRatio: "4 / 3",
-          minHeight: 245,
           borderRadius: 22,
-          background: "#020617",
+          background: "linear-gradient(180deg, rgba(83,20,78,.92), rgba(15,23,42,.96))",
           border: "2px solid rgba(56,189,248,.28)",
-          boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)"
-        }} />
+          boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)",
+          overflow: "hidden",
+          padding: 10,
+          display: "grid",
+          gap: 10
+        }}>
+          <div style={{
+            display: "flex",
+            gap: 8,
+            alignItems: "center"
+          }}>
+            <input
+              value={kickGamingChannelInput}
+              onChange={event => setKickGamingChannelInput(event.target.value)}
+              onBlur={() => setKickGamingChannelInput(kickGamingChannel)}
+              placeholder="Kick channel"
+              style={{
+                flex: 1,
+                minWidth: 0,
+                borderRadius: 10,
+                border: "1px solid rgba(148,163,184,.28)",
+                background: "rgba(2,6,23,.86)",
+                color: "#f8fafc",
+                padding: "9px 10px",
+                outline: "none",
+                fontSize: 12,
+                fontWeight: 900
+              }}
+            />
+            <button
+              onClick={() => window.open(`https://kick.com/${kickGamingChannel}`, "_blank", "noopener,noreferrer")}
+              style={{
+                border: "1px solid rgba(56,189,248,.35)",
+                borderRadius: 10,
+                background: "rgba(56,189,248,.16)",
+                color: "#e0f2fe",
+                cursor: "pointer",
+                padding: "9px 10px",
+                fontSize: 11,
+                fontWeight: 1000,
+                textTransform: "uppercase"
+              }}
+            >
+              Open
+            </button>
+          </div>
+          <iframe
+            key={kickGamingEmbedUrl}
+            title={`Kick stream ${kickGamingChannel}`}
+            src={kickGamingEmbedUrl}
+            allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+            allowFullScreen
+            scrolling="no"
+            style={{
+              width: "100%",
+              aspectRatio: "16 / 9",
+              minHeight: 218,
+              border: "1px solid rgba(148,163,184,.22)",
+              borderRadius: 14,
+              background: "#000"
+            }}
+          />
+        </div>
       ) : activeGamingApp === "multiplayer" ? (
         <div style={{
           width: "100%",

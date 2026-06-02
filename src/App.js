@@ -1617,30 +1617,6 @@ function PokemonSidebar() {
           </div>
           )}
 
-          <div style={{
-            marginTop: 12,
-            minHeight: 48,
-            borderRadius: 14,
-            background: "#000",
-            border: "1px solid rgba(250,204,21,.34)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 10,
-            padding: "10px 12px",
-            color: "#f8fafc",
-            boxShadow: "inset 0 0 18px rgba(250,204,21,.08), 0 8px 20px rgba(0,0,0,.32)"
-          }}>
-            <span style={{ fontSize: 11, color: "#facc15", fontWeight: 1000, letterSpacing: 1, textTransform: "uppercase" }}>
-              FUITS WEALTH
-            </span>
-            <span style={{ fontSize: 13, color: "#f8fafc", fontWeight: 1000 }}>
-              0 FUIT COINS
-            </span>
-          </div>
-
-
-
           {zoomedCover && (
             <div
               onClick={() => setZoomedCover(null)}
@@ -4700,6 +4676,32 @@ if (view === "gambling") {
               </button>
             </div>
           ))}
+          <div style={{
+            position: "fixed",
+            top: 790,
+            left: 430,
+            zIndex: 20,
+            width: 430,
+            minHeight: 48,
+            borderRadius: 14,
+            background: "rgba(0,0,0,.82)",
+            border: "1px solid rgba(250,204,21,.34)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 10,
+            padding: "10px 14px",
+            color: "#f8fafc",
+            boxShadow: "inset 0 0 18px rgba(250,204,21,.08), 0 8px 20px rgba(0,0,0,.32)",
+            boxSizing: "border-box"
+          }}>
+            <span style={{ fontSize: 14, color: "#facc15", fontWeight: 1000, letterSpacing: 1, textTransform: "uppercase", fontFamily: "system-ui" }}>
+              FUITS WEALTH
+            </span>
+            <span style={{ fontSize: 14, color: "#f8fafc", fontWeight: 1000, fontFamily: "system-ui" }}>
+              0 FUIT COINS
+            </span>
+          </div>
         </>
       )}
       {view === "week" && <MusicLibrarySidebar accentColor={accentColor} />}

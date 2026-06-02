@@ -1765,7 +1765,7 @@ const LARGE_FUITS_PRELOAD_FRACTION = 0.07;
 const LARGE_FUITS_PRELOAD_CHUNK_BYTES = 4 * 1024 * 1024;
 const LARGE_FUITS_PRELOAD_PARALLEL_CHUNKS = 6;
 
-function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 0, liveAnnouncementOnline = false }) {
+function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 0, liveAnnouncementOnline = false, restartSignal = 0 }) {
   const videoRef = useRef(null);
   const syncedVideoSrcRef = useRef("");
   const refreshQueuedRef = useRef(false);
@@ -2069,6 +2069,11 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
     }
   };
 
+  useEffect(() => {
+    if (!restartSignal) return;
+    restartCurrentVideo();
+  }, [restartSignal]);
+
   const handleVideoEnded = () => {
     let attempts = 0;
     const pollForNextItem = async () => {
@@ -2316,6 +2321,7 @@ function MusicLibrarySidebar({ accentColor }) {
   const [liveTvMenuOpen, setLiveTvMenuOpen] = useState(false);
   const [activeLiveTv, setActiveLiveTv] = useState("fattys");
   const [activeFuitsLiveTvChannel, setActiveFuitsLiveTvChannel] = useState("channel-a");
+  const [playlistRestartSignal, setPlaylistRestartSignal] = useState(0);
   const [customTvItems, setCustomTvItems] = useState([]);
   const [selectedCustomTvId, setSelectedCustomTvId] = useState(null);
   const [customTvUrl, setCustomTvUrl] = useState("");
@@ -2624,7 +2630,7 @@ function MusicLibrarySidebar({ accentColor }) {
     },
     {
       label: "Restart",
-      localAction: true
+      localAction: () => setPlaylistRestartSignal(value => value + 1)
     }
   ];
 
@@ -2638,7 +2644,7 @@ function MusicLibrarySidebar({ accentColor }) {
       {fuitsOwnerCommands.map(command => (
         <button
           key={command.label}
-          onClick={() => command.localAction ? restartCurrentVideo() : runFuitsOwnerCommand(command)}
+          onClick={() => command.localAction ? command.localAction() : runFuitsOwnerCommand(command)}
           style={{
             border: "1px solid rgba(34,211,238,.4)",
             borderRadius: 12,
@@ -2927,6 +2933,7 @@ function MusicLibrarySidebar({ accentColor }) {
                   channelId={activeFuitsLiveTvChannel}
                   startupBufferSeconds={0.2}
                   liveAnnouncementOnline={owncastOnline}
+                  restartSignal={playlistRestartSignal}
                 />
                 {renderFuitsOwnerControls()}
                 <LiveChatBox
@@ -4397,6 +4404,12 @@ export default function App() {
 
   const blankPages = {
     discounts: "DISCOUNTS",
+    availableResidence: "AVAILABLE RESIDENCE",
+    emergencyPlanning: "EMERGENCY PLANNING!",
+    familyHub: "FAMILY HUB",
+    programming: "PROGRAMMING",
+    housingLandForSale: "HOUSING + LAND FOR SALE",
+    radioCommunication: "RADIO + COMMUNICATION",
     jobsBoard: "JOBS BOARD",
     spiritualism: "SPIRITUALISM",
     science: "SCIENCE",
@@ -4489,7 +4502,7 @@ if (view === "gambling") {
           style={{
             position: "fixed",
             top: 64,
-            left: 475,
+            left: 430,
             zIndex: 20,
             background: "transparent",
             border: "none",
@@ -4537,11 +4550,17 @@ if (view === "gambling") {
             { label: "ADMIN", nextView: "admin", top: 104 },
             { label: "NEWS", nextView: "news", top: 144 },
             { label: "DISCOUNTS", nextView: "discounts", top: 184 },
-            { label: "JOBS BOARD", nextView: "jobsBoard", top: 224 },
-            { label: "SPIRITUALISM", nextView: "spiritualism", top: 264 },
-            { label: "SCIENCE", nextView: "science", top: 304 },
-            { label: "USER REQUEST & UPLOADS", nextView: "userRequestsUploads", top: 344 },
-            { label: "ITEMS / SERVICES FOR SALE", nextView: "itemsServicesForSale", top: 384 }
+            { label: "AVAILABLE RESIDENCE", nextView: "availableResidence", top: 224 },
+            { label: "EMERGENCY PLANNING!", nextView: "emergencyPlanning", top: 264 },
+            { label: "FAMILY HUB", nextView: "familyHub", top: 304 },
+            { label: "PROGRAMMING", nextView: "programming", top: 344 },
+            { label: "HOUSING + LAND FOR SALE", nextView: "housingLandForSale", top: 384 },
+            { label: "RADIO + COMMUNICATION", nextView: "radioCommunication", top: 424 },
+            { label: "JOBS BOARD", nextView: "jobsBoard", top: 464 },
+            { label: "SPIRITUALISM", nextView: "spiritualism", top: 504 },
+            { label: "SCIENCE", nextView: "science", top: 544 },
+            { label: "USER REQUEST & UPLOADS", nextView: "userRequestsUploads", top: 584 },
+            { label: "ITEMS / SERVICES FOR SALE", nextView: "itemsServicesForSale", top: 624 }
           ].map(link => (
             <div key={link.nextView || link.label}>
               <button
@@ -4549,7 +4568,7 @@ if (view === "gambling") {
                 style={{
                   position: "fixed",
                   top: link.top,
-                  left: 475,
+                  left: 430,
                   zIndex: 20,
                   width: 430,
                   background: "transparent",

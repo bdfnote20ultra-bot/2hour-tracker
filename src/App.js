@@ -4414,7 +4414,8 @@ export default function App() {
     spiritualism: "SPIRITUALISM",
     science: "SCIENCE",
     userRequestsUploads: "USER REQUEST & UPLOADS",
-    itemsServicesForSale: "ITEMS / SERVICES FOR SALE"
+    itemsServicesForSale: "ITEMS / SERVICES FOR SALE",
+    foodCooking: "FOOD AND COOKING"
   };
 
   if (blankPages[view]) {
@@ -4560,7 +4561,8 @@ if (view === "gambling") {
             { label: "SPIRITUALISM", nextView: "spiritualism", top: 504 },
             { label: "SCIENCE", nextView: "science", top: 544 },
             { label: "USER REQUEST & UPLOADS", nextView: "userRequestsUploads", top: 584 },
-            { label: "ITEMS / SERVICES FOR SALE", nextView: "itemsServicesForSale", top: 624 }
+            { label: "ITEMS / SERVICES FOR SALE", nextView: "itemsServicesForSale", top: 624 },
+            { label: "FOOD AND COOKING", nextView: "foodCooking", top: 664 }
           ].map(link => (
             <div key={link.nextView || link.label}>
               <button

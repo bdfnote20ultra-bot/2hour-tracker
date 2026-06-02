@@ -29,6 +29,6 @@ Important:
 - `src/fattysLiveTvData.js` stores the public FUITS Live TV base URL.
 - The left-side links should stay visible as direct buttons. Do not put the discounts/jobs-style links inside a dropdown.
 - Keep the existing discounts list visible before adding new items: `AVAILABLE RESIDENCE`, `EMERGENCY PLANNING!`, `FAMILY HUB`, `PROGRAMMING`, `HOUSING + LAND FOR SALE`, `RADIO + COMMUNICATION`, then `JOBS BOARD`.
-- New left-side pages go under `JOBS BOARD`: `SPIRITUALISM`, `SCIENCE`, `USER REQUEST & UPLOADS`, `ITEMS / SERVICES FOR SALE`.
+- New left-side pages go under `JOBS BOARD`: `SPIRITUALISM`, `SCIENCE`, `USER REQUEST & UPLOADS`, `ITEMS / SERVICES FOR SALE`, `FOOD AND COOKING`.
 - The FUITS Live TV Restart button in the app should restart the current `.mp4` playlist video from the beginning, not call `/admin/restart-services`.
 - If Git says the remote has newer work, use `git pull --rebase --autostash origin main`, resolve conflicts by keeping the newest remote live-stream code, then re-apply only the requested UI behavior.

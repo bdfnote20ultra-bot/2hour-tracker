@@ -2699,6 +2699,7 @@ function MusicLibrarySidebar({ accentColor }) {
           id: `${item.id || item.title || index}-${startMs}`,
           title: item.title || "Untitled",
           startMs,
+          durationSeconds,
           current: schedule.length === 0 && index === currentIndex
         });
       }
@@ -3093,10 +3094,10 @@ function MusicLibrarySidebar({ accentColor }) {
 
       <div className="fuits-schedule-panel" style={{
         position: "fixed",
-        right: 410,
+        right: 390,
         bottom: 26,
         zIndex: 8,
-        width: 260,
+        width: 300,
         border: "1px solid rgba(250,204,21,.32)",
         borderRadius: 14,
         background: "rgba(2,6,23,.9)",
@@ -3127,7 +3128,7 @@ function MusicLibrarySidebar({ accentColor }) {
             {fuitsSchedule.items.map(item => (
               <div key={item.id} style={{
                 display: "grid",
-                gridTemplateColumns: "64px 1fr",
+                gridTemplateColumns: "76px 1fr",
                 gap: 10,
                 alignItems: "start",
                 color: item.current ? "#fef08a" : "#e2e8f0",
@@ -3138,8 +3139,18 @@ function MusicLibrarySidebar({ accentColor }) {
                 padding: "8px 0",
                 background: item.current ? "rgba(250,204,21,.08)" : "transparent"
               }}>
-                <span style={{ color: item.current ? "#facc15" : "#94a3b8", textTransform: "uppercase", fontSize: 12, fontWeight: 1000 }}>
-                  {item.current ? "Now" : new Date(item.startMs).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                <span style={{ display: "grid", gap: 3, color: item.current ? "#facc15" : "#94a3b8", textTransform: "uppercase", fontSize: 12, fontWeight: 1000 }}>
+                  <span>{item.current ? "Now" : new Date(item.startMs).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
+                  <span style={{ color: "#cbd5e1", fontSize: 10, lineHeight: 1.1, textTransform: "none" }}>
+                    {(() => {
+                      const totalMinutes = Math.max(1, Math.round((Number(item.durationSeconds) || 0) / 60));
+                      const hours = Math.floor(totalMinutes / 60);
+                      const minutes = totalMinutes % 60;
+                      if (hours && minutes) return `${hours}h ${minutes}m`;
+                      if (hours) return `${hours}h`;
+                      return `${minutes}m`;
+                    })()}
+                  </span>
                 </span>
                 <span style={{
                   fontSize: 12,

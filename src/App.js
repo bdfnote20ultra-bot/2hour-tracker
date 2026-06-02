@@ -2055,28 +2055,18 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
   };
 
 
-  const restartFuitsServices = async () => {
-    const password = window.prompt("Restart password");
-    if (!password) return;
-    const restartUrls = [baseUrl, "http://127.0.0.1:8099", "http://localhost:8099"].filter(Boolean);
-    for (const url of [...new Set(restartUrls)]) {
-      try {
-        const controller = new AbortController();
-        const timeout = window.setTimeout(() => controller.abort(), 5000);
-        const response = await fetch(`${url.replace(/\/+$/, "")}/admin/restart-services`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ password }),
-          signal: controller.signal
-        });
-        window.clearTimeout(timeout);
-        if (!response.ok) throw new Error("Restart failed");
-        window.alert("FUITS restart started. Wait for the updater to finish, then refresh this page.");
-        return;
-      } catch {}
+  const restartCurrentVideo = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    try {
+      video.currentTime = 0;
+      syncedVideoSrcRef.current = videoSrc;
+      setVideoLoading(false);
+      setVideoError("");
+      playCurrentVideo();
+    } catch {
+      setVideoError("This video could not restart from the beginning. Try Retry or Next.");
     }
-
-    window.alert("Restart command could not reach FUITS. The tunnel/server is fully offline from this page, so run START-ALL-SERVICES-UPDATE-URLS from the Desktop.");
   };
 
   const handleVideoEnded = () => {
@@ -2163,7 +2153,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
               onEnded={handleVideoEnded}
               onWaiting={showBufferingIfNeeded}
               onStalled={() => setVideoError("Stream stalled. The tunnel or source video is not sending data fast enough.")}
-              onError={() => setVideoError("This video did not load. Try Next, Shuffle, or restart the FUITS tunnel.")}
+              onError={() => setVideoError("This video did not load. Try Next, Shuffle, or Retry.")}
               onVolumeChange={event => {
                 setPlayerMuted(event.currentTarget.muted);
                 setPlayerVolume(event.currentTarget.volume);
@@ -2211,7 +2201,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
             }}>
               <span>{videoError || "Loading stream..."}</span>
               <button
-                onClick={restartFuitsServices}
+                onClick={restartCurrentVideo}
                 style={{
                   border: "none",
                   borderRadius: 10,
@@ -2224,7 +2214,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
                   whiteSpace: "nowrap"
                 }}
               >
-                Restart Services
+                Restart Video
               </button>
               {videoError && (
                 <button
@@ -2634,10 +2624,7 @@ function MusicLibrarySidebar({ accentColor }) {
     },
     {
       label: "Restart",
-      path: "/admin/restart-services",
-      body: password => ({ password }),
-      confirm: "Restart FUITS Live TV, Owncast, Jellyfin, and refresh Cloudflare URLs?",
-      success: "FUITS restart started. Use the new URL after the updater finishes."
+      localAction: true
     }
   ];
 
@@ -2651,7 +2638,7 @@ function MusicLibrarySidebar({ accentColor }) {
       {fuitsOwnerCommands.map(command => (
         <button
           key={command.label}
-          onClick={() => runFuitsOwnerCommand(command)}
+          onClick={() => command.localAction ? restartCurrentVideo() : runFuitsOwnerCommand(command)}
           style={{
             border: "1px solid rgba(34,211,238,.4)",
             borderRadius: 12,
@@ -4044,16 +4031,6 @@ function EmptyUtilityPage({ title, onClose }) {
   );
 }
 
-const DISCOUNT_LINK_LABELS = [
-  "AVAILABLE RESIDENCE",
-  "EMERGENCY PLANNING!",
-  "FAMILY HUB",
-  "PROGRAMMING",
-  "HOUSING + LAND FOR SALE",
-  "RADIO + COMMUNICATION",
-  "JOBS BOARD"
-];
-
 function ProjectDropdown({ projects, activeId, onSelect, onManage }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -4133,7 +4110,6 @@ export default function App() {
   const [projectRates, setProjectRates] = useState(loadRates);
   const [monthlyTrackerMonths, setMonthlyTrackerMonths] = useState(loadMonthlyTrackerMonths);
   const [view, setView] = useState("week");
-  const [discountLinksOpen, setDiscountLinksOpen] = useState(true);
   const [form, setForm] = useState(defaultEntry());
   const [projects, setProjects] = useState(loadProjects);
   const [activeProjectId, setActiveProjectId] = useState(() => loadProjects()[0]?.id || "default");
@@ -4419,6 +4395,19 @@ export default function App() {
     return <EmptyUtilityPage title="NEWS" onClose={() => setView("week")} />;
   }
 
+  const blankPages = {
+    discounts: "DISCOUNTS",
+    jobsBoard: "JOBS BOARD",
+    spiritualism: "SPIRITUALISM",
+    science: "SCIENCE",
+    userRequestsUploads: "USER REQUEST & UPLOADS",
+    itemsServicesForSale: "ITEMS / SERVICES FOR SALE"
+  };
+
+  if (blankPages[view]) {
+    return <EmptyUtilityPage title={blankPages[view]} onClose={() => setView("week")} />;
+  }
+
 if (view === "gambling") {
     return (
       <div style={{ minHeight: "100vh", background: "#000", position: "relative" }}>
@@ -4547,58 +4536,38 @@ if (view === "gambling") {
             { label: "GAMBLING", nextView: "gambling", top: 64 },
             { label: "ADMIN", nextView: "admin", top: 104 },
             { label: "NEWS", nextView: "news", top: 144 },
-            { label: "DISCOUNTS", nextView: "discounts", top: 184 }
+            { label: "DISCOUNTS", nextView: "discounts", top: 184 },
+            { label: "JOBS BOARD", nextView: "jobsBoard", top: 224 },
+            { label: "SPIRITUALISM", nextView: "spiritualism", top: 264 },
+            { label: "SCIENCE", nextView: "science", top: 304 },
+            { label: "USER REQUEST & UPLOADS", nextView: "userRequestsUploads", top: 344 },
+            { label: "ITEMS / SERVICES FOR SALE", nextView: "itemsServicesForSale", top: 384 }
           ].map(link => (
-            <div key={link.nextView}>
+            <div key={link.nextView || link.label}>
               <button
-                onClick={() => link.nextView === "discounts" ? setDiscountLinksOpen(open => !open) : setView(link.nextView)}
+                onClick={() => link.nextView ? setView(link.nextView) : window.open(link.href, "_blank", "noopener,noreferrer")}
                 style={{
                   position: "fixed",
                   top: link.top,
                   left: 475,
                   zIndex: 20,
+                  width: 430,
                   background: "transparent",
                   border: "none",
                   color: "#38bdf8",
                   cursor: "pointer",
-                  fontSize: 22,
+                  fontSize: link.label.length > 18 ? 17 : 22,
                   fontWeight: 1000,
+                  lineHeight: 1.05,
                   letterSpacing: .6,
                   textTransform: "uppercase",
                   textShadow: "0 2px 10px rgba(56,189,248,.45)",
-                  fontFamily: "system-ui"
+                  fontFamily: "system-ui",
+                  textAlign: "left"
                 }}
               >
                 {link.label}
               </button>
-              {link.nextView === "discounts" && discountLinksOpen && (
-                <>
-                  {DISCOUNT_LINK_LABELS.map((label, index) => (
-                    <button
-                      key={label}
-                      type="button"
-                      style={{
-                        position: "fixed",
-                        top: link.top + 40 + (index * 40),
-                        left: 475,
-                        zIndex: 20,
-                        background: "transparent",
-                        border: "none",
-                        color: "#38bdf8",
-                        cursor: "pointer",
-                        fontSize: 22,
-                        fontWeight: 1000,
-                        letterSpacing: .6,
-                        textTransform: "uppercase",
-                        textShadow: "0 2px 10px rgba(56,189,248,.45)",
-                        fontFamily: "system-ui"
-                      }}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </>
-              )}
             </div>
           ))}
         </>

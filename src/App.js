@@ -1107,8 +1107,8 @@ function PokemonSidebar() {
       <style>{`
         @media (max-width: 1180px) { .pokemon-desktop-stack { display: none !important; } }
         @media (max-width: 1180px) { .pokemon-desktop-sidebar { display: none !important; } }
-        .pokemon-desktop-stack::-webkit-scrollbar { width: 6px; }
-        .pokemon-desktop-stack::-webkit-scrollbar-thumb { background: rgba(250,204,21,.45); border-radius: 999px; }
+        .pokemon-desktop-stack { scrollbar-width: none; -ms-overflow-style: none; }
+        .pokemon-desktop-stack::-webkit-scrollbar { display: none; width: 0; height: 0; }
         .pokemon-desktop-sidebar button:hover { transform: translateY(-1px); }
         .game-cover-carousel { scrollbar-width: none; -ms-overflow-style: none; }
         .game-cover-carousel::-webkit-scrollbar { display: none; width: 0; height: 0; }
@@ -2182,6 +2182,23 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
     video.volume = playerVolume;
   }, [playerMuted, playerVolume]);
 
+  useEffect(() => {
+    const unmuteOnFirstPageClick = () => {
+      const video = videoRef.current;
+      setPlayerMuted(false);
+      setPlayerVolume(1);
+      if (video) {
+        video.muted = false;
+        video.volume = 1;
+        const playPromise = video.play();
+        if (playPromise?.catch) playPromise.catch(() => {});
+      }
+    };
+
+    window.addEventListener("pointerdown", unmuteOnFirstPageClick, { once: true, capture: true });
+    return () => window.removeEventListener("pointerdown", unmuteOnFirstPageClick, { capture: true });
+  }, []);
+
   const retryVideo = () => {
     const video = videoRef.current;
     if (!video) return;
@@ -3025,7 +3042,10 @@ function MusicLibrarySidebar({ accentColor }) {
     }}>
       <style>{`
         @media (max-width: 1180px) { .music-library-desktop-sidebar { display: none !important; } }
-        @media (max-width: 1180px) { .fuits-online-indicator { display: none !important; } }
+        @media (max-width: 1180px) {
+          .fuits-online-indicator,
+          .fuits-schedule-panel { display: none !important; }
+        }
         .music-library-desktop-sidebar button:hover { transform: translateY(-1px); }
         @keyframes fuits-live-pulse {
           0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(239,68,68,.62); }
@@ -3064,31 +3084,60 @@ function MusicLibrarySidebar({ accentColor }) {
         <div style={{ fontSize: 12, fontWeight: 1000, textTransform: "uppercase", lineHeight: 1.15 }}>
           {onlineStats.devices === null ? "Checking" : onlineStats.devices} Devices Online
         </div>
+        <div style={{ fontSize: 11, fontWeight: 900, color: "#cbd5e1", textTransform: "uppercase", lineHeight: 1.15 }}>
+          {onlineStats.households === null ? "Checking" : onlineStats.households} Households Logged In
+        </div>
+      </div>
+
+      <div className="fuits-schedule-panel" style={{
+        position: "fixed",
+        right: 430,
+        top: 116,
+        zIndex: 8,
+        width: 340,
+        border: "1px solid rgba(250,204,21,.32)",
+        borderRadius: 14,
+        background: "rgba(2,6,23,.9)",
+        boxShadow: "0 16px 38px rgba(0,0,0,.48)",
+        padding: "12px 14px",
+        color: "#f8fafc",
+        display: "grid",
+        gap: 8
+      }}>
         <div style={{
-          borderTop: "1px solid rgba(248,113,113,.18)",
-          borderBottom: "1px solid rgba(248,113,113,.14)",
-          padding: "6px 0",
-          display: "grid",
-          gap: 4
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          gap: 10,
+          borderBottom: "1px solid rgba(250,204,21,.24)",
+          paddingBottom: 8
         }}>
-          <div style={{ fontSize: 10, fontWeight: 1000, color: "#fecaca", textTransform: "uppercase", lineHeight: 1.1 }}>
+          <div style={{ fontSize: 14, fontWeight: 1000, color: "#fef08a", textTransform: "uppercase", lineHeight: 1.1 }}>
+            Listed Schedule
+          </div>
+          <div style={{ fontSize: 10, fontWeight: 1000, color: "#cbd5e1", textTransform: "uppercase", lineHeight: 1.1, textAlign: "right" }}>
             Next 3 Hours{fuitsSchedule.channelLabel ? ` - ${fuitsSchedule.channelLabel}` : ""}
           </div>
-          {fuitsSchedule.loading ? (
-            <div style={{ fontSize: 10, fontWeight: 900, color: "#cbd5e1", lineHeight: 1.2 }}>Loading schedule...</div>
-          ) : fuitsSchedule.items.length ? (
-            fuitsSchedule.items.map(item => (
+        </div>
+        {fuitsSchedule.loading ? (
+          <div style={{ fontSize: 14, fontWeight: 900, color: "#cbd5e1", lineHeight: 1.3 }}>Loading schedule...</div>
+        ) : fuitsSchedule.items.length ? (
+          <div style={{ display: "grid", borderTop: "1px solid rgba(148,163,184,.14)" }}>
+            {fuitsSchedule.items.map(item => (
               <div key={item.id} style={{
                 display: "grid",
-                gridTemplateColumns: "42px 1fr",
-                gap: 5,
+                gridTemplateColumns: "64px 1fr",
+                gap: 10,
                 alignItems: "start",
                 color: item.current ? "#fef08a" : "#e2e8f0",
-                fontSize: 10,
+                fontSize: 14,
                 fontWeight: 900,
-                lineHeight: 1.15
+                lineHeight: 1.28,
+                borderBottom: "1px solid rgba(148,163,184,.18)",
+                padding: "8px 0",
+                background: item.current ? "rgba(250,204,21,.08)" : "transparent"
               }}>
-                <span style={{ color: item.current ? "#facc15" : "#94a3b8", textTransform: "uppercase" }}>
+                <span style={{ color: item.current ? "#facc15" : "#94a3b8", textTransform: "uppercase", fontSize: 12, fontWeight: 1000 }}>
                   {item.current ? "Now" : new Date(item.startMs).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
                 </span>
                 <span style={{
@@ -3100,14 +3149,11 @@ function MusicLibrarySidebar({ accentColor }) {
                   {item.title}
                 </span>
               </div>
-            ))
-          ) : (
-            <div style={{ fontSize: 10, fontWeight: 900, color: "#cbd5e1", lineHeight: 1.2 }}>No schedule found</div>
-          )}
-        </div>
-        <div style={{ fontSize: 11, fontWeight: 900, color: "#cbd5e1", textTransform: "uppercase", lineHeight: 1.15 }}>
-          {onlineStats.households === null ? "Checking" : onlineStats.households} Households Logged In
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ fontSize: 14, fontWeight: 900, color: "#cbd5e1", lineHeight: 1.3 }}>No schedule found</div>
+        )}
       </div>
 
       <div style={{ position: "relative", marginBottom: 10 }}>

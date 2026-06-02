@@ -1110,8 +1110,8 @@ function PokemonSidebar() {
         .pokemon-desktop-stack::-webkit-scrollbar { width: 6px; }
         .pokemon-desktop-stack::-webkit-scrollbar-thumb { background: rgba(250,204,21,.45); border-radius: 999px; }
         .pokemon-desktop-sidebar button:hover { transform: translateY(-1px); }
-        .game-cover-carousel::-webkit-scrollbar { height: 6px; }
-        .game-cover-carousel::-webkit-scrollbar-thumb { background: rgba(250,204,21,.55); border-radius: 999px; }
+        .game-cover-carousel { scrollbar-width: none; -ms-overflow-style: none; }
+        .game-cover-carousel::-webkit-scrollbar { display: none; width: 0; height: 0; }
         .pokemon-emulator-host,
         .pokemon-emulator-host > div {
           width: 100% !important;
@@ -2480,6 +2480,7 @@ function MusicLibrarySidebar({ accentColor }) {
   const [customTvUrl, setCustomTvUrl] = useState("");
   const [owncastOnline, setOwncastOnline] = useState(false);
   const [onlineStats, setOnlineStats] = useState({ devices: null, households: null });
+  const [fuitsSchedule, setFuitsSchedule] = useState({ channelLabel: "", items: [], loading: true });
   const [openMusicSections, setOpenMusicSections] = useState({ videos: false, music: false });
   const [zoomedDonationQr, setZoomedDonationQr] = useState(null);
   const jellyfinFrameRef = useRef(null);
@@ -2652,6 +2653,84 @@ function MusicLibrarySidebar({ accentColor }) {
       clearInterval(timer);
     };
   }, [fuitsLiveTvChannelUrl]);
+
+  const buildFuitsSchedule = useCallback((data) => {
+    const playlist = Array.isArray(data?.playlist) ? data.playlist : [];
+    if (!playlist.length) return { channelLabel: data?.channel?.label || "", items: [], loading: false };
+
+    const generatedAtMs = Number(data.generatedAtMs) || Date.now();
+    const elapsedSinceSnapshot = Math.max(0, (Date.now() - generatedAtMs) / 1000);
+    const currentIndex = Math.max(0, Math.min(Number(data.currentIndex) || 0, playlist.length - 1));
+    const currentDuration = Math.max(1, Number(playlist[currentIndex]?.duration) || 1);
+    const liveOffset = Math.min(currentDuration - 1, Math.max(0, (Number(data.offsetSeconds) || 0) + elapsedSinceSnapshot));
+    const horizonMs = Date.now() + 3 * 60 * 60 * 1000;
+    const schedule = [];
+    let startMs = Date.now() - liveOffset * 1000;
+    let index = currentIndex;
+    let guard = 0;
+
+    while (startMs < horizonMs && guard < Math.max(playlist.length * 4, 20)) {
+      const item = playlist[index];
+      if (!item) break;
+      const durationSeconds = Math.max(1, Number(item.duration) || 1);
+      const endMs = startMs + durationSeconds * 1000;
+      if (endMs > Date.now()) {
+        schedule.push({
+          id: `${item.id || item.title || index}-${startMs}`,
+          title: item.title || "Untitled",
+          startMs,
+          current: schedule.length === 0 && index === currentIndex
+        });
+      }
+      startMs = endMs;
+      index = (index + 1) % playlist.length;
+      guard += 1;
+    }
+
+    return {
+      channelLabel: data?.channel?.label || "",
+      items: schedule.slice(0, 7),
+      loading: false
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!fuitsLiveTvChannelUrl || !activeFuitsLiveTvChannel) {
+      setFuitsSchedule({ channelLabel: "", items: [], loading: false });
+      return undefined;
+    }
+
+    let cancelled = false;
+    const loadFuitsSchedule = async () => {
+      try {
+        const scheduleUrls = [
+          `${window.location.origin.replace(/\/+$/, "")}/channel.json?channel=${encodeURIComponent(activeFuitsLiveTvChannel)}&cache=${Date.now()}`,
+          `${fuitsLiveTvChannelUrl.replace(/\/+$/, "")}/channel.json?channel=${encodeURIComponent(activeFuitsLiveTvChannel)}&cache=${Date.now()}`
+        ];
+        let data = null;
+        for (const scheduleUrl of scheduleUrls) {
+          try {
+            const response = await fetch(scheduleUrl, { cache: "no-store" });
+            if (!response.ok) continue;
+            data = await response.json();
+            break;
+          } catch {}
+        }
+        if (!data) throw new Error("schedule unavailable");
+        if (!cancelled) setFuitsSchedule(buildFuitsSchedule(data));
+      } catch {
+        if (!cancelled) setFuitsSchedule(current => ({ ...current, loading: false }));
+      }
+    };
+
+    setFuitsSchedule(current => ({ ...current, loading: true }));
+    loadFuitsSchedule();
+    const timer = setInterval(loadFuitsSchedule, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [activeFuitsLiveTvChannel, buildFuitsSchedule, fuitsLiveTvChannelUrl]);
 
   const filteredVideos = filteredLibrary.filter(item =>
     item.type === "video" || (item.src || "").toLowerCase().endsWith(".mp4")
@@ -2975,6 +3054,47 @@ function MusicLibrarySidebar({ accentColor }) {
         </div>
         <div style={{ fontSize: 12, fontWeight: 1000, textTransform: "uppercase", lineHeight: 1.15 }}>
           {onlineStats.devices === null ? "Checking" : onlineStats.devices} Devices Online
+        </div>
+        <div style={{
+          borderTop: "1px solid rgba(248,113,113,.18)",
+          borderBottom: "1px solid rgba(248,113,113,.14)",
+          padding: "6px 0",
+          display: "grid",
+          gap: 4
+        }}>
+          <div style={{ fontSize: 10, fontWeight: 1000, color: "#fecaca", textTransform: "uppercase", lineHeight: 1.1 }}>
+            Next 3 Hours{fuitsSchedule.channelLabel ? ` - ${fuitsSchedule.channelLabel}` : ""}
+          </div>
+          {fuitsSchedule.loading ? (
+            <div style={{ fontSize: 10, fontWeight: 900, color: "#cbd5e1", lineHeight: 1.2 }}>Loading schedule...</div>
+          ) : fuitsSchedule.items.length ? (
+            fuitsSchedule.items.map(item => (
+              <div key={item.id} style={{
+                display: "grid",
+                gridTemplateColumns: "42px 1fr",
+                gap: 5,
+                alignItems: "start",
+                color: item.current ? "#fef08a" : "#e2e8f0",
+                fontSize: 10,
+                fontWeight: 900,
+                lineHeight: 1.15
+              }}>
+                <span style={{ color: item.current ? "#facc15" : "#94a3b8", textTransform: "uppercase" }}>
+                  {item.current ? "Now" : new Date(item.startMs).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                </span>
+                <span style={{
+                  overflow: "hidden",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical"
+                }}>
+                  {item.title}
+                </span>
+              </div>
+            ))
+          ) : (
+            <div style={{ fontSize: 10, fontWeight: 900, color: "#cbd5e1", lineHeight: 1.2 }}>No schedule found</div>
+          )}
         </div>
         <div style={{ fontSize: 11, fontWeight: 900, color: "#cbd5e1", textTransform: "uppercase", lineHeight: 1.15 }}>
           {onlineStats.households === null ? "Checking" : onlineStats.households} Households Logged In

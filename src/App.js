@@ -1178,8 +1178,6 @@ function PokemonSidebar() {
                 ? "FUIT LIVE GAMING"
                 : activeGamingApp === "live-gaming-youtube"
                   ? "FUIT LIVE GAMING YOUTUBE"
-                : activeGamingApp === "youtube-past-vods"
-                  ? "YOUTUBE / PAST VODs"
                 : activeGamingApp === "multiplayer"
                   ? "FUIT MULTIPLAYER"
                   : activeGamingApp === "free-games"
@@ -1206,8 +1204,7 @@ function PokemonSidebar() {
               { value: "multiplayer", label: "FUIT MULTIPLAYER" },
               { value: "free-games", label: "FREE GAMES" },
               { value: "live-gaming", label: "FUIT LIVE GAMING" },
-              { value: "live-gaming-youtube", label: "FUIT LIVE GAMING YOUTUBE" },
-              { value: "youtube-past-vods", label: "YOUTUBE / PAST VODs" }
+              { value: "live-gaming-youtube", label: "FUIT LIVE GAMING YOUTUBE" }
             ].map(option => (
               <button
                 key={option.value}
@@ -1314,16 +1311,6 @@ function PokemonSidebar() {
           borderRadius: 22,
           background: "#020617",
           border: "2px solid rgba(56,189,248,.28)",
-          boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)"
-        }} />
-      ) : activeGamingApp === "youtube-past-vods" ? (
-        <div style={{
-          width: "100%",
-          aspectRatio: "4 / 3",
-          minHeight: 245,
-          borderRadius: 22,
-          background: "#020617",
-          border: "2px solid rgba(239,68,68,.34)",
           boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)"
         }} />
       ) : activeGamingApp === "multiplayer" ? (
@@ -2571,6 +2558,17 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
   );
 });
 
+const getWeatherSummary = code => {
+  if (code === 0) return "Clear";
+  if ([1, 2, 3].includes(code)) return "Clouds";
+  if ([45, 48].includes(code)) return "Fog";
+  if ([51, 53, 55, 56, 57].includes(code)) return "Drizzle";
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return "Rain";
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return "Snow";
+  if ([95, 96, 99].includes(code)) return "Storms";
+  return "Weather";
+};
+
 function MusicLibrarySidebar({ accentColor }) {
   const fuitsLiveTvChannelUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
   const [musicLibrary, setMusicLibrary] = useState(MUSIC_LIBRARY);
@@ -2595,6 +2593,7 @@ function MusicLibrarySidebar({ accentColor }) {
   const [customTvUrl, setCustomTvUrl] = useState("");
   const [owncastOnline, setOwncastOnline] = useState(false);
   const [onlineStats, setOnlineStats] = useState({ devices: null, households: null });
+  const [localForecast, setLocalForecast] = useState({ status: "asking", days: [] });
   const [fuitsSchedule, setFuitsSchedule] = useState({ channelLabel: "", items: [], loading: true });
   const [openMusicSections, setOpenMusicSections] = useState({ videos: false, music: false });
   const [zoomedDonationQr, setZoomedDonationQr] = useState(null);
@@ -2769,6 +2768,63 @@ function MusicLibrarySidebar({ accentColor }) {
       clearInterval(timer);
     };
   }, [fuitsLiveTvChannelUrl]);
+
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setLocalForecast({ status: "unsupported", days: [] });
+      return undefined;
+    }
+
+    let cancelled = false;
+    setLocalForecast({ status: "asking", days: [] });
+
+    navigator.geolocation.getCurrentPosition(
+      async position => {
+        if (cancelled) return;
+        const { latitude, longitude } = position.coords || {};
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+          setLocalForecast({ status: "unavailable", days: [] });
+          return;
+        }
+
+        setLocalForecast({ status: "loading", days: [] });
+        try {
+          const params = new URLSearchParams({
+            latitude: String(latitude),
+            longitude: String(longitude),
+            daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
+            temperature_unit: "fahrenheit",
+            wind_speed_unit: "mph",
+            precipitation_unit: "inch",
+            timezone: "auto",
+            forecast_days: "3"
+          });
+          const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`, { cache: "no-store" });
+          if (!response.ok) throw new Error("forecast unavailable");
+          const data = await response.json();
+          const daily = data?.daily || {};
+          const days = (daily.time || []).slice(0, 3).map((date, index) => ({
+            date,
+            summary: getWeatherSummary(Number(daily.weather_code?.[index])),
+            high: Math.round(Number(daily.temperature_2m_max?.[index])),
+            low: Math.round(Number(daily.temperature_2m_min?.[index])),
+            rain: Math.round(Number(daily.precipitation_probability_max?.[index] || 0))
+          }));
+          if (!cancelled) setLocalForecast({ status: days.length ? "ready" : "unavailable", days });
+        } catch {
+          if (!cancelled) setLocalForecast({ status: "unavailable", days: [] });
+        }
+      },
+      () => {
+        if (!cancelled) setLocalForecast({ status: "denied", days: [] });
+      },
+      { enableHighAccuracy: false, timeout: 12000, maximumAge: 30 * 60 * 1000 }
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const buildFuitsSchedule = useCallback((data) => {
     const playlist = Array.isArray(data?.playlist) ? data.playlist : [];
@@ -3186,6 +3242,51 @@ function MusicLibrarySidebar({ accentColor }) {
         </div>
         <div style={{ fontSize: 11, fontWeight: 900, color: "#cbd5e1", textTransform: "uppercase", lineHeight: 1.15 }}>
           {onlineStats.households === null ? "Checking" : onlineStats.households} Households Logged In
+        </div>
+        <div style={{
+          marginTop: 5,
+          borderTop: "1px solid rgba(148,163,184,.18)",
+          paddingTop: 7,
+          display: "grid",
+          gap: 5
+        }}>
+          <div style={{ fontSize: 10, fontWeight: 1000, color: "#bae6fd", textTransform: "uppercase", letterSpacing: .7 }}>
+            3 Day Forecast
+          </div>
+          {localForecast.status === "ready" ? (
+            localForecast.days.map(day => (
+              <div key={day.date} style={{
+                display: "grid",
+                gridTemplateColumns: "38px 1fr auto",
+                alignItems: "center",
+                gap: 7,
+                fontSize: 10,
+                fontWeight: 900,
+                color: "#e2e8f0",
+                lineHeight: 1.15
+              }}>
+                <span style={{ color: "#fef08a", textTransform: "uppercase" }}>
+                  {new Date(`${day.date}T12:00:00`).toLocaleDateString([], { weekday: "short" })}
+                </span>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {day.summary} {day.rain ? `${day.rain}%` : ""}
+                </span>
+                <span style={{ color: "#bfdbfe" }}>
+                  {Number.isFinite(day.high) ? day.high : "--"} / {Number.isFinite(day.low) ? day.low : "--"}
+                </span>
+              </div>
+            ))
+          ) : (
+            <div style={{ fontSize: 10, fontWeight: 900, color: "#94a3b8", lineHeight: 1.2 }}>
+              {localForecast.status === "asking"
+                ? "Allow location for local forecast."
+                : localForecast.status === "loading"
+                  ? "Loading local forecast..."
+                  : localForecast.status === "denied"
+                    ? "Location blocked."
+                    : "Forecast unavailable."}
+            </div>
+          )}
         </div>
       </div>
 

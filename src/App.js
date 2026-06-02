@@ -1617,6 +1617,28 @@ function PokemonSidebar() {
           </div>
           )}
 
+          <div style={{
+            marginTop: 12,
+            minHeight: 48,
+            borderRadius: 14,
+            background: "#000",
+            border: "1px solid rgba(250,204,21,.34)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 10,
+            padding: "10px 12px",
+            color: "#f8fafc",
+            boxShadow: "inset 0 0 18px rgba(250,204,21,.08), 0 8px 20px rgba(0,0,0,.32)"
+          }}>
+            <span style={{ fontSize: 11, color: "#facc15", fontWeight: 1000, letterSpacing: 1, textTransform: "uppercase" }}>
+              FUITS WEALTH
+            </span>
+            <span style={{ fontSize: 13, color: "#f8fafc", fontWeight: 1000 }}>
+              0 FUIT COINS
+            </span>
+          </div>
+
 
 
           {zoomedCover && (
@@ -4498,7 +4520,9 @@ export default function App() {
     science: "SCIENCE",
     userRequestsUploads: "USER REQUEST & UPLOADS",
     itemsServicesForSale: "ITEMS / SERVICES FOR SALE",
-    foodCooking: "FOOD AND COOKING"
+    foodCooking: "FOOD AND COOKING",
+    dispatching: "DISPATCHING",
+    systemUpgrades: "SYSTEM UPGRADES"
   };
 
   if (blankPages[view]) {
@@ -4645,7 +4669,9 @@ if (view === "gambling") {
             { label: "SCIENCE", nextView: "science", top: 544 },
             { label: "USER REQUEST & UPLOADS", nextView: "userRequestsUploads", top: 584 },
             { label: "ITEMS / SERVICES FOR SALE", nextView: "itemsServicesForSale", top: 624 },
-            { label: "FOOD AND COOKING", nextView: "foodCooking", top: 664 }
+            { label: "FOOD AND COOKING", nextView: "foodCooking", top: 664 },
+            { label: "DISPATCHING", nextView: "dispatching", top: 704 },
+            { label: "SYSTEM UPGRADES", nextView: "systemUpgrades", top: 744 }
           ].map(link => (
             <div key={link.nextView || link.label}>
               <button
@@ -5019,6 +5045,27 @@ if (view === "gambling") {
               }}
             >
               Browser Open Google Browser
+            </button>
+            <button
+              onClick={() => {
+                setInAppBrowserUrl("https://kick-video.download/");
+                setInAppBrowserOpen(true);
+              }}
+              style={{
+                width: "100%",
+                padding: "13px",
+                background: "transparent",
+                color: appTextColor,
+                border: `2px solid ${theme.line}`,
+                borderRadius: 12,
+                fontSize: 15,
+                cursor: "pointer",
+                fontFamily: "Georgia, serif",
+                marginBottom: 10,
+                fontWeight: 900
+              }}
+            >
+              Download Kick Video
             </button>
             <input ref={audioFileRef} type="file" accept="audio/*" onChange={handleMusicFile} style={{ display: "none" }} />
             <button onClick={() => audioFileRef.current?.click()}

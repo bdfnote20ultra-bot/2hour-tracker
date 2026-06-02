@@ -4572,40 +4572,32 @@ if (view === "gambling") {
                 {link.label}
               </button>
               {link.nextView === "discounts" && discountLinksOpen && (
-                <div style={{
-                  position: "fixed",
-                  top: link.top + 34,
-                  left: 475,
-                  zIndex: 20,
-                  display: "grid",
-                  gap: 7,
-                  width: 260
-                }}>
-                  {DISCOUNT_LINK_LABELS.map(label => (
+                <>
+                  {DISCOUNT_LINK_LABELS.map((label, index) => (
                     <button
                       key={label}
                       type="button"
                       style={{
-                        width: "100%",
-                        border: "1px solid rgba(56,189,248,.32)",
-                        borderRadius: 10,
-                        padding: "8px 10px",
-                        background: "rgba(2,6,23,.78)",
-                        color: "#e0f2fe",
+                        position: "fixed",
+                        top: link.top + 40 + (index * 40),
+                        left: 475,
+                        zIndex: 20,
+                        background: "transparent",
+                        border: "none",
+                        color: "#38bdf8",
                         cursor: "pointer",
-                        textAlign: "left",
-                        fontSize: 12,
+                        fontSize: 22,
                         fontWeight: 1000,
-                        letterSpacing: .3,
+                        letterSpacing: .6,
                         textTransform: "uppercase",
-                        textShadow: "0 2px 8px rgba(56,189,248,.35)",
+                        textShadow: "0 2px 10px rgba(56,189,248,.45)",
                         fontFamily: "system-ui"
                       }}
                     >
                       {label}
                     </button>
                   ))}
-                </div>
+                </>
               )}
             </div>
           ))}

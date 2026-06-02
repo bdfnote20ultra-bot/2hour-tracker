@@ -4292,6 +4292,49 @@ function EmptyUtilityPage({ title, onClose }) {
   );
 }
 
+function AdminPage({ onClose }) {
+  const [password, setPassword] = useState("");
+  const [unlocked, setUnlocked] = useState(false);
+  const [error, setError] = useState("");
+
+  const unlockAdmin = event => {
+    event.preventDefault();
+    if (password === "FOOLIO") {
+      setUnlocked(true);
+      setError("");
+      return;
+    }
+    setError("Wrong password");
+  };
+
+  if (unlocked) {
+    return <EmptyUtilityPage title="ADMIN" onClose={onClose} />;
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#020617", color: "#f8fafc", fontFamily: "system-ui, sans-serif", padding: 24 }}>
+      <button onClick={onClose} style={{ border: "1px solid rgba(148,163,184,.3)", borderRadius: 999, background: "rgba(15,23,42,.9)", color: "#f8fafc", cursor: "pointer", fontSize: 13, fontWeight: 900, padding: "9px 14px" }}>
+        Back
+      </button>
+      <form onSubmit={unlockAdmin} style={{ marginTop: 28, maxWidth: 360, display: "grid", gap: 12 }}>
+        <h1 style={{ margin: 0, fontSize: 32, fontWeight: 1000, letterSpacing: .4 }}>ADMIN</h1>
+        <input
+          type="password"
+          value={password}
+          onChange={event => setPassword(event.target.value)}
+          placeholder="Password"
+          autoFocus
+          style={{ border: "1px solid rgba(148,163,184,.3)", borderRadius: 10, background: "rgba(15,23,42,.9)", color: "#f8fafc", fontSize: 16, fontWeight: 800, padding: "12px 14px", outline: "none" }}
+        />
+        {error && <div style={{ color: "#fecaca", fontSize: 13, fontWeight: 900 }}>{error}</div>}
+        <button type="submit" style={{ border: "1px solid #f8fafc", borderRadius: 10, background: "#f8fafc", color: "#020617", cursor: "pointer", fontSize: 14, fontWeight: 1000, padding: "12px 14px" }}>
+          Enter
+        </button>
+      </form>
+    </div>
+  );
+}
+
 function ProjectDropdown({ projects, activeId, onSelect, onManage }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -4649,7 +4692,7 @@ export default function App() {
 
   
   if (view === "admin") {
-    return <EmptyUtilityPage title="ADMIN" onClose={() => setView("week")} />;
+    return <AdminPage onClose={() => setView("week")} />;
   }
 
   if (view === "news") {
@@ -4804,9 +4847,9 @@ if (view === "gambling") {
       {view === "week" && (
         <>
           {[
-            { label: "CRYPTO + NFTS", nextView: "cryptoNfts", top: 24 },
+            { label: "ADMIN", nextView: "admin", top: 24 },
             { label: "GAMBLING", nextView: "gambling", top: 64 },
-            { label: "ADMIN", nextView: "admin", top: 104 },
+            { label: "CRYPTO + NFTS", nextView: "cryptoNfts", top: 104 },
             { label: "NEWS", nextView: "news", top: 144 },
             { label: "DISCOUNTS", nextView: "discounts", top: 184 },
             { label: "AVAILABLE RESIDENCE", nextView: "availableResidence", top: 224 },

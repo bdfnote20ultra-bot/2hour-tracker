@@ -2656,7 +2656,7 @@ function MusicLibrarySidebar({ accentColor }) {
 
   const buildFuitsSchedule = useCallback((data) => {
     const playlist = Array.isArray(data?.playlist) ? data.playlist : [];
-    if (!playlist.length) return { channelLabel: data?.channel?.label || "", items: [], loading: false };
+    if (!playlist.length) return { channelLabel: data?.channel?.label || "", items: [], loading: false, nextRefreshMs: null };
 
     const generatedAtMs = Number(data.generatedAtMs) || Date.now();
     const elapsedSinceSnapshot = Math.max(0, (Date.now() - generatedAtMs) / 1000);
@@ -2664,6 +2664,7 @@ function MusicLibrarySidebar({ accentColor }) {
     const currentDuration = Math.max(1, Number(playlist[currentIndex]?.duration) || 1);
     const liveOffset = Math.min(currentDuration - 1, Math.max(0, (Number(data.offsetSeconds) || 0) + elapsedSinceSnapshot));
     const horizonMs = Date.now() + 3 * 60 * 60 * 1000;
+    const nextRefreshMs = Math.max(1000, (currentDuration - liveOffset) * 1000 + 1500);
     const schedule = [];
     let startMs = Date.now() - liveOffset * 1000;
     let index = currentIndex;
@@ -2690,7 +2691,8 @@ function MusicLibrarySidebar({ accentColor }) {
     return {
       channelLabel: data?.channel?.label || "",
       items: schedule.slice(0, 7),
-      loading: false
+      loading: false,
+      nextRefreshMs
     };
   }, []);
 
@@ -2701,6 +2703,7 @@ function MusicLibrarySidebar({ accentColor }) {
     }
 
     let cancelled = false;
+    let refreshTimer = null;
     const loadFuitsSchedule = async () => {
       try {
         const scheduleUrls = [
@@ -2717,7 +2720,14 @@ function MusicLibrarySidebar({ accentColor }) {
           } catch {}
         }
         if (!data) throw new Error("schedule unavailable");
-        if (!cancelled) setFuitsSchedule(buildFuitsSchedule(data));
+        if (!cancelled) {
+          const schedule = buildFuitsSchedule(data);
+          setFuitsSchedule(schedule);
+          if (refreshTimer) clearTimeout(refreshTimer);
+          if (schedule.nextRefreshMs) {
+            refreshTimer = setTimeout(loadFuitsSchedule, schedule.nextRefreshMs);
+          }
+        }
       } catch {
         if (!cancelled) setFuitsSchedule(current => ({ ...current, loading: false }));
       }
@@ -2725,10 +2735,9 @@ function MusicLibrarySidebar({ accentColor }) {
 
     setFuitsSchedule(current => ({ ...current, loading: true }));
     loadFuitsSchedule();
-    const timer = setInterval(loadFuitsSchedule, 30000);
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      if (refreshTimer) clearTimeout(refreshTimer);
     };
   }, [activeFuitsLiveTvChannel, buildFuitsSchedule, fuitsLiveTvChannelUrl]);
 

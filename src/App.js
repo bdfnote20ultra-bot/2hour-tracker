@@ -4680,29 +4680,21 @@ if (view === "gambling") {
           ))}
           <div style={{
             position: "fixed",
-            top: 832,
+            top: 846,
             left: 430,
             zIndex: 20,
-            width: 250,
-            minHeight: 34,
-            borderRadius: 11,
-            background: "rgba(0,0,0,.82)",
-            border: "1px solid rgba(250,204,21,.34)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 8,
-            padding: "7px 10px",
-            color: "#f8fafc",
-            boxShadow: "inset 0 0 18px rgba(250,204,21,.08), 0 8px 20px rgba(0,0,0,.32)",
-            boxSizing: "border-box"
+            width: 430,
+            color: "#22c55e",
+            textShadow: "0 2px 10px rgba(34,197,94,.45)",
+            fontFamily: "system-ui",
+            textTransform: "uppercase"
           }}>
-            <span style={{ fontSize: 10, color: "#facc15", fontWeight: 1000, letterSpacing: .8, textTransform: "uppercase", fontFamily: "system-ui" }}>
+            <div style={{ fontSize: 22, fontWeight: 1000, letterSpacing: .6, lineHeight: 1.05 }}>
               FUITS WEALTH
-            </span>
-            <span style={{ fontSize: 10, color: "#f8fafc", fontWeight: 1000, fontFamily: "system-ui" }}>
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 1000, letterSpacing: .6, lineHeight: 1.05, marginTop: 4 }}>
               0 FUIT COINS
-            </span>
+            </div>
           </div>
         </>
       )}

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { forwardRef, useState, useEffect, useRef, useMemo, useCallback, useImperativeHandle } from "react";
 import { MUSIC_LIBRARY } from "./musicLibraryData";
 import { FATTYS_LIVE_TV, FUITS_LIVE_TV_PLAYLIST } from "./fattysLiveTvData";
 
@@ -1375,30 +1375,6 @@ function PokemonSidebar() {
             border: "2px solid rgba(248,250,252,.38)",
             boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)"
           }}>
-            {activeGame && gameLaunch && (
-              <button
-                type="button"
-                onClick={toggleGameFullscreen}
-                style={{
-                  width: "auto",
-                  marginBottom: 10,
-                  border: "1px solid rgba(255,255,255,.26)",
-                  borderRadius: 999,
-                  padding: "9px 12px",
-                  background: gameFullscreen ? "rgba(34,197,94,.94)" : "rgba(15,23,42,.88)",
-                  color: gameFullscreen ? "#052e16" : "#fff",
-                  fontSize: 12,
-                  fontWeight: 1000,
-                  cursor: "pointer",
-                  boxShadow: "0 8px 18px rgba(0,0,0,.32)",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center"
-                }}
-              >
-                {gameFullscreen ? "Exit Fullscreen" : "Stretch Fullscreen"}
-              </button>
-            )}
             <div ref={emulatorFrameRef} className="pokemon-emulator-frame" tabIndex={0} style={{
               width: "100%",
               aspectRatio: "4 / 3",
@@ -1490,6 +1466,27 @@ function PokemonSidebar() {
                 </div>
               )}
             </div>
+            {activeGame && gameLaunch && (
+              <button
+                type="button"
+                onClick={toggleGameFullscreen}
+                style={{
+                  width: "100%",
+                  marginTop: 10,
+                  border: "1px solid rgba(255,255,255,.26)",
+                  borderRadius: 999,
+                  padding: "9px 12px",
+                  background: gameFullscreen ? "rgba(34,197,94,.94)" : "rgba(15,23,42,.88)",
+                  color: gameFullscreen ? "#052e16" : "#fff",
+                  fontSize: 12,
+                  fontWeight: 1000,
+                  cursor: "pointer",
+                  boxShadow: "0 8px 18px rgba(0,0,0,.32)"
+                }}
+              >
+                {gameFullscreen ? "Exit Fullscreen" : "Stretch Fullscreen"}
+              </button>
+            )}
           </div>
 
           <div style={{ marginTop: 8 }}>
@@ -1930,7 +1927,7 @@ const LARGE_FUITS_PRELOAD_CHUNK_BYTES = 4 * 1024 * 1024;
 const LARGE_FUITS_PRELOAD_PARALLEL_CHUNKS = 6;
 const FUITS_RESTART_PASSWORD = "FOOLIO";
 
-function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 0, liveAnnouncementOnline = false, restartSignal = 0 }) {
+const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 0, liveAnnouncementOnline = false, restartSignal = 0 }, ref) {
   const videoRef = useRef(null);
   const videoShellRef = useRef(null);
   const syncedVideoSrcRef = useRef("");
@@ -2262,7 +2259,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
     if (playPromise?.catch) playPromise.catch(() => {});
   };
 
-  const stretchVideoToFullscreen = () => {
+  const stretchVideoToFullscreen = useCallback(() => {
     const shell = videoShellRef.current;
     const video = videoRef.current;
     if (!shell) return;
@@ -2282,7 +2279,11 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
       shell.webkitRequestFullscreen ||
       shell.msRequestFullscreen;
     try { requestFullscreen?.call(shell); } catch {}
-  };
+  }, []);
+
+  useImperativeHandle(ref, () => ({
+    stretchVideoToFullscreen
+  }), [stretchVideoToFullscreen]);
 
   const confirmRestartPassword = () => {
     const password = window.prompt("Restart password");
@@ -2438,28 +2439,6 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
                 objectFit: stretchVideoFullscreen ? "fill" : "contain"
               }}
             />
-            <button
-              type="button"
-              onClick={stretchVideoToFullscreen}
-              style={{
-                position: "absolute",
-                right: 10,
-                bottom: 46,
-                zIndex: 3,
-                border: "1px solid rgba(255,255,255,.42)",
-                borderRadius: 10,
-                background: "rgba(2,6,23,.86)",
-                color: "#f8fafc",
-                padding: "6px 8px",
-                cursor: "pointer",
-                fontSize: 10,
-                fontWeight: 1000,
-                textTransform: "uppercase",
-                boxShadow: "0 8px 18px rgba(0,0,0,.45)"
-              }}
-            >
-              Stretch Fullscreen
-            </button>
             {needsLargeVideoPreload && (
               <div style={{
                 position: "absolute",
@@ -2590,7 +2569,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
       </div>
     </div>
   );
-}
+});
 
 function MusicLibrarySidebar({ accentColor }) {
   const fuitsLiveTvChannelUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
@@ -2621,6 +2600,7 @@ function MusicLibrarySidebar({ accentColor }) {
   const [zoomedDonationQr, setZoomedDonationQr] = useState(null);
   const jellyfinFrameRef = useRef(null);
   const adultSwimFrameRef = useRef(null);
+  const fuitsLiveTvPlayerRef = useRef(null);
   useEffect(() => {
     const handleFuitsBlankPage = event => {
       if (event.data?.type !== "FUITS_SITE_BLANKED") return;
@@ -3486,7 +3466,28 @@ function MusicLibrarySidebar({ accentColor }) {
                     <option key={channel.id} value={channel.id}>{channel.label}</option>
                   ))}
                 </select>
+                <div style={{ width: "100%", display: "flex", justifyContent: "flex-start" }}>
+                  <button
+                    type="button"
+                    onClick={() => fuitsLiveTvPlayerRef.current?.stretchVideoToFullscreen()}
+                    style={{
+                      border: "1px solid rgba(255,255,255,.26)",
+                      borderRadius: 999,
+                      padding: "9px 12px",
+                      background: "rgba(15,23,42,.88)",
+                      color: "#fff",
+                      fontSize: 12,
+                      fontWeight: 1000,
+                      cursor: "pointer",
+                      boxShadow: "0 8px 18px rgba(0,0,0,.32)",
+                      textTransform: "uppercase"
+                    }}
+                  >
+                    Stretch Fullscreen
+                  </button>
+                </div>
                 <FuitsLiveTvPlayer
+                  ref={fuitsLiveTvPlayerRef}
                   baseUrl={fuitsLiveTvChannelUrl}
                   channelId={activeFuitsLiveTvChannel}
                   startupBufferSeconds={0.2}

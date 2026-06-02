@@ -30,14 +30,51 @@ const RADIO_ROOT = path.join(ROOT, "Radio");
 const RADIO_MUSIC_DIR = path.join(RADIO_ROOT, "Music");
 const RADIO_PLAYLIST_DIR = path.join(RADIO_ROOT, "Playlists");
 const DEFAULT_RADIO_PLAYLISTS = ["ChannelA.m3u", "ChannelB.m3u"];
+const ONLINE_STATS_TTL_MS = 15 * 60 * 1000;
 let owncastBaseUrlCache = null;
 let owncastBaseUrlCacheExpiresAt = 0;
+const onlineDevices = new Map();
 const GAME_SYSTEMS = {
   GB: { folder: "GB", core: "gb", extensions: [".gb"] },
   GBC: { folder: "GBC", core: "gb", extensions: [".gbc"] },
   GBA: { folder: "GBA", core: "gba", extensions: [".gba"] },
   PS1: { folder: "PS1", core: "psx", extensions: [".cue", ".chd", ".pbp", ".m3u"] }
 };
+
+function getClientIp(req) {
+  const forwardedFor = String(req.headers["x-forwarded-for"] || "")
+    .split(",")
+    .map(value => value.trim())
+    .filter(Boolean)[0];
+  return String(
+    req.headers["cf-connecting-ip"] ||
+    req.headers["x-real-ip"] ||
+    forwardedFor ||
+    req.socket.remoteAddress ||
+    "unknown"
+  ).replace(/^::ffff:/, "");
+}
+
+function getOnlineStats(req, deviceId) {
+  const now = Date.now();
+  const ip = getClientIp(req);
+  const userAgent = String(req.headers["user-agent"] || "browser").slice(0, 180);
+  const safeDeviceId = String(deviceId || "").replace(/[^a-zA-Z0-9_.:-]/g, "").slice(0, 120);
+  const deviceKey = safeDeviceId || `${ip}:${userAgent}`;
+
+  onlineDevices.set(deviceKey, { ip, lastSeen: now });
+
+  for (const [key, value] of onlineDevices) {
+    if (!value || now - value.lastSeen > ONLINE_STATS_TTL_MS) {
+      onlineDevices.delete(key);
+    }
+  }
+
+  return {
+    devices: onlineDevices.size,
+    households: new Set(Array.from(onlineDevices.values()).map(value => value.ip)).size
+  };
+}
 
 function getRadioChannel(channelId) {
   const channels = getRadioChannels();
@@ -3022,6 +3059,11 @@ const server = http.createServer((req, res) => {
       .catch(() => {
         sendJson(res, 200, { online: false });
       });
+    return;
+  }
+
+  if (url.pathname === "/online-stats" && req.method === "GET") {
+    sendJson(res, 200, getOnlineStats(req, url.searchParams.get("device")));
     return;
   }
 

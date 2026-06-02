@@ -632,6 +632,7 @@ function PokemonSidebar() {
   const [kickGamingChannelInput, setKickGamingChannelInput] = useState(() => {
     try { return localStorage.getItem(KICK_GAMING_CHANNEL_KEY) || "flivetv"; } catch { return "flivetv"; }
   });
+  const [gameSearch, setGameSearch] = useState("");
   const [selectedArt, setSelectedArt] = useState("cover");
   const [zoomedCover, setZoomedCover] = useState(null);
   const [activeGameAssets, setActiveGameAssets] = useState({ manualUrl: "", backUrl: "" });
@@ -717,7 +718,16 @@ function PokemonSidebar() {
   };
 
   const systemGames = games.filter(game => game.system === activeSystem);
-  const activeGameIndex = activeGame ? Math.max(0, systemGames.findIndex(game => game.file === activeGame.file)) : 0;
+  const gameSearchQuery = gameSearch.trim().toLowerCase();
+  const filteredSystemGames = gameSearchQuery
+    ? systemGames.filter(game =>
+        [game.label, game.system, game.year, game.file]
+          .filter(Boolean)
+          .some(value => String(value).toLowerCase().includes(gameSearchQuery))
+      )
+    : systemGames;
+  const carouselGames = filteredSystemGames;
+  const activeGameIndex = activeGame ? Math.max(0, carouselGames.findIndex(game => game.file === activeGame.file)) : 0;
   const backgroundImage = SYSTEM_BACKGROUNDS[activeSystem] || SYSTEM_BACKGROUNDS.GB;
   const kickGamingChannel = normalizeKickChannel(kickGamingChannelInput) || "flivetv";
   const kickGamingEmbedUrl = `https://player.kick.com/${encodeURIComponent(kickGamingChannel)}?autoplay=true&muted=true`;
@@ -803,10 +813,10 @@ function PokemonSidebar() {
   }, [activeGameAssets.backUrl, selectedArt]);
 
   const moveCarousel = (direction) => {
-    if (!systemGames.length) return;
-    const nextIndex = (activeGameIndex + direction + systemGames.length) % systemGames.length;
+    if (!carouselGames.length) return;
+    const nextIndex = (activeGameIndex + direction + carouselGames.length) % carouselGames.length;
     stopRunningGame();
-    setActiveGame(systemGames[nextIndex]);
+    setActiveGame(carouselGames[nextIndex]);
     setSelectedArt("cover");
     setSelectedDiscIndex(0);
   };
@@ -1498,13 +1508,51 @@ function PokemonSidebar() {
                   {activeSystem} Game Carousel
                 </div>
                 <div style={{ fontSize: 12, fontWeight: 900, color: "#fff", marginTop: 2 }}>
-                  {activeGameIndex + 1} / {systemGames.length}
+                  {carouselGames.length ? activeGameIndex + 1 : 0} / {carouselGames.length}
                 </div>
               </div>
               <button onClick={() => moveCarousel(1)} style={{
                 width: 38, height: 38, borderRadius: "50%", border: "1px solid rgba(255,255,255,.18)",
                 background: "rgba(2,6,23,.9)", color: "#fff", cursor: "pointer", fontSize: 22, fontWeight: 900
               }}>{">"}</button>
+            </div>
+
+            <div style={{
+              marginBottom: 10,
+              color: "#cbd5e1",
+              fontSize: 11,
+              fontWeight: 800,
+              lineHeight: 1.3,
+              textAlign: "center"
+            }}>
+              For multi disc games, export save, then start next disc and import.
+            </div>
+
+            <div style={{ marginBottom: 10 }}>
+              <input
+                value={gameSearch}
+                onChange={event => setGameSearch(event.target.value)}
+                placeholder={`Search ${activeSystem} games...`}
+                aria-label={`Search ${activeSystem} games`}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  border: "1px solid rgba(56,189,248,.34)",
+                  borderRadius: 12,
+                  padding: "10px 12px",
+                  background: "rgba(2,6,23,.9)",
+                  color: "#f8fafc",
+                  outline: "none",
+                  fontSize: 12,
+                  fontWeight: 900,
+                  boxShadow: "inset 0 0 18px rgba(56,189,248,.12)"
+                }}
+              />
+              {gameSearchQuery && (
+                <div style={{ marginTop: 6, color: "#93c5fd", fontSize: 10, fontWeight: 900, textAlign: "center" }}>
+                  {carouselGames.length} match{carouselGames.length === 1 ? "" : "es"} in {activeSystem}
+                </div>
+              )}
             </div>
 
             <div ref={gameCarouselRef} className="game-cover-carousel" style={{
@@ -1515,12 +1563,12 @@ function PokemonSidebar() {
               paddingTop: 8,
               paddingBottom: 4
             }}>
-              {systemGames.length === 0 && (
+              {carouselGames.length === 0 && (
                 <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 900, padding: 12 }}>
-                  No {activeSystem} games found yet.
+                  {gameSearchQuery ? `No ${activeSystem} games match that search.` : `No ${activeSystem} games found yet.`}
                 </div>
               )}
-              {systemGames.map(game => {
+              {carouselGames.map(game => {
                 const selected = activeGame && game.file === activeGame.file;
                 const discCount = game.discUrls?.length || 0;
                 return (
@@ -1566,16 +1614,6 @@ function PokemonSidebar() {
                   </button>
                 );
               })}
-            </div>
-            <div style={{
-              marginTop: 10,
-              color: "#cbd5e1",
-              fontSize: 11,
-              fontWeight: 800,
-              lineHeight: 1.3,
-              textAlign: "center"
-            }}>
-              For multi disc games, export save, then start next disc and import.
             </div>
           </div>
 
@@ -2441,6 +2479,7 @@ function MusicLibrarySidebar({ accentColor }) {
   const [selectedCustomTvId, setSelectedCustomTvId] = useState(null);
   const [customTvUrl, setCustomTvUrl] = useState("");
   const [owncastOnline, setOwncastOnline] = useState(false);
+  const [onlineStats, setOnlineStats] = useState({ devices: 0, households: 0 });
   const [openMusicSections, setOpenMusicSections] = useState({ videos: false, music: false });
   const [zoomedDonationQr, setZoomedDonationQr] = useState(null);
   const jellyfinFrameRef = useRef(null);
@@ -2563,6 +2602,44 @@ function MusicLibrarySidebar({ accentColor }) {
       clearInterval(timer);
     };
   }, []);
+
+  useEffect(() => {
+    if (!fuitsLiveTvChannelUrl) return undefined;
+
+    let cancelled = false;
+    let deviceId = "";
+    try {
+      deviceId = localStorage.getItem("fuitsLiveDeviceId_v1") || "";
+      if (!deviceId) {
+        deviceId = `device_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+        localStorage.setItem("fuitsLiveDeviceId_v1", deviceId);
+      }
+    } catch {
+      deviceId = `device_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    }
+
+    const loadOnlineStats = async () => {
+      try {
+        const response = await fetch(`${fuitsLiveTvChannelUrl.replace(/\/+$/, "")}/online-stats?device=${encodeURIComponent(deviceId)}&cache=${Date.now()}`, { cache: "no-store" });
+        const stats = await response.json();
+        if (!cancelled) {
+          setOnlineStats({
+            devices: Number(stats.devices) || 0,
+            households: Number(stats.households) || 0
+          });
+        }
+      } catch {
+        if (!cancelled) setOnlineStats({ devices: 0, households: 0 });
+      }
+    };
+
+    loadOnlineStats();
+    const timer = setInterval(loadOnlineStats, 15 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [fuitsLiveTvChannelUrl]);
 
   const filteredVideos = filteredLibrary.filter(item =>
     item.type === "video" || (item.src || "").toLowerCase().endsWith(".mp4")
@@ -2848,8 +2925,49 @@ function MusicLibrarySidebar({ accentColor }) {
     }}>
       <style>{`
         @media (max-width: 1180px) { .music-library-desktop-sidebar { display: none !important; } }
+        @media (max-width: 1180px) { .fuits-online-indicator { display: none !important; } }
         .music-library-desktop-sidebar button:hover { transform: translateY(-1px); }
+        @keyframes fuits-live-pulse {
+          0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(239,68,68,.62); }
+          50% { opacity: .42; transform: scale(.82); box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+        }
       `}</style>
+
+      <div className="fuits-online-indicator" style={{
+        position: "fixed",
+        right: 392,
+        top: 18,
+        zIndex: 8,
+        width: 220,
+        border: "1px solid rgba(239,68,68,.28)",
+        borderRadius: 14,
+        background: "rgba(2,6,23,.88)",
+        boxShadow: "0 14px 34px rgba(0,0,0,.45)",
+        padding: "10px 12px",
+        color: "#f8fafc",
+        display: "grid",
+        gap: 6
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{
+            width: 10,
+            height: 10,
+            borderRadius: "50%",
+            background: "#ef4444",
+            animation: "fuits-live-pulse 1.15s ease-in-out infinite",
+            flex: "0 0 auto"
+          }} />
+          <div style={{ fontSize: 11, fontWeight: 1000, letterSpacing: .8, textTransform: "uppercase", color: "#fecaca" }}>
+            Live Online
+          </div>
+        </div>
+        <div style={{ fontSize: 12, fontWeight: 1000, textTransform: "uppercase", lineHeight: 1.15 }}>
+          {onlineStats.devices} Devices Online
+        </div>
+        <div style={{ fontSize: 11, fontWeight: 900, color: "#cbd5e1", textTransform: "uppercase", lineHeight: 1.15 }}>
+          {onlineStats.households} Households Logged In
+        </div>
+      </div>
 
       <div style={{ position: "relative", marginBottom: 10 }}>
         <button onClick={() => setMediaMenuOpen(open => !open)} style={{
@@ -4543,6 +4661,7 @@ export default function App() {
     foodCooking: "FOOD AND COOKING",
     dispatching: "DISPATCHING",
     systemUpgrades: "SYSTEM UPGRADES",
+    cardCoinCollecting: "CARD + COIN COLLECTING",
     exitMatrix: "EXIT THE MATRIX"
   };
 
@@ -4692,7 +4811,8 @@ if (view === "gambling") {
             { label: "FOOD AND COOKING", nextView: "foodCooking", top: 664 },
             { label: "DISPATCHING", nextView: "dispatching", top: 704 },
             { label: "SYSTEM UPGRADES", nextView: "systemUpgrades", top: 744 },
-            { label: "EXIT THE MATRIX", nextView: "exitMatrix", top: 784 }
+            { label: "CARD + COIN COLLECTING", nextView: "cardCoinCollecting", top: 784 },
+            { label: "EXIT THE MATRIX", nextView: "exitMatrix", top: 824 }
           ].map(link => (
             <div key={link.nextView || link.label}>
               <button

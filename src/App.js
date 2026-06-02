@@ -1076,13 +1076,13 @@ function PokemonSidebar() {
     <div className="pokemon-desktop-stack" style={{
       position: "fixed",
       left: 18,
-      top: 18,
+      top: 10,
       bottom: 18,
       width: collapsed ? 72 : 390,
       zIndex: 4,
       display: "flex",
       flexDirection: "column",
-      gap: 14,
+      gap: 10,
       overflowX: "hidden",
       overflowY: collapsed ? "hidden" : "auto",
       pointerEvents: "none",
@@ -1097,7 +1097,7 @@ function PokemonSidebar() {
       backgroundSize: "cover",
       backgroundPosition: "center",
       boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
-      padding: collapsed ? 12 : 16,
+      padding: collapsed ? 12 : 12,
       color: "#f8fafc",
       fontFamily: "system-ui, sans-serif",
       transition: "width .25s ease, padding .25s ease",
@@ -1147,7 +1147,7 @@ function PokemonSidebar() {
           image-rendering: pixelated;
         }
       `}</style>
-      <div style={{ position: "sticky", top: 0, zIndex: 6, marginBottom: 12 }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 6, marginBottom: 8 }}>
         <button
           onClick={() => setGamingMenuOpen(open => !open)}
           style={{
@@ -1343,14 +1343,14 @@ function PokemonSidebar() {
           <div style={{
             borderRadius: 22,
             background: "linear-gradient(180deg, rgba(51,65,85,.92), rgba(15,23,42,.96))",
-            padding: 12,
+            padding: 10,
             border: "2px solid rgba(248,250,252,.38)",
             boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)"
           }}>
             <div ref={emulatorFrameRef} className="pokemon-emulator-frame" tabIndex={0} style={{
               width: "100%",
               aspectRatio: "4 / 3",
-              minHeight: 245,
+              minHeight: 220,
               borderRadius: 14,
               overflow: "hidden",
               background: "#020617",
@@ -1461,7 +1461,7 @@ function PokemonSidebar() {
             )}
           </div>
 
-          <div style={{ marginTop: 12 }}>
+          <div style={{ marginTop: 8 }}>
             <select
               value={activeSystem}
               onChange={event => handleSystemChange(event.target.value)}
@@ -1485,8 +1485,8 @@ function PokemonSidebar() {
           </div>
 
           <div style={{
-            marginTop: 12,
-            padding: 10,
+            marginTop: 8,
+            padding: 8,
             borderRadius: 18,
             background: "rgba(15,23,42,.86)",
             border: "1px solid rgba(255,255,255,.14)",
@@ -1497,7 +1497,7 @@ function PokemonSidebar() {
               alignItems: "center",
               justifyContent: "space-between",
               gap: 8,
-              marginBottom: 10
+              marginBottom: 8
             }}>
               <button onClick={() => moveCarousel(-1)} style={{
                 width: 38, height: 38, borderRadius: "50%", border: "1px solid rgba(255,255,255,.18)",
@@ -1518,7 +1518,7 @@ function PokemonSidebar() {
             </div>
 
             <div style={{
-              marginBottom: 10,
+              marginBottom: 8,
               color: "#cbd5e1",
               fontSize: 11,
               fontWeight: 800,
@@ -1528,7 +1528,7 @@ function PokemonSidebar() {
               For multi disc games, export save, then start next disc and import.
             </div>
 
-            <div style={{ marginBottom: 10 }}>
+            <div style={{ marginBottom: 8 }}>
               <input
                 value={gameSearch}
                 onChange={event => setGameSearch(event.target.value)}
@@ -1619,12 +1619,12 @@ function PokemonSidebar() {
 
           {activeGame && (
           <div style={{
-            marginTop: 12,
+            marginTop: 8,
             display: "grid",
             gridTemplateColumns: "92px 1fr",
-            gap: 12,
+            gap: 10,
             alignItems: "center",
-            padding: 10,
+            padding: 8,
             borderRadius: 16,
             background: "rgba(15,23,42,.88)",
             border: "1px solid rgba(255,255,255,.14)"

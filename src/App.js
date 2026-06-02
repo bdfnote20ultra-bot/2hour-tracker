@@ -1176,6 +1176,10 @@ function PokemonSidebar() {
               ? "Game"
               : activeGamingApp === "live-gaming"
                 ? "FUIT LIVE GAMING"
+                : activeGamingApp === "live-gaming-youtube"
+                  ? "FUIT LIVE GAMING YOUTUBE"
+                : activeGamingApp === "youtube-past-vods"
+                  ? "YOUTUBE / PAST VODs"
                 : activeGamingApp === "multiplayer"
                   ? "FUIT MULTIPLAYER"
                   : activeGamingApp === "free-games"
@@ -1201,7 +1205,9 @@ function PokemonSidebar() {
               { value: "gaming-center", label: "FUIT GAMING CENTER" },
               { value: "multiplayer", label: "FUIT MULTIPLAYER" },
               { value: "free-games", label: "FREE GAMES" },
-              { value: "live-gaming", label: "FUIT LIVE GAMING" }
+              { value: "live-gaming", label: "FUIT LIVE GAMING" },
+              { value: "live-gaming-youtube", label: "FUIT LIVE GAMING YOUTUBE" },
+              { value: "youtube-past-vods", label: "YOUTUBE / PAST VODs" }
             ].map(option => (
               <button
                 key={option.value}
@@ -1300,6 +1306,26 @@ function PokemonSidebar() {
             }}
           />
         </div>
+      ) : activeGamingApp === "live-gaming-youtube" ? (
+        <div style={{
+          width: "100%",
+          aspectRatio: "4 / 3",
+          minHeight: 245,
+          borderRadius: 22,
+          background: "#020617",
+          border: "2px solid rgba(56,189,248,.28)",
+          boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)"
+        }} />
+      ) : activeGamingApp === "youtube-past-vods" ? (
+        <div style={{
+          width: "100%",
+          aspectRatio: "4 / 3",
+          minHeight: 245,
+          borderRadius: 22,
+          background: "#020617",
+          border: "2px solid rgba(239,68,68,.34)",
+          boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)"
+        }} />
       ) : activeGamingApp === "multiplayer" ? (
         <div style={{
           width: "100%",
@@ -1349,6 +1375,30 @@ function PokemonSidebar() {
             border: "2px solid rgba(248,250,252,.38)",
             boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)"
           }}>
+            {activeGame && gameLaunch && (
+              <button
+                type="button"
+                onClick={toggleGameFullscreen}
+                style={{
+                  width: "auto",
+                  marginBottom: 10,
+                  border: "1px solid rgba(255,255,255,.26)",
+                  borderRadius: 999,
+                  padding: "9px 12px",
+                  background: gameFullscreen ? "rgba(34,197,94,.94)" : "rgba(15,23,42,.88)",
+                  color: gameFullscreen ? "#052e16" : "#fff",
+                  fontSize: 12,
+                  fontWeight: 1000,
+                  cursor: "pointer",
+                  boxShadow: "0 8px 18px rgba(0,0,0,.32)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}
+              >
+                {gameFullscreen ? "Exit Fullscreen" : "Stretch Fullscreen"}
+              </button>
+            )}
             <div ref={emulatorFrameRef} className="pokemon-emulator-frame" tabIndex={0} style={{
               width: "100%",
               aspectRatio: "4 / 3",
@@ -1440,27 +1490,6 @@ function PokemonSidebar() {
                 </div>
               )}
             </div>
-            {activeGame && gameLaunch && (
-              <button
-                type="button"
-                onClick={toggleGameFullscreen}
-                style={{
-                  width: "100%",
-                  marginTop: 10,
-                  border: "1px solid rgba(255,255,255,.26)",
-                  borderRadius: 999,
-                  padding: "9px 12px",
-                  background: gameFullscreen ? "rgba(34,197,94,.94)" : "rgba(15,23,42,.88)",
-                  color: gameFullscreen ? "#052e16" : "#fff",
-                  fontSize: 12,
-                  fontWeight: 1000,
-                  cursor: "pointer",
-                  boxShadow: "0 8px 18px rgba(0,0,0,.32)"
-                }}
-              >
-                {gameFullscreen ? "Exit Fullscreen" : "Stretch Fullscreen"}
-              </button>
-            )}
           </div>
 
           <div style={{ marginTop: 8 }}>

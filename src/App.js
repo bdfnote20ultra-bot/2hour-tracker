@@ -1076,14 +1076,14 @@ function PokemonSidebar() {
     <div className="pokemon-desktop-stack" style={{
       position: "fixed",
       left: 18,
-      top: 10,
-      bottom: 26,
+      top: 4,
+      bottom: 8,
       width: collapsed ? 72 : 390,
       zIndex: 4,
       display: "flex",
       flexDirection: "column",
       gap: 10,
-      paddingBottom: 6,
+      paddingBottom: 0,
       boxSizing: "border-box",
       overflowX: "hidden",
       overflowY: collapsed ? "hidden" : "auto",
@@ -3094,7 +3094,7 @@ function MusicLibrarySidebar({ accentColor }) {
       <div className="fuits-schedule-panel" style={{
         position: "fixed",
         right: 410,
-        top: 116,
+        bottom: 26,
         zIndex: 8,
         width: 260,
         border: "1px solid rgba(250,204,21,.32)",
@@ -3107,17 +3107,16 @@ function MusicLibrarySidebar({ accentColor }) {
         gap: 8
       }}>
         <div style={{
-          display: "flex",
-          alignItems: "baseline",
-          justifyContent: "space-between",
-          gap: 10,
+          display: "grid",
+          gap: 5,
+          justifyItems: "start",
           borderBottom: "1px solid rgba(250,204,21,.24)",
           paddingBottom: 8
         }}>
           <div style={{ fontSize: 14, fontWeight: 1000, color: "#fef08a", textTransform: "uppercase", lineHeight: 1.1 }}>
             Listed Schedule
           </div>
-          <div style={{ fontSize: 10, fontWeight: 1000, color: "#cbd5e1", textTransform: "uppercase", lineHeight: 1.1, textAlign: "right" }}>
+          <div style={{ fontSize: 15, fontWeight: 1000, color: "#e0f2fe", textTransform: "uppercase", lineHeight: 1.15, textAlign: "left" }}>
             Next 3 Hours{fuitsSchedule.channelLabel ? ` - ${fuitsSchedule.channelLabel}` : ""}
           </div>
         </div>
@@ -3143,10 +3142,10 @@ function MusicLibrarySidebar({ accentColor }) {
                   {item.current ? "Now" : new Date(item.startMs).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
                 </span>
                 <span style={{
-                  overflow: "hidden",
-                  display: "-webkit-box",
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: "vertical"
+                  fontSize: 12,
+                  lineHeight: 1.22,
+                  overflowWrap: "anywhere",
+                  wordBreak: "break-word"
                 }}>
                   {item.title}
                 </span>

@@ -4044,6 +4044,16 @@ function EmptyUtilityPage({ title, onClose }) {
   );
 }
 
+const DISCOUNT_LINK_LABELS = [
+  "AVAILABLE RESIDENCE",
+  "EMERGENCY PLANNING!",
+  "FAMILY HUB",
+  "PROGRAMMING",
+  "HOUSING + LAND FOR SALE",
+  "RADIO + COMMUNICATION",
+  "JOBS BOARD"
+];
+
 function ProjectDropdown({ projects, activeId, onSelect, onManage }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -4123,6 +4133,7 @@ export default function App() {
   const [projectRates, setProjectRates] = useState(loadRates);
   const [monthlyTrackerMonths, setMonthlyTrackerMonths] = useState(loadMonthlyTrackerMonths);
   const [view, setView] = useState("week");
+  const [discountLinksOpen, setDiscountLinksOpen] = useState(true);
   const [form, setForm] = useState(defaultEntry());
   const [projects, setProjects] = useState(loadProjects);
   const [activeProjectId, setActiveProjectId] = useState(() => loadProjects()[0]?.id || "default");
@@ -4535,30 +4546,68 @@ if (view === "gambling") {
           {[
             { label: "GAMBLING", nextView: "gambling", top: 64 },
             { label: "ADMIN", nextView: "admin", top: 104 },
-            { label: "NEWS", nextView: "news", top: 144 }
+            { label: "NEWS", nextView: "news", top: 144 },
+            { label: "DISCOUNTS", nextView: "discounts", top: 184 }
           ].map(link => (
-            <button
-              key={link.nextView}
-              onClick={() => setView(link.nextView)}
-              style={{
-                position: "fixed",
-                top: link.top,
-                left: 475,
-                zIndex: 20,
-                background: "transparent",
-                border: "none",
-                color: "#38bdf8",
-                cursor: "pointer",
-                fontSize: 22,
-                fontWeight: 1000,
-                letterSpacing: .6,
-                textTransform: "uppercase",
-                textShadow: "0 2px 10px rgba(56,189,248,.45)",
-                fontFamily: "system-ui"
-              }}
-            >
-              {link.label}
-            </button>
+            <div key={link.nextView}>
+              <button
+                onClick={() => link.nextView === "discounts" ? setDiscountLinksOpen(open => !open) : setView(link.nextView)}
+                style={{
+                  position: "fixed",
+                  top: link.top,
+                  left: 475,
+                  zIndex: 20,
+                  background: "transparent",
+                  border: "none",
+                  color: "#38bdf8",
+                  cursor: "pointer",
+                  fontSize: 22,
+                  fontWeight: 1000,
+                  letterSpacing: .6,
+                  textTransform: "uppercase",
+                  textShadow: "0 2px 10px rgba(56,189,248,.45)",
+                  fontFamily: "system-ui"
+                }}
+              >
+                {link.label}
+              </button>
+              {link.nextView === "discounts" && discountLinksOpen && (
+                <div style={{
+                  position: "fixed",
+                  top: link.top + 34,
+                  left: 475,
+                  zIndex: 20,
+                  display: "grid",
+                  gap: 7,
+                  width: 260
+                }}>
+                  {DISCOUNT_LINK_LABELS.map(label => (
+                    <button
+                      key={label}
+                      type="button"
+                      style={{
+                        width: "100%",
+                        border: "1px solid rgba(56,189,248,.32)",
+                        borderRadius: 10,
+                        padding: "8px 10px",
+                        background: "rgba(2,6,23,.78)",
+                        color: "#e0f2fe",
+                        cursor: "pointer",
+                        textAlign: "left",
+                        fontSize: 12,
+                        fontWeight: 1000,
+                        letterSpacing: .3,
+                        textTransform: "uppercase",
+                        textShadow: "0 2px 8px rgba(56,189,248,.35)",
+                        fontFamily: "system-ui"
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           ))}
         </>
       )}

@@ -1498,6 +1498,7 @@ function PokemonSidebar() {
               gap: 8,
               overflowX: "auto",
               scrollSnapType: "x mandatory",
+              paddingTop: 4,
               paddingBottom: 4
             }}>
               {systemGames.length === 0 && (
@@ -1510,17 +1511,17 @@ function PokemonSidebar() {
                 const discCount = game.discUrls?.length || 0;
                 return (
                   <button key={game.file} onClick={() => chooseCarouselGame(game)} style={{
-                    minWidth: 96,
-                    maxWidth: 96,
+                    minWidth: 86,
+                    maxWidth: 86,
                     scrollSnapAlign: "center",
                     border: selected ? "2px solid #facc15" : "1px solid rgba(255,255,255,.18)",
-                    borderRadius: 14,
-                    padding: 7,
+                    borderRadius: 12,
+                    padding: 6,
                     background: selected ? "rgba(250,204,21,.18)" : "rgba(2,6,23,.72)",
                     color: "#fff",
                     cursor: "pointer",
                     boxShadow: selected ? "0 0 18px rgba(250,204,21,.32)" : "0 8px 18px rgba(0,0,0,.22)",
-                    transform: selected ? "translateY(-1px) scale(1.01)" : "none",
+                    transform: selected ? "scale(.98)" : "scale(.96)",
                     transition: "transform .18s ease, box-shadow .18s ease, border .18s ease",
                     textAlign: "center"
                   }}>
@@ -1860,6 +1861,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
   const [playerVolume, setPlayerVolume] = useState(1);
   const [videoLoading, setVideoLoading] = useState(false);
   const [videoError, setVideoError] = useState("");
+  const [restartAnchor, setRestartAnchor] = useState(null);
   const currentItem = channel?.playlist?.[channel.currentIndex] || null;
   const videoSrc = currentItem?.src
     ? `${baseUrl}${currentItem.src.startsWith("/") ? "" : "/"}${currentItem.src}${currentItem.src.includes("?") ? "&" : "?"}stream=${encodeURIComponent(`${channelId}-${currentItem.id}-${currentItem.sizeBytes || currentItem.duration || ""}`)}`
@@ -1874,13 +1876,16 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
   const getLiveOffsetSeconds = useCallback((snapshot = channel, item = currentItem) => {
     if (!snapshot || !item) return 0;
     const duration = Number(item.duration) || 1;
+    if (restartAnchor?.channelId === channelId && restartAnchor?.itemId === item.id) {
+      return Math.max(0, (Date.now() - restartAnchor.startedAtMs) / 1000);
+    }
     const snapshotOffset = Number(snapshot.offsetSeconds) || 0;
     const generatedAtMs = Number(snapshot.generatedAtMs);
     const elapsedSinceSnapshot = Number.isFinite(generatedAtMs)
       ? Math.max(0, (Date.now() - generatedAtMs) / 1000)
       : 0;
     return Math.max(0, snapshotOffset + elapsedSinceSnapshot);
-  }, [channel, currentItem]);
+  }, [channel, channelId, currentItem, restartAnchor]);
 
   const syncVideoToLiveOffset = useCallback((force = false) => {
     const video = videoRef.current;
@@ -2142,6 +2147,13 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
     try {
       video.currentTime = 0;
       syncedVideoSrcRef.current = videoSrc;
+      if (currentItem) {
+        setRestartAnchor({
+          channelId,
+          itemId: currentItem.id,
+          startedAtMs: Date.now()
+        });
+      }
       setVideoLoading(false);
       setVideoError("");
       playCurrentVideo();
@@ -4496,6 +4508,7 @@ export default function App() {
     science: "SCIENCE",
     userRequestsUploads: "USER REQUEST & UPLOADS",
     itemsServicesForSale: "ITEMS / SERVICES FOR SALE",
+    cryptoNfts: "CRYPTO + NFTS",
     foodCooking: "FOOD AND COOKING",
     dispatching: "DISPATCHING",
     systemUpgrades: "SYSTEM UPGRADES",
@@ -4631,6 +4644,7 @@ if (view === "gambling") {
       {view === "week" && (
         <>
           {[
+            { label: "CRYPTO + NFTS", nextView: "cryptoNfts", top: 24 },
             { label: "GAMBLING", nextView: "gambling", top: 64 },
             { label: "ADMIN", nextView: "admin", top: 104 },
             { label: "NEWS", nextView: "news", top: 144 },
@@ -4681,7 +4695,7 @@ if (view === "gambling") {
           <div style={{
             position: "fixed",
             top: 846,
-            left: 430,
+            left: 470,
             zIndex: 20,
             width: 430,
             color: "#22c55e",

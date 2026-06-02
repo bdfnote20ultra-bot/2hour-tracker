@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { MUSIC_LIBRARY } from "./musicLibraryData";
-import { FATTYS_LIVE_TV, FUITS_LIVE_TV_PLAYLIST, APP_COPY_LABEL, APP_COPY_NOTE } from "./fattysLiveTvData";
+import { FATTYS_LIVE_TV, FUITS_LIVE_TV_PLAYLIST } from "./fattysLiveTvData";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const FULL_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -470,8 +470,8 @@ function PokemonCoverImage({ game, onZoom, compact = false, imageType = "cover" 
         type="button"
         disabled
         style={{
-          width: compact ? 66 : 92,
-          height: compact ? 88 : 126,
+          width: compact ? 70 : 92,
+          height: compact ? 92 : 126,
           borderRadius: 10,
           border: "2px dashed rgba(255,255,255,.28)",
           background: "rgba(255,255,255,.08)",
@@ -498,8 +498,8 @@ function PokemonCoverImage({ game, onZoom, compact = false, imageType = "cover" 
         else setFailed(true);
       }}
       style={{
-        width: compact ? 66 : 92,
-        height: compact ? 88 : 126,
+        width: compact ? 70 : 92,
+        height: compact ? 92 : 126,
         objectFit: "cover",
         borderRadius: 10,
         border: "2px solid rgba(255,255,255,.25)",
@@ -1498,7 +1498,7 @@ function PokemonSidebar() {
               gap: 8,
               overflowX: "auto",
               scrollSnapType: "x mandatory",
-              paddingTop: 4,
+              paddingTop: 8,
               paddingBottom: 4
             }}>
               {systemGames.length === 0 && (
@@ -1511,17 +1511,17 @@ function PokemonSidebar() {
                 const discCount = game.discUrls?.length || 0;
                 return (
                   <button key={game.file} onClick={() => chooseCarouselGame(game)} style={{
-                    minWidth: 86,
-                    maxWidth: 86,
+                    minWidth: 94,
+                    maxWidth: 94,
                     scrollSnapAlign: "center",
                     border: selected ? "2px solid #facc15" : "1px solid rgba(255,255,255,.18)",
-                    borderRadius: 12,
+                    borderRadius: 13,
                     padding: 6,
                     background: selected ? "rgba(250,204,21,.18)" : "rgba(2,6,23,.72)",
                     color: "#fff",
                     cursor: "pointer",
                     boxShadow: selected ? "0 0 18px rgba(250,204,21,.32)" : "0 8px 18px rgba(0,0,0,.22)",
-                    transform: selected ? "scale(.98)" : "scale(.96)",
+                    transform: selected ? "scale(.99)" : "scale(.97)",
                     transition: "transform .18s ease, box-shadow .18s ease, border .18s ease",
                     textAlign: "center"
                   }}>
@@ -1529,16 +1529,16 @@ function PokemonSidebar() {
                       <PokemonCoverImage game={game} onZoom={() => {}} compact />
                     </div>
                     <div style={{
-                      marginTop: 6, fontSize: 9, fontWeight: 900, lineHeight: 1.12,
-                      height: 31, overflow: "hidden", color: selected ? "#fff" : "#cbd5e1"
+                      marginTop: 6, fontSize: 10, fontWeight: 900, lineHeight: 1.12,
+                      height: 34, overflow: "hidden", color: selected ? "#fff" : "#cbd5e1"
                     }}>
                       {game.label}
                     </div>
-                    <div style={{ marginTop: 4, fontSize: 9, fontWeight: 900, color: selected ? "#facc15" : "#94a3b8" }}>
+                    <div style={{ marginTop: 4, fontSize: 10, fontWeight: 900, color: selected ? "#facc15" : "#94a3b8" }}>
                       {game.system} - {game.year}
                     </div>
                     {discCount > 1 && (
-                      <div style={{ marginTop: 4, fontSize: 9, fontWeight: 1000, color: "#38bdf8" }}>
+                      <div style={{ marginTop: 4, fontSize: 10, fontWeight: 1000, color: "#38bdf8" }}>
                         {discCount} discs
                       </div>
                     )}
@@ -1684,14 +1684,6 @@ function PokemonSidebar() {
         </>
       ))}
     </aside>
-    </div>
-  );
-}
-
-function CopyBadge() {
-  return (
-    <div title={APP_COPY_NOTE} style={{ position: "fixed", left: 10, bottom: 10, zIndex: 30000, border: "1px solid rgba(56,189,248,.5)", borderRadius: 999, background: "rgba(2,6,23,.88)", color: "#bae6fd", padding: "5px 8px", fontSize: 10, fontWeight: 1000, fontFamily: "system-ui", letterSpacing: .6, pointerEvents: "none" }}>
-      {APP_COPY_LABEL}
     </div>
   );
 }
@@ -1846,6 +1838,7 @@ const LARGE_FUITS_VIDEO_BYTES = 1024 * 1024 * 1024;
 const LARGE_FUITS_PRELOAD_FRACTION = 0.07;
 const LARGE_FUITS_PRELOAD_CHUNK_BYTES = 4 * 1024 * 1024;
 const LARGE_FUITS_PRELOAD_PARALLEL_CHUNKS = 6;
+const FUITS_RESTART_PASSWORD = "FOOLIO";
 
 function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 0, liveAnnouncementOnline = false, restartSignal = 0 }) {
   const videoRef = useRef(null);
@@ -2140,8 +2133,16 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
     if (playPromise?.catch) playPromise.catch(() => {});
   };
 
+  const confirmRestartPassword = () => {
+    const password = window.prompt("Restart password");
+    return password === FUITS_RESTART_PASSWORD;
+  };
 
-  const restartCurrentVideo = () => {
+  const restartCurrentVideo = (requirePassword = true) => {
+    if (requirePassword && !confirmRestartPassword()) {
+      setVideoError("Restart blocked. Password required.");
+      return;
+    }
     const video = videoRef.current;
     if (!video) return;
     try {
@@ -2164,7 +2165,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
 
   useEffect(() => {
     if (!restartSignal) return;
-    restartCurrentVideo();
+    restartCurrentVideo(false);
   }, [restartSignal]);
 
   const handleVideoEnded = () => {
@@ -2299,7 +2300,7 @@ function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeco
             }}>
               <span>{videoError || "Loading stream..."}</span>
               <button
-                onClick={restartCurrentVideo}
+                onClick={() => restartCurrentVideo(true)}
                 style={{
                   border: "none",
                   borderRadius: 10,
@@ -2701,6 +2702,15 @@ function MusicLibrarySidebar({ accentColor }) {
     }
   };
 
+  const restartFuitsChannelWithPassword = () => {
+    const password = window.prompt("Restart password");
+    if (password !== FUITS_RESTART_PASSWORD) {
+      window.alert("Restart blocked. Password required.");
+      return;
+    }
+    setPlaylistRestartSignal(value => value + 1);
+  };
+
   const fuitsOwnerCommands = [
     {
       label: "Owner",
@@ -2723,7 +2733,7 @@ function MusicLibrarySidebar({ accentColor }) {
     },
     {
       label: "Restart",
-      localAction: () => setPlaylistRestartSignal(value => value + 1)
+      localAction: restartFuitsChannelWithPassword
     }
   ];
 
@@ -4522,7 +4532,6 @@ export default function App() {
 if (view === "gambling") {
     return (
       <div style={{ minHeight: "100vh", background: "#000", position: "relative" }}>
-      <CopyBadge />
         <aside className="pokemon-desktop-sidebar" style={{
           position: "fixed",
           left: 18,
@@ -4639,7 +4648,6 @@ if (view === "gambling") {
 
   return (
     <div style={{ minHeight: "100vh", background: "#000", position: "relative" }}>
-      <CopyBadge />
       {view === "week" && <PokemonSidebar />}
       {view === "week" && (
         <>

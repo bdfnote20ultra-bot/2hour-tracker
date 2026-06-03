@@ -5138,6 +5138,33 @@ function AdminPage({ onClose }) {
     }
   };
 
+  const deleteVideoRepairItem = async index => {
+    const selected = videoRepairFlagged[Number(index)];
+    if (!selected?.path) return;
+    const label = selected.relativePath || selected.fileName || "this video";
+    if (!window.confirm(`Delete ${label} from T:\\FattysLiveTV\\Videos?`)) return;
+
+    setVideoRepairBusy(true);
+    setVideoRepairStatus(`Deleting ${selected.fileName || label}...`);
+    setVideoRepairLog([]);
+    try {
+      const response = await fetch(`${fuitsAdminBaseUrl}/admin/video-repair-delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password, path: selected.path })
+      });
+      if (!response.ok) throw new Error(await response.text());
+      const result = await response.json();
+      setVideoRepairFlagged(current => current.filter((item, itemIndex) => itemIndex !== Number(index)));
+      setVideoRepairLog([result]);
+      setVideoRepairStatus(`Deleted ${result.relativePath || result.fileName || label}.`);
+    } catch (err) {
+      setVideoRepairStatus(err?.message || "Video delete failed.");
+    } finally {
+      setVideoRepairBusy(false);
+    }
+  };
+
   const loadVideoRepairBackups = async () => {
     setVideoRepairBusy(true);
     setVideoRepairStatus("Loading old video repair backups...");
@@ -5359,6 +5386,7 @@ function AdminPage({ onClose }) {
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <button type="button" disabled={videoRepairBusy} onClick={() => runVideoRepair("remux", index)} style={{ ...adminButtonStyle, padding: "8px 10px", fontSize: 12, opacity: videoRepairBusy ? .62 : 1 }}>Remux</button>
                         <button type="button" disabled={videoRepairBusy} onClick={() => runVideoRepair("syncfix", index)} style={{ ...adminButtonStyle, borderColor: "#facc15", background: "#facc15", padding: "8px 10px", fontSize: 12, opacity: videoRepairBusy ? .62 : 1 }}>Audio Fix</button>
+                        <button type="button" disabled={videoRepairBusy} onClick={() => deleteVideoRepairItem(index)} style={{ ...adminButtonStyle, borderColor: "#fb7185", background: "#fb7185", padding: "8px 10px", fontSize: 12, opacity: videoRepairBusy ? .62 : 1 }}>Delete</button>
                       </div>
                     </div>
                   ))}

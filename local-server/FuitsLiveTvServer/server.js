@@ -446,6 +446,20 @@ function getVideoRepairFixedPath(file, mode) {
   return path.join(folder, `${name}.${mode}${extension}`);
 }
 
+function deleteVideoRepairFile(file) {
+  const inputPath = assertVideoRepairPath(file);
+  const relativePath = path.relative(VIDEOS_DIR, inputPath);
+  const fileName = path.basename(inputPath);
+  fs.rmSync(inputPath, { force: true });
+  return {
+    ok: true,
+    status: "deleted",
+    fileName,
+    relativePath,
+    message: "Deleted from the videos folder."
+  };
+}
+
 function backupAndReplaceVideo(originalPath, fixedPath) {
   const timestamp = new Date()
     .toISOString()
@@ -4621,6 +4635,23 @@ const server = http.createServer((req, res) => {
       })
       .catch(error => {
         send(res, 400, error.message || "Video repair failed");
+      });
+    return;
+  }
+
+  if (url.pathname === "/admin/video-repair-delete" && req.method === "POST") {
+    readRequestBody(req)
+      .then(body => {
+        const payload = JSON.parse(body || "{}");
+        if (!isAdminPassword(payload.password)) {
+          send(res, 401, "Unauthorized");
+          return;
+        }
+
+        sendJson(res, 200, deleteVideoRepairFile(payload.path));
+      })
+      .catch(error => {
+        send(res, 400, error.message || "Video delete failed");
       });
     return;
   }

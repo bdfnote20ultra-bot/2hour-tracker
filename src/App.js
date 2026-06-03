@@ -4934,7 +4934,7 @@ function AdminPage({ onClose }) {
     };
 
     loadOnlineUserInfo();
-    const timer = setInterval(loadOnlineUserInfo, 15000);
+    const timer = setInterval(loadOnlineUserInfo, 12 * 60 * 1000);
     return () => {
       cancelled = true;
       clearInterval(timer);

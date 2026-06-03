@@ -1913,12 +1913,16 @@ const LARGE_FUITS_PRELOAD_FRACTION = 0.07;
 const LARGE_FUITS_PRELOAD_CHUNK_BYTES = 4 * 1024 * 1024;
 const LARGE_FUITS_PRELOAD_PARALLEL_CHUNKS = 6;
 const FUITS_RESTART_PASSWORD = "FOOLIO";
+const FUITS_TRANSITION_BUFFER_SECONDS = 4;
 
-const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 0, liveAnnouncementOnline = false, restartSignal = 0 }, ref) {
+const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 0, liveAnnouncementOnline = false, restartSignal = 0, onPlaybackAnchor }, ref) {
   const videoRef = useRef(null);
   const videoShellRef = useRef(null);
   const syncedVideoSrcRef = useRef("");
   const refreshQueuedRef = useRef(false);
+  const transitionBufferPendingRef = useRef(false);
+  const pendingTransitionStartRef = useRef(false);
+  const anchoredPlaybackKeyRef = useRef("");
   const [preloadedLargeVideoKey, setPreloadedLargeVideoKey] = useState("");
   const autoPreloadKeyRef = useRef("");
   const [largePreloadProgress, setLargePreloadProgress] = useState(0);
@@ -1959,6 +1963,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
   const syncVideoToLiveOffset = useCallback((force = false) => {
     const video = videoRef.current;
     if (!video || !channel || !currentItem || !Number.isFinite(video.duration)) return;
+    if (pendingTransitionStartRef.current && syncedVideoSrcRef.current !== videoSrc) return;
 
     const duration = Number(currentItem.duration) || video.duration || 1;
     const rawLiveOffset = getLiveOffsetSeconds(channel, currentItem);
@@ -1983,7 +1988,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     }
 
     video.playbackRate = driftSeconds < -0.35 ? 1.08 : 1;
-  }, [channel, currentItem, getLiveOffsetSeconds]);
+  }, [channel, currentItem, getLiveOffsetSeconds, videoSrc]);
 
   useEffect(() => {
     if (!baseUrl) return;
@@ -2056,6 +2061,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
 
     const syncTime = () => {
       if (!Number.isFinite(video.duration)) return;
+      if (pendingTransitionStartRef.current) return;
       syncVideoToLiveOffset(true);
       syncedVideoSrcRef.current = videoSrc;
     };
@@ -2153,8 +2159,13 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
   const playWhenBuffered = () => {
     const video = videoRef.current;
     if (!video) return;
-    const enoughBuffered = startupBufferSeconds <= 0 || getBufferedAheadSeconds(video) >= startupBufferSeconds;
-    if (video.readyState >= 1 && (enoughBuffered || video.duration - video.currentTime < startupBufferSeconds)) {
+    const bufferSeconds = transitionBufferPendingRef.current
+      ? FUITS_TRANSITION_BUFFER_SECONDS
+      : startupBufferSeconds;
+    const enoughBuffered = bufferSeconds <= 0 || getBufferedAheadSeconds(video) >= bufferSeconds;
+    const nearEnd = Number.isFinite(video.duration) && video.duration - video.currentTime < bufferSeconds;
+    if (video.readyState >= 1 && (enoughBuffered || nearEnd)) {
+      transitionBufferPendingRef.current = false;
       setVideoLoading(false);
       playCurrentVideo();
     }
@@ -2174,12 +2185,19 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     setVideoLoading(true);
     setVideoError("");
     setLargePreloadProgress(0);
+    if (syncedVideoSrcRef.current && syncedVideoSrcRef.current !== videoSrc) {
+      transitionBufferPendingRef.current = true;
+      pendingTransitionStartRef.current = true;
+    }
     syncedVideoSrcRef.current = "";
+    anchoredPlaybackKeyRef.current = "";
     video.muted = playerMuted;
     video.volume = playerVolume;
     video.preload = "auto";
     video.load();
-    playCurrentVideo();
+    if (pendingTransitionStartRef.current) {
+      try { video.currentTime = 0; } catch {}
+    }
     if (video.readyState >= 1) playWhenBuffered();
   }, [videoSrc]);
 
@@ -2307,6 +2325,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
 
   const handleVideoEnded = () => {
     let attempts = 0;
+    transitionBufferPendingRef.current = true;
     const pollForNextItem = async () => {
       attempts += 1;
       setVideoLoading(true);
@@ -2384,9 +2403,16 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                   videoRef.current?.pause();
                   return;
                 }
+                if (pendingTransitionStartRef.current) {
+                  try { videoRef.current.currentTime = 0; } catch {}
+                }
                 playWhenBuffered();
               }}
               onCanPlayThrough={() => {
+                if (needsLargeVideoPreload) return;
+                playWhenBuffered();
+              }}
+              onProgress={() => {
                 if (needsLargeVideoPreload) return;
                 playWhenBuffered();
               }}
@@ -2404,6 +2430,24 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                 setVideoError("");
               }}
               onPlaying={() => {
+                const video = videoRef.current;
+                const playbackKey = `${channelId}:${currentItem?.id || ""}:${videoSrc}`;
+                if (video && currentItem && anchoredPlaybackKeyRef.current !== playbackKey) {
+                  const startedAtMs = Date.now() - Math.max(0, Number(video.currentTime) || 0) * 1000;
+                  anchoredPlaybackKeyRef.current = playbackKey;
+                  pendingTransitionStartRef.current = false;
+                  syncedVideoSrcRef.current = videoSrc;
+                  setRestartAnchor({
+                    channelId,
+                    itemId: currentItem.id,
+                    startedAtMs
+                  });
+                  onPlaybackAnchor?.({
+                    channelId,
+                    itemId: currentItem.id,
+                    startedAtMs
+                  });
+                }
                 setVideoLoading(false);
                 setVideoError("");
               }}
@@ -2605,11 +2649,13 @@ function MusicLibrarySidebar({ accentColor }) {
   const [onlineStats, setOnlineStats] = useState({ devices: null, households: null });
   const [localForecast, setLocalForecast] = useState({ status: "asking", days: [] });
   const [fuitsSchedule, setFuitsSchedule] = useState({ channelLabel: "", items: [], loading: true });
+  const [fuitsPlaybackAnchor, setFuitsPlaybackAnchor] = useState(null);
   const [openMusicSections, setOpenMusicSections] = useState({ videos: false, music: false });
   const [zoomedDonationQr, setZoomedDonationQr] = useState(null);
   const jellyfinFrameRef = useRef(null);
   const adultSwimFrameRef = useRef(null);
   const fuitsLiveTvPlayerRef = useRef(null);
+  const fuitsScheduleDataRef = useRef(null);
   useEffect(() => {
     const handleFuitsBlankPage = event => {
       if (event.data?.type !== "FUITS_SITE_BLANKED") return;
@@ -2848,7 +2894,7 @@ function MusicLibrarySidebar({ accentColor }) {
     };
   }, []);
 
-  const buildFuitsSchedule = useCallback((data) => {
+  const buildFuitsSchedule = useCallback((data, playbackAnchor = fuitsPlaybackAnchor) => {
     const playlist = Array.isArray(data?.playlist) ? data.playlist : [];
     if (!playlist.length) return { channelLabel: data?.channel?.label || "", items: [], loading: false, nextRefreshMs: null };
 
@@ -2856,7 +2902,16 @@ function MusicLibrarySidebar({ accentColor }) {
     const elapsedSinceSnapshot = Math.max(0, (Date.now() - generatedAtMs) / 1000);
     const currentIndex = Math.max(0, Math.min(Number(data.currentIndex) || 0, playlist.length - 1));
     const currentDuration = Math.max(1, Number(playlist[currentIndex]?.duration) || 1);
-    const liveOffset = Math.min(currentDuration - 1, Math.max(0, (Number(data.offsetSeconds) || 0) + elapsedSinceSnapshot));
+    const anchorApplies =
+      playbackAnchor?.channelId === activeFuitsLiveTvChannel &&
+      playbackAnchor?.itemId === playlist[currentIndex]?.id;
+    const anchoredOffset = anchorApplies
+      ? Math.max(0, (Date.now() - playbackAnchor.startedAtMs) / 1000)
+      : null;
+    const liveOffset = Math.min(
+      currentDuration - 1,
+      Math.max(0, anchoredOffset ?? ((Number(data.offsetSeconds) || 0) + elapsedSinceSnapshot))
+    );
     const horizonMs = Date.now() + 3 * 60 * 60 * 1000;
     const nextRefreshMs = Math.max(1000, (currentDuration - liveOffset) * 1000 + 1500);
     const schedule = [];
@@ -2889,7 +2944,7 @@ function MusicLibrarySidebar({ accentColor }) {
       loading: false,
       nextRefreshMs
     };
-  }, []);
+  }, [activeFuitsLiveTvChannel]);
 
   useEffect(() => {
     if (!fuitsLiveTvChannelUrl || !activeFuitsLiveTvChannel) {
@@ -2915,6 +2970,7 @@ function MusicLibrarySidebar({ accentColor }) {
         }
         if (!data) throw new Error("schedule unavailable");
         if (!cancelled) {
+          fuitsScheduleDataRef.current = data;
           const schedule = buildFuitsSchedule(data);
           setFuitsSchedule(schedule);
           if (refreshTimer) clearTimeout(refreshTimer);
@@ -2934,6 +2990,11 @@ function MusicLibrarySidebar({ accentColor }) {
       if (refreshTimer) clearTimeout(refreshTimer);
     };
   }, [activeFuitsLiveTvChannel, buildFuitsSchedule, fuitsLiveTvChannelUrl]);
+
+  useEffect(() => {
+    if (!fuitsPlaybackAnchor || !fuitsScheduleDataRef.current) return;
+    setFuitsSchedule(buildFuitsSchedule(fuitsScheduleDataRef.current, fuitsPlaybackAnchor));
+  }, [buildFuitsSchedule, fuitsPlaybackAnchor]);
 
   const filteredVideos = filteredLibrary.filter(item =>
     item.type === "video" || (item.src || "").toLowerCase().endsWith(".mp4")
@@ -3252,6 +3313,10 @@ function MusicLibrarySidebar({ accentColor }) {
           0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(239,68,68,.62); }
           50% { opacity: .42; transform: scale(.82); box-shadow: 0 0 0 8px rgba(239,68,68,0); }
         }
+        @keyframes flive-coins-ticker {
+          0% { transform: translateX(100%); }
+          100% { transform: translateX(-100%); }
+        }
       `}</style>
 
       <div className="fuits-online-indicator" style={{
@@ -3352,6 +3417,27 @@ function MusicLibrarySidebar({ accentColor }) {
                     : "Forecast unavailable."}
           </div>
         )}
+        <div style={{
+          overflow: "hidden",
+          whiteSpace: "nowrap",
+          color: "#ffffff",
+          fontFamily: "'Trebuchet MS', 'Arial Black', system-ui, sans-serif",
+          fontSize: 11,
+          fontWeight: 1000,
+          letterSpacing: 1,
+          textTransform: "uppercase",
+          textShadow: "0 0 8px rgba(255,255,255,.62)",
+          borderTop: "1px solid rgba(255,255,255,.16)",
+          paddingTop: 5
+        }}>
+          <span style={{
+            display: "inline-block",
+            minWidth: "100%",
+            animation: "flive-coins-ticker 12s linear infinite"
+          }}>
+            FLIVE CASINO / SPORTSBOOK COINS VALUE = 0
+          </span>
+        </div>
       </div>
 
       <div className="fuits-schedule-panel" style={{
@@ -3497,26 +3583,15 @@ function MusicLibrarySidebar({ accentColor }) {
           background: "transparent",
           overflow: "visible",
           display: "flex",
-          flexDirection: "column"
+          flexDirection: "column",
+          minHeight: 0
         }}>
+          {activeLiveTvOption.url && (
           <div style={{
-            padding: "2px 2px 8px",
-            borderBottom: "1px solid rgba(148,163,184,.12)",
+            padding: "0 2px 6px",
             display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 10
+            justifyContent: "flex-end"
           }}>
-            <div style={{
-              color: "#f8fafc",
-              fontSize: 12,
-              fontWeight: 1000,
-              textTransform: "uppercase",
-              letterSpacing: .8
-            }}>
-              Fuit LIVE TV
-            </div>
-            {activeLiveTvOption.url && (
             <button onClick={() => openExternalLink(activeLiveTvOption.url)} style={{
               border: "1px solid rgba(148,163,184,.28)",
               background: "rgba(255,255,255,.08)",
@@ -3529,17 +3604,22 @@ function MusicLibrarySidebar({ accentColor }) {
             }}>
               New Tab
             </button>
-            )}
           </div>
+          )}
           <div style={{
             flex: 1,
-            padding: "10px 2px 0",
+            padding: "4px 2px 0",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "flex-start",
             textAlign: "center",
-            gap: 14
+            gap: 10,
+            minHeight: 0,
+            overflowY: "auto",
+            overflowX: "hidden",
+            paddingRight: 2,
+            paddingBottom: 6
           }}>
             <div style={{
               color: "#cbd5e1",
@@ -3676,13 +3756,14 @@ function MusicLibrarySidebar({ accentColor }) {
                   startupBufferSeconds={0.2}
                   liveAnnouncementOnline={owncastOnline}
                   restartSignal={playlistRestartSignal}
+                  onPlaybackAnchor={setFuitsPlaybackAnchor}
                 />
                 {renderFuitsOwnerControls()}
                 <LiveChatBox
                   title="FUITS Live TV Chat"
                   src={fuitsLiveTvChatUrl || `${fuitsLiveTvChannelUrl}/chat-only`}
-                  height={250}
-                  minHeight={250}
+                  height={220}
+                  minHeight={220}
                 />
               </>
             )}

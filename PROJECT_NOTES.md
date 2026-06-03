@@ -9,6 +9,9 @@ Production site:
 GitHub remote:
 `https://github.com/bdfnote20ultra-bot/2hour-tracker`
 
+Git on this Windows setup:
+Use GitHub Desktop or its bundled Git executable. The normal `git` command is not available in the shell PATH.
+
 Before editing or pushing, update this folder first:
 
 ```powershell

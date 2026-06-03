@@ -2513,6 +2513,8 @@ function pageHtml() {
     let currentItemId = null;
     let currentItemSrc = null;
     let syncMainPlayerToLive = () => {};
+    let transitionBufferPending = false;
+    let playbackAnchor = null;
     let ownerPassword = "";
     let liveAnnouncementOnline = false;
     let liveHls = null;
@@ -2582,7 +2584,12 @@ function pageHtml() {
     }
 
     function playMainPlayerWhenBuffered() {
-      playMainPlayerWithBrowserFallback();
+      const bufferSeconds = transitionBufferPending ? 4 : getStartupBufferSeconds();
+      const enoughBuffered = bufferSeconds <= 0 || getBufferedAheadSeconds(player) >= bufferSeconds;
+      const nearEnd = Number.isFinite(player.duration) && player.duration - player.currentTime < bufferSeconds;
+      if (player.readyState >= 1 && (enoughBuffered || nearEnd)) {
+        playMainPlayerWithBrowserFallback();
+      }
     }
 
     function renderChat(messages) {
@@ -2686,6 +2693,7 @@ function pageHtml() {
       const isNewItem = item.id !== currentItemId || item.src !== currentItemSrc;
       if (isNewItem) {
         rememberSoundUnlocked();
+        transitionBufferPending = transitionBufferPending || Boolean(currentItemId || currentItemSrc);
         currentItemId = item.id;
         currentItemSrc = item.src;
         player.autoplay = true;
@@ -2693,18 +2701,24 @@ function pageHtml() {
         player.src = item.src + (item.src.includes("?") ? "&" : "?") + "stream=" + streamKey;
         player.preload = "auto";
         player.load();
+        if (transitionBufferPending) {
+          try { player.currentTime = 0; } catch {}
+        }
         applySoundPreference();
-        playMainPlayerWithBrowserFallback();
       }
 
       const offset = Math.max(0, Math.min(channel.offsetSeconds || 0, Math.max(0, item.duration - 1)));
       const getLiveOffset = () => {
+        if (playbackAnchor && playbackAnchor.channelId === activeChannelId && playbackAnchor.itemId === item.id) {
+          return Math.max(0, (Date.now() - playbackAnchor.startedAtMs) / 1000);
+        }
         const generatedAtMs = Number(channel.generatedAtMs);
         const elapsedSinceSnapshot = Number.isFinite(generatedAtMs) ? Math.max(0, (Date.now() - generatedAtMs) / 1000) : 0;
         return Math.max(0, offset + elapsedSinceSnapshot);
       };
       const syncTime = () => {
         if (!Number.isFinite(player.duration)) return;
+        if (transitionBufferPending) return;
         const rawLiveOffset = getLiveOffset();
         if (rawLiveOffset >= item.duration - 0.5) {
           syncChannel();
@@ -2722,11 +2736,19 @@ function pageHtml() {
       syncMainPlayerToLive = syncTime;
 
       if (isNewItem && player.readyState >= 1) {
-        syncTime();
+        if (transitionBufferPending) {
+          try { player.currentTime = 0; } catch {}
+        } else {
+          syncTime();
+        }
         if (shouldPlay) playMainPlayerWhenBuffered();
       } else if (isNewItem) {
         player.addEventListener("loadedmetadata", () => {
-          syncTime();
+          if (transitionBufferPending) {
+            try { player.currentTime = 0; } catch {}
+          } else {
+            syncTime();
+          }
           if (shouldPlay) playMainPlayerWhenBuffered();
         }, { once: true });
       } else {
@@ -2976,6 +2998,7 @@ function pageHtml() {
 
     async function handleMainPlayerEnded() {
       let attempts = 0;
+      transitionBufferPending = true;
       async function pollForNextItem() {
         attempts += 1;
         currentItemId = null;
@@ -2990,7 +3013,17 @@ function pageHtml() {
 
     player.addEventListener("ended", handleMainPlayerEnded);
     player.addEventListener("progress", playMainPlayerWhenBuffered);
-    player.addEventListener("canplay", playMainPlayerWithBrowserFallback);
+    player.addEventListener("canplay", playMainPlayerWhenBuffered);
+    player.addEventListener("playing", () => {
+      if (currentItemId) {
+        playbackAnchor = {
+          channelId: activeChannelId,
+          itemId: currentItemId,
+          startedAtMs: Date.now() - Math.max(0, Number(player.currentTime) || 0) * 1000
+        };
+      }
+      transitionBufferPending = false;
+    });
     player.addEventListener("play", rememberSoundUnlocked);
     player.addEventListener("volumechange", rememberSoundUnlocked);
     unmuteButton.addEventListener("click", unmutePlayer);

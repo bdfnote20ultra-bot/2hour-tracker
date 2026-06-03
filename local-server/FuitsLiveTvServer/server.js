@@ -55,6 +55,8 @@ let owncastBaseUrlCacheExpiresAt = 0;
 const onlineDevices = new Map();
 let latestVideoRepairScan = null;
 let activeVideoRepairProcess = null;
+let activeVideoRepairDetails = null;
+let activeVideoRepairBatch = null;
 let videoRepairCancelRequested = false;
 const GAME_SYSTEMS = {
   GB: { folder: "GB", core: "gb", extensions: [".gb"] },
@@ -407,13 +409,20 @@ function runProcess(command, args) {
   });
 }
 
-function runVideoRepairProcess(command, args, outputPath) {
+function runVideoRepairProcess(command, args, outputPath, details) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       windowsHide: true,
       stdio: ["ignore", "pipe", "pipe"]
     });
     activeVideoRepairProcess = child;
+    activeVideoRepairDetails = {
+      ...(details || {}),
+      outputPath,
+      pid: child.pid || null,
+      startedAt: new Date().toISOString(),
+      startedAtMs: Date.now()
+    };
     let stdout = "";
     let stderr = "";
 
@@ -427,6 +436,7 @@ function runVideoRepairProcess(command, args, outputPath) {
     child.on("error", reject);
     child.on("close", code => {
       if (activeVideoRepairProcess === child) activeVideoRepairProcess = null;
+      if (activeVideoRepairDetails && activeVideoRepairDetails.pid === child.pid) activeVideoRepairDetails = null;
       if (videoRepairCancelRequested) {
         fs.rmSync(outputPath, { force: true });
         resolve({ code, stdout, stderr, cancelled: true });
@@ -437,8 +447,63 @@ function runVideoRepairProcess(command, args, outputPath) {
   });
 }
 
+function countVideoRepairResults(results) {
+  return results.reduce((counts, result) => {
+    counts[result.status] = (counts[result.status] || 0) + 1;
+    return counts;
+  }, {});
+}
+
+function summarizeVideoRepairBatch(batch) {
+  if (!batch) return null;
+  return {
+    id: batch.id,
+    active: batch.status === "running" || batch.status === "cancelling",
+    status: batch.status,
+    action: batch.action,
+    finish: batch.finish,
+    overwriteExisting: batch.overwriteExisting,
+    total: batch.total,
+    done: batch.done,
+    failed: batch.failed,
+    current: batch.current,
+    results: batch.results,
+    counts: batch.counts,
+    startedAt: batch.startedAt,
+    startedAtMs: batch.startedAtMs,
+    completedAt: batch.completedAt,
+    completedAtMs: batch.completedAtMs,
+    error: batch.error || ""
+  };
+}
+
+function getVideoRepairStatus() {
+  const processActive = Boolean(activeVideoRepairProcess && activeVideoRepairProcess.pid);
+  const batch = summarizeVideoRepairBatch(activeVideoRepairBatch);
+  const batchActive = Boolean(batch && batch.active);
+  const currentDetails = activeVideoRepairDetails || (batchActive && activeVideoRepairBatch ? activeVideoRepairBatch.current : null);
+  const elapsedSeconds = currentDetails && currentDetails.startedAtMs
+    ? Math.max(0, Math.round((Date.now() - currentDetails.startedAtMs) / 1000))
+    : 0;
+
+  return {
+    ok: true,
+    active: processActive || batchActive,
+    processActive,
+    cancelling: Boolean(videoRepairCancelRequested && (processActive || batchActive)),
+    batch,
+    ...(currentDetails ? {
+      ...currentDetails,
+      elapsedSeconds
+    } : {})
+  };
+}
+
 function cancelVideoRepairs() {
   videoRepairCancelRequested = true;
+  if (activeVideoRepairBatch && activeVideoRepairBatch.status === "running") {
+    activeVideoRepairBatch.status = "cancelling";
+  }
   const child = activeVideoRepairProcess;
   if (child && child.pid) {
     try {
@@ -878,7 +943,13 @@ async function repairOneVideo(file, action, finish, overwriteExisting) {
       outputPath
     ];
 
-  const result = await runVideoRepairProcess(ffmpegPath, args, outputPath);
+  const result = await runVideoRepairProcess(ffmpegPath, args, outputPath, {
+    action,
+    finish,
+    fileName: path.basename(inputPath),
+    relativePath: path.relative(VIDEOS_DIR, inputPath),
+    inputPath
+  });
   if (result.cancelled) {
     fs.rmSync(outputPath, { force: true });
     return {
@@ -913,10 +984,7 @@ async function repairOneVideo(file, action, finish, overwriteExisting) {
   };
 }
 
-async function runVideoRepairs(payload) {
-  if (!payload.continueExistingCancel) {
-    videoRepairCancelRequested = false;
-  }
+function buildVideoRepairRequest(payload) {
   const action = normalizeVideoRepairAction(payload.action);
   const finish = normalizeVideoRepairFinish(payload.finish);
   const overwriteExisting = Boolean(payload.overwriteExisting);
@@ -932,6 +1000,19 @@ async function runVideoRepairs(payload) {
     throw new Error("Run the check first or choose at least one video.");
   }
 
+  return {
+    action,
+    finish,
+    overwriteExisting,
+    requestedFiles
+  };
+}
+
+async function runVideoRepairs(payload) {
+  if (!payload.continueExistingCancel) {
+    videoRepairCancelRequested = false;
+  }
+  const { action, finish, overwriteExisting, requestedFiles } = buildVideoRepairRequest(payload);
   const results = [];
   for (const file of requestedFiles) {
     if (videoRepairCancelRequested) {
@@ -955,10 +1036,84 @@ async function runVideoRepairs(payload) {
     action,
     finish,
     results,
-    counts: results.reduce((counts, result) => {
-      counts[result.status] = (counts[result.status] || 0) + 1;
-      return counts;
-    }, {})
+    counts: countVideoRepairResults(results)
+  };
+}
+
+function startVideoRepairBatch(payload) {
+  if (activeVideoRepairBatch && (activeVideoRepairBatch.status === "running" || activeVideoRepairBatch.status === "cancelling")) {
+    throw new Error("A video repair queue is already running.");
+  }
+
+  videoRepairCancelRequested = false;
+  const { action, finish, overwriteExisting, requestedFiles } = buildVideoRepairRequest(payload);
+  const now = new Date();
+  const batch = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    status: "running",
+    action,
+    finish,
+    overwriteExisting,
+    total: requestedFiles.length,
+    done: 0,
+    failed: 0,
+    current: null,
+    results: [],
+    counts: {},
+    startedAt: now.toISOString(),
+    startedAtMs: now.getTime(),
+    completedAt: null,
+    completedAtMs: null,
+    error: ""
+  };
+  activeVideoRepairBatch = batch;
+
+  (async () => {
+    for (const file of requestedFiles) {
+      if (videoRepairCancelRequested) break;
+      const inputPath = assertVideoRepairPath(file);
+      batch.current = {
+        action,
+        finish,
+        fileName: path.basename(inputPath),
+        relativePath: path.relative(VIDEOS_DIR, inputPath),
+        inputPath,
+        startedAt: new Date().toISOString(),
+        startedAtMs: Date.now()
+      };
+
+      try {
+        batch.results.push(await repairOneVideo(file, action, finish, overwriteExisting));
+      } catch (error) {
+        batch.results.push({
+          ok: false,
+          status: "failed",
+          fileName: path.basename(String(file || "")),
+          message: error.message || "Repair failed."
+        });
+      }
+
+      batch.done = batch.results.length;
+      batch.failed = batch.results.filter(result => result.ok === false || result.status === "failed").length;
+      batch.counts = countVideoRepairResults(batch.results);
+    }
+
+    batch.current = null;
+    batch.status = videoRepairCancelRequested ? "cancelled" : "completed";
+    batch.completedAt = new Date().toISOString();
+    batch.completedAtMs = Date.now();
+  })().catch(error => {
+    batch.status = "failed";
+    batch.error = error.message || "Video repair queue failed.";
+    batch.current = null;
+    batch.completedAt = new Date().toISOString();
+    batch.completedAtMs = Date.now();
+  });
+
+  return {
+    ok: true,
+    queued: true,
+    batch: summarizeVideoRepairBatch(batch)
   };
 }
 
@@ -4714,10 +4869,27 @@ const server = http.createServer((req, res) => {
           return;
         }
 
-        sendJson(res, 200, await runVideoRepairs(payload));
+        sendJson(res, 200, payload.background ? startVideoRepairBatch(payload) : await runVideoRepairs(payload));
       })
       .catch(error => {
         send(res, 400, error.message || "Video repair failed");
+      });
+    return;
+  }
+
+  if (url.pathname === "/admin/video-repair-status" && req.method === "POST") {
+    readRequestBody(req)
+      .then(body => {
+        const payload = JSON.parse(body || "{}");
+        if (!isAdminPassword(payload.password)) {
+          send(res, 401, "Unauthorized");
+          return;
+        }
+
+        sendJson(res, 200, getVideoRepairStatus());
+      })
+      .catch(error => {
+        send(res, 400, error.message || "Video repair status failed");
       });
     return;
   }

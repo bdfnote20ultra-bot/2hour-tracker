@@ -4946,6 +4946,7 @@ function AdminPage({ onClose }) {
   const [videoRepairProgress, setVideoRepairProgress] = useState(null);
   const [videoRepairProgressNow, setVideoRepairProgressNow] = useState(Date.now());
   const [videoRepairCancelling, setVideoRepairCancelling] = useState(false);
+  const [serverVideoRepairStatus, setServerVideoRepairStatus] = useState(null);
   const videoRepairCancelRequestedRef = useRef(false);
   const [onlineUserInfo, setOnlineUserInfo] = useState({ loading: true, devices: 0, households: 0, householdDetails: [] });
   const fuitsAdminBaseUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
@@ -5015,6 +5016,86 @@ function AdminPage({ onClose }) {
     const timer = setInterval(() => setVideoRepairProgressNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [videoRepairBusy, videoRepairProgress]);
+
+  useEffect(() => {
+    if (!unlocked) return undefined;
+    let cancelled = false;
+    const loadVideoRepairStatus = async () => {
+      try {
+        const response = await fetch(`${fuitsAdminBaseUrl}/admin/video-repair-status`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password })
+        });
+        if (!response.ok) throw new Error("Video repair status unavailable");
+        const status = await response.json();
+        if (cancelled) return;
+        setServerVideoRepairStatus(status);
+        const batch = status.batch;
+        if (batch?.active) {
+          const currentLabel = status.relativePath || status.fileName || batch.current?.relativePath || batch.current?.fileName || "current video";
+          setVideoRepairStatus(`${status.cancelling ? "Stopping video repair queue" : "Video editing in progress"}. Currently on ${currentLabel}.`);
+          setVideoRepairProgress({
+            action: batch.action === "remux" ? "remux" : "audio timing fix",
+            current: currentLabel,
+            done: Number(batch.done) || 0,
+            failed: Number(batch.failed) || 0,
+            source: "server",
+            startedAt: Number(batch.startedAtMs) || Date.now(),
+            total: Number(batch.total) || 1
+          });
+          setVideoRepairLog(Array.isArray(batch.results) ? batch.results : []);
+          setVideoRepairBusy(true);
+          setVideoRepairProgressNow(Date.now());
+          return;
+        }
+        if (batch && serverVideoRepairStatus?.batch?.active) {
+          const counts = batch.counts || {};
+          setVideoRepairLog(Array.isArray(batch.results) ? batch.results : []);
+          setVideoRepairProgress(null);
+          setVideoRepairBusy(false);
+          setVideoRepairStatus(batch.status === "cancelled"
+            ? `Repair stopped. Finished ${batch.done || 0} item${batch.done === 1 ? "" : "s"} before stopping.`
+            : batch.status === "failed"
+              ? (batch.error || "Video repair queue failed.")
+              : `Repair complete. Kept ${counts.kept || 0}, overwritten ${counts.overwritten || 0}, replaced ${counts.replaced || 0}, deleted ${counts.deleted || 0}, skipped ${counts.skipped || 0}, failed ${counts.failed || 0}.`);
+          setVideoRepairCancelling(false);
+          return;
+        }
+        if (status.active) {
+          const currentLabel = status.relativePath || status.fileName || "current video";
+          setVideoRepairStatus(`Video editing in progress. Currently on ${currentLabel}.`);
+          setVideoRepairProgress(current => current && current.source !== "server"
+            ? current
+            : {
+              action: status.action === "remux" ? "remux" : "audio timing fix",
+              current: currentLabel,
+              done: 0,
+              failed: 0,
+              source: "server",
+              startedAt: Number(status.startedAtMs) || Date.now(),
+              total: 1
+            });
+          setVideoRepairBusy(true);
+          setVideoRepairProgressNow(Date.now());
+          return;
+        }
+        setVideoRepairProgress(current => current?.source === "server" ? null : current);
+        if (serverVideoRepairStatus?.active) {
+          setVideoRepairBusy(false);
+          setVideoRepairStatus("No active video edit right now.");
+        }
+      } catch {
+        if (!cancelled) setServerVideoRepairStatus(null);
+      }
+    };
+    loadVideoRepairStatus();
+    const timer = setInterval(loadVideoRepairStatus, 2500);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [unlocked, fuitsAdminBaseUrl, password, serverVideoRepairStatus?.active]);
 
   useEffect(() => {
     if (!unlocked) return;
@@ -5150,64 +5231,36 @@ function AdminPage({ onClose }) {
       total: videoRepairFlagged.length
     } : null);
     setVideoRepairProgressNow(Date.now());
+    let startedServerQueue = false;
     try {
       if (isAll) {
-        const allResults = [];
-        for (let index = 0; index < videoRepairFlagged.length; index += 1) {
-          if (videoRepairCancelRequestedRef.current) {
-            setVideoRepairStatus("Repair queue stopped.");
-            break;
-          }
-          const video = videoRepairFlagged[index];
-          setVideoRepairStatus(`Running ${actionLabel} ${index + 1} of ${videoRepairFlagged.length}...`);
-          setVideoRepairProgress(current => ({
-            ...(current || {}),
-            action: actionLabel,
-            current: video.relativePath || video.fileName || "Current video",
-            done: index,
-            total: videoRepairFlagged.length
-          }));
-          const response = await fetch(`${fuitsAdminBaseUrl}/admin/video-repair-run`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              password,
-              action,
-              finish: videoRepairFinish,
-              overwriteExisting: videoRepairOverwrite,
-              paths: [video.path]
-            })
-          });
-          if (!response.ok) throw new Error(await response.text());
-          const result = await response.json();
-          const resultRows = Array.isArray(result.results) ? result.results : [];
-          allResults.push(...resultRows);
-          setVideoRepairLog([...allResults]);
-          if (result.cancelled || resultRows.some(item => item.status === "cancelled")) {
-            videoRepairCancelRequestedRef.current = true;
-            setVideoRepairStatus("Repair queue stopped.");
-            setVideoRepairProgress(current => ({
-              ...(current || {}),
-              current: "Stopped.",
-              failed: allResults.filter(item => item.ok === false || item.status === "failed").length
-            }));
-            break;
-          }
-          setVideoRepairProgress(current => ({
-            ...(current || {}),
-            done: index + 1,
-            failed: allResults.filter(item => item.ok === false || item.status === "failed").length
-          }));
-        }
-        const counts = allResults.reduce((nextCounts, item) => {
-          nextCounts[item.status] = (nextCounts[item.status] || 0) + 1;
-          return nextCounts;
-        }, {});
-        if (videoRepairCancelRequestedRef.current) {
-          setVideoRepairStatus(`Repair stopped. Finished ${allResults.length} item${allResults.length === 1 ? "" : "s"} before stopping.`);
-          return;
-        }
-        setVideoRepairStatus(`Repair complete. Kept ${counts.kept || 0}, overwritten ${counts.overwritten || 0}, replaced ${counts.replaced || 0}, deleted ${counts.deleted || 0}, skipped ${counts.skipped || 0}, failed ${counts.failed || 0}.`);
+        const response = await fetch(`${fuitsAdminBaseUrl}/admin/video-repair-run`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            password,
+            action,
+            finish: videoRepairFinish,
+            overwriteExisting: videoRepairOverwrite,
+            background: true,
+            paths: videoRepairFlagged.map(video => video.path).filter(Boolean)
+          })
+        });
+        if (!response.ok) throw new Error(await response.text());
+        const result = await response.json();
+        const batch = result.batch || {};
+        startedServerQueue = true;
+        setServerVideoRepairStatus(current => ({ ...(current || {}), active: true, batch }));
+        setVideoRepairStatus(`${actionLabel} queue started on the server. You can leave Admin and it will keep going.`);
+        setVideoRepairProgress({
+          action: actionLabel,
+          current: batch.current?.relativePath || batch.current?.fileName || "Waiting for first video.",
+          done: Number(batch.done) || 0,
+          failed: Number(batch.failed) || 0,
+          source: "server",
+          startedAt: Number(batch.startedAtMs) || Date.now(),
+          total: Number(batch.total) || videoRepairFlagged.length
+        });
         return;
       }
 
@@ -5236,7 +5289,7 @@ function AdminPage({ onClose }) {
       setVideoRepairStatus(err?.message || "Video repair failed.");
     } finally {
       setVideoRepairCancelling(false);
-      setVideoRepairBusy(false);
+      if (!startedServerQueue) setVideoRepairBusy(false);
     }
   };
 
@@ -5493,6 +5546,11 @@ function AdminPage({ onClose }) {
                   Restore Old Backup
                 </button>
               </div>
+              {serverVideoRepairStatus?.active && (
+                <div style={{ border: "1px solid rgba(250,204,21,.48)", background: "rgba(113,63,18,.42)", color: "#fef3c7", padding: 12, fontSize: 13, fontWeight: 1000, overflowWrap: "anywhere" }}>
+                  VIDEO EDITING IN PROGRESS, CURRENTLY ON {serverVideoRepairStatus.relativePath || serverVideoRepairStatus.fileName || "CURRENT VIDEO"}
+                </div>
+              )}
               {videoRepairProgress && (
                 <div style={{ border: "1px solid rgba(148,163,184,.28)", background: "rgba(2,6,23,.72)", padding: 12, display: "grid", gap: 8 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 12, color: "#f8fafc", fontSize: 13, fontWeight: 1000, flexWrap: "wrap" }}>

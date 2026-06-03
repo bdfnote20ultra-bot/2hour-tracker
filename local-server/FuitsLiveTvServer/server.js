@@ -54,6 +54,8 @@ let owncastBaseUrlCache = null;
 let owncastBaseUrlCacheExpiresAt = 0;
 const onlineDevices = new Map();
 let latestVideoRepairScan = null;
+let activeVideoRepairProcess = null;
+let videoRepairCancelRequested = false;
 const GAME_SYSTEMS = {
   GB: { folder: "GB", core: "gb", extensions: [".gb"] },
   GBC: { folder: "GBC", core: "gb", extensions: [".gbc"] },
@@ -403,6 +405,60 @@ function runProcess(command, args) {
     child.on("error", reject);
     child.on("close", code => resolve({ code, stdout, stderr }));
   });
+}
+
+function runVideoRepairProcess(command, args, outputPath) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+    activeVideoRepairProcess = child;
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", chunk => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on("data", chunk => {
+      stderr += chunk.toString();
+      if (stderr.length > 24000) stderr = stderr.slice(-24000);
+    });
+    child.on("error", reject);
+    child.on("close", code => {
+      if (activeVideoRepairProcess === child) activeVideoRepairProcess = null;
+      if (videoRepairCancelRequested) {
+        fs.rmSync(outputPath, { force: true });
+        resolve({ code, stdout, stderr, cancelled: true });
+        return;
+      }
+      resolve({ code, stdout, stderr });
+    });
+  });
+}
+
+function cancelVideoRepairs() {
+  videoRepairCancelRequested = true;
+  const child = activeVideoRepairProcess;
+  if (child && child.pid) {
+    try {
+      spawn("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], {
+        windowsHide: true,
+        stdio: "ignore"
+      });
+    } catch {
+      try {
+        child.kill("SIGTERM");
+      } catch {}
+    }
+  }
+
+  return {
+    ok: true,
+    cancelled: true,
+    stoppedCurrent: Boolean(child && child.pid),
+    message: child && child.pid ? "Stopping the current repair and the queue." : "Stopping the repair queue."
+  };
 }
 
 function toNumberOrNull(value) {
@@ -763,6 +819,15 @@ function normalizeVideoRepairFinish(value) {
 }
 
 async function repairOneVideo(file, action, finish, overwriteExisting) {
+  if (videoRepairCancelRequested) {
+    return {
+      ok: false,
+      status: "cancelled",
+      fileName: path.basename(String(file || "")),
+      message: "Repair was cancelled."
+    };
+  }
+
   const inputPath = assertVideoRepairPath(file);
   const timing = await getVideoRepairTiming(inputPath);
   if (!timing) throw new Error("Could not read timing for this video.");
@@ -813,7 +878,18 @@ async function repairOneVideo(file, action, finish, overwriteExisting) {
       outputPath
     ];
 
-  const result = await runProcess(ffmpegPath, args);
+  const result = await runVideoRepairProcess(ffmpegPath, args, outputPath);
+  if (result.cancelled) {
+    fs.rmSync(outputPath, { force: true });
+    return {
+      ok: false,
+      status: "cancelled",
+      fileName: path.basename(inputPath),
+      relativePath: path.relative(VIDEOS_DIR, inputPath),
+      message: "Repair was cancelled."
+    };
+  }
+
   if (result.code !== 0 || !fs.existsSync(outputPath)) {
     fs.rmSync(outputPath, { force: true });
     return {
@@ -838,6 +914,9 @@ async function repairOneVideo(file, action, finish, overwriteExisting) {
 }
 
 async function runVideoRepairs(payload) {
+  if (!payload.continueExistingCancel) {
+    videoRepairCancelRequested = false;
+  }
   const action = normalizeVideoRepairAction(payload.action);
   const finish = normalizeVideoRepairFinish(payload.finish);
   const overwriteExisting = Boolean(payload.overwriteExisting);
@@ -855,6 +934,9 @@ async function runVideoRepairs(payload) {
 
   const results = [];
   for (const file of requestedFiles) {
+    if (videoRepairCancelRequested) {
+      break;
+    }
     try {
       results.push(await repairOneVideo(file, action, finish, overwriteExisting));
     } catch (error) {
@@ -868,7 +950,8 @@ async function runVideoRepairs(payload) {
   }
 
   return {
-    ok: results.every(result => result.ok),
+    ok: !videoRepairCancelRequested && results.every(result => result.ok),
+    cancelled: videoRepairCancelRequested,
     action,
     finish,
     results,
@@ -4652,6 +4735,23 @@ const server = http.createServer((req, res) => {
       })
       .catch(error => {
         send(res, 400, error.message || "Video delete failed");
+      });
+    return;
+  }
+
+  if (url.pathname === "/admin/video-repair-cancel" && req.method === "POST") {
+    readRequestBody(req)
+      .then(body => {
+        const payload = JSON.parse(body || "{}");
+        if (!isAdminPassword(payload.password)) {
+          send(res, 401, "Unauthorized");
+          return;
+        }
+
+        sendJson(res, 200, cancelVideoRepairs());
+      })
+      .catch(error => {
+        send(res, 400, error.message || "Video repair cancel failed");
       });
     return;
   }

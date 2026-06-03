@@ -4945,6 +4945,8 @@ function AdminPage({ onClose }) {
   const [videoRepairSelectedBackup, setVideoRepairSelectedBackup] = useState("");
   const [videoRepairProgress, setVideoRepairProgress] = useState(null);
   const [videoRepairProgressNow, setVideoRepairProgressNow] = useState(Date.now());
+  const [videoRepairCancelling, setVideoRepairCancelling] = useState(false);
+  const videoRepairCancelRequestedRef = useRef(false);
   const [onlineUserInfo, setOnlineUserInfo] = useState({ loading: true, devices: 0, households: 0, householdDetails: [] });
   const fuitsAdminBaseUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
   const sectionStyle = {
@@ -5135,6 +5137,8 @@ function AdminPage({ onClose }) {
     if (!window.confirm(`Run ${actionLabel} on ${targetLabel}?`)) return;
 
     setVideoRepairBusy(true);
+    setVideoRepairCancelling(false);
+    videoRepairCancelRequestedRef.current = false;
     setVideoRepairStatus(`Running ${actionLabel}...`);
     setVideoRepairLog([]);
     setVideoRepairProgress(isAll ? {
@@ -5150,6 +5154,10 @@ function AdminPage({ onClose }) {
       if (isAll) {
         const allResults = [];
         for (let index = 0; index < videoRepairFlagged.length; index += 1) {
+          if (videoRepairCancelRequestedRef.current) {
+            setVideoRepairStatus("Repair queue stopped.");
+            break;
+          }
           const video = videoRepairFlagged[index];
           setVideoRepairStatus(`Running ${actionLabel} ${index + 1} of ${videoRepairFlagged.length}...`);
           setVideoRepairProgress(current => ({
@@ -5175,6 +5183,16 @@ function AdminPage({ onClose }) {
           const resultRows = Array.isArray(result.results) ? result.results : [];
           allResults.push(...resultRows);
           setVideoRepairLog([...allResults]);
+          if (result.cancelled || resultRows.some(item => item.status === "cancelled")) {
+            videoRepairCancelRequestedRef.current = true;
+            setVideoRepairStatus("Repair queue stopped.");
+            setVideoRepairProgress(current => ({
+              ...(current || {}),
+              current: "Stopped.",
+              failed: allResults.filter(item => item.ok === false || item.status === "failed").length
+            }));
+            break;
+          }
           setVideoRepairProgress(current => ({
             ...(current || {}),
             done: index + 1,
@@ -5185,6 +5203,10 @@ function AdminPage({ onClose }) {
           nextCounts[item.status] = (nextCounts[item.status] || 0) + 1;
           return nextCounts;
         }, {});
+        if (videoRepairCancelRequestedRef.current) {
+          setVideoRepairStatus(`Repair stopped. Finished ${allResults.length} item${allResults.length === 1 ? "" : "s"} before stopping.`);
+          return;
+        }
         setVideoRepairStatus(`Repair complete. Kept ${counts.kept || 0}, overwritten ${counts.overwritten || 0}, replaced ${counts.replaced || 0}, deleted ${counts.deleted || 0}, skipped ${counts.skipped || 0}, failed ${counts.failed || 0}.`);
         return;
       }
@@ -5204,11 +5226,16 @@ function AdminPage({ onClose }) {
       if (!response.ok) throw new Error(await response.text());
       const result = await response.json();
       setVideoRepairLog(Array.isArray(result.results) ? result.results : []);
+      if (result.cancelled || (Array.isArray(result.results) && result.results.some(item => item.status === "cancelled"))) {
+        setVideoRepairStatus("Repair stopped.");
+        return;
+      }
       const counts = result.counts || {};
       setVideoRepairStatus(`Repair complete. Kept ${counts.kept || 0}, overwritten ${counts.overwritten || 0}, replaced ${counts.replaced || 0}, deleted ${counts.deleted || 0}, skipped ${counts.skipped || 0}, failed ${counts.failed || 0}.`);
     } catch (err) {
       setVideoRepairStatus(err?.message || "Video repair failed.");
     } finally {
+      setVideoRepairCancelling(false);
       setVideoRepairBusy(false);
     }
   };
@@ -5236,7 +5263,27 @@ function AdminPage({ onClose }) {
     } catch (err) {
       setVideoRepairStatus(err?.message || "Video delete failed.");
     } finally {
+      setVideoRepairCancelling(false);
       setVideoRepairBusy(false);
+    }
+  };
+
+  const cancelVideoRepairQueue = async () => {
+    videoRepairCancelRequestedRef.current = true;
+    setVideoRepairCancelling(true);
+    setVideoRepairStatus("Stopping the current repair and queue...");
+    setVideoRepairProgress(current => current ? { ...current, current: "Stopping current video..." } : current);
+    try {
+      const response = await fetch(`${fuitsAdminBaseUrl}/admin/video-repair-cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password })
+      });
+      if (!response.ok) throw new Error(await response.text());
+      setVideoRepairStatus("Stop requested. Waiting for the current repair to shut down...");
+    } catch (err) {
+      setVideoRepairStatus(err?.message || "Could not stop video repair.");
+      setVideoRepairCancelling(false);
     }
   };
 
@@ -5460,6 +5507,16 @@ function AdminPage({ onClose }) {
                     <br />
                     Elapsed: {formatRepairTime((videoRepairProgressNow - videoRepairProgress.startedAt) / 1000)} / Estimated left: {getRepairProgressEta()} / Failed: {videoRepairProgress.failed || 0}
                   </div>
+                  {videoRepairBusy && (
+                    <button
+                      type="button"
+                      disabled={videoRepairCancelling}
+                      onClick={cancelVideoRepairQueue}
+                      style={{ ...adminButtonStyle, width: "fit-content", borderColor: "#fb7185", background: "#fb7185", opacity: videoRepairCancelling ? .62 : 1 }}
+                    >
+                      {videoRepairCancelling ? "Stopping..." : "Cancel / Stop Editing"}
+                    </button>
+                  )}
                 </div>
               )}
               <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 900 }}>{videoRepairStatus}</div>

@@ -2587,12 +2587,14 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
         </div>
       )}
       <div style={{
-        padding: "10px 12px 12px",
+        padding: "12px 12px 14px",
         color: "#cbd5e1",
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: 900,
-        lineHeight: 1.35,
-        minHeight: 50,
+        lineHeight: 1.4,
+        minHeight: 76,
+        maxHeight: 112,
+        overflowY: "auto",
         whiteSpace: "normal",
         overflowWrap: "anywhere",
         wordBreak: "break-word",
@@ -3247,9 +3249,9 @@ function MusicLibrarySidebar({ accentColor }) {
     <div style={{
       display: "grid",
       gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-      gap: 8,
+      gap: 6,
       width: "100%",
-      marginTop: 8
+      marginTop: 6
     }}>
       {fuitsOwnerCommands.map(command => (
         <button
@@ -3257,13 +3259,15 @@ function MusicLibrarySidebar({ accentColor }) {
           onClick={() => command.localAction ? command.localAction() : runFuitsOwnerCommand(command)}
           style={{
             border: "1px solid rgba(34,211,238,.4)",
-            borderRadius: 12,
+            borderRadius: 10,
             background: "linear-gradient(135deg, rgba(187,247,208,.95), rgba(56,189,248,.95))",
             color: "#020617",
-            padding: "10px 8px",
+            padding: "7px 5px",
+            fontSize: 11,
+            lineHeight: 1.05,
             fontWeight: 1000,
             cursor: "pointer",
-            boxShadow: "0 12px 26px rgba(34,211,238,.18)"
+            boxShadow: "0 8px 18px rgba(34,211,238,.14)"
           }}
         >
           {command.label}

@@ -3004,6 +3004,7 @@ function MusicLibrarySidebar({ accentColor }) {
   );
   const liveTvOptions = [
     { id: "fattys", label: "FUITS LIVE TV WORLD", heading: "FUITS LIVE TV WORLD", custom: true },
+    { id: "adultRelax", label: "ADULT RELAX TIME", heading: "ADULT RELAX TIME", custom: true, defaultChannel: "channel-adult-relax-time" },
     { id: "fuit", label: "Open Fuit LIVE TV", heading: "SPORTS + CABLE TV", url: "https://thetvapp.to/", embed: false },
     { id: "athf", label: "ADULT SWIM ZONE", heading: "ADULT SWIM ZONE", url: "https://www.adultswim.com/streams/aqua-teen-hunger-force", embed: true },
     { id: "youtube", label: "YOUTUBE", heading: "YOUTUBE", url: "https://www.youtube.com/", embed: false },
@@ -3015,6 +3016,7 @@ function MusicLibrarySidebar({ accentColor }) {
     { id: "channel-b", label: "Channel B" },
     { id: "channel-fuit-mom-channel", label: "FUIT MOM CHANNEL" },
     { id: "channel-fuits-live-tv-world", label: "FUITS LIVE TV WORLD" },
+    { id: "channel-adult-relax-time", label: "ADULT RELAX TIME" },
     { id: "channel-movie-night", label: "MOVIE NIGHT" },
     { id: "channel-new-releases", label: "NEW RELEASES" },
     { id: "channel-sleep-chill", label: "SLEEP CHILL" }
@@ -3642,6 +3644,7 @@ function MusicLibrarySidebar({ accentColor }) {
                   {liveTvOptions.map(option => (
                     <button key={option.id} onClick={() => {
                       setActiveLiveTv(option.id);
+                      if (option.defaultChannel) setActiveFuitsLiveTvChannel(option.defaultChannel);
                       setLiveTvMenuOpen(false);
                     }} style={{
                       width: "100%",

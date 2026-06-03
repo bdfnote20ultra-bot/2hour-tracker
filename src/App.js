@@ -5130,7 +5130,7 @@ function AdminPage({ onClose }) {
       const result = await response.json();
       setVideoRepairLog(Array.isArray(result.results) ? result.results : []);
       const counts = result.counts || {};
-      setVideoRepairStatus(`Repair complete. Kept ${counts.kept || 0}, replaced ${counts.replaced || 0}, deleted ${counts.deleted || 0}, skipped ${counts.skipped || 0}, failed ${counts.failed || 0}.`);
+      setVideoRepairStatus(`Repair complete. Kept ${counts.kept || 0}, overwritten ${counts.overwritten || 0}, replaced ${counts.replaced || 0}, deleted ${counts.deleted || 0}, skipped ${counts.skipped || 0}, failed ${counts.failed || 0}.`);
     } catch (err) {
       setVideoRepairStatus(err?.message || "Video repair failed.");
     } finally {
@@ -5282,6 +5282,7 @@ function AdminPage({ onClose }) {
                   style={adminInputStyle}
                 >
                   <option value="keep">Keep fixed copy next to original</option>
+                  <option value="overwrite">Fix Original And Overwrite</option>
                   <option value="replace">Replace Original With Fixed Copy</option>
                   <option value="delete">Delete fixed copy and keep original</option>
                 </select>

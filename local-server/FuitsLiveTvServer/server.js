@@ -574,6 +574,12 @@ function restoreVideoRepairBackup(payload) {
 }
 
 function finishVideoRepairCopy(originalPath, fixedPath, finishChoice) {
+  if (finishChoice === "overwrite") {
+    fs.rmSync(originalPath, { force: true });
+    fs.renameSync(fixedPath, originalPath);
+    return { finish: "overwritten", outputPath: originalPath };
+  }
+
   if (finishChoice === "replace") {
     const backupPath = backupAndReplaceVideo(originalPath, fixedPath);
     return { finish: "replaced", backupPath };
@@ -738,8 +744,8 @@ function normalizeVideoRepairAction(value) {
 }
 
 function normalizeVideoRepairFinish(value) {
-  if (value === "keep" || value === "replace" || value === "delete") return value;
-  throw new Error("Choose keep, replace, or delete.");
+  if (value === "keep" || value === "overwrite" || value === "replace" || value === "delete") return value;
+  throw new Error("Choose keep, overwrite, replace, or delete.");
 }
 
 async function repairOneVideo(file, action, finish, overwriteExisting) {
@@ -2537,6 +2543,7 @@ function ownerPageHtml() {
       </select>
       <select id="repairFinish" aria-label="After repair">
         <option value="keep">Keep Fixed Copy</option>
+        <option value="overwrite">Fix Original And Overwrite</option>
         <option value="replace">Replace Original With Fixed Copy</option>
         <option value="delete">Delete Fixed Copy After Test</option>
       </select>

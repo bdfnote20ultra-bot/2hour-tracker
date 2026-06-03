@@ -2838,7 +2838,7 @@ function MusicLibrarySidebar({ accentColor }) {
         () => {
           if (!cancelled) setLocalForecast({ status: "denied", days: [] });
         },
-        { enableHighAccuracy: false, timeout: 10000, maximumAge: 60 * 60 * 1000 }
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 0 }
       );
     };
 
@@ -3328,7 +3328,7 @@ function MusicLibrarySidebar({ accentColor }) {
         ) : (
           <div style={{ fontSize: 10, fontWeight: 900, color: "#94a3b8", lineHeight: 1.2 }}>
             {localForecast.status === "waiting"
-              ? "Weather loads once after startup."
+              ? "Weather asks location each page open."
               : localForecast.status === "asking"
                 ? "Allow location for local forecast."
                 : localForecast.status === "loading"

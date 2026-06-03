@@ -4941,18 +4941,26 @@ function AdminPage({ onClose }) {
       let liveStats = null;
       try {
         liveStats = await fetchFuitsLiveOnlineStats(fuitsAdminBaseUrl);
+        let adminDetails = [];
+        let adminError = "";
         const params = new URLSearchParams({ password, cache: String(Date.now()) });
-        const response = await fetch(`${fuitsAdminBaseUrl}/admin/online-users?${params.toString()}`, { cache: "no-store" });
-        if (!response.ok) throw new Error("Online users unavailable");
-        const info = await response.json();
+        try {
+          const response = await fetch(`${fuitsAdminBaseUrl}/admin/online-users?${params.toString()}`, { cache: "no-store" });
+          if (!response.ok) throw new Error("Online users unavailable");
+          const info = await response.json();
+          adminDetails = Array.isArray(info.householdDetails) ? info.householdDetails : [];
+        } catch {
+          adminError = liveStats.householdDetails.length
+            ? ""
+            : "Could not load detailed online user information yet.";
+        }
         if (cancelled) return;
         setOnlineUserInfo({
           loading: false,
           devices: liveStats.devices,
           households: liveStats.households,
-          householdDetails: Array.isArray(info.householdDetails) && info.householdDetails.length
-            ? info.householdDetails
-            : liveStats.householdDetails
+          householdDetails: adminDetails.length ? adminDetails : liveStats.householdDetails,
+          error: adminError
         });
       } catch {
         if (!cancelled) setOnlineUserInfo(current => ({

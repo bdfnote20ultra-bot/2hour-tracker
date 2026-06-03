@@ -2642,6 +2642,32 @@ const getFuitsLiveDeviceId = () => {
   }
 };
 
+const fetchFuitsLiveOnlineStats = async (baseUrl, extraParams = {}) => {
+  const statsUrls = [
+    `${window.location.origin.replace(/\/+$/, "")}/online-stats`,
+    baseUrl && `${baseUrl.replace(/\/+$/, "")}/online-stats`
+  ].filter(Boolean);
+
+  for (const statsBaseUrl of statsUrls) {
+    try {
+      const params = new URLSearchParams({
+        device: getFuitsLiveDeviceId(),
+        cache: String(Date.now()),
+        ...extraParams
+      });
+      const response = await fetch(`${statsBaseUrl}?${params.toString()}`, { cache: "no-store" });
+      if (!response.ok) continue;
+      const stats = await response.json();
+      return {
+        devices: Number(stats.devices) || 0,
+        households: Number(stats.households) || 0
+      };
+    } catch {}
+  }
+
+  throw new Error("online stats unavailable");
+};
+
 function MusicLibrarySidebar({ accentColor }) {
   const fuitsLiveTvChannelUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
   const [musicLibrary, setMusicLibrary] = useState(MUSIC_LIBRARY);
@@ -2798,29 +2824,12 @@ function MusicLibrarySidebar({ accentColor }) {
     if (!fuitsLiveTvChannelUrl) return undefined;
 
     let cancelled = false;
-    const deviceId = getFuitsLiveDeviceId();
 
     const loadOnlineStats = async () => {
       try {
-        const statsUrls = [
-          `${window.location.origin.replace(/\/+$/, "")}/online-stats?device=${encodeURIComponent(deviceId)}&cache=${Date.now()}`,
-          `${fuitsLiveTvChannelUrl.replace(/\/+$/, "")}/online-stats?device=${encodeURIComponent(deviceId)}&cache=${Date.now()}`
-        ];
-        let stats = null;
-        for (const statsUrl of statsUrls) {
-          try {
-            const response = await fetch(statsUrl, { cache: "no-store" });
-            if (!response.ok) continue;
-            stats = await response.json();
-            break;
-          } catch {}
-        }
-        if (!stats) throw new Error("online stats unavailable");
+        const stats = await fetchFuitsLiveOnlineStats(fuitsLiveTvChannelUrl);
         if (!cancelled) {
-          setOnlineStats({
-            devices: Number(stats.devices) || 0,
-            households: Number(stats.households) || 0
-          });
+          setOnlineStats(stats);
         }
       } catch {
         if (!cancelled) setOnlineStats(current => current.devices === null ? { devices: null, households: null } : current);
@@ -4925,7 +4934,9 @@ function AdminPage({ onClose }) {
     if (!unlocked) return;
     let cancelled = false;
     const loadOnlineUserInfo = async () => {
+      let liveStats = null;
       try {
+        liveStats = await fetchFuitsLiveOnlineStats(fuitsAdminBaseUrl);
         const params = new URLSearchParams({ password, cache: String(Date.now()) });
         const response = await fetch(`${fuitsAdminBaseUrl}/admin/online-users?${params.toString()}`, { cache: "no-store" });
         if (!response.ok) throw new Error("Online users unavailable");
@@ -4933,12 +4944,18 @@ function AdminPage({ onClose }) {
         if (cancelled) return;
         setOnlineUserInfo({
           loading: false,
-          devices: Number(info.devices) || 0,
-          households: Number(info.households) || 0,
+          devices: liveStats.devices,
+          households: liveStats.households,
           householdDetails: Array.isArray(info.householdDetails) ? info.householdDetails : []
         });
       } catch {
-        if (!cancelled) setOnlineUserInfo(current => ({ ...current, loading: false, error: "Could not load online user information yet." }));
+        if (!cancelled) setOnlineUserInfo(current => ({
+          ...current,
+          loading: false,
+          devices: liveStats?.devices ?? current.devices,
+          households: liveStats?.households ?? current.households,
+          error: "Could not load detailed online user information yet."
+        }));
       }
     };
 

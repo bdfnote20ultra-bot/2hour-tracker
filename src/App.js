@@ -5498,8 +5498,8 @@ if (view === "gambling") {
       <style>{`
         @media (max-width: 1180px) { .flive-main-coins-ticker { display: none !important; } }
         @keyframes flive-main-coins-ticker-scroll {
-          0% { transform: translateX(calc(100% - 560px)); }
-          100% { transform: translateX(0); }
+          0% { transform: translateX(0); }
+          100% { transform: translateX(calc(100vw - 630px)); }
         }
       `}</style>
       {view === "week" && <PokemonSidebar />}
@@ -5527,7 +5527,7 @@ if (view === "gambling") {
             textTransform: "uppercase",
             textShadow: "0 0 6px rgba(255,255,255,.82), 0 0 14px rgba(56,189,248,.75), 0 2px 0 rgba(2,6,23,.95)",
             WebkitTextStroke: ".5px rgba(56,189,248,.45)",
-            animation: "flive-main-coins-ticker-scroll 14s linear infinite"
+            animation: "flive-main-coins-ticker-scroll 6s linear infinite"
           }}>
             FLIVE CASINO / SPORTSBOOK COINS VALUE = 0
           </div>

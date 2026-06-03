@@ -60,25 +60,71 @@ function getClientIp(req) {
   ).replace(/^::ffff:/, "");
 }
 
-function getOnlineStats(req, deviceId) {
-  const now = Date.now();
-  const ip = getClientIp(req);
-  const userAgent = String(req.headers["user-agent"] || "browser").slice(0, 180);
-  const safeDeviceId = String(deviceId || "").replace(/[^a-zA-Z0-9_.:-]/g, "").slice(0, 120);
-  const deviceKey = safeDeviceId || `${ip}:${userAgent}`;
-
-  onlineDevices.set(deviceKey, { ip, lastSeen: now });
-
+function pruneOnlineDevices(now = Date.now()) {
   for (const [key, value] of onlineDevices) {
     if (!value || now - value.lastSeen > ONLINE_STATS_TTL_MS) {
       onlineDevices.delete(key);
     }
   }
+}
+
+function buildOnlineStats() {
+  pruneOnlineDevices();
+  const householdMap = new Map();
+  for (const [key, value] of onlineDevices) {
+    const household = householdMap.get(value.ip) || {
+      ip: value.ip,
+      deviceCount: 0,
+      devices: []
+    };
+    household.deviceCount += 1;
+    household.devices.push({
+      deviceId: value.deviceId || key,
+      userAgent: value.userAgent || "unknown",
+      lastSeen: value.lastSeen,
+      weatherStatus: value.weatherStatus || "unknown",
+      weatherLocation: value.weatherLocation || null
+    });
+    householdMap.set(value.ip, household);
+  }
+
+  const households = Array.from(householdMap.values())
+    .map(household => ({
+      ...household,
+      devices: household.devices.sort((a, b) => b.lastSeen - a.lastSeen)
+    }))
+    .sort((a, b) => b.deviceCount - a.deviceCount || a.ip.localeCompare(b.ip));
 
   return {
     devices: onlineDevices.size,
-    households: new Set(Array.from(onlineDevices.values()).map(value => value.ip)).size
+    households: households.length,
+    householdDetails: households
   };
+}
+
+function getOnlineStats(req, deviceId, details = {}) {
+  const now = Date.now();
+  const ip = getClientIp(req);
+  const userAgent = String(req.headers["user-agent"] || "browser").slice(0, 180);
+  const safeDeviceId = String(deviceId || "").replace(/[^a-zA-Z0-9_.:-]/g, "").slice(0, 120);
+  const deviceKey = safeDeviceId || `${ip}:${userAgent}`;
+  const previous = onlineDevices.get(deviceKey) || {};
+  const weatherStatus = details.weatherStatus || previous.weatherStatus || "unknown";
+  const weatherLocation =
+    Object.prototype.hasOwnProperty.call(details, "weatherLocation")
+      ? details.weatherLocation
+      : previous.weatherLocation || null;
+
+  onlineDevices.set(deviceKey, {
+    ip,
+    deviceId: safeDeviceId || deviceKey,
+    userAgent,
+    lastSeen: now,
+    weatherStatus,
+    weatherLocation
+  });
+
+  return buildOnlineStats();
 }
 
 function getRadioChannel(channelId) {
@@ -3610,7 +3656,30 @@ const server = http.createServer((req, res) => {
   }
 
   if (url.pathname === "/online-stats" && req.method === "GET") {
-    sendJson(res, 200, getOnlineStats(req, url.searchParams.get("device")));
+    const weatherStatus = String(url.searchParams.get("weatherStatus") || "").slice(0, 40);
+    const latitude = Number(url.searchParams.get("lat"));
+    const longitude = Number(url.searchParams.get("lon"));
+    const weatherLocation = Number.isFinite(latitude) && Number.isFinite(longitude)
+      ? {
+        latitude,
+        longitude,
+        timezone: String(url.searchParams.get("timezone") || "").slice(0, 80),
+        updatedAtMs: Date.now()
+      }
+      : null;
+    sendJson(res, 200, getOnlineStats(req, url.searchParams.get("device"), {
+      weatherStatus,
+      ...(weatherStatus === "ready" ? { weatherLocation } : {})
+    }));
+    return;
+  }
+
+  if (url.pathname === "/admin/online-users" && req.method === "GET") {
+    if (url.searchParams.get("password") !== getAdminPassword()) {
+      sendJson(res, 403, { ok: false, error: "Wrong password" });
+      return;
+    }
+    sendJson(res, 200, buildOnlineStats());
     return;
   }
 

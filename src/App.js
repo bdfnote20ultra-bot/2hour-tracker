@@ -2233,7 +2233,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
       document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
       document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
     };
-  }, []);
+  }, [fuitsLiveTvChannelUrl]);
 
   useEffect(() => {
     const unmuteOnFirstPageClick = () => {
@@ -2623,6 +2623,19 @@ const getWeatherIconUrl = code => {
   return "https://openweathermap.org/img/wn/02d@2x.png";
 };
 
+const getFuitsLiveDeviceId = () => {
+  try {
+    let deviceId = localStorage.getItem("fuitsLiveDeviceId_v1") || "";
+    if (!deviceId) {
+      deviceId = `device_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+      localStorage.setItem("fuitsLiveDeviceId_v1", deviceId);
+    }
+    return deviceId;
+  } catch {
+    return `device_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  }
+};
+
 function MusicLibrarySidebar({ accentColor }) {
   const fuitsLiveTvChannelUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
   const [musicLibrary, setMusicLibrary] = useState(MUSIC_LIBRARY);
@@ -2779,16 +2792,7 @@ function MusicLibrarySidebar({ accentColor }) {
     if (!fuitsLiveTvChannelUrl) return undefined;
 
     let cancelled = false;
-    let deviceId = "";
-    try {
-      deviceId = localStorage.getItem("fuitsLiveDeviceId_v1") || "";
-      if (!deviceId) {
-        deviceId = `device_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-        localStorage.setItem("fuitsLiveDeviceId_v1", deviceId);
-      }
-    } catch {
-      deviceId = `device_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-    }
+    const deviceId = getFuitsLiveDeviceId();
 
     const loadOnlineStats = async () => {
       try {
@@ -2834,6 +2838,23 @@ function MusicLibrarySidebar({ accentColor }) {
     let cancelled = false;
     let weatherStarted = false;
     setLocalForecast({ status: "waiting", days: [] });
+    const reportWeatherLocation = async (status, coords = null, timezone = "") => {
+      if (!fuitsLiveTvChannelUrl) return;
+      const params = new URLSearchParams({
+        device: getFuitsLiveDeviceId(),
+        weatherStatus: status,
+        cache: String(Date.now())
+      });
+      if (coords && Number.isFinite(coords.latitude) && Number.isFinite(coords.longitude)) {
+        params.set("lat", String(coords.latitude));
+        params.set("lon", String(coords.longitude));
+        if (timezone) params.set("timezone", timezone);
+      }
+
+      try {
+        await fetch(`${fuitsLiveTvChannelUrl.replace(/\/+$/, "")}/online-stats?${params.toString()}`, { cache: "no-store" });
+      } catch {}
+    };
 
     const loadForecastOnce = () => {
       if (cancelled || weatherStarted) return;
@@ -2862,6 +2883,7 @@ function MusicLibrarySidebar({ accentColor }) {
             const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`, { cache: "no-store" });
             if (!response.ok) throw new Error("forecast unavailable");
             const data = await response.json();
+            reportWeatherLocation("ready", { latitude, longitude }, data?.timezone || "");
             const daily = data?.daily || {};
             const days = (daily.time || []).slice(0, 3).map((date, index) => {
               const code = Number(daily.weather_code?.[index]);
@@ -2876,10 +2898,12 @@ function MusicLibrarySidebar({ accentColor }) {
             });
             if (!cancelled) setLocalForecast({ status: days.length ? "ready" : "unavailable", days });
           } catch {
+            reportWeatherLocation("unavailable", { latitude, longitude });
             if (!cancelled) setLocalForecast({ status: "unavailable", days: [] });
           }
         },
         () => {
+          reportWeatherLocation("denied");
           if (!cancelled) setLocalForecast({ status: "denied", days: [] });
         },
         { enableHighAccuracy: false, timeout: 10000, maximumAge: 0 }
@@ -4845,6 +4869,7 @@ function AdminPage({ onClose }) {
   const [error, setError] = useState("");
   const [videoChunkMb, setVideoChunkMb] = useState(4);
   const [videoChunkStatus, setVideoChunkStatus] = useState("Loading video stream controls...");
+  const [onlineUserInfo, setOnlineUserInfo] = useState({ loading: true, devices: 0, households: 0, householdDetails: [] });
   const fuitsAdminBaseUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
   const sectionStyle = {
     background: "rgba(15,23,42,.92)",
@@ -4887,6 +4912,35 @@ function AdminPage({ onClose }) {
     return () => { cancelled = true; };
   }, [unlocked, fuitsAdminBaseUrl]);
 
+  useEffect(() => {
+    if (!unlocked) return;
+    let cancelled = false;
+    const loadOnlineUserInfo = async () => {
+      try {
+        const params = new URLSearchParams({ password, cache: String(Date.now()) });
+        const response = await fetch(`${fuitsAdminBaseUrl}/admin/online-users?${params.toString()}`, { cache: "no-store" });
+        if (!response.ok) throw new Error("Online users unavailable");
+        const info = await response.json();
+        if (cancelled) return;
+        setOnlineUserInfo({
+          loading: false,
+          devices: Number(info.devices) || 0,
+          households: Number(info.households) || 0,
+          householdDetails: Array.isArray(info.householdDetails) ? info.householdDetails : []
+        });
+      } catch {
+        if (!cancelled) setOnlineUserInfo(current => ({ ...current, loading: false, error: "Could not load online user information yet." }));
+      }
+    };
+
+    loadOnlineUserInfo();
+    const timer = setInterval(loadOnlineUserInfo, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [unlocked, fuitsAdminBaseUrl, password]);
+
   const saveVideoChunkSize = async () => {
     setVideoChunkStatus("Saving video chunk size...");
     try {
@@ -4915,6 +4969,13 @@ function AdminPage({ onClose }) {
       return;
     }
     setError("Wrong password");
+  };
+
+  const formatWeatherLocation = location => {
+    if (!location || !Number.isFinite(Number(location.latitude)) || !Number.isFinite(Number(location.longitude))) return "NULL";
+    const lat = Number(location.latitude).toFixed(4);
+    const lon = Number(location.longitude).toFixed(4);
+    return `${lat}, ${lon}${location.timezone ? ` (${location.timezone})` : ""}`;
   };
 
   if (unlocked) {
@@ -4960,6 +5021,48 @@ function AdminPage({ onClose }) {
           </section>
           <section style={sectionStyle}>
             <h2 style={sectionTitleStyle}>USER INFORMATION</h2>
+            <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10 }}>
+              <div style={{ border: "1px solid rgba(148,163,184,.24)", padding: 12, background: "rgba(2,6,23,.72)" }}>
+                <div style={controlLabelStyle}>DEVICES CONNECTED</div>
+                <div style={{ fontSize: 28, fontWeight: 1000, color: "#67e8f9" }}>{onlineUserInfo.loading ? "..." : onlineUserInfo.devices}</div>
+              </div>
+              <div style={{ border: "1px solid rgba(148,163,184,.24)", padding: 12, background: "rgba(2,6,23,.72)" }}>
+                <div style={controlLabelStyle}>HOUSEHOLDS ONLINE</div>
+                <div style={{ fontSize: 28, fontWeight: 1000, color: "#bbf7d0" }}>{onlineUserInfo.loading ? "..." : onlineUserInfo.households}</div>
+              </div>
+            </div>
+            {onlineUserInfo.error && (
+              <div style={{ marginTop: 12, color: "#fecaca", fontSize: 13, fontWeight: 900 }}>{onlineUserInfo.error}</div>
+            )}
+            {!onlineUserInfo.loading && !onlineUserInfo.householdDetails.length && (
+              <div style={{ marginTop: 12, color: "#94a3b8", fontSize: 14, fontWeight: 900 }}>No users are currently connected.</div>
+            )}
+            <div style={{ marginTop: 14, display: "grid", gap: 12 }}>
+              {onlineUserInfo.householdDetails.map(household => (
+                <div key={household.ip} style={{ border: "1px solid rgba(96,165,250,.35)", background: "rgba(2,6,23,.7)", padding: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                    <div>
+                      <div style={controlLabelStyle}>HOUSEHOLD IP</div>
+                      <div style={{ fontSize: 16, fontWeight: 1000, color: "#f8fafc" }}>{household.ip || "unknown"}</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={controlLabelStyle}>USER DEVICES CONNECTED</div>
+                      <div style={{ fontSize: 18, fontWeight: 1000, color: "#67e8f9" }}>{household.deviceCount || 0}</div>
+                    </div>
+                  </div>
+                  <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+                    {(household.devices || []).map(device => (
+                      <div key={device.deviceId} style={{ borderTop: "1px solid rgba(148,163,184,.18)", paddingTop: 8, display: "grid", gap: 4 }}>
+                        <div style={{ color: "#dbeafe", fontSize: 13, fontWeight: 1000, overflowWrap: "anywhere" }}>Device ID: {device.deviceId || "unknown"}</div>
+                        <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 800, overflowWrap: "anywhere" }}>Location From Weather Check: {formatWeatherLocation(device.weatherLocation)}</div>
+                        <div style={{ color: "#94a3b8", fontSize: 11, fontWeight: 800, overflowWrap: "anywhere" }}>Weather Permission: {device.weatherStatus || "unknown"}</div>
+                        <div style={{ color: "#64748b", fontSize: 10, fontWeight: 800, overflowWrap: "anywhere" }}>Device Browser: {device.userAgent || "unknown"}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           </section>
         </div>
       </div>

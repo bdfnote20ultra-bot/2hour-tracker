@@ -2164,9 +2164,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     const video = videoRef.current;
     if (!video) return;
     if (video.paused || video.ended) return;
-    if (video.readyState < 3 && getBufferedAheadSeconds(video) < 0.35) {
-      setVideoLoading(true);
-    }
+    if (video.readyState < 1 && getBufferedAheadSeconds(video) < 0.35) setVideoLoading(true);
   };
 
   useEffect(() => {

@@ -3313,10 +3313,6 @@ function MusicLibrarySidebar({ accentColor }) {
           0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(239,68,68,.62); }
           50% { opacity: .42; transform: scale(.82); box-shadow: 0 0 0 8px rgba(239,68,68,0); }
         }
-        @keyframes flive-coins-ticker {
-          0% { transform: translateX(100%); }
-          100% { transform: translateX(-100%); }
-        }
       `}</style>
 
       <div className="fuits-online-indicator" style={{
@@ -3417,27 +3413,6 @@ function MusicLibrarySidebar({ accentColor }) {
                     : "Forecast unavailable."}
           </div>
         )}
-        <div style={{
-          overflow: "hidden",
-          whiteSpace: "nowrap",
-          color: "#ffffff",
-          fontFamily: "'Trebuchet MS', 'Arial Black', system-ui, sans-serif",
-          fontSize: 11,
-          fontWeight: 1000,
-          letterSpacing: 1,
-          textTransform: "uppercase",
-          textShadow: "0 0 8px rgba(255,255,255,.62)",
-          borderTop: "1px solid rgba(255,255,255,.16)",
-          paddingTop: 5
-        }}>
-          <span style={{
-            display: "inline-block",
-            minWidth: "100%",
-            animation: "flive-coins-ticker 12s linear infinite"
-          }}>
-            FLIVE CASINO / SPORTSBOOK COINS VALUE = 0
-          </span>
-        </div>
       </div>
 
       <div className="fuits-schedule-panel" style={{
@@ -3762,8 +3737,8 @@ function MusicLibrarySidebar({ accentColor }) {
                 <LiveChatBox
                   title="FUITS Live TV Chat"
                   src={fuitsLiveTvChatUrl || `${fuitsLiveTvChannelUrl}/chat-only`}
-                  height={220}
-                  minHeight={220}
+                  height={260}
+                  minHeight={260}
                 />
               </>
             )}
@@ -5520,7 +5495,44 @@ if (view === "gambling") {
 
   return (
     <div style={{ minHeight: "100vh", background: "#000", position: "relative" }}>
+      <style>{`
+        @media (max-width: 1180px) { .flive-main-coins-ticker { display: none !important; } }
+        @keyframes flive-main-coins-ticker-scroll {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+      `}</style>
       {view === "week" && <PokemonSidebar />}
+      {view === "week" && (
+        <div className="flive-main-coins-ticker" style={{
+          position: "fixed",
+          left: "calc(50% - 240px)",
+          right: 390,
+          top: 18,
+          zIndex: 30,
+          height: 42,
+          overflow: "hidden",
+          display: "flex",
+          alignItems: "center",
+          pointerEvents: "none"
+        }}>
+          <div style={{
+            display: "inline-block",
+            whiteSpace: "nowrap",
+            color: "#ffffff",
+            fontFamily: "'Arial Black', Impact, 'Trebuchet MS', system-ui, sans-serif",
+            fontSize: 26,
+            fontWeight: 1000,
+            letterSpacing: 1.4,
+            textTransform: "uppercase",
+            textShadow: "0 0 8px rgba(255,255,255,.95), 0 0 18px rgba(56,189,248,.9), 0 3px 0 rgba(2,6,23,.95)",
+            WebkitTextStroke: "1px rgba(56,189,248,.55)",
+            animation: "flive-main-coins-ticker-scroll 10s linear infinite"
+          }}>
+            FLIVE CASINO / SPORTSBOOK COINS VALUE = 0
+          </div>
+        </div>
+      )}
       {view === "week" && (
         <>
           {[

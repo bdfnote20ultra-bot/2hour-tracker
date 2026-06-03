@@ -4941,6 +4941,8 @@ function AdminPage({ onClose }) {
   const [videoRepairOverwrite, setVideoRepairOverwrite] = useState(false);
   const [videoRepairBusy, setVideoRepairBusy] = useState(false);
   const [videoRepairLog, setVideoRepairLog] = useState([]);
+  const [videoRepairBackups, setVideoRepairBackups] = useState([]);
+  const [videoRepairSelectedBackup, setVideoRepairSelectedBackup] = useState("");
   const [onlineUserInfo, setOnlineUserInfo] = useState({ loading: true, devices: 0, households: 0, householdDetails: [] });
   const fuitsAdminBaseUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
   const sectionStyle = {
@@ -5136,6 +5138,55 @@ function AdminPage({ onClose }) {
     }
   };
 
+  const loadVideoRepairBackups = async () => {
+    setVideoRepairBusy(true);
+    setVideoRepairStatus("Loading old video repair backups...");
+    try {
+      const response = await fetch(`${fuitsAdminBaseUrl}/admin/video-repair-backups`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password })
+      });
+      if (!response.ok) throw new Error(await response.text());
+      const result = await response.json();
+      const backups = Array.isArray(result.backups) ? result.backups : [];
+      setVideoRepairBackups(backups);
+      setVideoRepairSelectedBackup(backups[0]?.path || "");
+      setVideoRepairStatus(backups.length ? `Loaded ${backups.length} old backup${backups.length === 1 ? "" : "s"}.` : "No old backups found.");
+    } catch (err) {
+      setVideoRepairStatus(err?.message || "Could not load old backups.");
+    } finally {
+      setVideoRepairBusy(false);
+    }
+  };
+
+  const restoreVideoRepairBackup = async () => {
+    if (!videoRepairSelectedBackup) {
+      setVideoRepairStatus("Load and choose an old backup first.");
+      return;
+    }
+    if (!window.confirm("Restore this old backup over the current video? The current newer copy will be deleted.")) return;
+
+    setVideoRepairBusy(true);
+    setVideoRepairStatus("Restoring old backup...");
+    try {
+      const response = await fetch(`${fuitsAdminBaseUrl}/admin/video-repair-restore`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password, backupPath: videoRepairSelectedBackup })
+      });
+      if (!response.ok) throw new Error(await response.text());
+      const result = await response.json();
+      setVideoRepairLog([result]);
+      setVideoRepairStatus(result.message || "Old backup restored.");
+      await loadVideoRepairBackups();
+    } catch (err) {
+      setVideoRepairStatus(err?.message || "Restore failed.");
+    } finally {
+      setVideoRepairBusy(false);
+    }
+  };
+
   const unlockAdmin = event => {
     event.preventDefault();
     if (password === "FOOLIO") {
@@ -5231,7 +5282,7 @@ function AdminPage({ onClose }) {
                   style={adminInputStyle}
                 >
                   <option value="keep">Keep fixed copy next to original</option>
-                  <option value="replace">Replace original and move original to backup</option>
+                  <option value="replace">Replace Original With Fixed Copy</option>
                   <option value="delete">Delete fixed copy and keep original</option>
                 </select>
                 <label style={{ ...adminInputStyle, display: "flex", alignItems: "center", gap: 10 }}>
@@ -5260,6 +5311,36 @@ function AdminPage({ onClose }) {
                   style={{ ...adminButtonStyle, borderColor: "#facc15", background: "#facc15", opacity: videoRepairBusy || !videoRepairFlagged.length ? .62 : 1 }}
                 >
                   Audio Fix All Suggested
+                </button>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(220px,1fr) auto auto", gap: 10, alignItems: "center" }}>
+                <select
+                  value={videoRepairSelectedBackup}
+                  onChange={event => setVideoRepairSelectedBackup(event.target.value)}
+                  style={adminInputStyle}
+                >
+                  <option value="">No old backup selected</option>
+                  {videoRepairBackups.map((backup, index) => (
+                    <option key={`${backup.path}-${index}`} value={backup.path}>
+                      {(backup.targetRelativePath || backup.fileName || "Old backup") + " - " + (backup.modifiedAt ? new Date(backup.modifiedAt).toLocaleString() : "unknown date")}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={videoRepairBusy}
+                  onClick={loadVideoRepairBackups}
+                  style={{ ...adminButtonStyle, opacity: videoRepairBusy ? .62 : 1 }}
+                >
+                  Load Old Backups
+                </button>
+                <button
+                  type="button"
+                  disabled={videoRepairBusy || !videoRepairSelectedBackup}
+                  onClick={restoreVideoRepairBackup}
+                  style={{ ...adminButtonStyle, borderColor: "#fb7185", background: "#fb7185", opacity: videoRepairBusy || !videoRepairSelectedBackup ? .62 : 1 }}
+                >
+                  Restore Old Backup
                 </button>
               </div>
               <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 900 }}>{videoRepairStatus}</div>

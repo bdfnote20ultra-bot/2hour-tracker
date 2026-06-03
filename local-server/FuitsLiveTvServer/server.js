@@ -1,4 +1,4 @@
-const fs = require("fs");
+﻿const fs = require("fs");
 const http = require("http");
 const path = require("path");
 const { execSync, spawn } = require("child_process");
@@ -458,6 +458,119 @@ function backupAndReplaceVideo(originalPath, fixedPath) {
   fs.renameSync(originalPath, backupPath);
   fs.renameSync(fixedPath, originalPath);
   return backupPath;
+}
+
+function assertVideoRepairBackupPath(file) {
+  const resolvedRoot = path.resolve(VIDEO_REPAIR_BACKUP_DIR);
+  const resolvedFile = path.resolve(String(file || ""));
+  if (!resolvedFile.startsWith(resolvedRoot + path.sep)) {
+    throw new Error("Backup path is outside the repair backup folder.");
+  }
+  if (!fs.existsSync(resolvedFile)) {
+    throw new Error("Old backup file was not found.");
+  }
+  if (!VIDEO_REPAIR_EXTENSIONS.has(path.extname(resolvedFile).toLowerCase())) {
+    throw new Error("Backup is not a supported video type.");
+  }
+  return resolvedFile;
+}
+
+function getVideoRepairRestoreTarget(backupPath) {
+  const parts = path.relative(VIDEO_REPAIR_BACKUP_DIR, backupPath).split(path.sep).filter(Boolean);
+  if (parts.length < 2) {
+    throw new Error("Backup is missing its original video path.");
+  }
+
+  const targetPath = path.resolve(VIDEOS_DIR, parts.slice(1).join(path.sep));
+  const resolvedRoot = path.resolve(VIDEOS_DIR);
+  if (!targetPath.startsWith(resolvedRoot + path.sep) && targetPath !== resolvedRoot) {
+    throw new Error("Restore target is outside the videos folder.");
+  }
+  return targetPath;
+}
+
+function cleanupEmptyVideoRepairBackupDirs(startDir) {
+  const resolvedRoot = path.resolve(VIDEO_REPAIR_BACKUP_DIR);
+  let currentDir = path.resolve(startDir);
+  while (currentDir.startsWith(resolvedRoot + path.sep) && currentDir !== resolvedRoot) {
+    try {
+      if (fs.readdirSync(currentDir).length) return;
+      fs.rmdirSync(currentDir);
+      currentDir = path.dirname(currentDir);
+    } catch {
+      return;
+    }
+  }
+}
+
+function listVideoRepairBackups() {
+  if (!fs.existsSync(VIDEO_REPAIR_BACKUP_DIR)) {
+    return { ok: true, backups: [] };
+  }
+
+  const backups = walkFiles(VIDEO_REPAIR_BACKUP_DIR)
+    .filter(file => VIDEO_REPAIR_EXTENSIONS.has(path.extname(file).toLowerCase()))
+    .map(file => {
+      const stat = fs.statSync(file);
+      const targetPath = getVideoRepairRestoreTarget(file);
+      return {
+        path: file,
+        relativePath: path.relative(VIDEO_REPAIR_BACKUP_DIR, file),
+        targetPath,
+        targetRelativePath: path.relative(VIDEOS_DIR, targetPath),
+        fileName: path.basename(targetPath),
+        currentExists: fs.existsSync(targetPath),
+        sizeBytes: stat.size,
+        modifiedAt: stat.mtime.toISOString()
+      };
+    })
+    .sort((a, b) => b.modifiedAt.localeCompare(a.modifiedAt))
+    .map((backup, index) => ({ ...backup, id: index }));
+
+  return { ok: true, backups };
+}
+
+function restoreVideoRepairBackup(payload) {
+  const backupPath = assertVideoRepairBackupPath(payload.backupPath || payload.path);
+  const targetPath = getVideoRepairRestoreTarget(backupPath);
+  const timestamp = new Date()
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\..+$/, "")
+    .replace("T", "-");
+  const tempNewPath = `${targetPath}.new-version-delete-${timestamp}`;
+  const hadNewVersion = fs.existsSync(targetPath);
+
+  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+  if (hadNewVersion) {
+    fs.renameSync(targetPath, tempNewPath);
+  }
+
+  try {
+    fs.renameSync(backupPath, targetPath);
+  } catch (error) {
+    if (hadNewVersion && fs.existsSync(tempNewPath) && !fs.existsSync(targetPath)) {
+      fs.renameSync(tempNewPath, targetPath);
+    }
+    throw error;
+  }
+
+  if (hadNewVersion) {
+    fs.rmSync(tempNewPath, { force: true });
+  }
+  cleanupEmptyVideoRepairBackupDirs(path.dirname(backupPath));
+
+  return {
+    ok: true,
+    status: "restored",
+    fileName: path.basename(targetPath),
+    relativePath: path.relative(VIDEOS_DIR, targetPath),
+    restoredPath: targetPath,
+    deletedNewVersion: hadNewVersion,
+    message: hadNewVersion
+      ? "Restored the old backup and deleted the newer copy."
+      : "Restored the old backup."
+  };
 }
 
 function finishVideoRepairCopy(originalPath, fixedPath, finishChoice) {
@@ -2330,7 +2443,7 @@ function ownerPageHtml() {
       font-family: Arial, sans-serif;
     }
     main {
-      width: min(92vw, 420px);
+      width: min(92vw, 760px);
       display: grid;
       gap: 12px;
     }
@@ -2339,7 +2452,7 @@ function ownerPageHtml() {
       font-size: 28px;
       letter-spacing: 0;
     }
-    input, button {
+    input, button, select {
       width: 100%;
       box-sizing: border-box;
       padding: 14px;
@@ -2347,7 +2460,7 @@ function ownerPageHtml() {
       border: 1px solid rgba(248, 250, 252, .22);
       font-size: 16px;
     }
-    input {
+    input, select {
       background: #0f172a;
       color: #f8fafc;
     }
@@ -2362,6 +2475,47 @@ function ownerPageHtml() {
       color: #cbd5e1;
       font-weight: 700;
     }
+    .panel {
+      display: grid;
+      gap: 10px;
+      border: 1px solid rgba(148, 163, 184, .24);
+      border-radius: 8px;
+      padding: 12px;
+      background: rgba(15, 23, 42, .62);
+    }
+    h2 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #cbd5e1;
+      font-weight: 800;
+    }
+    .check input {
+      width: auto;
+    }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      min-height: 42px;
+      color: #cbd5e1;
+      font: 13px/1.45 Consolas, monospace;
+    }
+    @media (max-width: 620px) {
+      .row {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
@@ -2371,10 +2525,60 @@ function ownerPageHtml() {
     <input id="password" type="password" placeholder="Owner password" autocomplete="current-password" />
     <button id="showButton" type="button">Show Site</button>
     <button id="blankButton" type="button">Blank Site</button>
+    <section class="panel" aria-label="Video Repair">
+      <h2>Video Repair</h2>
+      <div class="row">
+        <button id="repairScanButton" type="button">Check Videos</button>
+        <button id="repairRunButton" type="button">Repair Flagged</button>
+      </div>
+      <select id="repairAction" aria-label="Repair action">
+        <option value="syncfix">Fix Audio Timing</option>
+        <option value="remux">Remux Only</option>
+      </select>
+      <select id="repairFinish" aria-label="After repair">
+        <option value="keep">Keep Fixed Copy</option>
+        <option value="replace">Replace Original With Fixed Copy</option>
+        <option value="delete">Delete Fixed Copy After Test</option>
+      </select>
+      <label class="check">
+        <input id="repairOverwrite" type="checkbox" />
+        Overwrite existing fixed copy
+      </label>
+      <div class="row">
+        <button id="repairBackupsButton" type="button">Load Old Backups</button>
+        <button id="repairRestoreButton" type="button">Restore Old Backup</button>
+      </div>
+      <select id="repairBackupSelect" aria-label="Choose old backup">
+        <option value="">No old backups loaded</option>
+      </select>
+      <pre id="repairResults">Run a check or load old backups.</pre>
+    </section>
   </main>
   <script>
     const status = document.getElementById("status");
     const password = document.getElementById("password");
+    const repairResults = document.getElementById("repairResults");
+    const repairAction = document.getElementById("repairAction");
+    const repairFinish = document.getElementById("repairFinish");
+    const repairOverwrite = document.getElementById("repairOverwrite");
+    const repairBackupSelect = document.getElementById("repairBackupSelect");
+
+    function setRepairResults(message) {
+      repairResults.textContent = message;
+    }
+
+    async function postAdminJson(url, payload) {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(Object.assign({ password: password.value }, payload || {}))
+      });
+      if (!res.ok) {
+        throw new Error(await res.text() || "Request failed.");
+      }
+      return res.json();
+    }
+
     async function setBlank(blank) {
       const res = await fetch("/admin/site-blank", {
         method: "POST",
@@ -2388,8 +2592,89 @@ function ownerPageHtml() {
       const state = await res.json();
       status.textContent = state.blank ? "Site is blank." : "Site is visible.";
     }
+
+    async function checkVideoRepairs() {
+      try {
+        setRepairResults("Checking videos...");
+        const result = await postAdminJson("/admin/video-repair-scan");
+        const flagged = result.flagged || [];
+        setRepairResults(
+          "Checked " + result.checked + " videos. Flagged " + result.flaggedCount + ".\\n" +
+          (flagged.length ? flagged.map(item => "- " + item.relativePath + " diff " + item.durationDiffSeconds + "s").join("\\n") : "No timing problems found.")
+        );
+      } catch (error) {
+        setRepairResults(error.message || "Video check failed.");
+      }
+    }
+
+    async function runVideoRepairs() {
+      try {
+        if (!window.confirm("Repair every flagged video from the last check?")) return;
+        setRepairResults("Repairing flagged videos...");
+        const result = await postAdminJson("/admin/video-repair-run", {
+          all: true,
+          action: repairAction.value,
+          finish: repairFinish.value,
+          overwriteExisting: repairOverwrite.checked
+        });
+        setRepairResults(
+          "Repair finished.\\n" +
+          result.results.map(item => "- " + item.fileName + ": " + item.status + (item.message ? " - " + item.message : "")).join("\\n")
+        );
+      } catch (error) {
+        setRepairResults(error.message || "Video repair failed.");
+      }
+    }
+
+    async function loadVideoRepairBackups() {
+      try {
+        setRepairResults("Loading old backups...");
+        const result = await postAdminJson("/admin/video-repair-backups");
+        repairBackupSelect.innerHTML = "";
+        if (!result.backups.length) {
+          const option = document.createElement("option");
+          option.value = "";
+          option.textContent = "No old backups found";
+          repairBackupSelect.appendChild(option);
+          setRepairResults("No old backups found.");
+          return;
+        }
+        result.backups.forEach(backup => {
+          const option = document.createElement("option");
+          option.value = backup.path;
+          option.textContent = backup.targetRelativePath + " - " + new Date(backup.modifiedAt).toLocaleString();
+          repairBackupSelect.appendChild(option);
+        });
+        setRepairResults("Loaded " + result.backups.length + " old backup" + (result.backups.length === 1 ? "." : "s."));
+      } catch (error) {
+        setRepairResults(error.message || "Could not load old backups.");
+      }
+    }
+
+    async function restoreVideoRepairBackup() {
+      try {
+        if (!repairBackupSelect.value) {
+          setRepairResults("Load and choose an old backup first.");
+          return;
+        }
+        if (!window.confirm("Restore the old backup over the current video? The current newer copy will be deleted.")) return;
+        setRepairResults("Restoring old backup...");
+        const result = await postAdminJson("/admin/video-repair-restore", {
+          backupPath: repairBackupSelect.value
+        });
+        setRepairResults(result.message + "\\n" + result.relativePath);
+        await loadVideoRepairBackups();
+      } catch (error) {
+        setRepairResults(error.message || "Restore failed.");
+      }
+    }
+
     document.getElementById("showButton").addEventListener("click", () => setBlank(false));
     document.getElementById("blankButton").addEventListener("click", () => setBlank(true));
+    document.getElementById("repairScanButton").addEventListener("click", checkVideoRepairs);
+    document.getElementById("repairRunButton").addEventListener("click", runVideoRepairs);
+    document.getElementById("repairBackupsButton").addEventListener("click", loadVideoRepairBackups);
+    document.getElementById("repairRestoreButton").addEventListener("click", restoreVideoRepairBackup);
   </script>
 </body>
 </html>`;
@@ -4329,6 +4614,40 @@ const server = http.createServer((req, res) => {
       })
       .catch(error => {
         send(res, 400, error.message || "Video repair failed");
+      });
+    return;
+  }
+
+  if (url.pathname === "/admin/video-repair-backups" && req.method === "POST") {
+    readRequestBody(req)
+      .then(body => {
+        const payload = JSON.parse(body || "{}");
+        if (!isAdminPassword(payload.password)) {
+          send(res, 401, "Unauthorized");
+          return;
+        }
+
+        sendJson(res, 200, listVideoRepairBackups());
+      })
+      .catch(error => {
+        send(res, 400, error.message || "Video repair backups failed");
+      });
+    return;
+  }
+
+  if (url.pathname === "/admin/video-repair-restore" && req.method === "POST") {
+    readRequestBody(req)
+      .then(body => {
+        const payload = JSON.parse(body || "{}");
+        if (!isAdminPassword(payload.password)) {
+          send(res, 401, "Unauthorized");
+          return;
+        }
+
+        sendJson(res, 200, restoreVideoRepairBackup(payload));
+      })
+      .catch(error => {
+        send(res, 400, error.message || "Video repair restore failed");
       });
     return;
   }

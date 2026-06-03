@@ -5498,8 +5498,8 @@ if (view === "gambling") {
       <style>{`
         @media (max-width: 1180px) { .flive-main-coins-ticker { display: none !important; } }
         @keyframes flive-main-coins-ticker-scroll {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(calc(100vw - 700px)); }
+          0% { transform: translateX(calc(100vw - 700px)); }
+          100% { transform: translateX(0); }
         }
       `}</style>
       {view === "week" && <PokemonSidebar />}

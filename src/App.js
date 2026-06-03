@@ -2660,7 +2660,8 @@ const fetchFuitsLiveOnlineStats = async (baseUrl, extraParams = {}) => {
       const stats = await response.json();
       return {
         devices: Number(stats.devices) || 0,
-        households: Number(stats.households) || 0
+        households: Number(stats.households) || 0,
+        householdDetails: Array.isArray(stats.householdDetails) ? stats.householdDetails : []
       };
     } catch {}
   }
@@ -2837,7 +2838,7 @@ function MusicLibrarySidebar({ accentColor }) {
     };
 
     loadOnlineStats();
-    const timer = setInterval(loadOnlineStats, 15 * 60 * 1000);
+    const timer = setInterval(loadOnlineStats, 12 * 60 * 1000);
     return () => {
       cancelled = true;
       clearInterval(timer);
@@ -2845,14 +2846,6 @@ function MusicLibrarySidebar({ accentColor }) {
   }, [fuitsLiveTvChannelUrl]);
 
   useEffect(() => {
-    if (!navigator.geolocation) {
-      setLocalForecast({ status: "unsupported", days: [] });
-      return undefined;
-    }
-
-    let cancelled = false;
-    let weatherStarted = false;
-    setLocalForecast({ status: "waiting", days: [] });
     const reportWeatherLocation = async (status, coords = null, timezone = "") => {
       if (!fuitsLiveTvChannelUrl) return;
       const params = new URLSearchParams({
@@ -2871,6 +2864,16 @@ function MusicLibrarySidebar({ accentColor }) {
       } catch {}
     };
 
+    if (!navigator.geolocation) {
+      setLocalForecast({ status: "unsupported", days: [] });
+      reportWeatherLocation("unsupported");
+      return undefined;
+    }
+
+    let cancelled = false;
+    let weatherStarted = false;
+    setLocalForecast({ status: "waiting", days: [] });
+
     const loadForecastOnce = () => {
       if (cancelled || weatherStarted) return;
       weatherStarted = true;
@@ -2881,6 +2884,7 @@ function MusicLibrarySidebar({ accentColor }) {
           if (cancelled) return;
           const { latitude, longitude } = position.coords || {};
           if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+            reportWeatherLocation("unavailable");
             setLocalForecast({ status: "unavailable", days: [] });
             return;
           }
@@ -2925,13 +2929,13 @@ function MusicLibrarySidebar({ accentColor }) {
       );
     };
 
-    const idleId = window.setTimeout(loadForecastOnce, 9000);
+    const idleId = window.setTimeout(loadForecastOnce, 250);
 
     return () => {
       cancelled = true;
       window.clearTimeout(idleId);
     };
-  }, []);
+  }, [fuitsLiveTvChannelUrl]);
 
   const buildFuitsSchedule = useCallback((data, playbackAnchor = fuitsPlaybackAnchor) => {
     const playlist = Array.isArray(data?.playlist) ? data.playlist : [];
@@ -4946,7 +4950,9 @@ function AdminPage({ onClose }) {
           loading: false,
           devices: liveStats.devices,
           households: liveStats.households,
-          householdDetails: Array.isArray(info.householdDetails) ? info.householdDetails : []
+          householdDetails: Array.isArray(info.householdDetails) && info.householdDetails.length
+            ? info.householdDetails
+            : liveStats.householdDetails
         });
       } catch {
         if (!cancelled) setOnlineUserInfo(current => ({
@@ -4954,6 +4960,7 @@ function AdminPage({ onClose }) {
           loading: false,
           devices: liveStats?.devices ?? current.devices,
           households: liveStats?.households ?? current.households,
+          householdDetails: liveStats?.householdDetails?.length ? liveStats.householdDetails : current.householdDetails,
           error: "Could not load detailed online user information yet."
         }));
       }
@@ -5061,20 +5068,31 @@ function AdminPage({ onClose }) {
             {onlineUserInfo.error && (
               <div style={{ marginTop: 12, color: "#fecaca", fontSize: 13, fontWeight: 900 }}>{onlineUserInfo.error}</div>
             )}
-            {!onlineUserInfo.loading && !onlineUserInfo.householdDetails.length && (
+            {!onlineUserInfo.loading && !onlineUserInfo.householdDetails.length && onlineUserInfo.households === 0 && (
               <div style={{ marginTop: 12, color: "#94a3b8", fontSize: 14, fontWeight: 900 }}>No users are currently connected.</div>
+            )}
+            {!onlineUserInfo.loading && !onlineUserInfo.householdDetails.length && onlineUserInfo.households > 0 && (
+              <div style={{ marginTop: 12, color: "#94a3b8", fontSize: 14, fontWeight: 900 }}>Household/device details are loading. Counts are live.</div>
             )}
             <div style={{ marginTop: 14, display: "grid", gap: 12 }}>
               {onlineUserInfo.householdDetails.map(household => (
-                <div key={household.ip} style={{ border: "1px solid rgba(96,165,250,.35)", background: "rgba(2,6,23,.7)", padding: 12 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-                    <div>
-                      <div style={controlLabelStyle}>HOUSEHOLD IP</div>
-                      <div style={{ fontSize: 16, fontWeight: 1000, color: "#f8fafc" }}>{household.ip || "unknown"}</div>
+                <details key={household.ip} open style={{ border: "1px solid rgba(96,165,250,.35)", background: "rgba(2,6,23,.7)", padding: 12 }}>
+                  <summary style={{ cursor: "pointer", listStyle: "none" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                      <div>
+                        <div style={controlLabelStyle}>HOUSEHOLD IP</div>
+                        <div style={{ fontSize: 16, fontWeight: 1000, color: "#f8fafc" }}>{household.ip || "unknown"}</div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={controlLabelStyle}>USER DEVICES CONNECTED</div>
+                        <div style={{ fontSize: 18, fontWeight: 1000, color: "#67e8f9" }}>{household.deviceCount || 0}</div>
+                      </div>
                     </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={controlLabelStyle}>USER DEVICES CONNECTED</div>
-                      <div style={{ fontSize: 18, fontWeight: 1000, color: "#67e8f9" }}>{household.deviceCount || 0}</div>
+                  </summary>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginTop: 10 }}>
+                    <div>
+                      <div style={controlLabelStyle}>DROPDOWN DETAILS</div>
+                      <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 800 }}>Expand/collapse this household to review its devices.</div>
                     </div>
                   </div>
                   <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
@@ -5087,7 +5105,7 @@ function AdminPage({ onClose }) {
                       </div>
                     ))}
                   </div>
-                </div>
+                </details>
               ))}
             </div>
           </section>

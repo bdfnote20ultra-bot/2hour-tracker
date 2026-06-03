@@ -2592,6 +2592,9 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
         fontSize: 12,
         fontWeight: 900,
         lineHeight: 1.3,
+        whiteSpace: "normal",
+        overflowWrap: "anywhere",
+        wordBreak: "break-word",
         borderTop: "1px solid rgba(148,163,184,.16)"
       }}>
         {currentItem ? `${channel.channel?.label || "FUITS"} now playing: ${currentItem.title}` : status}

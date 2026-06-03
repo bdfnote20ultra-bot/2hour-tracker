@@ -7,7 +7,7 @@ const { URL } = require("url");
 const PORT = Number(process.env.FUITS_TV_PORT || 8099);
 const ROOT = "T:\\FattysLiveTV";
 const CHANNEL_PLAYLIST_DIR = path.join(ROOT, "Playlists", "FuitsLiveTV");
-const DEFAULT_CHANNEL_PLAYLISTS = ["ChannelA.m3u", "ChannelB.m3u", "AdultRelaxTime.m3u"];
+const DEFAULT_CHANNEL_PLAYLISTS = ["ChannelA.m3u", "ChannelB.m3u"];
 const PASSWORD_PATH = path.join(__dirname, "admin-password.txt");
 const SHUFFLE_PASSWORD = "FOOLIO";
 const SITE_BLANK_PATH = path.join(__dirname, "site-blank.json");
@@ -31,6 +31,20 @@ const MUSIC_LIBRARY_DIR = path.join(ROOT, "MusicLibrary");
 const MUSIC_LIBRARY_MUSIC_DIR = path.join(MUSIC_LIBRARY_DIR, "Music");
 const MUSIC_LIBRARY_VIDEOS_DIR = path.join(MUSIC_LIBRARY_DIR, "Videos");
 const MUSIC_LIBRARY_CHANNELS_DIR = path.join(MUSIC_LIBRARY_DIR, "Channels");
+const VIDEOS_DIR = path.join(ROOT, "Videos");
+const DOCS_DIR = path.join(ROOT, "Docs");
+const VIDEO_REPAIR_BACKUP_DIR = path.join(ROOT, "RepairBackups", "VideoAudioSync");
+const VIDEO_REPAIR_EXTENSIONS = new Set([".mp4", ".m4v", ".mov", ".mkv", ".avi"]);
+const VIDEO_REPAIR_DURATION_THRESHOLD_SECONDS = 1.5;
+const VIDEO_REPAIR_START_THRESHOLD_SECONDS = 0.35;
+const FFPROBE_CANDIDATES = [
+  "C:\\Program Files\\Jellyfin\\Server\\ffprobe.exe",
+  "T:\\1MY CODES+PTOGRAMS\\MONEY MAKING\\SOCIAL MEDIA\\yt-dlp\\ffmpeg\\bin\\ffprobe.exe"
+];
+const FFMPEG_CANDIDATES = [
+  "C:\\Program Files\\Jellyfin\\Server\\ffmpeg.exe",
+  "T:\\1MY CODES+PTOGRAMS\\MONEY MAKING\\SOCIAL MEDIA\\yt-dlp\\ffmpeg\\bin\\ffmpeg.exe"
+];
 const RADIO_ROOT = path.join(ROOT, "Radio");
 const RADIO_MUSIC_DIR = path.join(RADIO_ROOT, "Music");
 const RADIO_PLAYLIST_DIR = path.join(RADIO_ROOT, "Playlists");
@@ -39,6 +53,7 @@ const ONLINE_STATS_TTL_MS = 15 * 60 * 1000;
 let owncastBaseUrlCache = null;
 let owncastBaseUrlCacheExpiresAt = 0;
 const onlineDevices = new Map();
+let latestVideoRepairScan = null;
 const GAME_SYSTEMS = {
   GB: { folder: "GB", core: "gb", extensions: [".gb"] },
   GBC: { folder: "GBC", core: "gb", extensions: [".gbc"] },
@@ -228,6 +243,10 @@ function getAdminPassword() {
   return fs.readFileSync(PASSWORD_PATH, "utf8").trim();
 }
 
+function isAdminPassword(password) {
+  return password === getAdminPassword() || password === SHUFFLE_PASSWORD;
+}
+
 function readSiteBlankState() {
   if (!fs.existsSync(SITE_BLANK_PATH)) return { blank: false };
 
@@ -358,6 +377,373 @@ function walkFiles(folder) {
     if (entry.isFile()) return [fullPath];
     return [];
   });
+}
+
+function resolveVideoRepairTool(candidates, fallbackName) {
+  const candidate = candidates.find(file => fs.existsSync(file));
+  return candidate || fallbackName;
+}
+
+function runProcess(command, args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", chunk => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on("data", chunk => {
+      stderr += chunk.toString();
+      if (stderr.length > 24000) stderr = stderr.slice(-24000);
+    });
+    child.on("error", reject);
+    child.on("close", code => resolve({ code, stdout, stderr }));
+  });
+}
+
+function toNumberOrNull(value) {
+  if (value === null || value === undefined || value === "N/A") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function firstNumber(values) {
+  for (const value of values) {
+    const number = toNumberOrNull(value);
+    if (number !== null) return number;
+  }
+  return null;
+}
+
+function roundRepairNumber(value) {
+  return value === null || value === undefined ? "" : Math.round(value * 1000) / 1000;
+}
+
+function assertVideoRepairPath(file) {
+  const resolvedRoot = path.resolve(VIDEOS_DIR);
+  const resolvedFile = path.resolve(String(file || ""));
+  if (!resolvedFile.startsWith(resolvedRoot + path.sep) && resolvedFile !== resolvedRoot) {
+    throw new Error("Video path is outside the videos folder.");
+  }
+  if (!fs.existsSync(resolvedFile)) {
+    throw new Error("Video file was not found.");
+  }
+  if (!VIDEO_REPAIR_EXTENSIONS.has(path.extname(resolvedFile).toLowerCase())) {
+    throw new Error("File is not a supported video type.");
+  }
+  return resolvedFile;
+}
+
+function getVideoRepairFixedPath(file, mode) {
+  const folder = path.dirname(file);
+  const name = path.basename(file, path.extname(file));
+  const originalExtension = path.extname(file).toLowerCase();
+  const extension = [".mp4", ".m4v"].includes(originalExtension) ? originalExtension : ".mp4";
+  return path.join(folder, `${name}.${mode}${extension}`);
+}
+
+function backupAndReplaceVideo(originalPath, fixedPath) {
+  const timestamp = new Date()
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\..+$/, "")
+    .replace("T", "-");
+  const relative = path.relative(VIDEOS_DIR, originalPath);
+  const backupPath = path.join(VIDEO_REPAIR_BACKUP_DIR, timestamp, relative);
+  fs.mkdirSync(path.dirname(backupPath), { recursive: true });
+  fs.renameSync(originalPath, backupPath);
+  fs.renameSync(fixedPath, originalPath);
+  return backupPath;
+}
+
+function finishVideoRepairCopy(originalPath, fixedPath, finishChoice) {
+  if (finishChoice === "replace") {
+    const backupPath = backupAndReplaceVideo(originalPath, fixedPath);
+    return { finish: "replaced", backupPath };
+  }
+
+  if (finishChoice === "delete") {
+    fs.rmSync(fixedPath, { force: true });
+    return { finish: "deleted" };
+  }
+
+  return { finish: "kept", outputPath: fixedPath };
+}
+
+async function getVideoRepairTiming(file) {
+  const ffprobePath = resolveVideoRepairTool(FFPROBE_CANDIDATES, "ffprobe.exe");
+  const result = await runProcess(ffprobePath, [
+    "-v", "error",
+    "-show_entries", "format=duration:stream=index,codec_type,codec_name,start_time,duration",
+    "-of", "json",
+    file
+  ]);
+  if (result.code !== 0 || !result.stdout.trim()) return null;
+
+  let info;
+  try {
+    info = JSON.parse(result.stdout);
+  } catch {
+    return null;
+  }
+
+  const streams = Array.isArray(info.streams) ? info.streams : [];
+  const video = streams.find(stream => stream.codec_type === "video");
+  const audio = streams.find(stream => stream.codec_type === "audio");
+  if (!video) return null;
+
+  const formatDuration = firstNumber([info.format && info.format.duration]);
+  const videoSeconds = firstNumber([video.duration, formatDuration]);
+  const audioSeconds = audio ? firstNumber([audio.duration, formatDuration]) : null;
+  const videoStartSeconds = firstNumber([video.start_time, 0]);
+  const audioStartSeconds = audio ? firstNumber([audio.start_time, 0]) : null;
+  if (videoSeconds === null) return null;
+
+  return {
+    path: file,
+    relativePath: path.relative(VIDEOS_DIR, file),
+    fileName: path.basename(file),
+    extension: path.extname(file),
+    videoCodec: video.codec_name || "",
+    audioCodec: audio ? audio.codec_name || "" : "",
+    hasAudio: Boolean(audio),
+    videoSeconds,
+    audioSeconds,
+    durationDiffSeconds: audioSeconds !== null ? videoSeconds - audioSeconds : null,
+    videoStartSeconds,
+    audioStartSeconds,
+    startDiffSeconds: audioStartSeconds !== null ? videoStartSeconds - audioStartSeconds : null
+  };
+}
+
+function makeVideoRepairReportRow(file, status, timing = null) {
+  return {
+    File: file,
+    Status: status,
+    VideoSeconds: timing ? roundRepairNumber(timing.videoSeconds) : "",
+    AudioSeconds: timing ? roundRepairNumber(timing.audioSeconds) : "",
+    DurationDiffSeconds: timing ? roundRepairNumber(timing.durationDiffSeconds) : "",
+    StartDiffSeconds: timing ? roundRepairNumber(timing.startDiffSeconds) : ""
+  };
+}
+
+function csvEscape(value) {
+  const text = String(value === null || value === undefined ? "" : value);
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function writeVideoRepairReport(rows) {
+  fs.mkdirSync(DOCS_DIR, { recursive: true });
+  const timestamp = new Date()
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\..+$/, "")
+    .replace("T", "-");
+  const reportPath = path.join(DOCS_DIR, `video-audio-sync-report-${timestamp}.csv`);
+  const headers = ["File", "Status", "VideoSeconds", "AudioSeconds", "DurationDiffSeconds", "StartDiffSeconds"];
+  const lines = [
+    headers.map(csvEscape).join(","),
+    ...rows.map(row => headers.map(header => csvEscape(row[header])).join(","))
+  ];
+  fs.writeFileSync(reportPath, lines.join("\r\n"), "utf8");
+  return reportPath;
+}
+
+function summarizeVideoRepairTiming(timing, index) {
+  return {
+    id: index,
+    path: timing.path,
+    relativePath: timing.relativePath,
+    fileName: timing.fileName,
+    videoSeconds: roundRepairNumber(timing.videoSeconds),
+    audioSeconds: roundRepairNumber(timing.audioSeconds),
+    durationDiffSeconds: roundRepairNumber(timing.durationDiffSeconds),
+    videoStartSeconds: roundRepairNumber(timing.videoStartSeconds),
+    audioStartSeconds: roundRepairNumber(timing.audioStartSeconds),
+    startDiffSeconds: roundRepairNumber(timing.startDiffSeconds),
+    videoCodec: timing.videoCodec,
+    audioCodec: timing.audioCodec
+  };
+}
+
+async function scanVideoRepairs() {
+  if (!fs.existsSync(VIDEOS_DIR)) {
+    throw new Error(`Videos folder not found: ${VIDEOS_DIR}`);
+  }
+
+  const files = walkFiles(VIDEOS_DIR)
+    .filter(file => VIDEO_REPAIR_EXTENSIONS.has(path.extname(file).toLowerCase()))
+    .sort((a, b) => a.localeCompare(b));
+  const rows = [];
+  const flagged = [];
+
+  for (const file of files) {
+    const timing = await getVideoRepairTiming(file);
+    if (!timing) {
+      rows.push(makeVideoRepairReportRow(file, "Could not read timing"));
+      continue;
+    }
+
+    const durationBad =
+      timing.hasAudio &&
+      timing.durationDiffSeconds !== null &&
+      Math.abs(timing.durationDiffSeconds) > VIDEO_REPAIR_DURATION_THRESHOLD_SECONDS;
+    const startBad =
+      timing.hasAudio &&
+      timing.startDiffSeconds !== null &&
+      Math.abs(timing.startDiffSeconds) > VIDEO_REPAIR_START_THRESHOLD_SECONDS;
+    const status = !timing.hasAudio ? "No audio track" : durationBad || startBad ? "Flagged" : "OK";
+    rows.push(makeVideoRepairReportRow(file, status, timing));
+    if (status === "Flagged") flagged.push(timing);
+  }
+
+  const reportPath = writeVideoRepairReport(rows);
+  latestVideoRepairScan = {
+    createdAt: new Date().toISOString(),
+    checked: files.length,
+    reportPath,
+    flagged
+  };
+
+  return {
+    ok: true,
+    checked: files.length,
+    flaggedCount: flagged.length,
+    reportPath,
+    flagged: flagged.map(summarizeVideoRepairTiming)
+  };
+}
+
+function normalizeVideoRepairAction(value) {
+  if (value === "remux") return "remux";
+  if (value === "syncfix" || value === "audio-fix") return "syncfix";
+  throw new Error("Choose remux or audio timing fix.");
+}
+
+function normalizeVideoRepairFinish(value) {
+  if (value === "keep" || value === "replace" || value === "delete") return value;
+  throw new Error("Choose keep, replace, or delete.");
+}
+
+async function repairOneVideo(file, action, finish, overwriteExisting) {
+  const inputPath = assertVideoRepairPath(file);
+  const timing = await getVideoRepairTiming(inputPath);
+  if (!timing) throw new Error("Could not read timing for this video.");
+
+  const mode = action === "remux" ? "remux" : "syncfix";
+  const outputPath = getVideoRepairFixedPath(inputPath, mode);
+  if (fs.existsSync(outputPath)) {
+    if (!overwriteExisting) {
+      return {
+        ok: true,
+        status: "skipped",
+        fileName: path.basename(inputPath),
+        message: "A fixed copy already exists."
+      };
+    }
+    fs.rmSync(outputPath, { force: true });
+  }
+
+  const ffmpegPath = resolveVideoRepairTool(FFMPEG_CANDIDATES, "ffmpeg.exe");
+  const args = action === "remux"
+    ? [
+      "-y", "-hide_banner",
+      "-i", inputPath,
+      "-map", "0",
+      "-c", "copy",
+      "-avoid_negative_ts", "make_zero",
+      "-movflags", "+faststart",
+      outputPath
+    ]
+    : [
+      "-y", "-hide_banner",
+      "-fflags", "+genpts",
+      "-i", inputPath,
+      "-map", "0:v:0",
+      "-map", "0:a:0?",
+      "-map", "0:s?",
+      "-c:v", "copy",
+      "-c:a", "aac",
+      "-profile:a", "aac_low",
+      "-b:a", "160k",
+      "-ac", "2",
+      "-ar", "48000",
+      "-af", "aresample=async=1:first_pts=0,apad",
+      "-t", Number(timing.videoSeconds).toFixed(3),
+      "-avoid_negative_ts", "make_zero",
+      "-movflags", "+faststart",
+      "-max_muxing_queue_size", "9999",
+      outputPath
+    ];
+
+  const result = await runProcess(ffmpegPath, args);
+  if (result.code !== 0 || !fs.existsSync(outputPath)) {
+    fs.rmSync(outputPath, { force: true });
+    return {
+      ok: false,
+      status: "failed",
+      fileName: path.basename(inputPath),
+      message: result.stderr.trim().slice(-1200) || "Repair failed."
+    };
+  }
+
+  const newTiming = await getVideoRepairTiming(outputPath);
+  const finishResult = finishVideoRepairCopy(inputPath, outputPath, finish);
+  return {
+    ok: true,
+    status: finishResult.finish,
+    fileName: path.basename(inputPath),
+    relativePath: path.relative(VIDEOS_DIR, inputPath),
+    outputPath: finishResult.outputPath || "",
+    backupPath: finishResult.backupPath || "",
+    newTiming: newTiming ? summarizeVideoRepairTiming(newTiming, 0) : null
+  };
+}
+
+async function runVideoRepairs(payload) {
+  const action = normalizeVideoRepairAction(payload.action);
+  const finish = normalizeVideoRepairFinish(payload.finish);
+  const overwriteExisting = Boolean(payload.overwriteExisting);
+  const requestedFiles = payload.all
+    ? (latestVideoRepairScan && latestVideoRepairScan.flagged ? latestVideoRepairScan.flagged.map(timing => timing.path) : [])
+    : Array.isArray(payload.paths)
+      ? payload.paths
+      : payload.path
+        ? [payload.path]
+        : [];
+
+  if (!requestedFiles.length) {
+    throw new Error("Run the check first or choose at least one video.");
+  }
+
+  const results = [];
+  for (const file of requestedFiles) {
+    try {
+      results.push(await repairOneVideo(file, action, finish, overwriteExisting));
+    } catch (error) {
+      results.push({
+        ok: false,
+        status: "failed",
+        fileName: path.basename(String(file || "")),
+        message: error.message || "Repair failed."
+      });
+    }
+  }
+
+  return {
+    ok: results.every(result => result.ok),
+    action,
+    finish,
+    results,
+    counts: results.reduce((counts, result) => {
+      counts[result.status] = (counts[result.status] || 0) + 1;
+      return counts;
+    }, {})
+  };
 }
 
 function makeMediaItem(file, baseDir, type) {
@@ -1937,14 +2323,14 @@ function ownerPageHtml() {
     body {
       margin: 0;
       min-height: 100vh;
-      display: grid;
-      place-items: center;
       background: #020617;
       color: #f8fafc;
       font-family: Arial, sans-serif;
+      padding: 24px;
     }
     main {
-      width: min(92vw, 420px);
+      width: min(100%, 820px);
+      margin: 0 auto;
       display: grid;
       gap: 12px;
     }
@@ -1952,6 +2338,19 @@ function ownerPageHtml() {
       margin: 0;
       font-size: 28px;
       letter-spacing: 0;
+    }
+    h2 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+    .panel {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid rgba(248, 250, 252, .18);
+      border-radius: 8px;
+      background: rgba(15, 23, 42, .86);
     }
     input, button {
       width: 100%;
@@ -1971,24 +2370,148 @@ function ownerPageHtml() {
       font-weight: 900;
       cursor: pointer;
     }
+    button.secondary {
+      background: #1d4ed8;
+      color: #f8fafc;
+    }
+    button.warning {
+      background: #facc15;
+      color: #020617;
+    }
+    button.danger {
+      background: #fb7185;
+      color: #020617;
+    }
+    button:disabled {
+      opacity: .55;
+      cursor: wait;
+    }
+    select, label.toggle {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(248, 250, 252, .22);
+      background: #0f172a;
+      color: #f8fafc;
+      font-size: 15px;
+      font-weight: 800;
+    }
+    label.toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    label.toggle input {
+      width: auto;
+      padding: 0;
+    }
     .status {
       min-height: 22px;
       color: #cbd5e1;
       font-weight: 700;
+    }
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .repair-options {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 8px;
+      align-items: stretch;
+    }
+    .results {
+      display: grid;
+      gap: 8px;
+      max-height: 58vh;
+      overflow: auto;
+    }
+    .result-item {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid rgba(148, 163, 184, .24);
+      border-radius: 8px;
+      background: rgba(2, 6, 23, .42);
+    }
+    .result-title {
+      font-weight: 1000;
+      overflow-wrap: anywhere;
+    }
+    .result-meta {
+      color: #cbd5e1;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .log {
+      display: grid;
+      gap: 6px;
+      color: #cbd5e1;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    @media (max-width: 620px) {
+      body {
+        padding: 14px;
+      }
+      .actions,
+      .repair-options {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
   <main>
     <h1>FUITS Owner</h1>
-    <div id="status" class="status">Site is ${state.blank ? "blank" : "visible"}.</div>
-    <input id="password" type="password" placeholder="Owner password" autocomplete="current-password" />
-    <button id="showButton" type="button">Show Site</button>
-    <button id="blankButton" type="button">Blank Site</button>
+    <section class="panel">
+      <div id="status" class="status">Site is ${state.blank ? "blank" : "visible"}.</div>
+      <input id="password" type="password" placeholder="Owner/admin password" autocomplete="current-password" />
+      <div class="actions">
+        <button id="showButton" type="button">Show Site</button>
+        <button id="blankButton" class="danger" type="button">Blank Site</button>
+      </div>
+    </section>
+    <section class="panel">
+      <h2>Video Repair</h2>
+      <div id="repairStatus" class="status">Ready to check T:\\FattysLiveTV\\Videos.</div>
+      <button id="repairScanButton" class="secondary" type="button">Run Check</button>
+      <div class="repair-options">
+        <select id="repairFinish" aria-label="Repair finish choice">
+          <option value="keep">Keep fixed copy</option>
+          <option value="replace">Replace original and backup</option>
+          <option value="delete">Delete fixed copy after test</option>
+        </select>
+        <label class="toggle">
+          <input id="repairOverwrite" type="checkbox" />
+          Overwrite existing fixed copies
+        </label>
+      </div>
+      <div class="actions">
+        <button id="repairRemuxAllButton" type="button" disabled>Remux All</button>
+        <button id="repairSyncAllButton" class="warning" type="button" disabled>Audio Fix All</button>
+      </div>
+      <div id="repairSummary" class="status"></div>
+      <div id="repairResults" class="results"></div>
+      <div id="repairLog" class="log"></div>
+    </section>
   </main>
   <script>
     const status = document.getElementById("status");
     const password = document.getElementById("password");
+    const repairStatus = document.getElementById("repairStatus");
+    const repairScanButton = document.getElementById("repairScanButton");
+    const repairFinish = document.getElementById("repairFinish");
+    const repairOverwrite = document.getElementById("repairOverwrite");
+    const repairRemuxAllButton = document.getElementById("repairRemuxAllButton");
+    const repairSyncAllButton = document.getElementById("repairSyncAllButton");
+    const repairSummary = document.getElementById("repairSummary");
+    const repairResults = document.getElementById("repairResults");
+    const repairLog = document.getElementById("repairLog");
+    let flaggedVideos = [];
+
     async function setBlank(blank) {
       const res = await fetch("/admin/site-blank", {
         method: "POST",
@@ -2002,8 +2525,164 @@ function ownerPageHtml() {
       const state = await res.json();
       status.textContent = state.blank ? "Site is blank." : "Site is visible.";
     }
+
+    async function postAdminJson(endpoint, payload) {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(Object.assign({ password: password.value }, payload || {}))
+      });
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+      return res.json();
+    }
+
+    function timingLine(video) {
+      return "Video " + video.videoSeconds + "s, audio " + video.audioSeconds + "s, diff " + video.durationDiffSeconds + "s, start diff " + video.startDiffSeconds + "s";
+    }
+
+    function renderRepairResults() {
+      repairResults.innerHTML = "";
+      repairRemuxAllButton.disabled = flaggedVideos.length === 0;
+      repairSyncAllButton.disabled = flaggedVideos.length === 0;
+
+      if (!flaggedVideos.length) {
+        repairSummary.textContent = "No suggested repairs found.";
+        return;
+      }
+
+      flaggedVideos.forEach((video, index) => {
+        const item = document.createElement("div");
+        item.className = "result-item";
+
+        const title = document.createElement("div");
+        title.className = "result-title";
+        title.textContent = video.relativePath || video.fileName;
+        item.appendChild(title);
+
+        const meta = document.createElement("div");
+        meta.className = "result-meta";
+        meta.textContent = timingLine(video) + ". Audio: " + (video.audioCodec || "unknown") + ".";
+        item.appendChild(meta);
+
+        const actions = document.createElement("div");
+        actions.className = "actions";
+
+        const remuxButton = document.createElement("button");
+        remuxButton.type = "button";
+        remuxButton.textContent = "Remux";
+        remuxButton.dataset.repairAction = "remux";
+        remuxButton.dataset.index = String(index);
+        actions.appendChild(remuxButton);
+
+        const syncButton = document.createElement("button");
+        syncButton.type = "button";
+        syncButton.className = "warning";
+        syncButton.textContent = "Audio Fix";
+        syncButton.dataset.repairAction = "syncfix";
+        syncButton.dataset.index = String(index);
+        actions.appendChild(syncButton);
+
+        item.appendChild(actions);
+        repairResults.appendChild(item);
+      });
+    }
+
+    function renderRepairLog(data) {
+      repairLog.innerHTML = "";
+      (data.results || []).forEach(result => {
+        const row = document.createElement("div");
+        const extra = result.backupPath
+          ? " Backup: " + result.backupPath
+          : result.outputPath
+            ? " Copy: " + result.outputPath
+            : result.message
+              ? " " + result.message
+              : "";
+        row.textContent = result.fileName + ": " + result.status + "." + extra;
+        repairLog.appendChild(row);
+      });
+    }
+
+    async function runRepairScan() {
+      if (!password.value) {
+        repairStatus.textContent = "Enter admin password first.";
+        return;
+      }
+      if (!window.confirm("Run video repair check on T:\\\\FattysLiveTV\\\\Videos?")) return;
+
+      repairScanButton.disabled = true;
+      repairStatus.textContent = "Checking videos...";
+      repairSummary.textContent = "";
+      repairLog.innerHTML = "";
+      repairResults.innerHTML = "";
+      flaggedVideos = [];
+      renderRepairResults();
+
+      try {
+        const data = await postAdminJson("/admin/video-repair-scan");
+        flaggedVideos = data.flagged || [];
+        repairStatus.textContent = "Checked " + data.checked + " videos. Flagged " + data.flaggedCount + ".";
+        repairSummary.textContent = data.reportPath ? "Report: " + data.reportPath : "";
+        renderRepairResults();
+      } catch (error) {
+        repairStatus.textContent = error.message || "Video check failed.";
+      } finally {
+        repairScanButton.disabled = false;
+      }
+    }
+
+    async function runRepair(action, index) {
+      if (!password.value) {
+        repairStatus.textContent = "Enter admin password first.";
+        return;
+      }
+
+      const all = index === "all";
+      const actionLabel = action === "remux" ? "remux" : "audio timing fix";
+      const targetLabel = all ? "ALL flagged videos" : flaggedVideos[Number(index)] && flaggedVideos[Number(index)].fileName;
+      if (!targetLabel) return;
+      if (!window.confirm("Run " + actionLabel + " on " + targetLabel + "?")) return;
+
+      repairStatus.textContent = "Running " + actionLabel + "...";
+      repairLog.innerHTML = "";
+      repairRemuxAllButton.disabled = true;
+      repairSyncAllButton.disabled = true;
+
+      const payload = {
+        action,
+        finish: repairFinish.value,
+        overwriteExisting: repairOverwrite.checked
+      };
+      if (all) {
+        payload.all = true;
+      } else {
+        payload.paths = [flaggedVideos[Number(index)].path];
+      }
+
+      try {
+        const data = await postAdminJson("/admin/video-repair-run", payload);
+        renderRepairLog(data);
+        repairStatus.textContent = "Repair complete.";
+      } catch (error) {
+        repairStatus.textContent = error.message || "Repair failed.";
+      } finally {
+        repairRemuxAllButton.disabled = flaggedVideos.length === 0;
+        repairSyncAllButton.disabled = flaggedVideos.length === 0;
+      }
+    }
+
     document.getElementById("showButton").addEventListener("click", () => setBlank(false));
     document.getElementById("blankButton").addEventListener("click", () => setBlank(true));
+    repairScanButton.addEventListener("click", runRepairScan);
+    repairRemuxAllButton.addEventListener("click", () => runRepair("remux", "all"));
+    repairSyncAllButton.addEventListener("click", () => runRepair("syncfix", "all"));
+    repairResults.addEventListener("click", event => {
+      const button = event.target.closest("button[data-repair-action]");
+      if (!button) return;
+      runRepair(button.dataset.repairAction, button.dataset.index);
+    });
   </script>
 </body>
 </html>`;
@@ -2565,8 +3244,6 @@ function pageHtml() {
     let currentItemId = null;
     let currentItemSrc = null;
     let syncMainPlayerToLive = () => {};
-    let transitionBufferPending = false;
-    let playbackAnchor = null;
     let ownerPassword = "";
     let liveAnnouncementOnline = false;
     let liveHls = null;
@@ -2636,12 +3313,7 @@ function pageHtml() {
     }
 
     function playMainPlayerWhenBuffered() {
-      const bufferSeconds = transitionBufferPending ? 4 : getStartupBufferSeconds();
-      const enoughBuffered = bufferSeconds <= 0 || getBufferedAheadSeconds(player) >= bufferSeconds;
-      const nearEnd = Number.isFinite(player.duration) && player.duration - player.currentTime < bufferSeconds;
-      if (player.readyState >= 1 && (enoughBuffered || nearEnd)) {
-        playMainPlayerWithBrowserFallback();
-      }
+      playMainPlayerWithBrowserFallback();
     }
 
     function renderChat(messages) {
@@ -2745,7 +3417,6 @@ function pageHtml() {
       const isNewItem = item.id !== currentItemId || item.src !== currentItemSrc;
       if (isNewItem) {
         rememberSoundUnlocked();
-        transitionBufferPending = transitionBufferPending || Boolean(currentItemId || currentItemSrc);
         currentItemId = item.id;
         currentItemSrc = item.src;
         player.autoplay = true;
@@ -2753,24 +3424,18 @@ function pageHtml() {
         player.src = item.src + (item.src.includes("?") ? "&" : "?") + "stream=" + streamKey;
         player.preload = "auto";
         player.load();
-        if (transitionBufferPending) {
-          try { player.currentTime = 0; } catch {}
-        }
         applySoundPreference();
+        playMainPlayerWithBrowserFallback();
       }
 
       const offset = Math.max(0, Math.min(channel.offsetSeconds || 0, Math.max(0, item.duration - 1)));
       const getLiveOffset = () => {
-        if (playbackAnchor && playbackAnchor.channelId === activeChannelId && playbackAnchor.itemId === item.id) {
-          return Math.max(0, (Date.now() - playbackAnchor.startedAtMs) / 1000);
-        }
         const generatedAtMs = Number(channel.generatedAtMs);
         const elapsedSinceSnapshot = Number.isFinite(generatedAtMs) ? Math.max(0, (Date.now() - generatedAtMs) / 1000) : 0;
         return Math.max(0, offset + elapsedSinceSnapshot);
       };
       const syncTime = () => {
         if (!Number.isFinite(player.duration)) return;
-        if (transitionBufferPending) return;
         const rawLiveOffset = getLiveOffset();
         if (rawLiveOffset >= item.duration - 0.5) {
           syncChannel();
@@ -2788,19 +3453,11 @@ function pageHtml() {
       syncMainPlayerToLive = syncTime;
 
       if (isNewItem && player.readyState >= 1) {
-        if (transitionBufferPending) {
-          try { player.currentTime = 0; } catch {}
-        } else {
-          syncTime();
-        }
+        syncTime();
         if (shouldPlay) playMainPlayerWhenBuffered();
       } else if (isNewItem) {
         player.addEventListener("loadedmetadata", () => {
-          if (transitionBufferPending) {
-            try { player.currentTime = 0; } catch {}
-          } else {
-            syncTime();
-          }
+          syncTime();
           if (shouldPlay) playMainPlayerWhenBuffered();
         }, { once: true });
       } else {
@@ -3050,7 +3707,6 @@ function pageHtml() {
 
     async function handleMainPlayerEnded() {
       let attempts = 0;
-      transitionBufferPending = true;
       async function pollForNextItem() {
         attempts += 1;
         currentItemId = null;
@@ -3065,17 +3721,7 @@ function pageHtml() {
 
     player.addEventListener("ended", handleMainPlayerEnded);
     player.addEventListener("progress", playMainPlayerWhenBuffered);
-    player.addEventListener("canplay", playMainPlayerWhenBuffered);
-    player.addEventListener("playing", () => {
-      if (currentItemId) {
-        playbackAnchor = {
-          channelId: activeChannelId,
-          itemId: currentItemId,
-          startedAtMs: Date.now() - Math.max(0, Number(player.currentTime) || 0) * 1000
-        };
-      }
-      transitionBufferPending = false;
-    });
+    player.addEventListener("canplay", playMainPlayerWithBrowserFallback);
     player.addEventListener("play", rememberSoundUnlocked);
     player.addEventListener("volumechange", rememberSoundUnlocked);
     unmuteButton.addEventListener("click", unmutePlayer);
@@ -3943,6 +4589,40 @@ const server = http.createServer((req, res) => {
       })
       .catch(() => {
         send(res, 400, "Bad request");
+      });
+    return;
+  }
+
+  if (url.pathname === "/admin/video-repair-scan" && req.method === "POST") {
+    readRequestBody(req)
+      .then(async body => {
+        const payload = JSON.parse(body || "{}");
+        if (!isAdminPassword(payload.password)) {
+          send(res, 401, "Unauthorized");
+          return;
+        }
+
+        sendJson(res, 200, await scanVideoRepairs());
+      })
+      .catch(error => {
+        send(res, 400, error.message || "Video repair check failed");
+      });
+    return;
+  }
+
+  if (url.pathname === "/admin/video-repair-run" && req.method === "POST") {
+    readRequestBody(req)
+      .then(async body => {
+        const payload = JSON.parse(body || "{}");
+        if (!isAdminPassword(payload.password)) {
+          send(res, 401, "Unauthorized");
+          return;
+        }
+
+        sendJson(res, 200, await runVideoRepairs(payload));
+      })
+      .catch(error => {
+        send(res, 400, error.message || "Video repair failed");
       });
     return;
   }

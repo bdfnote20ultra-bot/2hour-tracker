@@ -1063,7 +1063,7 @@ function serveMediaFile(req, res, file, contentType) {
   const stat = fs.statSync(file);
   const range = req.headers.range;
   const isVideo = contentType.startsWith("video/");
-  const maxVideoChunkSize = 4 * 1024 * 1024;
+  const maxVideoChunkSize = 8 * 1024 * 1024;
 
   if (!range) {
     if (isVideo && req.method !== "HEAD") {

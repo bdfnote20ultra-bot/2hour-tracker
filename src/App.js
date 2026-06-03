@@ -4934,6 +4934,13 @@ function AdminPage({ onClose }) {
   const [error, setError] = useState("");
   const [videoChunkMb, setVideoChunkMb] = useState(4);
   const [videoChunkStatus, setVideoChunkStatus] = useState("Loading video stream controls...");
+  const [videoRepairStatus, setVideoRepairStatus] = useState("Ready to check the FUITS videos folder.");
+  const [videoRepairFlagged, setVideoRepairFlagged] = useState([]);
+  const [videoRepairReport, setVideoRepairReport] = useState("");
+  const [videoRepairFinish, setVideoRepairFinish] = useState("keep");
+  const [videoRepairOverwrite, setVideoRepairOverwrite] = useState(false);
+  const [videoRepairBusy, setVideoRepairBusy] = useState(false);
+  const [videoRepairLog, setVideoRepairLog] = useState([]);
   const [onlineUserInfo, setOnlineUserInfo] = useState({ loading: true, devices: 0, households: 0, householdDetails: [] });
   const fuitsAdminBaseUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
   const sectionStyle = {
@@ -4956,6 +4963,25 @@ function AdminPage({ onClose }) {
     fontWeight: 900,
     textTransform: "uppercase",
     letterSpacing: 0
+  };
+  const adminButtonStyle = {
+    border: "1px solid #67e8f9",
+    borderRadius: 8,
+    background: "#67e8f9",
+    color: "#020617",
+    cursor: "pointer",
+    fontSize: 14,
+    fontWeight: 1000,
+    padding: "11px 14px"
+  };
+  const adminInputStyle = {
+    border: "1px solid rgba(148,163,184,.35)",
+    borderRadius: 8,
+    background: "rgba(2,6,23,.72)",
+    color: "#f8fafc",
+    fontSize: 14,
+    fontWeight: 900,
+    padding: "11px 12px"
   };
 
   useEffect(() => {
@@ -5045,6 +5071,71 @@ function AdminPage({ onClose }) {
     }
   };
 
+  const scanVideoRepair = async () => {
+    if (!window.confirm("Run the video repair check on T:\\FattysLiveTV\\Videos?")) return;
+    setVideoRepairBusy(true);
+    setVideoRepairStatus("Checking videos...");
+    setVideoRepairFlagged([]);
+    setVideoRepairReport("");
+    setVideoRepairLog([]);
+    try {
+      const response = await fetch(`${fuitsAdminBaseUrl}/admin/video-repair-scan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password })
+      });
+      if (!response.ok) throw new Error(await response.text());
+      const result = await response.json();
+      setVideoRepairFlagged(Array.isArray(result.flagged) ? result.flagged : []);
+      setVideoRepairReport(result.reportPath || "");
+      setVideoRepairStatus(`Checked ${result.checked || 0} videos. Suggested repairs: ${result.flaggedCount || 0}.`);
+    } catch (err) {
+      setVideoRepairStatus(err?.message || "Video repair check failed.");
+    } finally {
+      setVideoRepairBusy(false);
+    }
+  };
+
+  const runVideoRepair = async (action, target = "all") => {
+    const isAll = target === "all";
+    const selected = isAll ? null : videoRepairFlagged[Number(target)];
+    const actionLabel = action === "remux" ? "remux" : "audio timing fix";
+    const targetLabel = isAll ? "ALL suggested videos" : selected?.fileName;
+    if (!targetLabel) return;
+    if (!window.confirm(`Run ${actionLabel} on ${targetLabel}?`)) return;
+
+    setVideoRepairBusy(true);
+    setVideoRepairStatus(`Running ${actionLabel}...`);
+    setVideoRepairLog([]);
+    try {
+      const payload = {
+        password,
+        action,
+        finish: videoRepairFinish,
+        overwriteExisting: videoRepairOverwrite
+      };
+      if (isAll) {
+        payload.all = true;
+      } else {
+        payload.paths = [selected.path];
+      }
+      const response = await fetch(`${fuitsAdminBaseUrl}/admin/video-repair-run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) throw new Error(await response.text());
+      const result = await response.json();
+      setVideoRepairLog(Array.isArray(result.results) ? result.results : []);
+      const counts = result.counts || {};
+      setVideoRepairStatus(`Repair complete. Kept ${counts.kept || 0}, replaced ${counts.replaced || 0}, deleted ${counts.deleted || 0}, skipped ${counts.skipped || 0}, failed ${counts.failed || 0}.`);
+    } catch (err) {
+      setVideoRepairStatus(err?.message || "Video repair failed.");
+    } finally {
+      setVideoRepairBusy(false);
+    }
+  };
+
   const unlockAdmin = event => {
     event.preventDefault();
     if (password === "FOOLIO") {
@@ -5111,11 +5202,95 @@ function AdminPage({ onClose }) {
               <button
                 type="button"
                 onClick={saveVideoChunkSize}
-                style={{ border: "1px solid #67e8f9", borderRadius: 8, background: "#67e8f9", color: "#020617", cursor: "pointer", fontSize: 14, fontWeight: 1000, padding: "11px 14px", width: "fit-content" }}
+                style={{ ...adminButtonStyle, width: "fit-content" }}
               >
                 Save Video Control
               </button>
               <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 800 }}>{videoChunkStatus}</div>
+            </div>
+          </section>
+          <section style={sectionStyle}>
+            <h2 style={sectionTitleStyle}>VIDEO REPAIR</h2>
+            <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
+              <div>
+                <div style={controlLabelStyle}>VIDEOS FOLDER CHECK</div>
+                <div style={{ color: "#f8fafc", fontSize: 18, fontWeight: 1000 }}>Remuxer + Audio Timing Fix</div>
+              </div>
+              <button
+                type="button"
+                disabled={videoRepairBusy}
+                onClick={scanVideoRepair}
+                style={{ ...adminButtonStyle, width: "fit-content", opacity: videoRepairBusy ? .62 : 1 }}
+              >
+                Run Check On Videos Folder
+              </button>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
+                <select
+                  value={videoRepairFinish}
+                  onChange={event => setVideoRepairFinish(event.target.value)}
+                  style={adminInputStyle}
+                >
+                  <option value="keep">Keep fixed copy next to original</option>
+                  <option value="replace">Replace original and move original to backup</option>
+                  <option value="delete">Delete fixed copy and keep original</option>
+                </select>
+                <label style={{ ...adminInputStyle, display: "flex", alignItems: "center", gap: 10 }}>
+                  <input
+                    type="checkbox"
+                    checked={videoRepairOverwrite}
+                    onChange={event => setVideoRepairOverwrite(event.target.checked)}
+                    style={{ width: 18, height: 18 }}
+                  />
+                  Overwrite existing fixed copies
+                </label>
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  disabled={videoRepairBusy || !videoRepairFlagged.length}
+                  onClick={() => runVideoRepair("remux", "all")}
+                  style={{ ...adminButtonStyle, opacity: videoRepairBusy || !videoRepairFlagged.length ? .62 : 1 }}
+                >
+                  Remux All Suggested
+                </button>
+                <button
+                  type="button"
+                  disabled={videoRepairBusy || !videoRepairFlagged.length}
+                  onClick={() => runVideoRepair("syncfix", "all")}
+                  style={{ ...adminButtonStyle, borderColor: "#facc15", background: "#facc15", opacity: videoRepairBusy || !videoRepairFlagged.length ? .62 : 1 }}
+                >
+                  Audio Fix All Suggested
+                </button>
+              </div>
+              <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 900 }}>{videoRepairStatus}</div>
+              {videoRepairReport && (
+                <div style={{ color: "#94a3b8", fontSize: 12, fontWeight: 800, overflowWrap: "anywhere" }}>Report: {videoRepairReport}</div>
+              )}
+              {!!videoRepairFlagged.length && (
+                <div style={{ display: "grid", gap: 10, maxHeight: 360, overflow: "auto" }}>
+                  {videoRepairFlagged.map((video, index) => (
+                    <div key={`${video.path}-${index}`} style={{ border: "1px solid rgba(148,163,184,.24)", background: "rgba(2,6,23,.72)", padding: 12, display: "grid", gap: 8 }}>
+                      <div style={{ color: "#f8fafc", fontSize: 14, fontWeight: 1000, overflowWrap: "anywhere" }}>{video.relativePath || video.fileName}</div>
+                      <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 800, lineHeight: 1.45 }}>
+                        Video {video.videoSeconds}s / Audio {video.audioSeconds}s / Difference {video.durationDiffSeconds}s / Start difference {video.startDiffSeconds}s / Audio {video.audioCodec || "unknown"}
+                      </div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button type="button" disabled={videoRepairBusy} onClick={() => runVideoRepair("remux", index)} style={{ ...adminButtonStyle, padding: "8px 10px", fontSize: 12, opacity: videoRepairBusy ? .62 : 1 }}>Remux</button>
+                        <button type="button" disabled={videoRepairBusy} onClick={() => runVideoRepair("syncfix", index)} style={{ ...adminButtonStyle, borderColor: "#facc15", background: "#facc15", padding: "8px 10px", fontSize: 12, opacity: videoRepairBusy ? .62 : 1 }}>Audio Fix</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {!!videoRepairLog.length && (
+                <div style={{ display: "grid", gap: 6 }}>
+                  {videoRepairLog.map((item, index) => (
+                    <div key={`${item.fileName}-${index}`} style={{ color: item.ok === false ? "#fecaca" : "#bbf7d0", fontSize: 12, fontWeight: 900, overflowWrap: "anywhere" }}>
+                      {item.fileName}: {item.status}{item.backupPath ? ` - Backup: ${item.backupPath}` : item.outputPath ? ` - Copy: ${item.outputPath}` : item.message ? ` - ${item.message}` : ""}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
           <section style={sectionStyle}>

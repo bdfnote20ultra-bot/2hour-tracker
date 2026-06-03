@@ -1,4 +1,4 @@
-﻿const fs = require("fs");
+const fs = require("fs");
 const http = require("http");
 const path = require("path");
 const { execSync, spawn } = require("child_process");
@@ -2323,14 +2323,14 @@ function ownerPageHtml() {
     body {
       margin: 0;
       min-height: 100vh;
+      display: grid;
+      place-items: center;
       background: #020617;
       color: #f8fafc;
       font-family: Arial, sans-serif;
-      padding: 24px;
     }
     main {
-      width: min(100%, 820px);
-      margin: 0 auto;
+      width: min(92vw, 420px);
       display: grid;
       gap: 12px;
     }
@@ -2338,19 +2338,6 @@ function ownerPageHtml() {
       margin: 0;
       font-size: 28px;
       letter-spacing: 0;
-    }
-    h2 {
-      margin: 0;
-      font-size: 18px;
-      letter-spacing: 0;
-    }
-    .panel {
-      display: grid;
-      gap: 10px;
-      padding: 12px;
-      border: 1px solid rgba(248, 250, 252, .18);
-      border-radius: 8px;
-      background: rgba(15, 23, 42, .86);
     }
     input, button {
       width: 100%;
@@ -2370,148 +2357,24 @@ function ownerPageHtml() {
       font-weight: 900;
       cursor: pointer;
     }
-    button.secondary {
-      background: #1d4ed8;
-      color: #f8fafc;
-    }
-    button.warning {
-      background: #facc15;
-      color: #020617;
-    }
-    button.danger {
-      background: #fb7185;
-      color: #020617;
-    }
-    button:disabled {
-      opacity: .55;
-      cursor: wait;
-    }
-    select, label.toggle {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 12px;
-      border-radius: 8px;
-      border: 1px solid rgba(248, 250, 252, .22);
-      background: #0f172a;
-      color: #f8fafc;
-      font-size: 15px;
-      font-weight: 800;
-    }
-    label.toggle {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    label.toggle input {
-      width: auto;
-      padding: 0;
-    }
     .status {
       min-height: 22px;
       color: #cbd5e1;
       font-weight: 700;
-    }
-    .actions {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-    }
-    .repair-options {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      gap: 8px;
-      align-items: stretch;
-    }
-    .results {
-      display: grid;
-      gap: 8px;
-      max-height: 58vh;
-      overflow: auto;
-    }
-    .result-item {
-      display: grid;
-      gap: 8px;
-      padding: 10px;
-      border: 1px solid rgba(148, 163, 184, .24);
-      border-radius: 8px;
-      background: rgba(2, 6, 23, .42);
-    }
-    .result-title {
-      font-weight: 1000;
-      overflow-wrap: anywhere;
-    }
-    .result-meta {
-      color: #cbd5e1;
-      font-size: 13px;
-      line-height: 1.4;
-    }
-    .log {
-      display: grid;
-      gap: 6px;
-      color: #cbd5e1;
-      font-size: 13px;
-      line-height: 1.4;
-    }
-    @media (max-width: 620px) {
-      body {
-        padding: 14px;
-      }
-      .actions,
-      .repair-options {
-        grid-template-columns: 1fr;
-      }
     }
   </style>
 </head>
 <body>
   <main>
     <h1>FUITS Owner</h1>
-    <section class="panel">
-      <div id="status" class="status">Site is ${state.blank ? "blank" : "visible"}.</div>
-      <input id="password" type="password" placeholder="Owner/admin password" autocomplete="current-password" />
-      <div class="actions">
-        <button id="showButton" type="button">Show Site</button>
-        <button id="blankButton" class="danger" type="button">Blank Site</button>
-      </div>
-    </section>
-    <section class="panel">
-      <h2>Video Repair</h2>
-      <div id="repairStatus" class="status">Ready to check T:\\FattysLiveTV\\Videos.</div>
-      <button id="repairScanButton" class="secondary" type="button">Run Check</button>
-      <div class="repair-options">
-        <select id="repairFinish" aria-label="Repair finish choice">
-          <option value="keep">Keep fixed copy</option>
-          <option value="replace">Replace original and backup</option>
-          <option value="delete">Delete fixed copy after test</option>
-        </select>
-        <label class="toggle">
-          <input id="repairOverwrite" type="checkbox" />
-          Overwrite existing fixed copies
-        </label>
-      </div>
-      <div class="actions">
-        <button id="repairRemuxAllButton" type="button" disabled>Remux All</button>
-        <button id="repairSyncAllButton" class="warning" type="button" disabled>Audio Fix All</button>
-      </div>
-      <div id="repairSummary" class="status"></div>
-      <div id="repairResults" class="results"></div>
-      <div id="repairLog" class="log"></div>
-    </section>
+    <div id="status" class="status">Site is ${state.blank ? "blank" : "visible"}.</div>
+    <input id="password" type="password" placeholder="Owner password" autocomplete="current-password" />
+    <button id="showButton" type="button">Show Site</button>
+    <button id="blankButton" type="button">Blank Site</button>
   </main>
   <script>
     const status = document.getElementById("status");
     const password = document.getElementById("password");
-    const repairStatus = document.getElementById("repairStatus");
-    const repairScanButton = document.getElementById("repairScanButton");
-    const repairFinish = document.getElementById("repairFinish");
-    const repairOverwrite = document.getElementById("repairOverwrite");
-    const repairRemuxAllButton = document.getElementById("repairRemuxAllButton");
-    const repairSyncAllButton = document.getElementById("repairSyncAllButton");
-    const repairSummary = document.getElementById("repairSummary");
-    const repairResults = document.getElementById("repairResults");
-    const repairLog = document.getElementById("repairLog");
-    let flaggedVideos = [];
-
     async function setBlank(blank) {
       const res = await fetch("/admin/site-blank", {
         method: "POST",
@@ -2525,169 +2388,12 @@ function ownerPageHtml() {
       const state = await res.json();
       status.textContent = state.blank ? "Site is blank." : "Site is visible.";
     }
-
-    async function postAdminJson(endpoint, payload) {
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(Object.assign({ password: password.value }, payload || {}))
-      });
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
-      return res.json();
-    }
-
-    function timingLine(video) {
-      return "Video " + video.videoSeconds + "s, audio " + video.audioSeconds + "s, diff " + video.durationDiffSeconds + "s, start diff " + video.startDiffSeconds + "s";
-    }
-
-    function renderRepairResults() {
-      repairResults.innerHTML = "";
-      repairRemuxAllButton.disabled = flaggedVideos.length === 0;
-      repairSyncAllButton.disabled = flaggedVideos.length === 0;
-
-      if (!flaggedVideos.length) {
-        repairSummary.textContent = "No suggested repairs found.";
-        return;
-      }
-
-      flaggedVideos.forEach((video, index) => {
-        const item = document.createElement("div");
-        item.className = "result-item";
-
-        const title = document.createElement("div");
-        title.className = "result-title";
-        title.textContent = video.relativePath || video.fileName;
-        item.appendChild(title);
-
-        const meta = document.createElement("div");
-        meta.className = "result-meta";
-        meta.textContent = timingLine(video) + ". Audio: " + (video.audioCodec || "unknown") + ".";
-        item.appendChild(meta);
-
-        const actions = document.createElement("div");
-        actions.className = "actions";
-
-        const remuxButton = document.createElement("button");
-        remuxButton.type = "button";
-        remuxButton.textContent = "Remux";
-        remuxButton.dataset.repairAction = "remux";
-        remuxButton.dataset.index = String(index);
-        actions.appendChild(remuxButton);
-
-        const syncButton = document.createElement("button");
-        syncButton.type = "button";
-        syncButton.className = "warning";
-        syncButton.textContent = "Audio Fix";
-        syncButton.dataset.repairAction = "syncfix";
-        syncButton.dataset.index = String(index);
-        actions.appendChild(syncButton);
-
-        item.appendChild(actions);
-        repairResults.appendChild(item);
-      });
-    }
-
-    function renderRepairLog(data) {
-      repairLog.innerHTML = "";
-      (data.results || []).forEach(result => {
-        const row = document.createElement("div");
-        const extra = result.backupPath
-          ? " Backup: " + result.backupPath
-          : result.outputPath
-            ? " Copy: " + result.outputPath
-            : result.message
-              ? " " + result.message
-              : "";
-        row.textContent = result.fileName + ": " + result.status + "." + extra;
-        repairLog.appendChild(row);
-      });
-    }
-
-    async function runRepairScan() {
-      if (!password.value) {
-        repairStatus.textContent = "Enter admin password first.";
-        return;
-      }
-      if (!window.confirm("Run video repair check on T:\\\\FattysLiveTV\\\\Videos?")) return;
-
-      repairScanButton.disabled = true;
-      repairStatus.textContent = "Checking videos...";
-      repairSummary.textContent = "";
-      repairLog.innerHTML = "";
-      repairResults.innerHTML = "";
-      flaggedVideos = [];
-      renderRepairResults();
-
-      try {
-        const data = await postAdminJson("/admin/video-repair-scan");
-        flaggedVideos = data.flagged || [];
-        repairStatus.textContent = "Checked " + data.checked + " videos. Flagged " + data.flaggedCount + ".";
-        repairSummary.textContent = data.reportPath ? "Report: " + data.reportPath : "";
-        renderRepairResults();
-      } catch (error) {
-        repairStatus.textContent = error.message || "Video check failed.";
-      } finally {
-        repairScanButton.disabled = false;
-      }
-    }
-
-    async function runRepair(action, index) {
-      if (!password.value) {
-        repairStatus.textContent = "Enter admin password first.";
-        return;
-      }
-
-      const all = index === "all";
-      const actionLabel = action === "remux" ? "remux" : "audio timing fix";
-      const targetLabel = all ? "ALL flagged videos" : flaggedVideos[Number(index)] && flaggedVideos[Number(index)].fileName;
-      if (!targetLabel) return;
-      if (!window.confirm("Run " + actionLabel + " on " + targetLabel + "?")) return;
-
-      repairStatus.textContent = "Running " + actionLabel + "...";
-      repairLog.innerHTML = "";
-      repairRemuxAllButton.disabled = true;
-      repairSyncAllButton.disabled = true;
-
-      const payload = {
-        action,
-        finish: repairFinish.value,
-        overwriteExisting: repairOverwrite.checked
-      };
-      if (all) {
-        payload.all = true;
-      } else {
-        payload.paths = [flaggedVideos[Number(index)].path];
-      }
-
-      try {
-        const data = await postAdminJson("/admin/video-repair-run", payload);
-        renderRepairLog(data);
-        repairStatus.textContent = "Repair complete.";
-      } catch (error) {
-        repairStatus.textContent = error.message || "Repair failed.";
-      } finally {
-        repairRemuxAllButton.disabled = flaggedVideos.length === 0;
-        repairSyncAllButton.disabled = flaggedVideos.length === 0;
-      }
-    }
-
     document.getElementById("showButton").addEventListener("click", () => setBlank(false));
     document.getElementById("blankButton").addEventListener("click", () => setBlank(true));
-    repairScanButton.addEventListener("click", runRepairScan);
-    repairRemuxAllButton.addEventListener("click", () => runRepair("remux", "all"));
-    repairSyncAllButton.addEventListener("click", () => runRepair("syncfix", "all"));
-    repairResults.addEventListener("click", event => {
-      const button = event.target.closest("button[data-repair-action]");
-      if (!button) return;
-      runRepair(button.dataset.repairAction, button.dataset.index);
-    });
   </script>
 </body>
 </html>`;
 }
-
 function pageHtml() {
   return `<!doctype html>
 <html lang="en">

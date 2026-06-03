@@ -2233,7 +2233,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
       document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
       document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
     };
-  }, [fuitsLiveTvChannelUrl]);
+  }, []);
 
   useEffect(() => {
     const unmuteOnFirstPageClick = () => {
@@ -4934,10 +4934,8 @@ function AdminPage({ onClose }) {
     };
 
     loadOnlineUserInfo();
-    const timer = setInterval(loadOnlineUserInfo, 12 * 60 * 1000);
     return () => {
       cancelled = true;
-      clearInterval(timer);
     };
   }, [unlocked, fuitsAdminBaseUrl, password]);
 
@@ -4964,6 +4962,7 @@ function AdminPage({ onClose }) {
   const unlockAdmin = event => {
     event.preventDefault();
     if (password === "FOOLIO") {
+      setOnlineUserInfo({ loading: true, devices: 0, households: 0, householdDetails: [] });
       setUnlocked(true);
       setError("");
       return;

@@ -4943,6 +4943,8 @@ function AdminPage({ onClose }) {
   const [videoRepairLog, setVideoRepairLog] = useState([]);
   const [videoRepairBackups, setVideoRepairBackups] = useState([]);
   const [videoRepairSelectedBackup, setVideoRepairSelectedBackup] = useState("");
+  const [videoRepairProgress, setVideoRepairProgress] = useState(null);
+  const [videoRepairProgressNow, setVideoRepairProgressNow] = useState(Date.now());
   const [onlineUserInfo, setOnlineUserInfo] = useState({ loading: true, devices: 0, households: 0, householdDetails: [] });
   const fuitsAdminBaseUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
   const sectionStyle = {
@@ -4985,6 +4987,32 @@ function AdminPage({ onClose }) {
     fontWeight: 900,
     padding: "11px 12px"
   };
+
+  const formatRepairTime = seconds => {
+    const safeSeconds = Math.max(0, Math.round(Number(seconds) || 0));
+    const minutes = Math.floor(safeSeconds / 60);
+    const remainder = safeSeconds % 60;
+    return minutes ? `${minutes}m ${String(remainder).padStart(2, "0")}s` : `${remainder}s`;
+  };
+
+  const getRepairProgressPercent = () => {
+    if (!videoRepairProgress?.total) return 0;
+    return Math.min(100, Math.round((videoRepairProgress.done / videoRepairProgress.total) * 100));
+  };
+
+  const getRepairProgressEta = () => {
+    if (!videoRepairProgress?.startedAt || !videoRepairProgress.done) return "Calculating...";
+    const elapsedSeconds = (videoRepairProgressNow - videoRepairProgress.startedAt) / 1000;
+    const averageSeconds = elapsedSeconds / videoRepairProgress.done;
+    const remainingItems = Math.max(0, videoRepairProgress.total - videoRepairProgress.done);
+    return formatRepairTime(averageSeconds * remainingItems);
+  };
+
+  useEffect(() => {
+    if (!videoRepairBusy || !videoRepairProgress) return undefined;
+    const timer = setInterval(() => setVideoRepairProgressNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [videoRepairBusy, videoRepairProgress]);
 
   useEffect(() => {
     if (!unlocked) return;
@@ -5109,18 +5137,65 @@ function AdminPage({ onClose }) {
     setVideoRepairBusy(true);
     setVideoRepairStatus(`Running ${actionLabel}...`);
     setVideoRepairLog([]);
+    setVideoRepairProgress(isAll ? {
+      action: actionLabel,
+      current: "",
+      done: 0,
+      failed: 0,
+      startedAt: Date.now(),
+      total: videoRepairFlagged.length
+    } : null);
+    setVideoRepairProgressNow(Date.now());
     try {
+      if (isAll) {
+        const allResults = [];
+        for (let index = 0; index < videoRepairFlagged.length; index += 1) {
+          const video = videoRepairFlagged[index];
+          setVideoRepairStatus(`Running ${actionLabel} ${index + 1} of ${videoRepairFlagged.length}...`);
+          setVideoRepairProgress(current => ({
+            ...(current || {}),
+            action: actionLabel,
+            current: video.relativePath || video.fileName || "Current video",
+            done: index,
+            total: videoRepairFlagged.length
+          }));
+          const response = await fetch(`${fuitsAdminBaseUrl}/admin/video-repair-run`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              password,
+              action,
+              finish: videoRepairFinish,
+              overwriteExisting: videoRepairOverwrite,
+              paths: [video.path]
+            })
+          });
+          if (!response.ok) throw new Error(await response.text());
+          const result = await response.json();
+          const resultRows = Array.isArray(result.results) ? result.results : [];
+          allResults.push(...resultRows);
+          setVideoRepairLog([...allResults]);
+          setVideoRepairProgress(current => ({
+            ...(current || {}),
+            done: index + 1,
+            failed: allResults.filter(item => item.ok === false || item.status === "failed").length
+          }));
+        }
+        const counts = allResults.reduce((nextCounts, item) => {
+          nextCounts[item.status] = (nextCounts[item.status] || 0) + 1;
+          return nextCounts;
+        }, {});
+        setVideoRepairStatus(`Repair complete. Kept ${counts.kept || 0}, overwritten ${counts.overwritten || 0}, replaced ${counts.replaced || 0}, deleted ${counts.deleted || 0}, skipped ${counts.skipped || 0}, failed ${counts.failed || 0}.`);
+        return;
+      }
+
       const payload = {
         password,
         action,
         finish: videoRepairFinish,
-        overwriteExisting: videoRepairOverwrite
+        overwriteExisting: videoRepairOverwrite,
+        paths: [selected.path]
       };
-      if (isAll) {
-        payload.all = true;
-      } else {
-        payload.paths = [selected.path];
-      }
       const response = await fetch(`${fuitsAdminBaseUrl}/admin/video-repair-run`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -5371,6 +5446,22 @@ function AdminPage({ onClose }) {
                   Restore Old Backup
                 </button>
               </div>
+              {videoRepairProgress && (
+                <div style={{ border: "1px solid rgba(148,163,184,.28)", background: "rgba(2,6,23,.72)", padding: 12, display: "grid", gap: 8 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, color: "#f8fafc", fontSize: 13, fontWeight: 1000, flexWrap: "wrap" }}>
+                    <span>{videoRepairProgress.action || "Repair"} progress</span>
+                    <span>{videoRepairProgress.done || 0} / {videoRepairProgress.total || 0} ({getRepairProgressPercent()}%)</span>
+                  </div>
+                  <div style={{ height: 12, borderRadius: 999, background: "rgba(148,163,184,.22)", overflow: "hidden" }}>
+                    <div style={{ width: `${getRepairProgressPercent()}%`, height: "100%", background: "#67e8f9", transition: "width .2s ease" }} />
+                  </div>
+                  <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 800, lineHeight: 1.45, overflowWrap: "anywhere" }}>
+                    Current: {videoRepairProgress.current || "Waiting for next video."}
+                    <br />
+                    Elapsed: {formatRepairTime((videoRepairProgressNow - videoRepairProgress.startedAt) / 1000)} / Estimated left: {getRepairProgressEta()} / Failed: {videoRepairProgress.failed || 0}
+                  </div>
+                </div>
+              )}
               <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 900 }}>{videoRepairStatus}</div>
               {videoRepairReport && (
                 <div style={{ color: "#94a3b8", fontSize: 12, fontWeight: 800, overflowWrap: "anywhere" }}>Report: {videoRepairReport}</div>

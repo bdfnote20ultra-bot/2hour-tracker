@@ -3103,6 +3103,29 @@ function MusicLibrarySidebar({ accentColor }) {
     setPlaylistRestartSignal(value => value + 1);
   };
 
+  const backFuitsChannelWithPassword = async () => {
+    if (!fuitsLiveTvChannelUrl) return;
+    const password = window.prompt("Back password");
+    if (!password) return;
+
+    try {
+      const response = await fetch(getFuitsLiveTvUrl("/admin/previous"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password, channel: activeFuitsLiveTvChannel })
+      });
+
+      if (!response.ok) {
+        window.alert("Back failed. Check the password and tunnel.");
+        return;
+      }
+
+      setPlaylistRestartSignal(value => value + 1);
+    } catch {
+      window.alert("Back failed. Check the Cloudflare tunnel.");
+    }
+  };
+
   const fuitsOwnerCommands = [
     {
       label: "Owner",
@@ -3608,17 +3631,35 @@ function MusicLibrarySidebar({ accentColor }) {
                     <option key={channel.id} value={channel.id}>{channel.label}</option>
                   ))}
                 </select>
-                <div style={{ width: "100%", display: "flex", justifyContent: "flex-start" }}>
+                <div style={{ width: "100%", display: "flex", justifyContent: "flex-start", gap: 8, flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    onClick={backFuitsChannelWithPassword}
+                    style={{
+                      border: "1px solid rgba(255,255,255,.26)",
+                      borderRadius: 999,
+                      padding: "7px 10px",
+                      background: "rgba(15,23,42,.88)",
+                      color: "#fff",
+                      fontSize: 11,
+                      fontWeight: 1000,
+                      cursor: "pointer",
+                      boxShadow: "0 8px 18px rgba(0,0,0,.32)",
+                      textTransform: "uppercase"
+                    }}
+                  >
+                    Back
+                  </button>
                   <button
                     type="button"
                     onClick={() => fuitsLiveTvPlayerRef.current?.stretchVideoToFullscreen()}
                     style={{
                       border: "1px solid rgba(255,255,255,.26)",
                       borderRadius: 999,
-                      padding: "9px 12px",
+                      padding: "7px 10px",
                       background: "rgba(15,23,42,.88)",
                       color: "#fff",
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: 1000,
                       cursor: "pointer",
                       boxShadow: "0 8px 18px rgba(0,0,0,.32)",
@@ -4743,6 +4784,9 @@ function AdminPage({ onClose }) {
   const [password, setPassword] = useState("");
   const [unlocked, setUnlocked] = useState(false);
   const [error, setError] = useState("");
+  const [videoChunkMb, setVideoChunkMb] = useState(4);
+  const [videoChunkStatus, setVideoChunkStatus] = useState("Loading video stream controls...");
+  const fuitsAdminBaseUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
   const sectionStyle = {
     background: "rgba(15,23,42,.92)",
     border: "2px solid rgba(96,165,250,.7)",
@@ -4756,6 +4800,52 @@ function AdminPage({ onClose }) {
     fontSize: 24,
     fontWeight: 1000,
     letterSpacing: 1
+  };
+  const controlLabelStyle = {
+    color: "#cbd5e1",
+    fontSize: 13,
+    fontWeight: 900,
+    textTransform: "uppercase",
+    letterSpacing: 0
+  };
+
+  useEffect(() => {
+    if (!unlocked) return;
+    let cancelled = false;
+    const loadVideoSettings = async () => {
+      try {
+        const response = await fetch(`${fuitsAdminBaseUrl}/admin/video-stream-settings`, { cache: "no-store" });
+        if (!response.ok) throw new Error("Settings unavailable");
+        const settings = await response.json();
+        if (cancelled) return;
+        setVideoChunkMb(Number(settings.chunkMb) || 4);
+        setVideoChunkStatus("Video chunks are ready.");
+      } catch {
+        if (!cancelled) setVideoChunkStatus("Could not load video chunk settings yet.");
+      }
+    };
+    loadVideoSettings();
+    return () => { cancelled = true; };
+  }, [unlocked, fuitsAdminBaseUrl]);
+
+  const saveVideoChunkSize = async () => {
+    setVideoChunkStatus("Saving video chunk size...");
+    try {
+      const response = await fetch(`${fuitsAdminBaseUrl}/admin/video-stream-settings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password, chunkMb: videoChunkMb })
+      });
+      if (!response.ok) {
+        setVideoChunkStatus("Wrong password or server not ready.");
+        return;
+      }
+      const settings = await response.json();
+      setVideoChunkMb(Number(settings.chunkMb) || videoChunkMb);
+      setVideoChunkStatus(`Saved. All streams now use ${settings.chunkMb} MB chunks.`);
+    } catch {
+      setVideoChunkStatus("Could not save video chunk size yet.");
+    }
   };
 
   const unlockAdmin = event => {
@@ -4778,6 +4868,36 @@ function AdminPage({ onClose }) {
           <h1 style={{ margin: 0, fontSize: 32, fontWeight: 1000, letterSpacing: .4 }}>ADMIN</h1>
           <section style={sectionStyle}>
             <h2 style={sectionTitleStyle}>CONTROLS</h2>
+            <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <div>
+                  <div style={controlLabelStyle}>VIDEO CONTROL</div>
+                  <div style={{ color: "#f8fafc", fontSize: 18, fontWeight: 1000 }}>All Stream Chunk Size</div>
+                </div>
+                <div style={{ color: "#67e8f9", fontSize: 22, fontWeight: 1000 }}>{videoChunkMb} MB</div>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="16"
+                step="1"
+                value={videoChunkMb}
+                onChange={event => setVideoChunkMb(Number(event.target.value))}
+                style={{ width: "100%", accentColor: "#67e8f9" }}
+              />
+              <div style={{ display: "flex", justifyContent: "space-between", color: "#94a3b8", fontSize: 12, fontWeight: 900 }}>
+                <span>1 MB</span>
+                <span>16 MB</span>
+              </div>
+              <button
+                type="button"
+                onClick={saveVideoChunkSize}
+                style={{ border: "1px solid #67e8f9", borderRadius: 8, background: "#67e8f9", color: "#020617", cursor: "pointer", fontSize: 14, fontWeight: 1000, padding: "11px 14px", width: "fit-content" }}
+              >
+                Save Video Control
+              </button>
+              <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 800 }}>{videoChunkStatus}</div>
+            </div>
           </section>
           <section style={sectionStyle}>
             <h2 style={sectionTitleStyle}>USER INFORMATION</h2>

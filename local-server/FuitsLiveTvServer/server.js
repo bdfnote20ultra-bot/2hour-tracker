@@ -1,4 +1,4 @@
-const fs = require("fs");
+﻿const fs = require("fs");
 const http = require("http");
 const path = require("path");
 const { execSync, spawn } = require("child_process");
@@ -11,6 +11,10 @@ const DEFAULT_CHANNEL_PLAYLISTS = ["ChannelA.m3u", "ChannelB.m3u"];
 const PASSWORD_PATH = path.join(__dirname, "admin-password.txt");
 const SHUFFLE_PASSWORD = "FOOLIO";
 const SITE_BLANK_PATH = path.join(__dirname, "site-blank.json");
+const VIDEO_STREAM_SETTINGS_PATH = path.join(__dirname, "video-stream-settings.json");
+const DEFAULT_VIDEO_CHUNK_MB = 4;
+const MIN_VIDEO_CHUNK_MB = 1;
+const MAX_VIDEO_CHUNK_MB = 16;
 const FALLBACK_DURATION_SECONDS = 30 * 60;
 const OWNCAST_LOCAL_URL = "http://localhost:8080";
 const START_ALL_SERVICES_BAT = "C:\\Users\\newer\\Desktop\\START-ALL-SERVICES-UPDATE-URLS.bat";
@@ -19,6 +23,7 @@ const CHAT_LOG_PATH = path.join(__dirname, "chat-log.json");
 const CHAT_MAX_AGE_MS = 4 * 60 * 60 * 1000;
 const CHAT_GIFS_DIR = path.join(ROOT, "ChatGifs");
 const DONATION_QR_DIR = path.join(ROOT, "DonationQrs");
+const DISCOUNTS_DIR = path.join(__dirname, "discounts");
 const GAMES_ROOT = path.join(ROOT, "Games");
 const GAME_ROMS_DIR = path.join(GAMES_ROOT, "Roms");
 const GAME_IMAGES_DIR = path.join(GAMES_ROOT, "Images");
@@ -189,6 +194,38 @@ function writeSiteBlankState(blank) {
   };
   fs.writeFileSync(SITE_BLANK_PATH, JSON.stringify(state, null, 2), "utf8");
   return state;
+}
+
+function clampVideoChunkMb(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return DEFAULT_VIDEO_CHUNK_MB;
+  return Math.min(MAX_VIDEO_CHUNK_MB, Math.max(MIN_VIDEO_CHUNK_MB, Math.round(number)));
+}
+
+function normalizeVideoStreamSettings(settings = {}) {
+  const chunkMb = clampVideoChunkMb(settings.chunkMb);
+  return {
+    chunkMb,
+    chunkBytes: chunkMb * 1024 * 1024,
+    minChunkMb: MIN_VIDEO_CHUNK_MB,
+    maxChunkMb: MAX_VIDEO_CHUNK_MB,
+    defaultChunkMb: DEFAULT_VIDEO_CHUNK_MB
+  };
+}
+
+function readVideoStreamSettings() {
+  try {
+    if (!fs.existsSync(VIDEO_STREAM_SETTINGS_PATH)) return normalizeVideoStreamSettings();
+    return normalizeVideoStreamSettings(JSON.parse(fs.readFileSync(VIDEO_STREAM_SETTINGS_PATH, "utf8") || "{}"));
+  } catch {
+    return normalizeVideoStreamSettings();
+  }
+}
+
+function writeVideoStreamSettings(settings = {}) {
+  const next = normalizeVideoStreamSettings(settings);
+  fs.writeFileSync(VIDEO_STREAM_SETTINGS_PATH, JSON.stringify({ chunkMb: next.chunkMb }, null, 2), "utf8");
+  return next;
 }
 
 function readState(channelId) {
@@ -385,7 +422,8 @@ function serveGameFile(req, res, system, encodedPath) {
   }
 
   if (extension === ".m3u") {
-    const protocol = req.headers["x-forwarded-proto"] || (String(req.headers.host || "").includes("trycloudflare.com") ? "https" : "http");
+    const host = String(req.headers.host || "");
+    const protocol = req.headers["x-forwarded-proto"] || (host.includes("trycloudflare.com") || host.includes("flivetv.qzz.io") ? "https" : "http");
     const origin = `${protocol}://${req.headers.host}`;
     const playlistDir = path.dirname(filePath);
     const body = fs.readFileSync(filePath, "utf8")
@@ -910,6 +948,29 @@ function advanceChannelToNextItem(channelId) {
   return { ok: true, channel: channel.id, currentIndex: nextIndex };
 }
 
+function advanceChannelToPreviousItem(channelId) {
+  const channel = getChannel(channelId);
+  const playlist = readPlaylist(channel.id);
+  if (!playlist.length) {
+    return { ok: false, reason: "No playlist items" };
+  }
+
+  const snapshot = getChannelSnapshot(channel.id);
+  const previousIndex = (snapshot.currentIndex - 1 + playlist.length) % playlist.length;
+  const offsetToPrevious = playlist
+    .slice(0, previousIndex)
+    .reduce((sum, item) => sum + item.duration, 0);
+  const previousState = readState(channel.id);
+
+  writeState(channel.id, {
+    ...previousState,
+    updatedAt: new Date().toISOString(),
+    startedAt: Math.floor(Date.now() / 1000) - offsetToPrevious
+  });
+
+  return { ok: true, channel: channel.id, currentIndex: previousIndex };
+}
+
 function send(res, statusCode, body, contentType = "text/plain; charset=utf-8") {
   res.writeHead(statusCode, {
     "Content-Type": contentType,
@@ -1063,20 +1124,30 @@ function serveMediaFile(req, res, file, contentType) {
   const stat = fs.statSync(file);
   const range = req.headers.range;
   const isVideo = contentType.startsWith("video/");
-  const maxVideoChunkSize = 2 * 1024 * 1024;
+  const videoChunkSize = readVideoStreamSettings().chunkBytes;
+  const logVideoRange = (status, start, end) => {
+    if (!isVideo) return;
+    console.log(`[video-range] ${status} ${path.basename(file)} requested=${range || "none"} served=${start}-${end} size=${stat.size}`);
+  };
 
   if (!range) {
     if (isVideo && req.method !== "HEAD") {
       const start = 0;
-      const end = Math.min(stat.size - 1, maxVideoChunkSize - 1);
+      const end = Math.min(stat.size - 1, videoChunkSize - 1);
       const chunkSize = end - start + 1;
+      logVideoRange(206, start, end);
       res.writeHead(206, {
         "Content-Range": `bytes ${start}-${end}/${stat.size}`,
         "Accept-Ranges": "bytes",
         "Content-Length": chunkSize,
         "Content-Type": contentType,
         "Access-Control-Allow-Origin": "*",
-        "Cache-Control": isVideo ? "public, max-age=3600" : "no-store"
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        "CDN-Cache-Control": "no-store",
+        "Cloudflare-CDN-Cache-Control": "no-store",
+        "Pragma": "no-cache",
+        "Expires": "0",
+        "Vary": "Range"
       });
       fs.createReadStream(file, { start, end }).pipe(res);
       return;
@@ -1087,7 +1158,12 @@ function serveMediaFile(req, res, file, contentType) {
       "Content-Length": stat.size,
       "Accept-Ranges": "bytes",
       "Access-Control-Allow-Origin": "*",
-      "Cache-Control": isVideo ? "public, max-age=3600" : "no-store"
+      "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+      "CDN-Cache-Control": "no-store",
+      "Cloudflare-CDN-Cache-Control": "no-store",
+      "Pragma": "no-cache",
+      "Expires": "0",
+      "Vary": "Range"
     });
     if (req.method === "HEAD") {
       res.end();
@@ -1113,14 +1189,20 @@ function serveMediaFile(req, res, file, contentType) {
       "Content-Range": `bytes */${stat.size}`,
       "Accept-Ranges": "bytes",
       "Access-Control-Allow-Origin": "*",
-      "Cache-Control": isVideo ? "public, max-age=3600" : "no-store"
+      "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+      "CDN-Cache-Control": "no-store",
+      "Cloudflare-CDN-Cache-Control": "no-store",
+      "Pragma": "no-cache",
+      "Expires": "0",
+      "Vary": "Range"
     });
     res.end();
     return;
   }
 
-  const end = isVideo ? Math.min(requestedEnd, start + maxVideoChunkSize - 1, stat.size - 1) : Math.min(requestedEnd, stat.size - 1);
+  const end = isVideo ? Math.min(requestedEnd, start + videoChunkSize - 1, stat.size - 1) : Math.min(requestedEnd, stat.size - 1);
   const chunkSize = end - start + 1;
+  logVideoRange(206, start, end);
 
   res.writeHead(206, {
     "Content-Range": `bytes ${start}-${end}/${stat.size}`,
@@ -1128,7 +1210,12 @@ function serveMediaFile(req, res, file, contentType) {
     "Content-Length": chunkSize,
     "Content-Type": contentType,
     "Access-Control-Allow-Origin": "*",
-    "Cache-Control": isVideo ? "public, max-age=3600" : "no-store"
+    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+    "CDN-Cache-Control": "no-store",
+    "Cloudflare-CDN-Cache-Control": "no-store",
+    "Pragma": "no-cache",
+    "Expires": "0",
+    "Vary": "Range"
   });
   if (req.method === "HEAD") {
     res.end();
@@ -1247,6 +1334,13 @@ function radioPageHtml() {
       line-height: 1.35;
       margin-top: 8px;
     }
+    .now.live-now {
+      color: #ef4444;
+      font-size: 12px;
+      font-weight: 1000;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
     .status {
       color: #cbd5e1;
       font-size: 12px;
@@ -1298,12 +1392,27 @@ function radioPageHtml() {
     let liveOnline = false;
     let soundUnlocked = localStorage.getItem("fuitsRadioSoundUnlocked") === "1";
 
+    function silenceRadioForLive() {
+      radioPlayer.pause();
+      radioPlayer.muted = true;
+    }
+
     function applySoundPreference() {
       radioPlayer.muted = !soundUnlocked;
       livePlayer.muted = !soundUnlocked;
       radioPlayer.volume = 1;
       livePlayer.volume = 1;
       unmuteButton.hidden = soundUnlocked;
+    }
+
+    function rememberSoundUnlocked() {
+      const radioAudible = !radioPlayer.muted && radioPlayer.volume > 0;
+      const liveAudible = !livePlayer.muted && livePlayer.volume > 0;
+      if (radioAudible || liveAudible) {
+        soundUnlocked = true;
+        localStorage.setItem("fuitsRadioSoundUnlocked", "1");
+        unmuteButton.hidden = true;
+      }
     }
 
     function updateChannelSelect() {
@@ -1317,11 +1426,15 @@ function radioPageHtml() {
       return res.json();
     }
 
-    function applyChannel(channel) {
+    function applyChannel(channel, options = {}) {
+      const shouldPlay = options.autoplay !== false;
+      const shouldUpdateNow = options.updateNow !== false;
       const item = channel.playlist[channel.currentIndex];
       if (!item) {
-        now.textContent = "No MP3s found in this radio playlist yet.";
-        status.textContent = "";
+        if (shouldUpdateNow) {
+          now.textContent = "No MP3s found in this radio playlist yet.";
+          status.textContent = "";
+        }
         radioPlayer.removeAttribute("src");
         radioPlayer.load();
         return;
@@ -1343,24 +1456,46 @@ function radioPageHtml() {
       };
 
       if (radioPlayer.readyState >= 1) syncTime();
-      else radioPlayer.addEventListener("loadedmetadata", syncTime, { once: true });
+      else radioPlayer.addEventListener("loadedmetadata", () => {
+        syncTime();
+        if (shouldPlay && !liveOnline) playRadioWithLiveGuard();
+      }, { once: true });
 
+      if (shouldPlay) playRadioWithLiveGuard();
+
+      if (shouldUpdateNow) {
+        now.classList.remove("live-now");
+        now.textContent = channel.channel.label + " now playing: " + item.title;
+        status.textContent = "";
+      }
+    }
+
+    function playRadioWithLiveGuard() {
+      if (liveOnline) {
+        silenceRadioForLive();
+        return;
+      }
       radioPlayer.play().catch(() => {
+        if (liveOnline) {
+          silenceRadioForLive();
+          return;
+        }
         if (!soundUnlocked) radioPlayer.muted = true;
-        radioPlayer.play().catch(() => {});
+        radioPlayer.play().catch(() => {
+          if (liveOnline) silenceRadioForLive();
+        });
       });
-      now.textContent = channel.channel.label + " now playing: " + item.title;
-      status.textContent = "";
     }
 
     function startLiveDj() {
       const liveSrc = "/owncast-hls/stream.m3u8";
-      radioPlayer.pause();
+      silenceRadioForLive();
       radioPlayer.hidden = true;
       livePlayer.hidden = false;
       liveBadge.hidden = false;
-      now.textContent = "Live DJ / announcement is on air.";
-      status.textContent = "Radio playlist will continue when the live stream ends.";
+      now.classList.add("live-now");
+      now.textContent = "LIVE";
+      status.textContent = "Radio playlist is warmed up and will resume when live ends.";
 
       if (livePlayer.canPlayType("application/vnd.apple.mpegurl")) {
         if (livePlayer.getAttribute("src") !== liveSrc) {
@@ -1377,6 +1512,7 @@ function radioPageHtml() {
 
       if (livePlayer.paused) {
         livePlayer.play().catch(() => {
+          silenceRadioForLive();
           if (!soundUnlocked) livePlayer.muted = true;
           livePlayer.play().catch(() => {});
         });
@@ -1389,19 +1525,30 @@ function radioPageHtml() {
       livePlayer.load();
       livePlayer.hidden = true;
       radioPlayer.hidden = false;
+      radioPlayer.muted = !soundUnlocked;
       liveBadge.hidden = true;
+      now.classList.remove("live-now");
       if (liveHls) {
         liveHls.destroy();
         liveHls = null;
       }
     }
 
+    async function warmRadioWhileLive() {
+      try {
+        const channel = await loadChannel();
+        applyChannel(channel, { autoplay: false, updateNow: false });
+        silenceRadioForLive();
+      } catch {}
+    }
+
     async function checkLiveDj() {
       try {
         const res = await fetch("/owncast-status?cache=" + Date.now());
         const data = await res.json();
-        if (data.online && !liveOnline) {
+        if (data.online) {
           liveOnline = true;
+          await warmRadioWhileLive();
           startLiveDj();
         } else if (!data.online && liveOnline) {
           liveOnline = false;
@@ -1425,6 +1572,11 @@ function radioPageHtml() {
       livePlayer.play().catch(() => {});
     });
 
+    radioPlayer.addEventListener("play", rememberSoundUnlocked);
+    radioPlayer.addEventListener("volumechange", rememberSoundUnlocked);
+    livePlayer.addEventListener("play", rememberSoundUnlocked);
+    livePlayer.addEventListener("volumechange", rememberSoundUnlocked);
+
     radioChannelSelect.addEventListener("change", () => {
       activeChannelId = radioChannelSelect.value;
       localStorage.setItem("fuitsRadioChannel", activeChannelId);
@@ -1440,9 +1592,172 @@ function radioPageHtml() {
     syncRadio().catch(() => {
       now.textContent = "The radio server is running, but the playlist could not be loaded.";
     });
-    setInterval(checkLiveDj, 5000);
+    setInterval(checkLiveDj, 3000);
     setInterval(syncRadio, 15000);
   </script>
+</body>
+</html>`;
+}
+
+function discountsPageHtml() {
+  const links = [
+    { label: "AVAILABLE RESIDENCE", href: "/discounts/available-residence.html" },
+    { label: "EMERGENCY PLANNING!", href: "/discounts/emergency-planning.html" },
+    { label: "FAMILY HUB", href: "/discounts/family-hub.html" },
+    { label: "PROGRAMMING", href: "/discounts/programming.html" },
+    { label: "HOUSING + LAND FOR SALE", href: "/discounts/housing-land-for-sale.html" },
+    { label: "RADIO + COMMUNICATION", href: "/discounts/radio-communication.html" },
+    { label: "JOBS BOARD", href: "/discounts/jobs-board.html" }
+  ];
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Discounts</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 24px;
+      background: linear-gradient(180deg, #020617 0%, #0f172a 52%, #111827 100%);
+      color: #f8fafc;
+      font-family: Arial, sans-serif;
+    }
+    main {
+      width: min(100%, 760px);
+      margin: 0 auto;
+    }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .eyebrow {
+      font-size: 12px;
+      font-weight: 1000;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: #facc15;
+    }
+    h1 {
+      margin: 6px 0 0;
+      font-size: 34px;
+      line-height: 1.05;
+      font-weight: 1000;
+    }
+    a.back {
+      border: 1px solid rgba(148, 163, 184, .3);
+      border-radius: 999px;
+      background: rgba(15, 23, 42, .9);
+      color: #f8fafc;
+      text-decoration: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 900;
+      padding: 9px 14px;
+    }
+    .links {
+      display: grid;
+      gap: 10px;
+    }
+    .links a {
+      display: block;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: rgba(15, 23, 42, .86);
+      border: 1px solid rgba(148, 163, 184, .22);
+      color: #f8fafc;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 900;
+      letter-spacing: .3px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.22);
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="top">
+      <div>
+        <div class="eyebrow">Discounts</div>
+        <h1>Quick links stacked one under another</h1>
+      </div>
+      <a class="back" href="/">Back</a>
+    </div>
+    <div class="links">
+      ${links.map(link => `<a href="${link.href}">${link.label}</a>`).join("")}
+    </div>
+  </main>
+</body>
+</html>`;
+}
+
+function discountItemPageHtml(title, description) {
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${title}</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #020617;
+      color: #f8fafc;
+      font-family: Arial, sans-serif;
+      padding: 24px;
+      text-align: center;
+    }
+    main {
+      width: min(100%, 720px);
+    }
+    .eyebrow {
+      font-size: 12px;
+      font-weight: 1000;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: #facc15;
+    }
+    h1 {
+      margin: 8px 0 12px;
+      font-size: 34px;
+      line-height: 1.05;
+      font-weight: 1000;
+    }
+    p {
+      margin: 0 0 18px;
+      color: #cbd5e1;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+    a {
+      display: inline-block;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, .9);
+      color: #f8fafc;
+      text-decoration: none;
+      border: 1px solid rgba(148, 163, 184, .3);
+      font-weight: 900;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">Discounts</div>
+    <h1>${title}</h1>
+    <p>${description}</p>
+    <a href="/discounts">Back to Discounts</a>
+  </main>
 </body>
 </html>`;
 }
@@ -1534,6 +1849,8 @@ function blankPageHtml() {
             next.hostname === "localhost" ||
             next.hostname === "127.0.0.1" ||
             next.hostname.endsWith(".trycloudflare.com") ||
+            next.hostname === "flivetv.qzz.io" ||
+            next.hostname.endsWith(".flivetv.qzz.io") ||
             next.hostname.endsWith(".vercel.app");
 
           if (allowed) {
@@ -1737,12 +2054,70 @@ function pageHtml() {
       font-size: 14px;
       line-height: 1.35;
     }
+    .now.live-now {
+      color: #ef4444;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
     .controls {
       display: flex;
       gap: 8px;
       justify-content: flex-end;
       margin-top: 10px;
       flex-wrap: wrap;
+    }
+    .discounts-section {
+      margin-top: 10px;
+      border-radius: 10px;
+    }
+    .discounts-header {
+      width: 100%;
+      border: none;
+      border-bottom: 1px solid rgba(148,163,184,.12);
+      background: rgba(2,6,23,.46);
+      color: #f8fafc;
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .discounts-label {
+      font-size: 12px;
+      font-weight: 1000;
+      color: #cbd5e1;
+      text-transform: uppercase;
+      letter-spacing: .9px;
+    }
+    .discounts-count {
+      color: #94a3b8;
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .discounts-links {
+      display: grid;
+      gap: 6px;
+    }
+    .discounts-links button {
+      display: block;
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: rgba(15,23,42,.42);
+      color: #f8fafc;
+      border: 1px solid transparent;
+      text-align: left;
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: .2px;
+      cursor: pointer;
     }
     .chat {
       margin-top: 6px;
@@ -2027,17 +2402,34 @@ function pageHtml() {
       <div class="live">LIVE</div>
     </div>
     <div id="empty" class="empty" hidden>No MP4s found in the playlist yet.</div>
-    <video id="player" controls muted playsinline preload="auto"></video>
+    <video id="player" controls autoplay muted playsinline preload="auto"></video>
     <video id="livePlayer" class="live-video" controls muted playsinline hidden></video>
     <div class="now" id="now">Loading channel...</div>
     <div class="controls">
       <button id="unmuteButton" class="sound-button" type="button">Unmute</button>
       <button id="nextButton" type="button">Next</button>
+      <button id="previousButton" type="button">Back</button>
       <button id="stretchButton" type="button">Stretch</button>
       <button id="ownerUnlockButton" type="button">Owner</button>
       <button id="shuffleButton" type="button">Shuffle Playlist</button>
+      <button id="discountsButton" type="button">Discounts</button>
       <button id="blankSiteButton" type="button" hidden>Blank Site</button>
     </div>
+    <section class="discounts-section" aria-label="Discounts">
+      <button id="discountsHeader" class="discounts-header" type="button">
+        <span class="discounts-label">Discounts</span>
+        <span class="discounts-count">7 links</span>
+      </button>
+      <div id="discountsLinks" class="discounts-links">
+        <button type="button" data-discount-link="/discounts/available-residence.html">AVAILABLE RESIDENCE</button>
+        <button type="button" data-discount-link="/discounts/emergency-planning.html">EMERGENCY PLANNING!</button>
+        <button type="button" data-discount-link="/discounts/family-hub.html">FAMILY HUB</button>
+        <button type="button" data-discount-link="/discounts/programming.html">PROGRAMMING</button>
+        <button type="button" data-discount-link="/discounts/housing-land-for-sale.html">HOUSING + LAND FOR SALE</button>
+        <button type="button" data-discount-link="/discounts/radio-communication.html">RADIO + COMMUNICATION</button>
+        <button type="button" data-discount-link="/discounts/jobs-board.html">JOBS BOARD</button>
+      </div>
+    </section>
     <section class="chat" aria-label="Live chat">
       <div class="chat-head">
         <span>Live Chat</span>
@@ -2093,9 +2485,13 @@ function pageHtml() {
     const liveActiveIndicator = document.getElementById("liveActiveIndicator");
     const unmuteButton = document.getElementById("unmuteButton");
     const nextButton = document.getElementById("nextButton");
+    const previousButton = document.getElementById("previousButton");
     const stretchButton = document.getElementById("stretchButton");
     const ownerUnlockButton = document.getElementById("ownerUnlockButton");
     const shuffleButton = document.getElementById("shuffleButton");
+    const discountsButton = document.getElementById("discountsButton");
+    const discountsHeader = document.getElementById("discountsHeader");
+    const discountsLinks = document.getElementById("discountsLinks");
     const blankSiteButton = document.getElementById("blankSiteButton");
     const chatSection = document.querySelector(".chat");
     const chatLog = document.getElementById("chatLog");
@@ -2186,11 +2582,7 @@ function pageHtml() {
     }
 
     function playMainPlayerWhenBuffered() {
-      const startupBufferSeconds = getStartupBufferSeconds();
-      const enoughBuffered = getBufferedAheadSeconds(player) >= startupBufferSeconds;
-      if (player.readyState >= 3 && (enoughBuffered || player.duration - player.currentTime < startupBufferSeconds)) {
-        playMainPlayerWithBrowserFallback();
-      }
+      playMainPlayerWithBrowserFallback();
     }
 
     function renderChat(messages) {
@@ -2283,7 +2675,9 @@ function pageHtml() {
       return res.json();
     }
 
-    function applyChannel(channel) {
+    function applyChannel(channel, options = {}) {
+      const shouldPlay = options.autoplay !== false;
+      const shouldUpdateNow = options.updateNow !== false;
       playlist = channel.playlist;
       currentIndex = channel.currentIndex;
       const item = playlist[currentIndex];
@@ -2294,10 +2688,13 @@ function pageHtml() {
         rememberSoundUnlocked();
         currentItemId = item.id;
         currentItemSrc = item.src;
-        player.src = item.src;
+        player.autoplay = true;
+        const streamKey = encodeURIComponent(activeChannelId + "-" + item.id + "-" + (item.sizeBytes || item.duration || ""));
+        player.src = item.src + (item.src.includes("?") ? "&" : "?") + "stream=" + streamKey;
         player.preload = "auto";
         player.load();
         applySoundPreference();
+        playMainPlayerWithBrowserFallback();
       }
 
       const offset = Math.max(0, Math.min(channel.offsetSeconds || 0, Math.max(0, item.duration - 1)));
@@ -2326,15 +2723,21 @@ function pageHtml() {
 
       if (isNewItem && player.readyState >= 1) {
         syncTime();
-        playMainPlayerWhenBuffered();
+        if (shouldPlay) playMainPlayerWhenBuffered();
       } else if (isNewItem) {
         player.addEventListener("loadedmetadata", () => {
           syncTime();
-          playMainPlayerWhenBuffered();
+          if (shouldPlay) playMainPlayerWhenBuffered();
         }, { once: true });
+      } else {
+        syncTime();
+        if (shouldPlay) playMainPlayerWhenBuffered();
       }
 
-      now.textContent = channel.channel.label + " now playing: " + item.title;
+      if (shouldUpdateNow) {
+        now.classList.remove("live-now");
+        now.textContent = channel.channel.label + " now playing: " + item.title;
+      }
     }
 
     function unmutePlayer() {
@@ -2408,7 +2811,7 @@ function pageHtml() {
       }
     }
 
-    async function syncChannel() {
+    async function syncChannel(options = {}) {
       if (liveAnnouncementOnline) return;
 
       const channel = await loadChannel();
@@ -2424,7 +2827,19 @@ function pageHtml() {
 
       empty.hidden = true;
       player.hidden = false;
-      applyChannel(channel);
+      applyChannel(channel, options);
+    }
+
+    async function warmMainPlayerWhileLive() {
+      try {
+        const channel = await loadChannel();
+        activeChannelId = channel.channel.id;
+        updateChannelSelect();
+        playlist = channel.playlist;
+        if (!playlist.length) return;
+        applyChannel(channel, { autoplay: false, updateNow: false });
+        player.pause();
+      } catch {}
     }
 
     async function checkLiveAnnouncement() {
@@ -2441,14 +2856,17 @@ function pageHtml() {
         player.hidden = true;
         livePlayer.hidden = false;
         empty.hidden = true;
-        liveActiveIndicator.hidden = false;
+        liveActiveIndicator.hidden = true;
+        await warmMainPlayerWhileLive();
         startLiveAnnouncementPlayer();
-        now.textContent = "Live Announcement On Air";
+        now.classList.add("live-now");
+        now.textContent = "LIVE";
         return;
       }
 
       liveActiveIndicator.hidden = true;
       livePlayer.hidden = true;
+      now.classList.remove("live-now");
       stopLiveAnnouncementPlayer();
       await syncChannel();
     }
@@ -2509,6 +2927,26 @@ function pageHtml() {
       await syncChannel();
     }
 
+    async function previousVideo() {
+      const password = window.prompt("Back password");
+      if (!password) return;
+
+      const res = await fetch("/admin/previous", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password, channel: activeChannelId })
+      });
+
+      if (!res.ok) {
+        window.alert("Wrong password or back failed.");
+        return;
+      }
+
+      currentItemId = null;
+      currentItemSrc = null;
+      await syncChannel();
+    }
+
     async function blankSite() {
       if (!ownerPassword) return;
       if (!window.confirm("Blank the FUITS site for everyone? You can restore it at /owner.")) return;
@@ -2557,9 +2995,21 @@ function pageHtml() {
     player.addEventListener("volumechange", rememberSoundUnlocked);
     unmuteButton.addEventListener("click", unmutePlayer);
     nextButton.addEventListener("click", nextVideo);
+    previousButton.addEventListener("click", previousVideo);
     stretchButton.addEventListener("click", toggleStretchMode);
     ownerUnlockButton.addEventListener("click", unlockOwnerControls);
     shuffleButton.addEventListener("click", shufflePlaylist);
+    discountsButton.addEventListener("click", () => {
+      window.location.href = "/discounts";
+    });
+    discountsHeader.addEventListener("click", () => {
+      discountsLinks.hidden = !discountsLinks.hidden;
+    });
+    document.querySelectorAll("[data-discount-link]").forEach(button => {
+      button.addEventListener("click", () => {
+        window.location.href = button.getAttribute("data-discount-link");
+      });
+    });
     blankSiteButton.addEventListener("click", blankSite);
     chatForm.addEventListener("submit", sendChat);
     chatGif.addEventListener("change", updateGifPreview);
@@ -2631,7 +3081,7 @@ function pageHtml() {
 
     checkLiveAnnouncement()
       .then(() => {
-        setInterval(safeSyncChannel, 15000);
+        setInterval(safeSyncChannel, 3000);
       })
       .catch(() => {
         player.hidden = true;
@@ -2948,7 +3398,8 @@ function chatOnlyHtml() {
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
-  const requestProtocol = req.headers["x-forwarded-proto"] || (String(req.headers.host || "").includes("trycloudflare.com") ? "https" : url.protocol.replace(":", ""));
+  const requestHost = String(req.headers.host || "");
+  const requestProtocol = req.headers["x-forwarded-proto"] || (requestHost.includes("trycloudflare.com") || requestHost.includes("flivetv.qzz.io") ? "https" : url.protocol.replace(":", ""));
   const requestOrigin = `${requestProtocol}://${req.headers.host}`;
 
   if (req.method === "GET" && url.pathname !== "/online-stats") {
@@ -2984,6 +3435,25 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (url.pathname === "/discounts" || url.pathname === "/discounts/index.html") {
+    send(res, 200, discountsPageHtml(), "text/html; charset=utf-8");
+    return;
+  }
+
+  const discountMatch = url.pathname.match(/^\/discounts\/([^/]+\.html)$/);
+  if (discountMatch) {
+    const requestedFile = path.basename(discountMatch[1]);
+    const discountPath = path.join(DISCOUNTS_DIR, requestedFile);
+
+    if (!fs.existsSync(discountPath)) {
+      send(res, 404, "Discount page not found");
+      return;
+    }
+
+    send(res, 200, fs.readFileSync(discountPath, "utf8"), "text/html; charset=utf-8");
+    return;
+  }
+
   if (url.pathname === "/fuits-radio") {
     send(res, 200, radioPageHtml(), "text/html; charset=utf-8");
     return;
@@ -2999,7 +3469,7 @@ const server = http.createServer((req, res) => {
       id: item.id,
       title: item.title,
       duration: item.duration,
-      src: `/video/${requestedChannel.id}/${item.id}/${encodeURIComponent(path.basename(item.file))}`
+        src: `/stream/${requestedChannel.id}/${item.id}`
     })));
     return;
   }
@@ -3020,7 +3490,7 @@ const server = http.createServer((req, res) => {
         title: item.title,
         duration: item.duration,
         sizeBytes: fs.statSync(item.file).size,
-        src: `/video/${channel.channel.id}/${item.id}/${encodeURIComponent(path.basename(item.file))}`
+        src: `/stream/${channel.channel.id}/${item.id}`
       }))
     });
     return;
@@ -3066,11 +3536,6 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (url.pathname === "/online-stats" && req.method === "GET") {
-    sendJson(res, 200, getOnlineStats(req, url.searchParams.get("device")));
-    return;
-  }
-
   if (url.pathname === "/owncast-hls" || url.pathname.startsWith("/owncast-hls/")) {
     const hlsPath = `/hls${url.pathname.slice("/owncast-hls".length)}${url.search}`;
     proxyOwncastHls(req, res, hlsPath);
@@ -3108,6 +3573,11 @@ const server = http.createServer((req, res) => {
         src: `${origin}${item.src}`
       }))
     })));
+    return;
+  }
+
+  if (url.pathname === "/online-stats" && req.method === "GET") {
+    sendJson(res, 200, getOnlineStats(req, url.searchParams.get("device")));
     return;
   }
 
@@ -3282,6 +3752,29 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (url.pathname === "/admin/previous" && req.method === "POST") {
+    readRequestBody(req)
+      .then(body => {
+        const payload = JSON.parse(body || "{}");
+        if (payload.password !== SHUFFLE_PASSWORD) {
+          send(res, 401, "Unauthorized");
+          return;
+        }
+
+        const result = advanceChannelToPreviousItem(payload.channel);
+        if (!result.ok) {
+          send(res, 400, result.reason || "Back failed");
+          return;
+        }
+
+        sendJson(res, 200, result);
+      })
+      .catch(() => {
+        send(res, 400, "Bad request");
+      });
+    return;
+  }
+
 
   if (url.pathname === "/admin/restart-services" && req.method === "POST") {
     readRequestBody(req)
@@ -3318,6 +3811,29 @@ const server = http.createServer((req, res) => {
       });
     return;
   }
+
+  if (url.pathname === "/admin/video-stream-settings" && req.method === "GET") {
+    sendJson(res, 200, readVideoStreamSettings());
+    return;
+  }
+
+  if (url.pathname === "/admin/video-stream-settings" && req.method === "POST") {
+    readRequestBody(req)
+      .then(body => {
+        const payload = JSON.parse(body || "{}");
+        if (payload.password !== getAdminPassword()) {
+          send(res, 401, "Unauthorized");
+          return;
+        }
+
+        sendJson(res, 200, writeVideoStreamSettings({ chunkMb: payload.chunkMb }));
+      })
+      .catch(() => {
+        send(res, 400, "Bad request");
+      });
+    return;
+  }
+
   if (url.pathname === "/admin/site-blank" && req.method === "POST") {
     readRequestBody(req)
       .then(body => {
@@ -3332,6 +3848,19 @@ const server = http.createServer((req, res) => {
       .catch(() => {
         send(res, 400, "Bad request");
       });
+    return;
+  }
+
+  const streamMatch = url.pathname.match(/^\/stream\/([^/]+)\/(\d+)$/);
+  if (streamMatch) {
+    const videoChannel = getChannel(streamMatch[1]);
+    const channelPlaylist = readPlaylist(videoChannel.id);
+    const item = channelPlaylist[Number(streamMatch[2])];
+    if (!item) {
+      send(res, 404, "Video not found");
+      return;
+    }
+    serveVideo(req, res, item);
     return;
   }
 

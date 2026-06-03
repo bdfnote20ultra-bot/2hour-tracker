@@ -4752,6 +4752,20 @@ function AdminPage({ onClose }) {
   const [password, setPassword] = useState("");
   const [unlocked, setUnlocked] = useState(false);
   const [error, setError] = useState("");
+  const sectionStyle = {
+    background: "rgba(15,23,42,.92)",
+    border: "2px solid rgba(96,165,250,.7)",
+    borderRadius: 0,
+    padding: 18,
+    boxShadow: "0 14px 36px rgba(0,0,0,.34)"
+  };
+  const sectionTitleStyle = {
+    margin: 0,
+    color: "#dbeafe",
+    fontSize: 24,
+    fontWeight: 1000,
+    letterSpacing: 1
+  };
 
   const unlockAdmin = event => {
     event.preventDefault();
@@ -4764,7 +4778,22 @@ function AdminPage({ onClose }) {
   };
 
   if (unlocked) {
-    return <EmptyUtilityPage title="ADMIN" onClose={onClose} />;
+    return (
+      <div style={{ minHeight: "100vh", background: "#020617", color: "#f8fafc", fontFamily: "system-ui, sans-serif", padding: 24, boxSizing: "border-box" }}>
+        <button onClick={onClose} style={{ border: "1px solid rgba(148,163,184,.3)", borderRadius: 999, background: "rgba(15,23,42,.9)", color: "#f8fafc", cursor: "pointer", fontSize: 13, fontWeight: 900, padding: "9px 14px" }}>
+          Back
+        </button>
+        <div style={{ maxWidth: 820, marginTop: 28, display: "grid", gap: 14 }}>
+          <h1 style={{ margin: 0, fontSize: 32, fontWeight: 1000, letterSpacing: .4 }}>ADMIN</h1>
+          <section style={sectionStyle}>
+            <h2 style={sectionTitleStyle}>CONTROLS</h2>
+          </section>
+          <section style={sectionStyle}>
+            <h2 style={sectionTitleStyle}>USER INFORMATION</h2>
+          </section>
+        </div>
+      </div>
+    );
   }
 
   return (

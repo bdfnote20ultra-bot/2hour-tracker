@@ -2569,6 +2569,18 @@ const getWeatherSummary = code => {
   return "Weather";
 };
 
+const getWeatherIconUrl = code => {
+  if (code === 0) return "https://openweathermap.org/img/wn/01d@2x.png";
+  if (code === 1) return "https://openweathermap.org/img/wn/02d@2x.png";
+  if ([2, 3].includes(code)) return "https://openweathermap.org/img/wn/03d@2x.png";
+  if ([45, 48].includes(code)) return "https://openweathermap.org/img/wn/50d@2x.png";
+  if ([51, 53, 55, 56, 57].includes(code)) return "https://openweathermap.org/img/wn/09d@2x.png";
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return "https://openweathermap.org/img/wn/10d@2x.png";
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return "https://openweathermap.org/img/wn/13d@2x.png";
+  if ([95, 96, 99].includes(code)) return "https://openweathermap.org/img/wn/11d@2x.png";
+  return "https://openweathermap.org/img/wn/02d@2x.png";
+};
+
 function MusicLibrarySidebar({ accentColor }) {
   const fuitsLiveTvChannelUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
   const [musicLibrary, setMusicLibrary] = useState(MUSIC_LIBRARY);
@@ -2776,53 +2788,71 @@ function MusicLibrarySidebar({ accentColor }) {
     }
 
     let cancelled = false;
-    setLocalForecast({ status: "asking", days: [] });
+    let weatherStarted = false;
+    setLocalForecast({ status: "waiting", days: [] });
 
-    navigator.geolocation.getCurrentPosition(
-      async position => {
-        if (cancelled) return;
-        const { latitude, longitude } = position.coords || {};
-        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-          setLocalForecast({ status: "unavailable", days: [] });
-          return;
-        }
+    const loadForecastOnce = () => {
+      if (cancelled || weatherStarted) return;
+      weatherStarted = true;
+      setLocalForecast({ status: "asking", days: [] });
 
-        setLocalForecast({ status: "loading", days: [] });
-        try {
-          const params = new URLSearchParams({
-            latitude: String(latitude),
-            longitude: String(longitude),
-            daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
-            temperature_unit: "fahrenheit",
-            wind_speed_unit: "mph",
-            precipitation_unit: "inch",
-            timezone: "auto",
-            forecast_days: "3"
-          });
-          const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`, { cache: "no-store" });
-          if (!response.ok) throw new Error("forecast unavailable");
-          const data = await response.json();
-          const daily = data?.daily || {};
-          const days = (daily.time || []).slice(0, 3).map((date, index) => ({
-            date,
-            summary: getWeatherSummary(Number(daily.weather_code?.[index])),
-            high: Math.round(Number(daily.temperature_2m_max?.[index])),
-            low: Math.round(Number(daily.temperature_2m_min?.[index])),
-            rain: Math.round(Number(daily.precipitation_probability_max?.[index] || 0))
-          }));
-          if (!cancelled) setLocalForecast({ status: days.length ? "ready" : "unavailable", days });
-        } catch {
-          if (!cancelled) setLocalForecast({ status: "unavailable", days: [] });
-        }
-      },
-      () => {
-        if (!cancelled) setLocalForecast({ status: "denied", days: [] });
-      },
-      { enableHighAccuracy: false, timeout: 12000, maximumAge: 30 * 60 * 1000 }
-    );
+      navigator.geolocation.getCurrentPosition(
+        async position => {
+          if (cancelled) return;
+          const { latitude, longitude } = position.coords || {};
+          if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+            setLocalForecast({ status: "unavailable", days: [] });
+            return;
+          }
+
+          setLocalForecast({ status: "loading", days: [] });
+          try {
+            const params = new URLSearchParams({
+              latitude: String(latitude),
+              longitude: String(longitude),
+              daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
+              temperature_unit: "fahrenheit",
+              timezone: "auto",
+              forecast_days: "3"
+            });
+            const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`, { cache: "no-store" });
+            if (!response.ok) throw new Error("forecast unavailable");
+            const data = await response.json();
+            const daily = data?.daily || {};
+            const days = (daily.time || []).slice(0, 3).map((date, index) => {
+              const code = Number(daily.weather_code?.[index]);
+              return {
+                date,
+                summary: getWeatherSummary(code),
+                icon: getWeatherIconUrl(code),
+                high: Math.round(Number(daily.temperature_2m_max?.[index])),
+                low: Math.round(Number(daily.temperature_2m_min?.[index])),
+                rain: Math.round(Number(daily.precipitation_probability_max?.[index] || 0))
+              };
+            });
+            if (!cancelled) setLocalForecast({ status: days.length ? "ready" : "unavailable", days });
+          } catch {
+            if (!cancelled) setLocalForecast({ status: "unavailable", days: [] });
+          }
+        },
+        () => {
+          if (!cancelled) setLocalForecast({ status: "denied", days: [] });
+        },
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 60 * 60 * 1000 }
+      );
+    };
+
+    const idleId = "requestIdleCallback" in window
+      ? window.requestIdleCallback(loadForecastOnce, { timeout: 2500 })
+      : window.setTimeout(loadForecastOnce, 1500);
 
     return () => {
       cancelled = true;
+      if ("cancelIdleCallback" in window && typeof idleId === "number") {
+        window.cancelIdleCallback(idleId);
+      } else {
+        window.clearTimeout(idleId);
+      }
     };
   }, []);
 
@@ -3200,6 +3230,7 @@ function MusicLibrarySidebar({ accentColor }) {
         @media (max-width: 1180px) { .music-library-desktop-sidebar { display: none !important; } }
         @media (max-width: 1180px) {
           .fuits-online-indicator,
+          .fuits-weather-panel,
           .fuits-schedule-panel { display: none !important; }
         }
         .music-library-desktop-sidebar button:hover { transform: translateY(-1px); }
@@ -3243,51 +3274,70 @@ function MusicLibrarySidebar({ accentColor }) {
         <div style={{ fontSize: 11, fontWeight: 900, color: "#cbd5e1", textTransform: "uppercase", lineHeight: 1.15 }}>
           {onlineStats.households === null ? "Checking" : onlineStats.households} Households Logged In
         </div>
-        <div style={{
-          marginTop: 5,
-          borderTop: "1px solid rgba(148,163,184,.18)",
-          paddingTop: 7,
-          display: "grid",
-          gap: 5
-        }}>
-          <div style={{ fontSize: 10, fontWeight: 1000, color: "#bae6fd", textTransform: "uppercase", letterSpacing: .7 }}>
-            3 Day Forecast
-          </div>
-          {localForecast.status === "ready" ? (
-            localForecast.days.map(day => (
+      </div>
+
+      <div className="fuits-weather-panel" style={{
+        position: "fixed",
+        right: 430,
+        top: 110,
+        zIndex: 8,
+        width: 220,
+        border: "1px solid rgba(56,189,248,.28)",
+        borderRadius: 14,
+        background: "rgba(2,6,23,.88)",
+        boxShadow: "0 14px 34px rgba(0,0,0,.45)",
+        padding: "10px 12px",
+        color: "#f8fafc",
+        display: "grid",
+        gap: 8
+      }}>
+        <div style={{ fontSize: 10, fontWeight: 1000, color: "#bae6fd", textTransform: "uppercase", letterSpacing: .7 }}>
+          3 Day Forecast
+        </div>
+        {localForecast.status === "ready" ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 7 }}>
+            {localForecast.days.map(day => (
               <div key={day.date} style={{
+                minWidth: 0,
                 display: "grid",
-                gridTemplateColumns: "38px 1fr auto",
-                alignItems: "center",
-                gap: 7,
-                fontSize: 10,
-                fontWeight: 900,
+                justifyItems: "center",
+                gap: 3,
                 color: "#e2e8f0",
-                lineHeight: 1.15
+                textAlign: "center",
+                fontSize: 9,
+                fontWeight: 900,
+                lineHeight: 1.1
               }}>
-                <span style={{ color: "#fef08a", textTransform: "uppercase" }}>
+                <img
+                  src={day.icon}
+                  alt={day.summary}
+                  loading="lazy"
+                  style={{ width: 38, height: 38, objectFit: "contain", filter: "drop-shadow(0 4px 8px rgba(0,0,0,.38))" }}
+                />
+                <div style={{ color: "#fef08a", textTransform: "uppercase", fontSize: 10, fontWeight: 1000 }}>
                   {new Date(`${day.date}T12:00:00`).toLocaleDateString([], { weekday: "short" })}
-                </span>
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {day.summary} {day.rain ? `${day.rain}%` : ""}
-                </span>
-                <span style={{ color: "#bfdbfe" }}>
+                </div>
+                <div>{day.summary}</div>
+                <div style={{ color: "#bfdbfe" }}>
                   {Number.isFinite(day.high) ? day.high : "--"} / {Number.isFinite(day.low) ? day.low : "--"}
-                </span>
+                </div>
+                {!!day.rain && <div style={{ color: "#93c5fd" }}>{day.rain}% rain</div>}
               </div>
-            ))
-          ) : (
-            <div style={{ fontSize: 10, fontWeight: 900, color: "#94a3b8", lineHeight: 1.2 }}>
-              {localForecast.status === "asking"
+            ))}
+          </div>
+        ) : (
+          <div style={{ fontSize: 10, fontWeight: 900, color: "#94a3b8", lineHeight: 1.2 }}>
+            {localForecast.status === "waiting"
+              ? "Weather loads once after startup."
+              : localForecast.status === "asking"
                 ? "Allow location for local forecast."
                 : localForecast.status === "loading"
                   ? "Loading local forecast..."
                   : localForecast.status === "denied"
                     ? "Location blocked."
                     : "Forecast unavailable."}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <div className="fuits-schedule-panel" style={{

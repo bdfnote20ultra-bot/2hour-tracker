@@ -3719,9 +3719,9 @@ function MusicLibrarySidebar({ accentColor }) {
                     borderRadius: 12,
                     background: "#020617",
                     color: "#f8fafc",
-                    padding: "11px 12px",
+                    padding: "7px 9px",
                     outline: "none",
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: 1000,
                     textTransform: "uppercase",
                     letterSpacing: .7
@@ -3731,20 +3731,20 @@ function MusicLibrarySidebar({ accentColor }) {
                     <option key={channel.id} value={channel.id}>{channel.label}</option>
                   ))}
                 </select>
-                <div style={{ width: "100%", display: "flex", justifyContent: "flex-start", gap: 8, flexWrap: "wrap" }}>
+                <div style={{ width: "100%", display: "flex", justifyContent: "flex-start", gap: 6, flexWrap: "wrap" }}>
                   <button
                     type="button"
                     onClick={backFuitsChannelWithPassword}
                     style={{
                       border: "1px solid rgba(255,255,255,.26)",
                       borderRadius: 999,
-                      padding: "7px 10px",
+                      padding: "4px 7px",
                       background: "rgba(15,23,42,.88)",
                       color: "#fff",
-                      fontSize: 11,
+                      fontSize: 9,
                       fontWeight: 1000,
                       cursor: "pointer",
-                      boxShadow: "0 8px 18px rgba(0,0,0,.32)",
+                      boxShadow: "0 5px 12px rgba(0,0,0,.26)",
                       textTransform: "uppercase"
                     }}
                   >
@@ -3756,13 +3756,13 @@ function MusicLibrarySidebar({ accentColor }) {
                     style={{
                       border: "1px solid rgba(255,255,255,.26)",
                       borderRadius: 999,
-                      padding: "7px 10px",
+                      padding: "4px 7px",
                       background: "rgba(15,23,42,.88)",
                       color: "#fff",
-                      fontSize: 11,
+                      fontSize: 9,
                       fontWeight: 1000,
                       cursor: "pointer",
-                      boxShadow: "0 8px 18px rgba(0,0,0,.32)",
+                      boxShadow: "0 5px 12px rgba(0,0,0,.26)",
                       textTransform: "uppercase"
                     }}
                   >

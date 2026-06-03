@@ -2642,6 +2642,47 @@ const getFuitsLiveDeviceId = () => {
   }
 };
 
+const getFuitsLiveDeviceProfile = () => {
+  const userAgent = navigator.userAgent || "";
+  const platform = navigator.userAgentData?.platform || navigator.platform || "unknown";
+  const brands = Array.isArray(navigator.userAgentData?.brands)
+    ? navigator.userAgentData.brands.map(brand => `${brand.brand} ${brand.version}`).join(", ")
+    : "";
+  const width = Math.round(window.screen?.width || window.innerWidth || 0);
+  const height = Math.round(window.screen?.height || window.innerHeight || 0);
+  const viewportWidth = Math.round(window.innerWidth || 0);
+  const viewportHeight = Math.round(window.innerHeight || 0);
+  const pixelRatio = Number(window.devicePixelRatio || 1);
+  const touchPoints = Number(navigator.maxTouchPoints || 0);
+  const mobileHint = Boolean(navigator.userAgentData?.mobile);
+  const isAndroid = /Android/i.test(userAgent);
+  const isIphone = /iPhone/i.test(userAgent);
+  const isIpad = /iPad/i.test(userAgent) || (platform === "MacIntel" && touchPoints > 1);
+  const isWindows = /Windows/i.test(userAgent) || /Win/i.test(platform);
+  const isMac = /Macintosh|Mac OS/i.test(userAgent) || /Mac/i.test(platform);
+  const isMobileSized = Math.min(width, height) <= 520 || Math.min(viewportWidth, viewportHeight) <= 520;
+  const isTabletSized = Math.min(width, height) > 520 && Math.min(width, height) <= 950 && touchPoints > 0;
+  const deviceType = isIpad || isTabletSized ? "Tablet" : (mobileHint || isAndroid || isIphone || isMobileSized ? "Mobile" : "Desktop/Laptop");
+  const os = isIphone || isIpad ? "iOS/iPadOS" : isAndroid ? "Android" : isWindows ? "Windows" : isMac ? "macOS" : platform;
+  const browser = /Edg\//i.test(userAgent) ? "Edge" : /OPR\//i.test(userAgent) ? "Opera" : /Firefox\//i.test(userAgent) ? "Firefox" : /Chrome\//i.test(userAgent) ? "Chrome" : /Safari\//i.test(userAgent) ? "Safari" : "Unknown browser";
+  const modelMatch = userAgent.match(/Android[^;]*;\s*([^;)]+)\)/i);
+  const modelHint = isIphone ? "iPhone" : isIpad ? "iPad" : modelMatch?.[1]?.replace(/\s+Build\/.*/i, "").trim() || "";
+
+  return {
+    deviceType,
+    os,
+    browser,
+    modelHint,
+    platform,
+    brands,
+    screen: `${width}x${height}`,
+    viewport: `${viewportWidth}x${viewportHeight}`,
+    pixelRatio,
+    touchPoints,
+    mobileHint
+  };
+};
+
 const fetchFuitsLiveOnlineStats = async (baseUrl, extraParams = {}) => {
   const statsUrls = [
     `${window.location.origin.replace(/\/+$/, "")}/online-stats`,
@@ -2652,6 +2693,7 @@ const fetchFuitsLiveOnlineStats = async (baseUrl, extraParams = {}) => {
     try {
       const params = new URLSearchParams({
         device: getFuitsLiveDeviceId(),
+        deviceProfile: JSON.stringify(getFuitsLiveDeviceProfile()),
         cache: String(Date.now()),
         ...extraParams
       });
@@ -2850,6 +2892,7 @@ function MusicLibrarySidebar({ accentColor }) {
       if (!fuitsLiveTvChannelUrl) return;
       const params = new URLSearchParams({
         device: getFuitsLiveDeviceId(),
+        deviceProfile: JSON.stringify(getFuitsLiveDeviceProfile()),
         weatherStatus: status,
         cache: String(Date.now())
       });
@@ -5020,6 +5063,20 @@ function AdminPage({ onClose }) {
     return `${lat}, ${lon}${location.timezone ? ` (${location.timezone})` : ""}`;
   };
 
+  const formatDeviceProfile = profile => {
+    if (!profile || typeof profile !== "object") return "Unknown device profile";
+    const parts = [
+      profile.deviceType,
+      profile.modelHint || profile.os,
+      profile.browser,
+      profile.screen ? `Screen ${profile.screen}` : "",
+      profile.viewport ? `View ${profile.viewport}` : "",
+      Number.isFinite(Number(profile.pixelRatio)) ? `DPR ${Number(profile.pixelRatio).toFixed(2).replace(/\.00$/, "")}` : "",
+      Number.isFinite(Number(profile.touchPoints)) ? `${profile.touchPoints} touch points` : ""
+    ].filter(Boolean);
+    return parts.join(" - ") || "Unknown device profile";
+  };
+
   if (unlocked) {
     return (
       <div style={{ minHeight: "100vh", background: "#020617", color: "#f8fafc", fontFamily: "system-ui, sans-serif", padding: 24, boxSizing: "border-box" }}>
@@ -5101,6 +5158,10 @@ function AdminPage({ onClose }) {
                     {(household.devices || []).map(device => (
                       <div key={device.deviceId} style={{ borderTop: "1px solid rgba(148,163,184,.18)", paddingTop: 8, display: "grid", gap: 4 }}>
                         <div style={{ color: "#dbeafe", fontSize: 13, fontWeight: 1000, overflowWrap: "anywhere" }}>Device ID: {device.deviceId || "unknown"}</div>
+                        <div style={{ color: "#fef3c7", fontSize: 12, fontWeight: 1000, overflowWrap: "anywhere" }}>Detected Device: {formatDeviceProfile(device.deviceProfile)}</div>
+                        {device.deviceProfile?.platform && (
+                          <div style={{ color: "#fde68a", fontSize: 11, fontWeight: 800, overflowWrap: "anywhere" }}>Platform Hint: {device.deviceProfile.platform}{device.deviceProfile.brands ? ` - ${device.deviceProfile.brands}` : ""}</div>
+                        )}
                         <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 800, overflowWrap: "anywhere" }}>Location From Weather Check: {formatWeatherLocation(device.weatherLocation)}</div>
                         <div style={{ color: "#94a3b8", fontSize: 11, fontWeight: 800, overflowWrap: "anywhere" }}>Weather Permission: {device.weatherStatus || "unknown"}</div>
                         <div style={{ color: "#64748b", fontSize: 10, fontWeight: 800, overflowWrap: "anywhere" }}>Device Browser: {device.userAgent || "unknown"}</div>

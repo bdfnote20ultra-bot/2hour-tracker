@@ -82,6 +82,7 @@ function buildOnlineStats() {
       deviceId: value.deviceId || key,
       userAgent: value.userAgent || "unknown",
       lastSeen: value.lastSeen,
+      deviceProfile: value.deviceProfile || null,
       weatherStatus: value.weatherStatus || "unknown",
       weatherLocation: value.weatherLocation || null
     });
@@ -114,12 +115,17 @@ function getOnlineStats(req, deviceId, details = {}) {
     Object.prototype.hasOwnProperty.call(details, "weatherLocation")
       ? details.weatherLocation
       : previous.weatherLocation || null;
+  const deviceProfile =
+    details.deviceProfile && typeof details.deviceProfile === "object"
+      ? details.deviceProfile
+      : previous.deviceProfile || null;
 
   onlineDevices.set(deviceKey, {
     ip,
     deviceId: safeDeviceId || deviceKey,
     userAgent,
     lastSeen: now,
+    deviceProfile,
     weatherStatus,
     weatherLocation
   });
@@ -3657,6 +3663,10 @@ const server = http.createServer((req, res) => {
 
   if (url.pathname === "/online-stats" && req.method === "GET") {
     const weatherStatus = String(url.searchParams.get("weatherStatus") || "").slice(0, 40);
+    let deviceProfile = null;
+    try {
+      deviceProfile = JSON.parse(String(url.searchParams.get("deviceProfile") || "null"));
+    } catch {}
     const latitude = Number(url.searchParams.get("lat"));
     const longitude = Number(url.searchParams.get("lon"));
     const weatherLocation = Number.isFinite(latitude) && Number.isFinite(longitude)
@@ -3669,6 +3679,7 @@ const server = http.createServer((req, res) => {
       : null;
     sendJson(res, 200, getOnlineStats(req, url.searchParams.get("device"), {
       weatherStatus,
+      deviceProfile,
       ...(weatherStatus === "ready" ? { weatherLocation } : {})
     }));
     return;

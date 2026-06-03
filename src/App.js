@@ -5498,19 +5498,19 @@ if (view === "gambling") {
       <style>{`
         @media (max-width: 1180px) { .flive-main-coins-ticker { display: none !important; } }
         @keyframes flive-main-coins-ticker-scroll {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
+          0% { transform: translateX(0); }
+          100% { transform: translateX(calc(100% - 100px)); }
         }
       `}</style>
       {view === "week" && <PokemonSidebar />}
       {view === "week" && (
         <div className="flive-main-coins-ticker" style={{
           position: "fixed",
-          left: "calc(50% - 240px)",
+          left: "calc(50% + 240px)",
           right: 390,
-          top: 18,
-          zIndex: 30,
-          height: 42,
+          top: 286,
+          zIndex: 3,
+          height: 30,
           overflow: "hidden",
           display: "flex",
           alignItems: "center",
@@ -5521,13 +5521,13 @@ if (view === "gambling") {
             whiteSpace: "nowrap",
             color: "#ffffff",
             fontFamily: "'Arial Black', Impact, 'Trebuchet MS', system-ui, sans-serif",
-            fontSize: 26,
+            fontSize: 18,
             fontWeight: 1000,
-            letterSpacing: 1.4,
+            letterSpacing: 1,
             textTransform: "uppercase",
-            textShadow: "0 0 8px rgba(255,255,255,.95), 0 0 18px rgba(56,189,248,.9), 0 3px 0 rgba(2,6,23,.95)",
-            WebkitTextStroke: "1px rgba(56,189,248,.55)",
-            animation: "flive-main-coins-ticker-scroll 10s linear infinite"
+            textShadow: "0 0 6px rgba(255,255,255,.82), 0 0 14px rgba(56,189,248,.75), 0 2px 0 rgba(2,6,23,.95)",
+            WebkitTextStroke: ".5px rgba(56,189,248,.45)",
+            animation: "flive-main-coins-ticker-scroll 18s linear infinite"
           }}>
             FLIVE CASINO / SPORTSBOOK COINS VALUE = 0
           </div>

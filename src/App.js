@@ -2587,11 +2587,12 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
         </div>
       )}
       <div style={{
-        padding: "8px 10px",
+        padding: "10px 12px 12px",
         color: "#cbd5e1",
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: 900,
-        lineHeight: 1.3,
+        lineHeight: 1.35,
+        minHeight: 50,
         whiteSpace: "normal",
         overflowWrap: "anywhere",
         wordBreak: "break-word",
@@ -3247,7 +3248,8 @@ function MusicLibrarySidebar({ accentColor }) {
       display: "grid",
       gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
       gap: 8,
-      width: "100%"
+      width: "100%",
+      marginTop: 8
     }}>
       {fuitsOwnerCommands.map(command => (
         <button

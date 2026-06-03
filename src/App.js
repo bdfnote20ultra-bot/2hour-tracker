@@ -5084,7 +5084,7 @@ function AdminPage({ onClose }) {
             )}
             <div style={{ marginTop: 14, display: "grid", gap: 12 }}>
               {onlineUserInfo.householdDetails.map(household => (
-                <details key={household.ip} open style={{ border: "1px solid rgba(96,165,250,.35)", background: "rgba(2,6,23,.7)", padding: 12 }}>
+                <details key={household.ip} style={{ border: "1px solid rgba(96,165,250,.35)", background: "rgba(2,6,23,.7)", padding: 12 }}>
                   <summary style={{ cursor: "pointer", listStyle: "none" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
                       <div>
@@ -5097,12 +5097,6 @@ function AdminPage({ onClose }) {
                       </div>
                     </div>
                   </summary>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginTop: 10 }}>
-                    <div>
-                      <div style={controlLabelStyle}>DROPDOWN DETAILS</div>
-                      <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 800 }}>Expand/collapse this household to review its devices.</div>
-                    </div>
-                  </div>
                   <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
                     {(household.devices || []).map(device => (
                       <div key={device.deviceId} style={{ borderTop: "1px solid rgba(148,163,184,.18)", paddingTop: 8, display: "grid", gap: 4 }}>

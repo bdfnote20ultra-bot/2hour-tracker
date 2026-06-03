@@ -2842,17 +2842,11 @@ function MusicLibrarySidebar({ accentColor }) {
       );
     };
 
-    const idleId = "requestIdleCallback" in window
-      ? window.requestIdleCallback(loadForecastOnce, { timeout: 2500 })
-      : window.setTimeout(loadForecastOnce, 1500);
+    const idleId = window.setTimeout(loadForecastOnce, 9000);
 
     return () => {
       cancelled = true;
-      if ("cancelIdleCallback" in window && typeof idleId === "number") {
-        window.cancelIdleCallback(idleId);
-      } else {
-        window.clearTimeout(idleId);
-      }
+      window.clearTimeout(idleId);
     };
   }, []);
 
@@ -2910,7 +2904,6 @@ function MusicLibrarySidebar({ accentColor }) {
     const loadFuitsSchedule = async () => {
       try {
         const scheduleUrls = [
-          `${window.location.origin.replace(/\/+$/, "")}/channel.json?channel=${encodeURIComponent(activeFuitsLiveTvChannel)}&cache=${Date.now()}`,
           `${fuitsLiveTvChannelUrl.replace(/\/+$/, "")}/channel.json?channel=${encodeURIComponent(activeFuitsLiveTvChannel)}&cache=${Date.now()}`
         ];
         let data = null;
@@ -2937,7 +2930,7 @@ function MusicLibrarySidebar({ accentColor }) {
     };
 
     setFuitsSchedule(current => ({ ...current, loading: true }));
-    loadFuitsSchedule();
+    refreshTimer = setTimeout(loadFuitsSchedule, 4500);
     return () => {
       cancelled = true;
       if (refreshTimer) clearTimeout(refreshTimer);

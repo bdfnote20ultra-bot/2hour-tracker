@@ -6146,16 +6146,13 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
                           <div style={{ color: "#f8fafc", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", overflowWrap: "anywhere", lineHeight: 1.15, minWidth: 0 }}>{user.username}</div>
                         </div>
                         <div style={{ color: "#cbd5e1", fontSize: 11, fontWeight: 900, overflowWrap: "anywhere", lineHeight: 1.15, minWidth: 0 }}>{user.email || "No email"}</div>
-                        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 4, alignItems: "center", minWidth: 0 }}>
-                          <div style={{ color: "#f8fafc", fontSize: 10, fontWeight: 1000, overflowWrap: "anywhere", textAlign: "right", lineHeight: 1.15 }}>
-                            {visibleAdminPasswords[user.passwordKey] ? user.password || "No password" : "********"}
-                          </div>
+                        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", minWidth: 0 }}>
                           <button
                             type="button"
-                            onClick={() => setVisibleAdminPasswords(current => ({ ...current, [user.passwordKey]: !current[user.passwordKey] }))}
+                            onClick={() => window.alert(`${user.username || "User"} password:\n\n${user.password || "No password"}`)}
                             style={{ ...adminButtonStyle, padding: "4px 6px", fontSize: 9, borderColor: "#94a3b8", background: "#94a3b8" }}
                           >
-                            {visibleAdminPasswords[user.passwordKey] ? "Hide" : "Show"}
+                            Show
                           </button>
                         </div>
                         <div style={{ color: user.banned ? "#fecaca" : "#fef3c7", fontSize: 9, fontWeight: 1000, textTransform: "uppercase", textAlign: "center", overflowWrap: "anywhere" }}>{user.banned ? "banned" : user.status}</div>

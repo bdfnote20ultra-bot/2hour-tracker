@@ -6321,6 +6321,33 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
                   ))}
                 </div>
               )}
+              <div style={{ borderTop: "1px solid rgba(148,163,184,.24)", marginTop: 4, paddingTop: 14, display: "grid", gap: 10 }}>
+                <h2 style={{ ...sectionTitleStyle, fontSize: 22 }}>FUIT COINS</h2>
+                <div style={{ border: "1px solid rgba(34,197,94,.42)", background: "rgba(20,83,45,.34)", padding: 12, display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                  <div style={controlLabelStyle}>BALANCE</div>
+                  <div style={{ color: "#bbf7d0", fontSize: 24, fontWeight: 1000 }}>0 FUIT COINS</div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Deposit USDT"
+                    style={{ ...adminInputStyle, minWidth: 0 }}
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Deposit USDC"
+                    style={{ ...adminInputStyle, minWidth: 0 }}
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Withdrawl FUIT Coin"
+                    style={{ ...adminInputStyle, minWidth: 0 }}
+                  />
+                </div>
+              </div>
             </div>
           </section>
           <section style={sectionStyle}>

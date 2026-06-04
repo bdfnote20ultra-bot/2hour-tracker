@@ -5658,7 +5658,7 @@ function AdminPage({ onClose, loggedInUsername }) {
     { label: "Crypto Admin", password: "FUCKNUTZ22!" }
   ];
   const userManagementRows = [
-    { username: "MASTER", password: "FartAss!1", passwordKey: "masterUserManagement" }
+    { username: "MASTER", email: "", password: "FartAss!1", passwordKey: "masterUserManagement" }
   ];
 
   if (unlocked) {
@@ -5866,16 +5866,20 @@ function AdminPage({ onClose, loggedInUsername }) {
             <section style={sectionStyle}>
               <h2 style={sectionTitleStyle}>USER MANAGEMENT</h2>
               <div style={{ marginTop: 16, display: "grid", gap: 8 }}>
-                <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 10 }}>
+                <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "1fr 1fr auto 1fr", gap: 10 }}>
                   <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>Username</div>
+                  <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>Email</div>
                   <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", textAlign: "center" }}>Status</div>
                   <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", textAlign: "right" }}>Password</div>
                 </div>
                 {userManagementRows.map(user => {
                   const isLoggedIn = String(loggedInUsername || "").toUpperCase() === user.username.toUpperCase();
                   return (
-                    <div key={user.username} style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "1fr auto minmax(72px,auto) auto", gap: 10, alignItems: "center" }}>
+                    <div key={user.username} style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "1fr 1fr auto minmax(72px,auto) auto", gap: 10, alignItems: "center" }}>
                       <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 1000, textTransform: "uppercase" }}>{user.username}</div>
+                      <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 900, overflowWrap: "anywhere" }}>
+                        {user.email || "No email yet"}
+                      </div>
                       <div style={{
                         border: `1px solid ${isLoggedIn ? "rgba(34,197,94,.72)" : "rgba(148,163,184,.36)"}`,
                         borderRadius: 999,

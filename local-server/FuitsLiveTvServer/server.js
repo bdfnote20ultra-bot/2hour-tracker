@@ -231,6 +231,267 @@ function getChannel(channelId) {
   return channels.find(channel => channel.id === channelId) || channels[0];
 }
 
+function findChannel(channelId) {
+  return getChannels().find(channel => channel.id === channelId);
+}
+
+function assertChannel(channelId) {
+  const channel = findChannel(channelId);
+  if (!channel) throw new Error("Choose a valid playlist channel.");
+  return channel;
+}
+
+function sanitizePlaylistName(value) {
+  const safe = String(value || "")
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!safe) throw new Error("Enter a playlist channel name.");
+  return safe.slice(0, 80);
+}
+
+function getPlaylistFileNameFromLabel(label) {
+  return `${sanitizePlaylistName(label).replace(/\s+/g, "-")}.m3u`;
+}
+
+function assertPlaylistVideoPath(file) {
+  const resolvedRoot = path.resolve(VIDEOS_DIR);
+  const resolvedFile = path.resolve(String(file || ""));
+  if (!resolvedFile.startsWith(resolvedRoot + path.sep) && resolvedFile !== resolvedRoot) {
+    throw new Error("Video path is outside the videos folder.");
+  }
+  if (!fs.existsSync(resolvedFile)) {
+    throw new Error("Video file was not found.");
+  }
+  if (path.extname(resolvedFile).toLowerCase() !== ".mp4") {
+    throw new Error("FUITS Live TV playlists currently support MP4 files.");
+  }
+  return resolvedFile;
+}
+
+function normalizePlaylistVideoPath(file) {
+  const resolvedRoot = path.resolve(VIDEOS_DIR);
+  const resolvedFile = path.resolve(String(file || ""));
+  if (!resolvedFile.startsWith(resolvedRoot + path.sep) && resolvedFile !== resolvedRoot) {
+    throw new Error("Video path is outside the videos folder.");
+  }
+  if (path.extname(resolvedFile).toLowerCase() !== ".mp4") {
+    throw new Error("FUITS Live TV playlists currently support MP4 files.");
+  }
+  return resolvedFile;
+}
+
+function readPlaylistEntries(channelId) {
+  const channel = assertChannel(channelId);
+  if (!fs.existsSync(channel.playlistPath)) return [];
+
+  const lines = fs.readFileSync(channel.playlistPath, "utf8").split(/\r?\n/);
+  const entries = [];
+  let title = "";
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line || line === "#EXTM3U") continue;
+
+    if (line.startsWith("#EXTINF:")) {
+      title = line.includes(",") ? line.slice(line.indexOf(",") + 1).trim() : "";
+      continue;
+    }
+
+    if (line.toLowerCase().endsWith(".mp4")) {
+      entries.push({
+        title: title || path.basename(line, path.extname(line)),
+        file: line
+      });
+      title = "";
+    }
+  }
+
+  return entries;
+}
+
+function writePlaylistEntries(channelId, entries) {
+  const channel = assertChannel(channelId);
+  const lines = ["#EXTM3U"];
+  for (const entry of entries) {
+    const file = normalizePlaylistVideoPath(entry.file);
+    const title = String(entry.title || path.basename(file, path.extname(file))).trim() || path.basename(file, path.extname(file));
+    lines.push(`#EXTINF:-1,${title}`);
+    lines.push(file);
+  }
+  fs.writeFileSync(channel.playlistPath, `${lines.join("\r\n")}\r\n`, "utf8");
+}
+
+function summarizePlaylistEntry(entry, index) {
+  const resolvedFile = path.resolve(entry.file);
+  const exists = fs.existsSync(resolvedFile);
+  const stat = exists ? fs.statSync(resolvedFile) : null;
+  return {
+    index,
+    title: entry.title,
+    file: entry.file,
+    fileName: path.basename(entry.file),
+    relativePath: exists ? path.relative(VIDEOS_DIR, resolvedFile) : entry.file,
+    exists,
+    sizeBytes: stat ? stat.size : 0,
+    modifiedAt: stat ? stat.mtime.toISOString() : ""
+  };
+}
+
+function listPlaylistVideos() {
+  if (!fs.existsSync(VIDEOS_DIR)) return [];
+  return walkFiles(VIDEOS_DIR)
+    .filter(file => path.extname(file).toLowerCase() === ".mp4")
+    .sort((a, b) => path.relative(VIDEOS_DIR, a).localeCompare(path.relative(VIDEOS_DIR, b)))
+    .map(file => {
+      const stat = fs.statSync(file);
+      return {
+        path: file,
+        fileName: path.basename(file),
+        relativePath: path.relative(VIDEOS_DIR, file),
+        sizeBytes: stat.size,
+        modifiedAt: stat.mtime.toISOString()
+      };
+    });
+}
+
+function getPlaylistManagement(payload = {}) {
+  const channels = getChannels().map(channel => {
+    let itemCount = 0;
+    try {
+      itemCount = readPlaylistEntries(channel.id).length;
+    } catch {}
+    return {
+      id: channel.id,
+      label: channel.label,
+      fileName: path.basename(channel.playlistPath),
+      itemCount
+    };
+  });
+  const selectedChannel = channels.find(channel => channel.id === payload.channelId) || channels[0] || null;
+  const entries = selectedChannel ? readPlaylistEntries(selectedChannel.id) : [];
+
+  return {
+    ok: true,
+    videosRoot: VIDEOS_DIR,
+    playlistRoot: CHANNEL_PLAYLIST_DIR,
+    channels,
+    selectedChannel,
+    items: entries.map(summarizePlaylistEntry),
+    availableVideos: listPlaylistVideos()
+  };
+}
+
+function createPlaylistChannel(payload) {
+  ensureChannelFolders();
+  const fileName = getPlaylistFileNameFromLabel(payload.name);
+  const playlistPath = path.join(CHANNEL_PLAYLIST_DIR, fileName);
+  if (fs.existsSync(playlistPath)) throw new Error("A playlist channel with that name already exists.");
+  fs.writeFileSync(playlistPath, "#EXTM3U\r\n", "utf8");
+  return getPlaylistManagement({ channelId: makeChannelFromPlaylist(fileName).id });
+}
+
+function renamePlaylistChannel(payload) {
+  const channel = assertChannel(payload.channelId);
+  const fileName = getPlaylistFileNameFromLabel(payload.name);
+  const nextPath = path.join(CHANNEL_PLAYLIST_DIR, fileName);
+  if (path.resolve(nextPath) !== path.resolve(channel.playlistPath) && fs.existsSync(nextPath)) {
+    throw new Error("A playlist channel with that name already exists.");
+  }
+  fs.renameSync(channel.playlistPath, nextPath);
+  return getPlaylistManagement({ channelId: makeChannelFromPlaylist(fileName).id });
+}
+
+function deletePlaylistChannel(payload) {
+  const channel = assertChannel(payload.channelId);
+  fs.rmSync(channel.playlistPath, { force: true });
+  return getPlaylistManagement();
+}
+
+function updatePlaylistItem(payload) {
+  const entries = readPlaylistEntries(payload.channelId);
+  const index = Number(payload.index);
+  if (!Number.isInteger(index) || index < 0 || index >= entries.length) {
+    throw new Error("Choose a valid playlist item.");
+  }
+  entries[index] = {
+    ...entries[index],
+    title: String(payload.title || "").trim() || path.basename(entries[index].file, path.extname(entries[index].file))
+  };
+  writePlaylistEntries(payload.channelId, entries);
+  return getPlaylistManagement({ channelId: payload.channelId });
+}
+
+function removeFileFromAllPlaylists(file) {
+  const target = path.resolve(file);
+  for (const channel of getChannels()) {
+    const entries = readPlaylistEntries(channel.id).filter(entry => path.resolve(entry.file) !== target);
+    writePlaylistEntries(channel.id, entries);
+  }
+}
+
+function removePlaylistItem(payload) {
+  const entries = readPlaylistEntries(payload.channelId);
+  const index = Number(payload.index);
+  if (!Number.isInteger(index) || index < 0 || index >= entries.length) {
+    throw new Error("Choose a valid playlist item.");
+  }
+  const [removed] = entries.splice(index, 1);
+  if (payload.deleteFile) {
+    const file = assertPlaylistVideoPath(removed.file);
+    fs.rmSync(file, { force: true });
+    removeFileFromAllPlaylists(file);
+  } else {
+    writePlaylistEntries(payload.channelId, entries);
+  }
+  return getPlaylistManagement({ channelId: payload.channelId });
+}
+
+function addPlaylistItems(payload) {
+  const entries = readPlaylistEntries(payload.channelId);
+  const existing = new Set(entries.map(entry => path.resolve(entry.file).toLowerCase()));
+  const paths = Array.isArray(payload.paths) ? payload.paths : payload.path ? [payload.path] : [];
+  for (const requestedPath of paths) {
+    const file = assertPlaylistVideoPath(requestedPath);
+    const key = path.resolve(file).toLowerCase();
+    if (existing.has(key)) continue;
+    existing.add(key);
+    entries.push({
+      title: path.basename(file, path.extname(file)),
+      file
+    });
+  }
+  writePlaylistEntries(payload.channelId, entries);
+  return getPlaylistManagement({ channelId: payload.channelId });
+}
+
+function renamePlaylistVideoFile(payload) {
+  const oldPath = assertPlaylistVideoPath(payload.path);
+  const extension = path.extname(oldPath);
+  const baseName = String(payload.name || payload.fileName || "")
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!baseName) throw new Error("Enter a new video file name.");
+  const nextName = baseName.toLowerCase().endsWith(extension.toLowerCase()) ? baseName : `${baseName}${extension}`;
+  const nextPath = path.join(path.dirname(oldPath), nextName);
+  if (path.resolve(nextPath) !== path.resolve(oldPath) && fs.existsSync(nextPath)) {
+    throw new Error("A video with that file name already exists in this folder.");
+  }
+  fs.renameSync(oldPath, nextPath);
+
+  for (const channel of getChannels()) {
+    const entries = readPlaylistEntries(channel.id).map(entry => (
+      path.resolve(entry.file) === path.resolve(oldPath)
+        ? { ...entry, file: nextPath, title: entry.title === path.basename(oldPath, extension) ? path.basename(nextPath, extension) : entry.title }
+        : entry
+    ));
+    writePlaylistEntries(channel.id, entries);
+  }
+
+  return getPlaylistManagement({ channelId: payload.channelId });
+}
+
 function getRadioChannels() {
   ensureRadioFolders();
   return fs.readdirSync(RADIO_PLAYLIST_DIR)
@@ -4477,6 +4738,14 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (url.pathname === "/channels.json") {
+    sendJson(res, 200, getChannels().map(channel => ({
+      id: channel.id,
+      label: channel.label
+    })));
+    return;
+  }
+
   if (url.pathname === "/radio-channel.json") {
     const radioChannel = getRadioSnapshot(url.searchParams.get("channel"));
     sendJson(res, 200, {
@@ -4587,6 +4856,36 @@ const server = http.createServer((req, res) => {
       return;
     }
     sendJson(res, 200, buildOnlineStats());
+    return;
+  }
+
+  if (url.pathname === "/admin/playlist-management" && req.method === "POST") {
+    readRequestBody(req)
+      .then(body => {
+        const payload = JSON.parse(body || "{}");
+        if (!isAdminPassword(payload.password)) {
+          send(res, 401, "Unauthorized");
+          return;
+        }
+
+        const action = payload.action || "load";
+        const handlers = {
+          load: getPlaylistManagement,
+          createChannel: createPlaylistChannel,
+          renameChannel: renamePlaylistChannel,
+          deleteChannel: deletePlaylistChannel,
+          addItems: addPlaylistItems,
+          renameItem: updatePlaylistItem,
+          removeItem: removePlaylistItem,
+          renameFile: renamePlaylistVideoFile
+        };
+        const handler = handlers[action];
+        if (!handler) throw new Error("Choose a valid playlist action.");
+        sendJson(res, 200, handler(payload));
+      })
+      .catch(error => {
+        send(res, 400, error.message || "Playlist management failed");
+      });
     return;
   }
 

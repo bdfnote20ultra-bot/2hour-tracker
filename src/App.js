@@ -3133,15 +3133,13 @@ function MusicLibrarySidebar({ accentColor }) {
     let canceled = false;
     const loadLiveChannels = async () => {
       try {
-        const response = await fetch(`${fuitsLiveTvChannelUrl.replace(/\/+$/, "")}/fuits-live-tv?cache=${Date.now()}`, { cache: "no-store" });
+        const response = await fetch(`${fuitsLiveTvChannelUrl.replace(/\/+$/, "")}/channels.json?cache=${Date.now()}`, { cache: "no-store" });
         if (!response.ok) return;
 
-        const html = await response.text();
-        const doc = new DOMParser().parseFromString(html, "text/html");
-        const parsedChannels = Array.from(doc.querySelectorAll("#channelSelect option"))
-          .map(option => ({
-            id: option.getAttribute("value") || "",
-            label: option.textContent.trim()
+        const parsedChannels = (await response.json())
+          .map(channel => ({
+            id: channel.id || "",
+            label: channel.label || ""
           }))
           .filter(channel => channel.id && channel.label);
 
@@ -4949,6 +4947,13 @@ function AdminPage({ onClose }) {
   const [serverVideoRepairStatus, setServerVideoRepairStatus] = useState(null);
   const videoRepairCancelRequestedRef = useRef(false);
   const [onlineUserInfo, setOnlineUserInfo] = useState({ loading: true, devices: 0, households: 0, householdDetails: [] });
+  const [playlistManager, setPlaylistManager] = useState({ loading: false, channels: [], selectedChannel: null, items: [], availableVideos: [] });
+  const [playlistManagerStatus, setPlaylistManagerStatus] = useState("Loading playlist manager...");
+  const [playlistManagerChannelId, setPlaylistManagerChannelId] = useState("");
+  const [playlistManagerNewChannelName, setPlaylistManagerNewChannelName] = useState("");
+  const [playlistManagerRenameChannelName, setPlaylistManagerRenameChannelName] = useState("");
+  const [playlistManagerAddPath, setPlaylistManagerAddPath] = useState("");
+  const [playlistManagerSearch, setPlaylistManagerSearch] = useState("");
   const fuitsAdminBaseUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
   const sectionStyle = {
     background: "rgba(15,23,42,.92)",
@@ -5116,6 +5121,50 @@ function AdminPage({ onClose }) {
     return () => { cancelled = true; };
   }, [unlocked, fuitsAdminBaseUrl]);
 
+  const applyPlaylistManagerResult = result => {
+    const channels = Array.isArray(result.channels) ? result.channels : [];
+    const selectedChannel = result.selectedChannel || channels[0] || null;
+    setPlaylistManager({
+      loading: false,
+      channels,
+      selectedChannel,
+      items: Array.isArray(result.items) ? result.items : [],
+      availableVideos: Array.isArray(result.availableVideos) ? result.availableVideos : []
+    });
+    setPlaylistManagerChannelId(selectedChannel?.id || "");
+    setPlaylistManagerRenameChannelName(selectedChannel?.label || "");
+    setPlaylistManagerAddPath("");
+  };
+
+  const postPlaylistManager = async payload => {
+    setPlaylistManager(current => ({ ...current, loading: true }));
+    const response = await fetch(`${fuitsAdminBaseUrl}/admin/playlist-management`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password, channelId: playlistManagerChannelId, ...payload })
+    });
+    if (!response.ok) throw new Error(await response.text());
+    const result = await response.json();
+    applyPlaylistManagerResult(result);
+    return result;
+  };
+
+  const loadPlaylistManager = async (channelId = playlistManagerChannelId) => {
+    try {
+      setPlaylistManagerStatus("Loading playlist management...");
+      await postPlaylistManager({ action: "load", channelId });
+      setPlaylistManagerStatus("Playlist management ready.");
+    } catch (err) {
+      setPlaylistManager(current => ({ ...current, loading: false }));
+      setPlaylistManagerStatus(err?.message || "Could not load playlist management.");
+    }
+  };
+
+  useEffect(() => {
+    if (!unlocked) return;
+    loadPlaylistManager("");
+  }, [unlocked]);
+
   useEffect(() => {
     if (!unlocked) return;
     let cancelled = false;
@@ -5182,6 +5231,70 @@ function AdminPage({ onClose }) {
     } catch {
       setVideoChunkStatus("Could not save video chunk size yet.");
     }
+  };
+
+  const runPlaylistAction = async (payload, successMessage) => {
+    try {
+      setPlaylistManagerStatus("Saving playlist change...");
+      await postPlaylistManager(payload);
+      setPlaylistManagerStatus(successMessage || "Playlist updated.");
+    } catch (err) {
+      setPlaylistManager(current => ({ ...current, loading: false }));
+      setPlaylistManagerStatus(err?.message || "Playlist update failed.");
+    }
+  };
+
+  const createPlaylistChannelFromAdmin = () => {
+    if (!playlistManagerNewChannelName.trim()) {
+      setPlaylistManagerStatus("Enter a new playlist channel name.");
+      return;
+    }
+    runPlaylistAction({ action: "createChannel", name: playlistManagerNewChannelName }, "Playlist channel created.");
+    setPlaylistManagerNewChannelName("");
+  };
+
+  const renamePlaylistChannelFromAdmin = () => {
+    if (!playlistManagerChannelId || !playlistManagerRenameChannelName.trim()) return;
+    if (!window.confirm(`Rename this playlist channel to ${playlistManagerRenameChannelName.trim()}?`)) return;
+    runPlaylistAction({ action: "renameChannel", channelId: playlistManagerChannelId, name: playlistManagerRenameChannelName }, "Playlist channel renamed.");
+  };
+
+  const deletePlaylistChannelFromAdmin = () => {
+    const label = playlistManager.selectedChannel?.label || "this playlist channel";
+    if (!playlistManagerChannelId) return;
+    if (!window.confirm(`Delete playlist channel ${label}? This deletes the playlist file, not the videos.`)) return;
+    runPlaylistAction({ action: "deleteChannel", channelId: playlistManagerChannelId }, "Playlist channel deleted.");
+  };
+
+  const addPlaylistVideoFromAdmin = () => {
+    if (!playlistManagerAddPath) {
+      setPlaylistManagerStatus("Choose a video to add.");
+      return;
+    }
+    runPlaylistAction({ action: "addItems", channelId: playlistManagerChannelId, paths: [playlistManagerAddPath] }, "Video added to playlist.");
+  };
+
+  const renamePlaylistItemFromAdmin = item => {
+    const title = window.prompt("New playlist display name", item.title || item.fileName || "");
+    if (!title) return;
+    runPlaylistAction({ action: "renameItem", channelId: playlistManagerChannelId, index: item.index, title }, "Playlist item renamed.");
+  };
+
+  const renamePlaylistFileFromAdmin = item => {
+    const currentName = (item.fileName || "").replace(/\.[^.]+$/, "");
+    const name = window.prompt("New video file name", currentName);
+    if (!name) return;
+    runPlaylistAction({ action: "renameFile", channelId: playlistManagerChannelId, path: item.file, name }, "Video file renamed.");
+  };
+
+  const removePlaylistItemFromAdmin = item => {
+    if (!window.confirm(`Remove ${item.title || item.fileName} from this playlist? The video file stays in the videos folder.`)) return;
+    runPlaylistAction({ action: "removeItem", channelId: playlistManagerChannelId, index: item.index, deleteFile: false }, "Removed from playlist.");
+  };
+
+  const deletePlaylistFileFromAdmin = item => {
+    if (!window.confirm(`DELETE ${item.title || item.fileName} from the videos folder and remove it from all playlists?`)) return;
+    runPlaylistAction({ action: "removeItem", channelId: playlistManagerChannelId, index: item.index, deleteFile: true }, "Video file deleted.");
   };
 
   const scanVideoRepair = async () => {
@@ -5421,6 +5534,12 @@ function AdminPage({ onClose }) {
     return parts.join(" - ") || "Unknown device profile";
   };
 
+  const playlistAvailableVideos = playlistManager.availableVideos.filter(video => {
+    const query = playlistManagerSearch.trim().toLowerCase();
+    if (!query) return true;
+    return `${video.relativePath || ""} ${video.fileName || ""}`.toLowerCase().includes(query);
+  });
+
   if (unlocked) {
     return (
       <div style={{ minHeight: "100vh", background: "#020617", color: "#f8fafc", fontFamily: "system-ui, sans-serif", padding: 24, boxSizing: "border-box" }}>
@@ -5460,6 +5579,110 @@ function AdminPage({ onClose }) {
                 Save Video Control
               </button>
               <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 800 }}>{videoChunkStatus}</div>
+            </div>
+          </section>
+          <section style={sectionStyle}>
+            <h2 style={sectionTitleStyle}>PLAYLIST MANAGEMENT</h2>
+            <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
+              <div>
+                <div style={controlLabelStyle}>FUITS LIVE TV WORLD PLAYLIST CHANNELS</div>
+                <div style={{ color: "#f8fafc", fontSize: 18, fontWeight: 1000 }}>Choose, edit, add, or remove playlist content</div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(220px,1fr) auto", gap: 10 }}>
+                <select
+                  value={playlistManagerChannelId}
+                  onChange={event => loadPlaylistManager(event.target.value)}
+                  disabled={playlistManager.loading}
+                  style={adminInputStyle}
+                >
+                  {playlistManager.channels.map(channel => (
+                    <option key={channel.id} value={channel.id}>{channel.label} ({channel.itemCount || 0})</option>
+                  ))}
+                </select>
+                <button type="button" disabled={playlistManager.loading} onClick={() => loadPlaylistManager(playlistManagerChannelId)} style={{ ...adminButtonStyle, opacity: playlistManager.loading ? .62 : 1 }}>
+                  Refresh
+                </button>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 10 }}>
+                <input
+                  value={playlistManagerRenameChannelName}
+                  onChange={event => setPlaylistManagerRenameChannelName(event.target.value)}
+                  placeholder="Selected channel name"
+                  style={adminInputStyle}
+                />
+                <button type="button" disabled={playlistManager.loading || !playlistManagerChannelId} onClick={renamePlaylistChannelFromAdmin} style={{ ...adminButtonStyle, opacity: playlistManager.loading || !playlistManagerChannelId ? .62 : 1 }}>
+                  Rename Channel
+                </button>
+                <button type="button" disabled={playlistManager.loading || !playlistManagerChannelId} onClick={deletePlaylistChannelFromAdmin} style={{ ...adminButtonStyle, borderColor: "#fb7185", background: "#fb7185", opacity: playlistManager.loading || !playlistManagerChannelId ? .62 : 1 }}>
+                  Delete Channel
+                </button>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(220px,1fr) auto", gap: 10 }}>
+                <input
+                  value={playlistManagerNewChannelName}
+                  onChange={event => setPlaylistManagerNewChannelName(event.target.value)}
+                  placeholder="New playlist channel name"
+                  style={adminInputStyle}
+                />
+                <button type="button" disabled={playlistManager.loading} onClick={createPlaylistChannelFromAdmin} style={{ ...adminButtonStyle, opacity: playlistManager.loading ? .62 : 1 }}>
+                  Add Channel
+                </button>
+              </div>
+              <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 900 }}>{playlistManagerStatus}</div>
+              <div style={{ border: "1px solid rgba(148,163,184,.28)", background: "rgba(2,6,23,.72)", padding: 12, display: "grid", gap: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                  <div style={{ color: "#f8fafc", fontSize: 15, fontWeight: 1000 }}>{playlistManager.selectedChannel?.label || "No playlist selected"}</div>
+                  <div style={{ color: "#67e8f9", fontSize: 13, fontWeight: 1000 }}>{playlistManager.items.length} item{playlistManager.items.length === 1 ? "" : "s"}</div>
+                </div>
+                <div style={{ display: "grid", gap: 8, maxHeight: 300, overflow: "auto" }}>
+                  {playlistManager.items.map(item => (
+                    <div key={`${item.file}-${item.index}`} style={{ borderTop: "1px solid rgba(148,163,184,.18)", paddingTop: 8, display: "grid", gap: 7 }}>
+                      <div style={{ color: item.exists ? "#f8fafc" : "#fecaca", fontSize: 13, fontWeight: 1000, overflowWrap: "anywhere" }}>
+                        {item.title || item.fileName}
+                      </div>
+                      <div style={{ color: "#94a3b8", fontSize: 12, fontWeight: 800, overflowWrap: "anywhere" }}>
+                        {item.relativePath || item.file}{item.exists ? "" : " - missing file"}
+                      </div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button type="button" disabled={playlistManager.loading} onClick={() => renamePlaylistItemFromAdmin(item)} style={{ ...adminButtonStyle, padding: "8px 10px", fontSize: 12, opacity: playlistManager.loading ? .62 : 1 }}>Edit Name</button>
+                        <button type="button" disabled={playlistManager.loading || !item.exists} onClick={() => renamePlaylistFileFromAdmin(item)} style={{ ...adminButtonStyle, padding: "8px 10px", fontSize: 12, opacity: playlistManager.loading || !item.exists ? .62 : 1 }}>Rename File</button>
+                        <button type="button" disabled={playlistManager.loading} onClick={() => removePlaylistItemFromAdmin(item)} style={{ ...adminButtonStyle, borderColor: "#facc15", background: "#facc15", padding: "8px 10px", fontSize: 12, opacity: playlistManager.loading ? .62 : 1 }}>Remove From Playlist</button>
+                        <button type="button" disabled={playlistManager.loading || !item.exists} onClick={() => deletePlaylistFileFromAdmin(item)} style={{ ...adminButtonStyle, borderColor: "#fb7185", background: "#fb7185", padding: "8px 10px", fontSize: 12, opacity: playlistManager.loading || !item.exists ? .62 : 1 }}>Delete File</button>
+                      </div>
+                    </div>
+                  ))}
+                  {!playlistManager.items.length && (
+                    <div style={{ color: "#94a3b8", fontSize: 13, fontWeight: 900 }}>This playlist channel is empty.</div>
+                  )}
+                </div>
+              </div>
+              <div style={{ display: "grid", gap: 10 }}>
+                <div style={controlLabelStyle}>ADD CONTENT FROM VIDEOS FOLDER</div>
+                <input
+                  value={playlistManagerSearch}
+                  onChange={event => setPlaylistManagerSearch(event.target.value)}
+                  placeholder="Search videos folder"
+                  style={adminInputStyle}
+                />
+                <div style={{ display: "grid", gridTemplateColumns: "minmax(220px,1fr) auto", gap: 10 }}>
+                  <select
+                    value={playlistManagerAddPath}
+                    onChange={event => setPlaylistManagerAddPath(event.target.value)}
+                    style={adminInputStyle}
+                  >
+                    <option value="">Choose video to add</option>
+                    {playlistAvailableVideos.slice(0, 250).map(video => (
+                      <option key={video.path} value={video.path}>{video.relativePath || video.fileName}</option>
+                    ))}
+                  </select>
+                  <button type="button" disabled={playlistManager.loading || !playlistManagerAddPath || !playlistManagerChannelId} onClick={addPlaylistVideoFromAdmin} style={{ ...adminButtonStyle, opacity: playlistManager.loading || !playlistManagerAddPath || !playlistManagerChannelId ? .62 : 1 }}>
+                    Add To Playlist
+                  </button>
+                </div>
+                <div style={{ color: "#94a3b8", fontSize: 12, fontWeight: 800 }}>
+                  Showing {Math.min(playlistAvailableVideos.length, 250)} of {playlistAvailableVideos.length} matching videos.
+                </div>
+              </div>
             </div>
           </section>
           <section style={sectionStyle}>

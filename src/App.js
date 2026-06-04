@@ -5936,27 +5936,28 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
             <section style={sectionStyle}>
               <h2 style={sectionTitleStyle}>USER MANAGEMENT</h2>
               <div style={{ marginTop: 16, display: "grid", gap: 8 }}>
-                <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "minmax(58px,.8fr) minmax(0,1.3fr) minmax(54px,auto) minmax(58px,.8fr)", gap: 8, alignItems: "center" }}>
-                  <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>Username</div>
-                  <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>Email</div>
-                  <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", textAlign: "center" }}>Status</div>
-                  <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", textAlign: "right" }}>Password</div>
+                <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 8, display: "grid", gridTemplateColumns: "minmax(78px,.9fr) minmax(96px,1.35fr) minmax(46px,auto) minmax(48px,.55fr) auto", gap: 6, alignItems: "center" }}>
+                  <div style={{ color: "#dbeafe", fontSize: 10, fontWeight: 1000, textTransform: "uppercase" }}>Username</div>
+                  <div style={{ color: "#dbeafe", fontSize: 10, fontWeight: 1000, textTransform: "uppercase" }}>Email</div>
+                  <div style={{ color: "#dbeafe", fontSize: 10, fontWeight: 1000, textTransform: "uppercase", textAlign: "center" }}>Status</div>
+                  <div style={{ color: "#dbeafe", fontSize: 10, fontWeight: 1000, textTransform: "uppercase", textAlign: "right" }}>Password</div>
+                  <div />
                 </div>
                 {userManagementRows.map(user => {
                   const isLoggedIn = String(loggedInUsername || "").toUpperCase() === user.username.toUpperCase();
                   return (
-                    <div key={user.username} style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "minmax(58px,.8fr) minmax(0,1.3fr) minmax(54px,auto) minmax(58px,.8fr) auto", gap: 8, alignItems: "center" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                    <div key={user.username} style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 8, display: "grid", gridTemplateColumns: "minmax(78px,.9fr) minmax(96px,1.35fr) minmax(46px,auto) minmax(48px,.55fr) auto", gap: 6, alignItems: "center", minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                         <div style={{
-                          width: 30,
-                          height: 30,
+                          width: 24,
+                          height: 24,
                           borderRadius: "50%",
                           border: "1px solid rgba(191,219,254,.58)",
                           background: user.profilePicture ? `center / cover no-repeat url(${user.profilePicture})` : "rgba(30,41,59,.92)",
                           color: "#bfdbfe",
                           display: "grid",
                           placeItems: "center",
-                          fontSize: 10,
+                          fontSize: 9,
                           fontWeight: 1000,
                           flexShrink: 0,
                           overflow: "hidden",
@@ -5964,9 +5965,9 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
                         }}>
                           {!user.profilePicture && String(user.username || "?").slice(0, 1)}
                         </div>
-                        <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 1000, textTransform: "uppercase", overflowWrap: "anywhere" }}>{user.username}</div>
+                        <div style={{ color: "#f8fafc", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", overflowWrap: "anywhere", lineHeight: 1.15 }}>{user.username}</div>
                       </div>
-                      <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 900, overflowWrap: "anywhere" }}>
+                      <div style={{ color: "#cbd5e1", fontSize: 11, fontWeight: 900, overflowWrap: "anywhere", lineHeight: 1.15, minWidth: 0 }}>
                         {user.email || "No email yet"}
                       </div>
                       <div style={{
@@ -5974,21 +5975,21 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
                         borderRadius: 999,
                         background: isLoggedIn ? "rgba(22,101,52,.62)" : "rgba(51,65,85,.62)",
                         color: isLoggedIn ? "#bbf7d0" : "#cbd5e1",
-                        fontSize: 10,
+                        fontSize: 9,
                         fontWeight: 1000,
-                        padding: "5px 8px",
+                        padding: "4px 6px",
                         textTransform: "uppercase",
                         whiteSpace: "nowrap"
                       }}>
                         {isLoggedIn ? "Logged In" : "Offline"}
                       </div>
-                      <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 1000, overflowWrap: "anywhere", textAlign: "right" }}>
+                      <div style={{ color: "#f8fafc", fontSize: 11, fontWeight: 1000, overflowWrap: "anywhere", textAlign: "right", lineHeight: 1.15 }}>
                         {visibleAdminPasswords[user.passwordKey] ? user.password : "********"}
                       </div>
                       <button
                         type="button"
                         onClick={() => setVisibleAdminPasswords(current => ({ ...current, [user.passwordKey]: !current[user.passwordKey] }))}
-                        style={{ ...adminButtonStyle, padding: "7px 10px", fontSize: 11, borderColor: "#94a3b8", background: "#94a3b8" }}
+                        style={{ ...adminButtonStyle, padding: "6px 8px", fontSize: 10, borderColor: "#94a3b8", background: "#94a3b8" }}
                       >
                         {visibleAdminPasswords[user.passwordKey] ? "Hide" : "Show"}
                       </button>
@@ -6106,7 +6107,7 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
               </div>
             </section>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 420px) minmax(0, 1fr)", gap: 12, alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(240px, 340px)", gap: 12, alignItems: "start" }}>
           <section style={sectionStyle}>
             <h2 style={sectionTitleStyle}>VIDEO REPAIR</h2>
             <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
@@ -6118,22 +6119,22 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
                 type="button"
                 disabled={videoRepairBusy}
                 onClick={scanVideoRepair}
-                style={{ ...adminButtonStyle, width: "fit-content", opacity: videoRepairBusy ? .62 : 1 }}
+                style={{ ...adminButtonStyle, width: "fit-content", maxWidth: "100%", opacity: videoRepairBusy ? .62 : 1 }}
               >
                 Run Check On Videos Folder
               </button>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10, minWidth: 0 }}>
                 <select
                   value={videoRepairFinish}
                   onChange={event => setVideoRepairFinish(event.target.value)}
-                  style={adminInputStyle}
+                  style={{ ...adminInputStyle, minWidth: 0, width: "100%" }}
                 >
                   <option value="keep">Keep fixed copy next to original</option>
                   <option value="overwrite">Fix Original And Overwrite</option>
                   <option value="replace">Replace Original With Fixed Copy</option>
                   <option value="delete">Delete fixed copy and keep original</option>
                 </select>
-                <label style={{ ...adminInputStyle, display: "flex", alignItems: "center", gap: 10 }}>
+                <label style={{ ...adminInputStyle, display: "flex", alignItems: "center", gap: 10, minWidth: 0, overflowWrap: "anywhere" }}>
                   <input
                     type="checkbox"
                     checked={videoRepairOverwrite}
@@ -6161,11 +6162,11 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
                   Audio Fix All Suggested
                 </button>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "minmax(220px,1fr) auto auto", gap: 10, alignItems: "center" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(180px,1fr) repeat(2,minmax(110px,auto))", gap: 10, alignItems: "center", minWidth: 0 }}>
                 <select
                   value={videoRepairSelectedBackup}
                   onChange={event => setVideoRepairSelectedBackup(event.target.value)}
-                  style={adminInputStyle}
+                  style={{ ...adminInputStyle, minWidth: 0, width: "100%" }}
                 >
                   <option value="">No old backup selected</option>
                   {videoRepairBackups.map((backup, index) => (
@@ -6178,7 +6179,7 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
                   type="button"
                   disabled={videoRepairBusy}
                   onClick={loadVideoRepairBackups}
-                  style={{ ...adminButtonStyle, opacity: videoRepairBusy ? .62 : 1 }}
+                  style={{ ...adminButtonStyle, minWidth: 0, whiteSpace: "normal", opacity: videoRepairBusy ? .62 : 1 }}
                 >
                   Load Old Backups
                 </button>
@@ -6186,7 +6187,7 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
                   type="button"
                   disabled={videoRepairBusy || !videoRepairSelectedBackup}
                   onClick={restoreVideoRepairBackup}
-                  style={{ ...adminButtonStyle, borderColor: "#fb7185", background: "#fb7185", opacity: videoRepairBusy || !videoRepairSelectedBackup ? .62 : 1 }}
+                  style={{ ...adminButtonStyle, minWidth: 0, whiteSpace: "normal", borderColor: "#fb7185", background: "#fb7185", opacity: videoRepairBusy || !videoRepairSelectedBackup ? .62 : 1 }}
                 >
                   Restore Old Backup
                 </button>
@@ -6229,9 +6230,9 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
               {!!videoRepairFlagged.length && (
                 <div style={{ display: "grid", gap: 10, maxHeight: 360, overflow: "auto" }}>
                   {videoRepairFlagged.map((video, index) => (
-                    <div key={`${video.path}-${index}`} style={{ border: "1px solid rgba(148,163,184,.24)", background: "rgba(2,6,23,.72)", padding: 12, display: "grid", gap: 8 }}>
+                    <div key={`${video.path}-${index}`} style={{ border: "1px solid rgba(148,163,184,.24)", background: "rgba(2,6,23,.72)", padding: 12, display: "grid", gap: 8, minWidth: 0, overflow: "hidden" }}>
                       <div style={{ color: "#f8fafc", fontSize: 14, fontWeight: 1000, overflowWrap: "anywhere" }}>{video.relativePath || video.fileName}</div>
-                      <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 800, lineHeight: 1.45 }}>
+                      <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 800, lineHeight: 1.45, overflowWrap: "anywhere" }}>
                         Video {video.videoSeconds}s / Audio {video.audioSeconds}s / Difference {video.durationDiffSeconds}s / Start difference {video.startDiffSeconds}s / Audio {video.audioCodec || "unknown"}
                       </div>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

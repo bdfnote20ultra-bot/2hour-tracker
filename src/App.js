@@ -117,6 +117,7 @@ const MONTHLY_TRACKER_KEY = "hoursTrackerMonthlyTrackerMonths_v1";
 const KICK_GAMING_CHANNEL_KEY = "fuitLiveGamingKickChannel_v1";
 const SIGNUP_REQUESTS_KEY = "fuitsSignupRequests_v1";
 const APPROVED_USERS_KEY = "fuitsApprovedUsers_v1";
+const BANNED_USERS_KEY = "fuitsBannedUsers_v1";
 
 function loadData() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
@@ -161,6 +162,12 @@ function loadApprovedUsers() {
 }
 function saveApprovedUsers(users) {
   try { localStorage.setItem(APPROVED_USERS_KEY, JSON.stringify(users)); } catch {}
+}
+function loadBannedUsers() {
+  try { return JSON.parse(localStorage.getItem(BANNED_USERS_KEY)) || []; } catch { return []; }
+}
+function saveBannedUsers(users) {
+  try { localStorage.setItem(BANNED_USERS_KEY, JSON.stringify(users)); } catch {}
 }
 function resizeProfilePicture(file) {
   return new Promise((resolve, reject) => {
@@ -5010,7 +5017,7 @@ function EmptyUtilityPage({ title, onClose }) {
   );
 }
 
-function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, onApproveSignup, onDenySignup }) {
+function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, bannedUsers, onApproveSignup, onDenySignup, onBanUser, onUnbanUser, onShowBanList }) {
   const [password, setPassword] = useState("");
   const [unlocked, setUnlocked] = useState(false);
   const [error, setError] = useState("");
@@ -5727,7 +5734,8 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
       email: request.email || "",
       profilePicture: request.profilePicture || "",
       status: request.status || "pending",
-      fullPhotoLibraryAccess: request.fullPhotoLibraryAccess === true
+      fullPhotoLibraryAccess: request.fullPhotoLibraryAccess === true,
+      banned: bannedUsers.some(user => user.value === (request.username || "").toLowerCase() || user.value === (request.email || "").toLowerCase())
     })),
     ...approvedUsers
       .filter(user => !signupRequests.some(request =>
@@ -5740,7 +5748,8 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
         email: user.email || "",
         profilePicture: user.profilePicture || "",
         status: "approved",
-        fullPhotoLibraryAccess: user.fullPhotoLibraryAccess === true
+        fullPhotoLibraryAccess: user.fullPhotoLibraryAccess === true,
+        banned: bannedUsers.some(item => item.value === (user.username || "").toLowerCase() || item.value === (user.email || "").toLowerCase())
       }))
   ];
 
@@ -6084,7 +6093,20 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
                     );
                   })}
                   <div style={{ borderTop: "1px solid rgba(148,163,184,.22)", marginTop: 8, paddingTop: 14, display: "grid", gap: 8 }}>
-                    <h3 style={{ margin: 0, color: "#dbeafe", fontSize: 16, fontWeight: 1000, textTransform: "uppercase" }}>USER INFORMATION</h3>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <h3 style={{ margin: 0, color: "#dbeafe", fontSize: 16, fontWeight: 1000, textTransform: "uppercase" }}>USER INFORMATION</h3>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        <button type="button" onClick={onBanUser} style={{ ...adminButtonStyle, padding: "5px 8px", fontSize: 10, borderColor: "#fb7185", background: "#fb7185" }}>
+                          Ban
+                        </button>
+                        <button type="button" onClick={onUnbanUser} style={{ ...adminButtonStyle, padding: "5px 8px", fontSize: 10, borderColor: "#bbf7d0", background: "#bbf7d0" }}>
+                          Unban
+                        </button>
+                        <button type="button" onClick={onShowBanList} style={{ ...adminButtonStyle, padding: "5px 8px", fontSize: 10, borderColor: "#94a3b8", background: "#94a3b8" }}>
+                          Ban List
+                        </button>
+                      </div>
+                    </div>
                     <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 8, display: "grid", gridTemplateColumns: "minmax(118px,1.1fr) minmax(90px,1.2fr) minmax(58px,auto) minmax(58px,auto)", gap: 6, alignItems: "center" }}>
                       <div style={{ color: "#dbeafe", fontSize: 10, fontWeight: 1000, textTransform: "uppercase" }}>Username</div>
                       <div style={{ color: "#dbeafe", fontSize: 10, fontWeight: 1000, textTransform: "uppercase" }}>Email</div>
@@ -6119,7 +6141,7 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
                           <div style={{ color: "#f8fafc", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", overflowWrap: "anywhere", lineHeight: 1.15, minWidth: 0 }}>{user.username}</div>
                         </div>
                         <div style={{ color: "#cbd5e1", fontSize: 11, fontWeight: 900, overflowWrap: "anywhere", lineHeight: 1.15, minWidth: 0 }}>{user.email || "No email"}</div>
-                        <div style={{ color: "#fef3c7", fontSize: 9, fontWeight: 1000, textTransform: "uppercase", textAlign: "center", overflowWrap: "anywhere" }}>{user.status}</div>
+                        <div style={{ color: user.banned ? "#fecaca" : "#fef3c7", fontSize: 9, fontWeight: 1000, textTransform: "uppercase", textAlign: "center", overflowWrap: "anywhere" }}>{user.banned ? "banned" : user.status}</div>
                         <div style={{
                           border: `1px solid ${user.fullPhotoLibraryAccess ? "rgba(34,197,94,.72)" : "rgba(248,113,113,.72)"}`,
                           background: user.fullPhotoLibraryAccess ? "rgba(22,101,52,.62)" : "rgba(127,29,29,.62)",
@@ -6457,7 +6479,7 @@ function ProjectDropdown({ projects, activeId, onSelect, onManage }) {
   );
 }
 
-function LoginPage({ onLogin, approvedUsers, onSignupRequest }) {
+function LoginPage({ onLogin, approvedUsers, bannedUsers = [], onSignupRequest }) {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -6508,15 +6530,27 @@ function LoginPage({ onLogin, approvedUsers, onSignupRequest }) {
   const submitLogin = event => {
     event.preventDefault();
     const cleanUsername = username.trim();
+    const enteredLogin = cleanUsername.toLowerCase();
+    if (bannedUsers.some(user => user.value === enteredLogin)) {
+      setPassword("");
+      setSuccess("");
+      setError("User banned.");
+      return;
+    }
     if (cleanUsername.toUpperCase() === "MASTER" && password === "FartAss!1") {
       setError("");
       onLogin("MASTER");
       return;
     }
     const approvedUser = approvedUsers.find(user => {
-      const entered = cleanUsername.toLowerCase();
-      return (user.username || "").toLowerCase() === entered || (user.email || "").toLowerCase() === entered;
+      return (user.username || "").toLowerCase() === enteredLogin || (user.email || "").toLowerCase() === enteredLogin;
     });
+    if (approvedUser && bannedUsers.some(user => user.value === (approvedUser.username || "").toLowerCase() || user.value === (approvedUser.email || "").toLowerCase())) {
+      setPassword("");
+      setSuccess("");
+      setError("User banned.");
+      return;
+    }
     if (approvedUser && approvedUser.password === password) {
       setError("");
       onLogin(approvedUser.username);
@@ -6761,6 +6795,7 @@ export default function App() {
   const [editProjectName, setEditProjectName] = useState("");
   const [signupRequests, setSignupRequests] = useState(loadSignupRequests);
   const [approvedUsers, setApprovedUsers] = useState(loadApprovedUsers);
+  const [bannedUsers, setBannedUsers] = useState(loadBannedUsers);
   const weekDates = getWeekDates(weekOffset);
 
   useEffect(() => { saveData(entries); }, [entries]);
@@ -6772,6 +6807,7 @@ export default function App() {
   useEffect(() => { saveMusicSettings(musicSettings); }, [musicSettings]);
   useEffect(() => { saveSignupRequests(signupRequests); }, [signupRequests]);
   useEffect(() => { saveApprovedUsers(approvedUsers); }, [approvedUsers]);
+  useEffect(() => { saveBannedUsers(bannedUsers); }, [bannedUsers]);
   const activeMusicSrc = musicData || "";
 
   const hourlyRate = projectRates[activeProjectId] || 0;
@@ -6862,6 +6898,50 @@ export default function App() {
   };
   const denySignupRequest = requestId => {
     setSignupRequests(current => current.map(item => item.id === requestId ? { ...item, status: "denied" } : item));
+  };
+  const getBanTargetsForValue = value => {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (!normalized) return [];
+    const matchedUser = [...approvedUsers, ...signupRequests].find(user =>
+      (user.username || "").toLowerCase() === normalized ||
+      (user.email || "").toLowerCase() === normalized
+    );
+    if (!matchedUser) return [{ value: normalized, label: value.trim() }];
+    return [
+      matchedUser.username ? { value: matchedUser.username.toLowerCase(), label: matchedUser.username } : null,
+      matchedUser.email ? { value: matchedUser.email.toLowerCase(), label: matchedUser.email } : null
+    ].filter(Boolean);
+  };
+  const promptBanUser = () => {
+    const value = window.prompt("Username or email to ban");
+    const cleanValue = String(value || "").trim();
+    if (!cleanValue) return;
+    const targets = getBanTargetsForValue(cleanValue);
+    setBannedUsers(current => {
+      const existing = new Set(current.map(user => user.value));
+      const additions = targets
+        .filter(target => !existing.has(target.value))
+        .map(target => ({ ...target, bannedAt: new Date().toISOString() }));
+      return additions.length ? [...additions, ...current] : current;
+    });
+    const loggedInUser = approvedUsers.find(user =>
+      targets.some(target => target.value === (user.username || "").toLowerCase() || target.value === (user.email || "").toLowerCase())
+    );
+    if (loggedInUser && String(loggedInUsername || "").toLowerCase() === (loggedInUser.username || "").toLowerCase()) logoutUser();
+  };
+  const promptUnbanUser = () => {
+    const value = window.prompt("Username or email to unban");
+    const targets = getBanTargetsForValue(value);
+    if (!targets.length) return;
+    const targetValues = new Set(targets.map(target => target.value));
+    setBannedUsers(current => current.filter(user => !targetValues.has(user.value)));
+  };
+  const showBanList = () => {
+    if (!bannedUsers.length) {
+      window.alert("No banned users.");
+      return;
+    }
+    window.alert(`Banned users:\n\n${bannedUsers.map(user => user.label || user.value).join("\n")}`);
   };
 
   const miniStatValueStyle = {
@@ -6986,7 +7066,7 @@ export default function App() {
   }, [activeMusicSrc]);
 
   if (!loggedInUsername) {
-    return <LoginPage onLogin={loginUser} approvedUsers={approvedUsers} onSignupRequest={submitSignupRequest} />;
+    return <LoginPage onLogin={loginUser} approvedUsers={approvedUsers} bannedUsers={bannedUsers} onSignupRequest={submitSignupRequest} />;
   }
 
   const toggleMusic = async () => {
@@ -7091,8 +7171,12 @@ export default function App() {
       loggedInUsername={loggedInUsername}
       signupRequests={signupRequests}
       approvedUsers={approvedUsers}
+      bannedUsers={bannedUsers}
       onApproveSignup={approveSignupRequest}
       onDenySignup={denySignupRequest}
+      onBanUser={promptBanUser}
+      onUnbanUser={promptUnbanUser}
+      onShowBanList={showBanList}
     />;
   }
 

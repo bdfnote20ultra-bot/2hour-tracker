@@ -6548,6 +6548,7 @@ function LoginPage({ onLogin, approvedUsers, bannedUsers = [], onSignupRequest }
   const [success, setSuccess] = useState("");
   const [mode, setMode] = useState("login");
   const [showPassword, setShowPassword] = useState(false);
+  const profilePictureInputRef = useRef(null);
 
   const clearLoginFeedback = () => {
     if (error) setError("");
@@ -6567,23 +6568,25 @@ function LoginPage({ onLogin, approvedUsers, bannedUsers = [], onSignupRequest }
   };
   const updateProfilePicture = async file => {
     clearLoginFeedback();
-    if (!fullPhotoLibraryAccess) {
-      setProfilePicture("");
-      setSuccess("");
-      setError("Allow access to ALL photos before choosing a profile picture.");
-      return;
-    }
     if (!file) {
       setProfilePicture("");
       return;
     }
     try {
       setProfilePicture(await resizeProfilePicture(file));
+      setFullPhotoLibraryAccess(true);
     } catch (err) {
       setProfilePicture("");
       setSuccess("");
       setError(err?.message || "Choose an image from photos.");
     }
+  };
+  const openProfilePicturePicker = () => {
+    const isPhone = /Android|iPhone|iPad|iPod|Mobile/i.test(window.navigator?.userAgent || "");
+    if (isPhone) {
+      window.alert("Please choose full photo access, then select your profile picture.");
+    }
+    profilePictureInputRef.current?.click();
   };
 
   const submitLogin = event => {
@@ -6640,17 +6643,12 @@ function LoginPage({ onLogin, approvedUsers, bannedUsers = [], onSignupRequest }
       setError("Enter a valid email.");
       return;
     }
-    if (!fullPhotoLibraryAccess) {
-      setSuccess("");
-      setError("Confirm this app has access to ALL photos before signup.");
-      return;
-    }
     if (!profilePicture) {
       setSuccess("");
       setError("Choose a profile picture from photos.");
       return;
     }
-    const message = onSignupRequest({ username: cleanUsername, email: cleanEmail, password, profilePicture, fullPhotoLibraryAccess });
+    const message = onSignupRequest({ username: cleanUsername, email: cleanEmail, password, profilePicture, fullPhotoLibraryAccess: true });
     setUsername("");
     setEmail("");
     setPassword("");
@@ -6735,22 +6733,6 @@ function LoginPage({ onLogin, approvedUsers, bannedUsers = [], onSignupRequest }
         )}
         {mode === "signup" && (
           <div style={{ display: "grid", gap: 8 }}>
-            <label style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>
-              Profile Picture
-            </label>
-            <label style={{ border: "1px solid rgba(250,204,21,.52)", borderRadius: 8, background: "rgba(113,63,18,.38)", color: "#fef3c7", padding: "9px 10px", display: "flex", gap: 9, alignItems: "flex-start", fontSize: 12, fontWeight: 900, lineHeight: 1.35 }}>
-              <input
-                type="checkbox"
-                checked={fullPhotoLibraryAccess}
-                onChange={event => {
-                  setFullPhotoLibraryAccess(event.target.checked);
-                  if (!event.target.checked) setProfilePicture("");
-                  clearLoginFeedback();
-                }}
-                style={{ width: 18, height: 18, marginTop: 1, flexShrink: 0 }}
-              />
-              <span>Allow full photo access</span>
-            </label>
             <div style={{ display: "grid", gridTemplateColumns: "44px minmax(0,1fr)", gap: 10, alignItems: "center" }}>
               <div style={{
                 width: 44,
@@ -6767,19 +6749,20 @@ function LoginPage({ onLogin, approvedUsers, bannedUsers = [], onSignupRequest }
               }}>
                 {!profilePicture && "PIC"}
               </div>
-              <label style={{ ...loginInputStyle, padding: "11px 12px", opacity: fullPhotoLibraryAccess ? 1 : .52, cursor: fullPhotoLibraryAccess ? "pointer" : "not-allowed", textTransform: "uppercase", textAlign: "center" }}>
+              <button
+                type="button"
+                onClick={openProfilePicturePicker}
+                style={{ ...loginInputStyle, padding: "11px 12px", cursor: "pointer", textTransform: "uppercase", textAlign: "center" }}
+              >
                 {profilePicture ? "Photo selected" : "Select here"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  disabled={!fullPhotoLibraryAccess}
-                  onChange={event => updateProfilePicture(event.target.files?.[0])}
-                  style={{ display: "none" }}
-                />
-              </label>
-            </div>
-            <div style={{ color: "#94a3b8", fontSize: 11, fontWeight: 800 }}>
-              Photos/images only.
+              </button>
+              <input
+                ref={profilePictureInputRef}
+                type="file"
+                accept="image/*"
+                onChange={event => updateProfilePicture(event.target.files?.[0])}
+                style={{ display: "none" }}
+              />
             </div>
           </div>
         )}

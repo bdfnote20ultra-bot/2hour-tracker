@@ -7502,14 +7502,14 @@ if (view === "gambling") {
           :root {
             --flive-scale: .45;
             --flive-panel-content-scale: .70;
-            --flive-gaming-scale: .50;
+            --flive-gaming-scale: .56;
             --flive-gaming-content-scale: .60;
             --flive-menu-text-scale: .72;
             --flive-menu-gap-scale: 1.35;
             --flive-menu-top-offset: -16px;
-            --flive-menu-left-offset: 45px;
+            --flive-menu-left-offset: 85px;
             --flive-wealth-extra-top-offset: 20px;
-            --flive-ticker-top-scale: 2.35;
+            --flive-ticker-top-scale: 2.12;
             --flive-center-width-scale: 1.35;
             --flive-center-content-scale: .64;
             --flive-tv-width-scale: 1.12;
@@ -7524,13 +7524,13 @@ if (view === "gambling") {
           }
         }
         @media (max-width: 1180px) and (max-height: 760px) {
-          :root { --flive-scale: .40; --flive-panel-content-scale: .68; --flive-gaming-scale: .46; --flive-gaming-content-scale: .58; --flive-menu-text-scale: .68; --flive-menu-gap-scale: 1.34; --flive-menu-top-offset: -14px; --flive-menu-left-offset: 42px; --flive-wealth-extra-top-offset: 18px; --flive-ticker-top-scale: 2.35; --flive-center-width-scale: 1.34; --flive-center-content-scale: .62; --flive-tv-width-scale: 1.10; --flive-tv-content-scale: .68; --flive-info-right-scale: 1.60; --flive-info-width-scale: 1.20; --flive-info-content-scale: .86; --flive-weather-top-scale: 1.75; --flive-schedule-right-scale: 1.58; --flive-schedule-width-scale: 1.06; --flive-schedule-content-scale: .76; }
+          :root { --flive-scale: .40; --flive-panel-content-scale: .68; --flive-gaming-scale: .52; --flive-gaming-content-scale: .58; --flive-menu-text-scale: .68; --flive-menu-gap-scale: 1.34; --flive-menu-top-offset: -14px; --flive-menu-left-offset: 78px; --flive-wealth-extra-top-offset: 18px; --flive-ticker-top-scale: 2.12; --flive-center-width-scale: 1.34; --flive-center-content-scale: .62; --flive-tv-width-scale: 1.10; --flive-tv-content-scale: .68; --flive-info-right-scale: 1.60; --flive-info-width-scale: 1.20; --flive-info-content-scale: .86; --flive-weather-top-scale: 1.75; --flive-schedule-right-scale: 1.58; --flive-schedule-width-scale: 1.06; --flive-schedule-content-scale: .76; }
         }
         @media (max-width: 980px) and (max-height: 760px) {
-          :root { --flive-scale: .36; --flive-panel-content-scale: .66; --flive-gaming-scale: .42; --flive-gaming-content-scale: .56; --flive-menu-text-scale: .64; --flive-menu-gap-scale: 1.32; --flive-menu-top-offset: -12px; --flive-menu-left-offset: 38px; --flive-wealth-extra-top-offset: 17px; --flive-ticker-top-scale: 2.35; --flive-center-width-scale: 1.32; --flive-center-content-scale: .60; --flive-tv-width-scale: 1.08; --flive-tv-content-scale: .66; --flive-info-right-scale: 1.54; --flive-info-width-scale: 1.18; --flive-info-content-scale: .84; --flive-weather-top-scale: 1.75; --flive-schedule-right-scale: 1.52; --flive-schedule-width-scale: 1.04; --flive-schedule-content-scale: .74; }
+          :root { --flive-scale: .36; --flive-panel-content-scale: .66; --flive-gaming-scale: .48; --flive-gaming-content-scale: .56; --flive-menu-text-scale: .64; --flive-menu-gap-scale: 1.32; --flive-menu-top-offset: -12px; --flive-menu-left-offset: 70px; --flive-wealth-extra-top-offset: 17px; --flive-ticker-top-scale: 2.12; --flive-center-width-scale: 1.32; --flive-center-content-scale: .60; --flive-tv-width-scale: 1.08; --flive-tv-content-scale: .66; --flive-info-right-scale: 1.54; --flive-info-width-scale: 1.18; --flive-info-content-scale: .84; --flive-weather-top-scale: 1.75; --flive-schedule-right-scale: 1.52; --flive-schedule-width-scale: 1.04; --flive-schedule-content-scale: .74; }
         }
         @media (max-width: 820px) and (max-height: 760px) {
-          :root { --flive-scale: .30; --flive-panel-content-scale: .64; --flive-gaming-scale: .38; --flive-gaming-content-scale: .54; --flive-menu-text-scale: .58; --flive-menu-gap-scale: 1.30; --flive-menu-top-offset: -10px; --flive-menu-left-offset: 34px; --flive-wealth-extra-top-offset: 16px; --flive-ticker-top-scale: 2.35; --flive-center-width-scale: 1.30; --flive-center-content-scale: .58; --flive-tv-width-scale: 1.06; --flive-tv-content-scale: .64; --flive-info-right-scale: 1.46; --flive-info-width-scale: 1.16; --flive-info-content-scale: .82; --flive-weather-top-scale: 1.75; --flive-schedule-right-scale: 1.44; --flive-schedule-width-scale: 1.02; --flive-schedule-content-scale: .72; }
+          :root { --flive-scale: .30; --flive-panel-content-scale: .64; --flive-gaming-scale: .44; --flive-gaming-content-scale: .54; --flive-menu-text-scale: .58; --flive-menu-gap-scale: 1.30; --flive-menu-top-offset: -10px; --flive-menu-left-offset: 62px; --flive-wealth-extra-top-offset: 16px; --flive-ticker-top-scale: 2.12; --flive-center-width-scale: 1.30; --flive-center-content-scale: .58; --flive-tv-width-scale: 1.06; --flive-tv-content-scale: .64; --flive-info-right-scale: 1.46; --flive-info-width-scale: 1.16; --flive-info-content-scale: .82; --flive-weather-top-scale: 1.75; --flive-schedule-right-scale: 1.44; --flive-schedule-width-scale: 1.02; --flive-schedule-content-scale: .72; }
         }
         @media (min-width: 2100px) {
           :root { --flive-scale: min(calc(100vw / 1892), calc(100vh / 907), 2.15); }

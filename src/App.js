@@ -6308,6 +6308,23 @@ function LoginPage({ onLogin, approvedUsers, onSignupRequest }) {
   const [success, setSuccess] = useState("");
   const [mode, setMode] = useState("login");
 
+  const clearLoginFeedback = () => {
+    if (error) setError("");
+    if (success) setSuccess("");
+  };
+  const updateUsername = value => {
+    setUsername(value);
+    clearLoginFeedback();
+  };
+  const updateEmail = value => {
+    setEmail(value);
+    clearLoginFeedback();
+  };
+  const updatePassword = value => {
+    setPassword(value);
+    clearLoginFeedback();
+  };
+
   const submitLogin = event => {
     event.preventDefault();
     const cleanUsername = username.trim();
@@ -6325,6 +6342,8 @@ function LoginPage({ onLogin, approvedUsers, onSignupRequest }) {
       onLogin(approvedUser.username);
       return;
     }
+    setPassword("");
+    setSuccess("");
     setError("Login not approved yet.");
   };
 
@@ -6404,7 +6423,7 @@ function LoginPage({ onLogin, approvedUsers, onSignupRequest }) {
         <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 900, textTransform: "uppercase" }}>{mode === "signup" ? "Signup Request" : "Login"}</div>
         <input
           value={username}
-          onChange={event => setUsername(event.target.value)}
+          onChange={event => updateUsername(event.target.value)}
           placeholder="Username"
           autoComplete="username"
           style={loginInputStyle}
@@ -6413,7 +6432,7 @@ function LoginPage({ onLogin, approvedUsers, onSignupRequest }) {
           <input
             type="email"
             value={email}
-            onChange={event => setEmail(event.target.value)}
+            onChange={event => updateEmail(event.target.value)}
             placeholder="Email"
             autoComplete="email"
             style={loginInputStyle}
@@ -6423,7 +6442,7 @@ function LoginPage({ onLogin, approvedUsers, onSignupRequest }) {
           <input
             type="password"
             value={password}
-            onChange={event => setPassword(event.target.value)}
+            onChange={event => updatePassword(event.target.value)}
             placeholder="Password"
             autoComplete="current-password"
             style={loginInputStyle}

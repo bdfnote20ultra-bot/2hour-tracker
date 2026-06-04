@@ -7460,16 +7460,16 @@ if (view === "gambling") {
           :root { --flive-scale: clamp(.34, min(calc(100vw / 1892), calc(100vh / 907)), 1); }
         }
         @media (max-width: 1350px) and (max-height: 760px) {
-          :root { --flive-scale: .60; }
-        }
-        @media (max-width: 1180px) and (max-height: 760px) {
           :root { --flive-scale: .52; }
         }
+        @media (max-width: 1180px) and (max-height: 760px) {
+          :root { --flive-scale: .46; }
+        }
         @media (max-width: 980px) and (max-height: 760px) {
-          :root { --flive-scale: .44; }
+          :root { --flive-scale: .40; }
         }
         @media (max-width: 820px) and (max-height: 760px) {
-          :root { --flive-scale: .38; }
+          :root { --flive-scale: .34; }
         }
         @media (min-width: 2100px) {
           :root { --flive-scale: min(calc(100vw / 1892), calc(100vh / 907), 2.15); }

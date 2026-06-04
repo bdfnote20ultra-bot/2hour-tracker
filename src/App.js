@@ -2007,8 +2007,6 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
   const syncVideoToLiveOffset = useCallback((force = false) => {
     const video = videoRef.current;
     if (!video || !channel || !currentItem || !Number.isFinite(video.duration)) return;
-    if (pendingTransitionStartRef.current && syncedVideoSrcRef.current !== videoSrc) return;
-
     const duration = Number(currentItem.duration) || video.duration || 1;
     const rawLiveOffset = getLiveOffsetSeconds(channel, currentItem);
     if (rawLiveOffset >= duration - 0.5) {
@@ -2105,9 +2103,9 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
 
     const syncTime = () => {
       if (!Number.isFinite(video.duration)) return;
-      if (pendingTransitionStartRef.current) return;
       syncVideoToLiveOffset(true);
       syncedVideoSrcRef.current = videoSrc;
+      pendingTransitionStartRef.current = false;
     };
 
     if (video.readyState >= 1) syncTime();
@@ -2239,9 +2237,6 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     video.volume = playerVolume;
     video.preload = "auto";
     video.load();
-    if (pendingTransitionStartRef.current) {
-      try { video.currentTime = 0; } catch {}
-    }
     if (video.readyState >= 1) playWhenBuffered();
   }, [videoSrc]);
 
@@ -2348,10 +2343,16 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
       video.currentTime = 0;
       syncedVideoSrcRef.current = videoSrc;
       if (currentItem) {
+        const startedAtMs = Date.now();
         setRestartAnchor({
           channelId,
           itemId: currentItem.id,
-          startedAtMs: Date.now()
+          startedAtMs
+        });
+        onPlaybackAnchor?.({
+          channelId,
+          itemId: currentItem.id,
+          startedAtMs
         });
       }
       setVideoLoading(false);
@@ -2447,9 +2448,9 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                   videoRef.current?.pause();
                   return;
                 }
-                if (pendingTransitionStartRef.current) {
-                  try { videoRef.current.currentTime = 0; } catch {}
-                }
+                syncVideoToLiveOffset(true);
+                syncedVideoSrcRef.current = videoSrc;
+                pendingTransitionStartRef.current = false;
                 playWhenBuffered();
               }}
               onCanPlayThrough={() => {
@@ -2477,20 +2478,10 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                 const video = videoRef.current;
                 const playbackKey = `${channelId}:${currentItem?.id || ""}:${videoSrc}`;
                 if (video && currentItem && anchoredPlaybackKeyRef.current !== playbackKey) {
-                  const startedAtMs = Date.now() - Math.max(0, Number(video.currentTime) || 0) * 1000;
+                  syncVideoToLiveOffset(true);
                   anchoredPlaybackKeyRef.current = playbackKey;
                   pendingTransitionStartRef.current = false;
                   syncedVideoSrcRef.current = videoSrc;
-                  setRestartAnchor({
-                    channelId,
-                    itemId: currentItem.id,
-                    startedAtMs
-                  });
-                  onPlaybackAnchor?.({
-                    channelId,
-                    itemId: currentItem.id,
-                    startedAtMs
-                  });
                 }
                 setVideoLoading(false);
                 setVideoError("");

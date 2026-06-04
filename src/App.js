@@ -6342,6 +6342,12 @@ function LoginPage({ onLogin, approvedUsers, onSignupRequest }) {
       onLogin(approvedUser.username);
       return;
     }
+    if (cleanUsername.toUpperCase() === "MASTER" || approvedUser) {
+      setPassword("");
+      setSuccess("");
+      setError("Password wrong.");
+      return;
+    }
     setPassword("");
     setSuccess("");
     setError("Login not approved yet.");

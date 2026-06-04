@@ -1177,6 +1177,11 @@ function PokemonSidebar() {
       <style>{`
         @media (max-width: 360px) { .pokemon-desktop-stack { display: none !important; } }
         @media (max-width: 360px) { .pokemon-desktop-sidebar { display: none !important; } }
+        @media (max-width: 1350px) and (max-height: 760px) {
+          .pokemon-desktop-sidebar > :not(style) {
+            zoom: var(--flive-panel-content-scale, 1);
+          }
+        }
         .pokemon-desktop-stack { scrollbar-width: none; -ms-overflow-style: none; }
         .pokemon-desktop-stack::-webkit-scrollbar { display: none; width: 0; height: 0; }
         .pokemon-desktop-sidebar button:hover { transform: translateY(-1px); }
@@ -3459,6 +3464,14 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
           .fuits-online-indicator,
           .fuits-weather-panel,
           .fuits-schedule-panel { display: none !important; }
+        }
+        @media (max-width: 1350px) and (max-height: 760px) {
+          .music-library-desktop-sidebar > :not(style),
+          .fuits-online-indicator > :not(style),
+          .fuits-weather-panel > :not(style),
+          .fuits-schedule-panel > :not(style) {
+            zoom: var(--flive-panel-content-scale, 1);
+          }
         }
         .music-library-desktop-sidebar button:hover { transform: translateY(-1px); }
         @keyframes fuits-live-pulse {
@@ -7455,21 +7468,21 @@ if (view === "gambling") {
       position: "relative"
     }}>
       <style>{`
-        :root { --flive-scale: 1; }
+        :root { --flive-scale: 1; --flive-panel-content-scale: 1; }
         @media (max-width: 1891px) {
           :root { --flive-scale: clamp(.34, min(calc(100vw / 1892), calc(100vh / 907)), 1); }
         }
         @media (max-width: 1350px) and (max-height: 760px) {
-          :root { --flive-scale: .52; }
+          :root { --flive-scale: .52; --flive-panel-content-scale: .82; }
         }
         @media (max-width: 1180px) and (max-height: 760px) {
-          :root { --flive-scale: .46; }
+          :root { --flive-scale: .46; --flive-panel-content-scale: .80; }
         }
         @media (max-width: 980px) and (max-height: 760px) {
-          :root { --flive-scale: .40; }
+          :root { --flive-scale: .40; --flive-panel-content-scale: .78; }
         }
         @media (max-width: 820px) and (max-height: 760px) {
-          :root { --flive-scale: .34; }
+          :root { --flive-scale: .34; --flive-panel-content-scale: .76; }
         }
         @media (min-width: 2100px) {
           :root { --flive-scale: min(calc(100vw / 1892), calc(100vh / 907), 2.15); }

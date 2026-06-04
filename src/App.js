@@ -4960,6 +4960,8 @@ function AdminPage({ onClose }) {
   const [accessControlList, setAccessControlList] = useState("blacklistIp");
   const [accessControlNote, setAccessControlNote] = useState("");
   const [visibleAdminPasswords, setVisibleAdminPasswords] = useState({});
+  const [passwordManagementUsername, setPasswordManagementUsername] = useState("");
+  const [passwordManagementPassword, setPasswordManagementPassword] = useState("");
   const fuitsAdminBaseUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
   const sectionStyle = {
     background: "rgba(15,23,42,.92)",
@@ -5634,9 +5636,9 @@ function AdminPage({ onClose }) {
         <button onClick={onClose} style={{ border: "1px solid rgba(148,163,184,.3)", borderRadius: 999, background: "rgba(15,23,42,.9)", color: "#f8fafc", cursor: "pointer", fontSize: 13, fontWeight: 900, padding: "9px 14px" }}>
           Back
         </button>
-        <div style={{ maxWidth: 1280, marginTop: 28, display: "grid", gap: 14 }}>
+        <div style={{ maxWidth: 1680, marginTop: 28, display: "grid", gap: 14 }}>
           <h1 style={{ margin: 0, fontSize: 32, fontWeight: 1000, letterSpacing: .4 }}>ADMIN</h1>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,380px),1fr))", gap: 14, alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(300px,.9fr) minmax(360px,1.15fr) minmax(300px,.9fr) minmax(300px,.9fr)", gap: 14, alignItems: "start", overflowX: "auto" }}>
             <div style={{ display: "grid", gap: 14 }}>
               <section style={sectionStyle}>
                 <h2 style={sectionTitleStyle}>CONTROLS</h2>
@@ -5828,6 +5830,24 @@ function AdminPage({ onClose }) {
                     </button>
                   </div>
                 ))}
+              </div>
+            </section>
+            <section style={sectionStyle}>
+              <h2 style={sectionTitleStyle}>PASSWORD MANAGEMENT</h2>
+              <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
+                <input
+                  value={passwordManagementUsername}
+                  onChange={event => setPasswordManagementUsername(event.target.value)}
+                  placeholder="Username"
+                  style={adminInputStyle}
+                />
+                <input
+                  type="password"
+                  value={passwordManagementPassword}
+                  onChange={event => setPasswordManagementPassword(event.target.value)}
+                  placeholder="Password"
+                  style={adminInputStyle}
+                />
               </div>
             </section>
           </div>

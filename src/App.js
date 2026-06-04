@@ -5709,6 +5709,27 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
       passwordKey: `approvedUser_${user.id || user.username}`
     }))
   ];
+  const signupInformationRows = [
+    ...signupRequests.map(request => ({
+      id: request.id,
+      username: request.username,
+      email: request.email || "",
+      status: request.status || "pending",
+      fullPhotoLibraryAccess: request.fullPhotoLibraryAccess === true
+    })),
+    ...approvedUsers
+      .filter(user => !signupRequests.some(request =>
+        (request.username || "").toUpperCase() === (user.username || "").toUpperCase() ||
+        (request.email || "").toLowerCase() === (user.email || "").toLowerCase()
+      ))
+      .map(user => ({
+        id: user.id || user.username,
+        username: user.username,
+        email: user.email || "",
+        status: "approved",
+        fullPhotoLibraryAccess: user.fullPhotoLibraryAccess === true
+      }))
+  ];
 
   if (unlocked) {
     return (
@@ -6048,10 +6069,44 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
                       </div>
                     );
                   })}
+                  <div style={{ borderTop: "1px solid rgba(148,163,184,.22)", marginTop: 8, paddingTop: 14, display: "grid", gap: 8 }}>
+                    <h3 style={{ margin: 0, color: "#dbeafe", fontSize: 16, fontWeight: 1000, textTransform: "uppercase" }}>USER INFORMATION</h3>
+                    <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "minmax(90px,1fr) minmax(0,1.35fr) minmax(74px,auto) minmax(72px,auto)", gap: 8, alignItems: "center" }}>
+                      <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>Username</div>
+                      <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>Email</div>
+                      <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", textAlign: "center" }}>Status</div>
+                      <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", textAlign: "center" }}>All Photos</div>
+                    </div>
+                    {!signupInformationRows.length && (
+                      <div style={{ border: "1px dashed rgba(148,163,184,.28)", background: "rgba(2,6,23,.36)", padding: 12, color: "#94a3b8", fontSize: 13, fontWeight: 900, textAlign: "center" }}>
+                        No signup user information yet.
+                      </div>
+                    )}
+                    {signupInformationRows.map(user => (
+                      <div key={`signupInfo_${user.id}`} style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "minmax(90px,1fr) minmax(0,1.35fr) minmax(74px,auto) minmax(72px,auto)", gap: 8, alignItems: "center" }}>
+                        <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 1000, textTransform: "uppercase", overflowWrap: "anywhere" }}>{user.username}</div>
+                        <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 900, overflowWrap: "anywhere" }}>{user.email || "No email"}</div>
+                        <div style={{ color: "#fef3c7", fontSize: 10, fontWeight: 1000, textTransform: "uppercase", textAlign: "center" }}>{user.status}</div>
+                        <div style={{
+                          border: `1px solid ${user.fullPhotoLibraryAccess ? "rgba(34,197,94,.72)" : "rgba(248,113,113,.72)"}`,
+                          background: user.fullPhotoLibraryAccess ? "rgba(22,101,52,.62)" : "rgba(127,29,29,.62)",
+                          color: user.fullPhotoLibraryAccess ? "#bbf7d0" : "#fecaca",
+                          fontSize: 11,
+                          fontWeight: 1000,
+                          padding: "5px 8px",
+                          textAlign: "center",
+                          textTransform: "uppercase"
+                        }}>
+                          {user.fullPhotoLibraryAccess ? "Yes" : "No"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </section>
           </div>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 420px) minmax(0, 1fr)", gap: 12, alignItems: "start" }}>
           <section style={sectionStyle}>
             <h2 style={sectionTitleStyle}>VIDEO REPAIR</h2>
             <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
@@ -6200,7 +6255,7 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
             </div>
           </section>
           <section style={sectionStyle}>
-            <h2 style={sectionTitleStyle}>USER INFORMATION</h2>
+            <h2 style={sectionTitleStyle}>LIVE USER INFORMATION</h2>
             <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10 }}>
               <div style={{ border: "1px solid rgba(148,163,184,.24)", padding: 12, background: "rgba(2,6,23,.72)" }}>
                 <div style={controlLabelStyle}>DEVICES CONNECTED</div>
@@ -6267,6 +6322,7 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
               ))}
             </div>
           </section>
+          </div>
         </div>
       </div>
     );
@@ -6373,6 +6429,7 @@ function LoginPage({ onLogin, approvedUsers, onSignupRequest }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [profilePicture, setProfilePicture] = useState("");
+  const [fullPhotoLibraryAccess, setFullPhotoLibraryAccess] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [mode, setMode] = useState("login");
@@ -6396,6 +6453,12 @@ function LoginPage({ onLogin, approvedUsers, onSignupRequest }) {
   };
   const updateProfilePicture = async file => {
     clearLoginFeedback();
+    if (!fullPhotoLibraryAccess) {
+      setProfilePicture("");
+      setSuccess("");
+      setError("Allow access to ALL photos before choosing a profile picture.");
+      return;
+    }
     if (!file) {
       setProfilePicture("");
       return;
@@ -6451,16 +6514,22 @@ function LoginPage({ onLogin, approvedUsers, onSignupRequest }) {
       setError("Enter a valid email.");
       return;
     }
+    if (!fullPhotoLibraryAccess) {
+      setSuccess("");
+      setError("Confirm this app has access to ALL photos before signup.");
+      return;
+    }
     if (!profilePicture) {
       setSuccess("");
       setError("Choose a profile picture from photos.");
       return;
     }
-    const message = onSignupRequest({ username: cleanUsername, email: cleanEmail, password, profilePicture });
+    const message = onSignupRequest({ username: cleanUsername, email: cleanEmail, password, profilePicture, fullPhotoLibraryAccess });
     setUsername("");
     setEmail("");
     setPassword("");
     setProfilePicture("");
+    setFullPhotoLibraryAccess(false);
     setError("");
     setSuccess(message || "Signup request sent. Wait for approval.");
     setMode("login");
@@ -6491,7 +6560,10 @@ function LoginPage({ onLogin, approvedUsers, onSignupRequest }) {
     setMode(nextMode);
     setError("");
     setSuccess("");
-    if (nextMode !== "signup") setProfilePicture("");
+    if (nextMode !== "signup") {
+      setProfilePicture("");
+      setFullPhotoLibraryAccess(false);
+    }
   };
 
   return (
@@ -6540,6 +6612,19 @@ function LoginPage({ onLogin, approvedUsers, onSignupRequest }) {
             <label style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>
               Profile Picture
             </label>
+            <label style={{ border: "1px solid rgba(250,204,21,.52)", borderRadius: 8, background: "rgba(113,63,18,.38)", color: "#fef3c7", padding: "9px 10px", display: "flex", gap: 9, alignItems: "flex-start", fontSize: 12, fontWeight: 900, lineHeight: 1.35 }}>
+              <input
+                type="checkbox"
+                checked={fullPhotoLibraryAccess}
+                onChange={event => {
+                  setFullPhotoLibraryAccess(event.target.checked);
+                  if (!event.target.checked) setProfilePicture("");
+                  clearLoginFeedback();
+                }}
+                style={{ width: 18, height: 18, marginTop: 1, flexShrink: 0 }}
+              />
+              <span>Phone signup requires ALL photos access. If your phone offers Limited Photos, cancel and choose Allow All Photos before picking your profile picture.</span>
+            </label>
             <div style={{ display: "grid", gridTemplateColumns: "44px minmax(0,1fr)", gap: 10, alignItems: "center" }}>
               <div style={{
                 width: 44,
@@ -6559,12 +6644,13 @@ function LoginPage({ onLogin, approvedUsers, onSignupRequest }) {
               <input
                 type="file"
                 accept="image/*"
+                disabled={!fullPhotoLibraryAccess}
                 onChange={event => updateProfilePicture(event.target.files?.[0])}
-                style={{ ...loginInputStyle, padding: "9px 10px" }}
+                style={{ ...loginInputStyle, padding: "9px 10px", opacity: fullPhotoLibraryAccess ? 1 : .52 }}
               />
             </div>
             <div style={{ color: "#94a3b8", fontSize: 11, fontWeight: 800 }}>
-              Photos/images only. Choose from your photo library.
+              Photos/images only. The picker unlocks after ALL photos access is confirmed.
             </div>
           </div>
         )}
@@ -6717,6 +6803,7 @@ export default function App() {
         email: cleanEmail,
         password: request.password,
         profilePicture: request.profilePicture || "",
+        fullPhotoLibraryAccess: request.fullPhotoLibraryAccess === true,
         status: "pending",
         createdAt: new Date().toISOString()
       },
@@ -6735,7 +6822,7 @@ export default function App() {
       if (alreadyApproved) return current;
       return [
         ...current,
-        { id: request.id, username: request.username, email: request.email, password: request.password, profilePicture: request.profilePicture || "" }
+        { id: request.id, username: request.username, email: request.email, password: request.password, profilePicture: request.profilePicture || "", fullPhotoLibraryAccess: request.fullPhotoLibraryAccess === true }
       ];
     });
     setSignupRequests(current => current.map(item => item.id === requestId ? { ...item, status: "approved" } : item));

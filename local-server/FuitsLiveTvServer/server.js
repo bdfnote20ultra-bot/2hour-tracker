@@ -1,5 +1,6 @@
 ﻿const fs = require("fs");
 const http = require("http");
+const net = require("net");
 const path = require("path");
 const { execSync, spawn } = require("child_process");
 const { URL } = require("url");
@@ -9,6 +10,7 @@ const ROOT = "T:\\FattysLiveTV";
 const CHANNEL_PLAYLIST_DIR = path.join(ROOT, "Playlists", "FuitsLiveTV");
 const DEFAULT_CHANNEL_PLAYLISTS = ["ChannelA.m3u", "ChannelB.m3u"];
 const PASSWORD_PATH = path.join(__dirname, "admin-password.txt");
+const ACCESS_CONTROL_PATH = path.join(__dirname, "access-control.json");
 const SHUFFLE_PASSWORD = "FOOLIO";
 const SITE_BLANK_PATH = path.join(__dirname, "site-blank.json");
 const VIDEO_STREAM_SETTINGS_PATH = path.join(__dirname, "video-stream-settings.json");
@@ -79,6 +81,125 @@ function getClientIp(req) {
   ).replace(/^::ffff:/, "");
 }
 
+function normalizeAccessValue(type, value) {
+  const text = String(value || "").trim();
+  if (type === "ip") {
+    const ip = text.replace(/^::ffff:/, "");
+    if (!net.isIP(ip)) throw new Error("Enter a valid IP address.");
+    return ip;
+  }
+  const device = text.replace(/[^a-zA-Z0-9_.:-]/g, "").slice(0, 120);
+  if (!device) throw new Error("Enter a valid device ID.");
+  return device;
+}
+
+function readAccessControl() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(ACCESS_CONTROL_PATH, "utf8"));
+    return {
+      whitelistIps: Array.isArray(parsed.whitelistIps) ? parsed.whitelistIps : [],
+      blacklistIps: Array.isArray(parsed.blacklistIps) ? parsed.blacklistIps : [],
+      whitelistDevices: Array.isArray(parsed.whitelistDevices) ? parsed.whitelistDevices : [],
+      blacklistDevices: Array.isArray(parsed.blacklistDevices) ? parsed.blacklistDevices : []
+    };
+  } catch {
+    return {
+      whitelistIps: [],
+      blacklistIps: [],
+      whitelistDevices: [],
+      blacklistDevices: []
+    };
+  }
+}
+
+function writeAccessControl(access) {
+  const next = {
+    whitelistIps: Array.isArray(access.whitelistIps) ? access.whitelistIps : [],
+    blacklistIps: Array.isArray(access.blacklistIps) ? access.blacklistIps : [],
+    whitelistDevices: Array.isArray(access.whitelistDevices) ? access.whitelistDevices : [],
+    blacklistDevices: Array.isArray(access.blacklistDevices) ? access.blacklistDevices : []
+  };
+  fs.writeFileSync(ACCESS_CONTROL_PATH, JSON.stringify(next, null, 2), "utf8");
+  return next;
+}
+
+function hasAccessEntry(entries, value) {
+  return entries.some(entry => entry.value === value);
+}
+
+function upsertAccessEntry(entries, value, note = "") {
+  const existing = entries.find(entry => entry.value === value);
+  if (existing) {
+    existing.note = String(note || existing.note || "").slice(0, 160);
+    existing.updatedAt = new Date().toISOString();
+    return entries;
+  }
+  entries.push({
+    value,
+    note: String(note || "").slice(0, 160),
+    createdAt: new Date().toISOString()
+  });
+  return entries;
+}
+
+function removeAccessEntry(entries, value) {
+  return entries.filter(entry => entry.value !== value);
+}
+
+function getAccessStatus(ip, deviceId = "") {
+  const access = readAccessControl();
+  const safeIp = String(ip || "").replace(/^::ffff:/, "");
+  const safeDevice = String(deviceId || "").replace(/[^a-zA-Z0-9_.:-]/g, "").slice(0, 120);
+  const ipWhitelisted = hasAccessEntry(access.whitelistIps, safeIp);
+  const deviceWhitelisted = safeDevice ? hasAccessEntry(access.whitelistDevices, safeDevice) : false;
+  const ipBlacklisted = hasAccessEntry(access.blacklistIps, safeIp);
+  const deviceBlacklisted = safeDevice ? hasAccessEntry(access.blacklistDevices, safeDevice) : false;
+  const whitelisted = ipWhitelisted || deviceWhitelisted;
+  const blacklisted = !whitelisted && (ipBlacklisted || deviceBlacklisted);
+
+  return {
+    whitelisted,
+    blacklisted,
+    ipWhitelisted,
+    deviceWhitelisted,
+    ipBlacklisted,
+    deviceBlacklisted
+  };
+}
+
+function isRequestBlocked(req, url) {
+  if (url.pathname.startsWith("/admin/")) return false;
+  const deviceId = url.searchParams.get("device") || req.headers["x-fuits-device-id"] || "";
+  return getAccessStatus(getClientIp(req), deviceId).blacklisted;
+}
+
+function updateAccessControl(payload) {
+  const access = readAccessControl();
+  const action = payload.action || "load";
+  if (action === "load") return { ok: true, accessControl: access };
+
+  const listKey = {
+    whitelistIp: "whitelistIps",
+    blacklistIp: "blacklistIps",
+    whitelistDevice: "whitelistDevices",
+    blacklistDevice: "blacklistDevices"
+  }[payload.list];
+  if (!listKey) throw new Error("Choose whitelist or blacklist for an IP or device.");
+
+  const type = listKey.toLowerCase().includes("ip") ? "ip" : "device";
+  const value = normalizeAccessValue(type, payload.value);
+
+  if (action === "add") {
+    upsertAccessEntry(access[listKey], value, payload.note);
+  } else if (action === "remove") {
+    access[listKey] = removeAccessEntry(access[listKey], value);
+  } else if (action !== "load") {
+    throw new Error("Choose a valid access-control action.");
+  }
+
+  return { ok: true, accessControl: writeAccessControl(access) };
+}
+
 function pruneOnlineDevices(now = Date.now()) {
   for (const [key, value] of onlineDevices) {
     if (!value || now - value.lastSeen > ONLINE_STATS_TTL_MS) {
@@ -89,10 +210,13 @@ function pruneOnlineDevices(now = Date.now()) {
 
 function buildOnlineStats() {
   pruneOnlineDevices();
+  const accessControl = readAccessControl();
   const householdMap = new Map();
   for (const [key, value] of onlineDevices) {
+    const deviceAccessStatus = getAccessStatus(value.ip, value.deviceId || key);
     const household = householdMap.get(value.ip) || {
       ip: value.ip,
+      accessStatus: getAccessStatus(value.ip),
       deviceCount: 0,
       devices: []
     };
@@ -103,7 +227,8 @@ function buildOnlineStats() {
       lastSeen: value.lastSeen,
       deviceProfile: value.deviceProfile || null,
       weatherStatus: value.weatherStatus || "unknown",
-      weatherLocation: value.weatherLocation || null
+      weatherLocation: value.weatherLocation || null,
+      accessStatus: deviceAccessStatus
     });
     householdMap.set(value.ip, household);
   }
@@ -118,7 +243,8 @@ function buildOnlineStats() {
   return {
     devices: onlineDevices.size,
     households: households.length,
-    householdDetails: households
+    householdDetails: households,
+    accessControl
   };
 }
 
@@ -2943,6 +3069,58 @@ function blankPageHtml() {
 </html>`;
 }
 
+function bannedPageHtml() {
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>You are banned</title>
+  <style>
+    html, body {
+      margin: 0;
+      min-height: 100vh;
+      background: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+    }
+    body {
+      display: grid;
+      place-items: center;
+    }
+    main {
+      width: min(90vw, 460px);
+      display: grid;
+      gap: 14px;
+      justify-items: center;
+      text-align: center;
+    }
+    h1 {
+      margin: 0;
+      font-size: 34px;
+      letter-spacing: 0;
+      text-transform: lowercase;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>you are banned</h1>
+  </main>
+  <script>
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: "FUITS_SITE_BLANKED", url: window.location.href }, "*");
+      }
+      if (window.top && window.top !== window) {
+        window.top.location.href = window.location.href;
+      }
+    } catch {}
+  </script>
+</body>
+</html>`;
+}
+
 function ownerPageHtml() {
   const state = readSiteBlankState();
   return `<!doctype html>
@@ -4659,6 +4837,11 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (isRequestBlocked(req, url)) {
+    send(res, 403, bannedPageHtml(), "text/html; charset=utf-8");
+    return;
+  }
+
   if (url.pathname === "/owner") {
     send(res, 200, ownerPageHtml(), "text/html; charset=utf-8");
     return;
@@ -4856,6 +5039,23 @@ const server = http.createServer((req, res) => {
       return;
     }
     sendJson(res, 200, buildOnlineStats());
+    return;
+  }
+
+  if (url.pathname === "/admin/access-control" && req.method === "POST") {
+    readRequestBody(req)
+      .then(body => {
+        const payload = JSON.parse(body || "{}");
+        if (!isAdminPassword(payload.password)) {
+          send(res, 401, "Unauthorized");
+          return;
+        }
+
+        sendJson(res, 200, updateAccessControl(payload, req));
+      })
+      .catch(error => {
+        send(res, 400, error.message || "Access control failed");
+      });
     return;
   }
 

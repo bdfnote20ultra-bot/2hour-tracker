@@ -4954,6 +4954,11 @@ function AdminPage({ onClose }) {
   const [playlistManagerRenameChannelName, setPlaylistManagerRenameChannelName] = useState("");
   const [playlistManagerAddPath, setPlaylistManagerAddPath] = useState("");
   const [playlistManagerSearch, setPlaylistManagerSearch] = useState("");
+  const [accessControl, setAccessControl] = useState({ whitelistIps: [], blacklistIps: [], whitelistDevices: [], blacklistDevices: [] });
+  const [accessControlStatus, setAccessControlStatus] = useState("Loading access control...");
+  const [accessControlValue, setAccessControlValue] = useState("");
+  const [accessControlList, setAccessControlList] = useState("blacklistIp");
+  const [accessControlNote, setAccessControlNote] = useState("");
   const fuitsAdminBaseUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
   const sectionStyle = {
     background: "rgba(15,23,42,.92)",
@@ -5180,6 +5185,7 @@ function AdminPage({ onClose }) {
           if (!response.ok) throw new Error("Online users unavailable");
           const info = await response.json();
           adminDetails = Array.isArray(info.householdDetails) ? info.householdDetails : [];
+          if (info.accessControl) setAccessControl(info.accessControl);
         } catch {
           adminError = liveStats.householdDetails.length
             ? ""
@@ -5232,6 +5238,75 @@ function AdminPage({ onClose }) {
       setVideoChunkStatus("Could not save video chunk size yet.");
     }
   };
+
+  const postAccessControl = async payload => {
+    const response = await fetch(`${fuitsAdminBaseUrl}/admin/access-control`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password, ...payload })
+    });
+    if (!response.ok) throw new Error(await response.text());
+    const result = await response.json();
+    setAccessControl(result.accessControl || { whitelistIps: [], blacklistIps: [], whitelistDevices: [], blacklistDevices: [] });
+    return result;
+  };
+
+  const loadAccessControl = async () => {
+    try {
+      setAccessControlStatus("Loading access control...");
+      await postAccessControl({ action: "load" });
+      setAccessControlStatus("Access control ready.");
+    } catch (err) {
+      setAccessControlStatus(err?.message || "Could not load access control.");
+    }
+  };
+
+  useEffect(() => {
+    if (!unlocked) return;
+    loadAccessControl();
+  }, [unlocked]);
+
+  const addAccessControlEntry = async (list = accessControlList, value = accessControlValue, note = accessControlNote) => {
+    if (!String(value || "").trim()) {
+      setAccessControlStatus("Enter an IP or device ID first.");
+      return;
+    }
+    try {
+      setAccessControlStatus("Saving access control...");
+      await postAccessControl({ action: "add", list, value, note });
+      setAccessControlValue("");
+      setAccessControlNote("");
+      setAccessControlStatus("Access control updated.");
+    } catch (err) {
+      setAccessControlStatus(err?.message || "Access control update failed.");
+    }
+  };
+
+  const removeAccessControlEntry = async (list, value) => {
+    try {
+      setAccessControlStatus("Removing access control entry...");
+      await postAccessControl({ action: "remove", list, value });
+      setAccessControlStatus("Access control updated.");
+    } catch (err) {
+      setAccessControlStatus(err?.message || "Could not remove access control entry.");
+    }
+  };
+
+  const renderAccessControlList = (title, listKey, items) => (
+    <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gap: 6 }}>
+      <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000 }}>{title}</div>
+      {(items || []).map(item => (
+        <div key={`${listKey}-${item.value}`} style={{ display: "grid", gap: 4, borderTop: "1px solid rgba(148,163,184,.16)", paddingTop: 6 }}>
+          <div style={{ color: "#f8fafc", fontSize: 12, fontWeight: 900, overflowWrap: "anywhere" }}>{item.value}</div>
+          {item.note && <div style={{ color: "#94a3b8", fontSize: 11, fontWeight: 800 }}>{item.note}</div>}
+          <button type="button" onClick={() => removeAccessControlEntry(listKey, item.value)} style={{ ...adminButtonStyle, width: "fit-content", padding: "7px 9px", fontSize: 11, borderColor: "#fb7185", background: "#fb7185" }}>
+            Remove
+          </button>
+        </div>
+      ))}
+      {!(items || []).length && <div style={{ color: "#64748b", fontSize: 12, fontWeight: 800 }}>None</div>}
+    </div>
+  );
 
   const runPlaylistAction = async (payload, successMessage) => {
     try {
@@ -5580,6 +5655,37 @@ function AdminPage({ onClose }) {
                   Save Video Control
                 </button>
                 <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 800 }}>{videoChunkStatus}</div>
+                <div style={{ borderTop: "1px solid rgba(148,163,184,.22)", marginTop: 8, paddingTop: 14, display: "grid", gap: 10 }}>
+                  <div>
+                    <div style={controlLabelStyle}>ACCESS CONTROL</div>
+                    <div style={{ color: "#f8fafc", fontSize: 18, fontWeight: 1000 }}>Whitelist / Blacklist IPs + Devices</div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "minmax(160px,1fr) minmax(160px,1fr)", gap: 8 }}>
+                    <select value={accessControlList} onChange={event => setAccessControlList(event.target.value)} style={adminInputStyle}>
+                      <option value="blacklistIp">Blacklist IP</option>
+                      <option value="whitelistIp">Whitelist IP</option>
+                      <option value="blacklistDevice">Blacklist Device</option>
+                      <option value="whitelistDevice">Whitelist Device</option>
+                    </select>
+                    <input value={accessControlValue} onChange={event => setAccessControlValue(event.target.value)} placeholder="IP or device ID" style={adminInputStyle} />
+                  </div>
+                  <input value={accessControlNote} onChange={event => setAccessControlNote(event.target.value)} placeholder="Note" style={adminInputStyle} />
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button type="button" onClick={() => addAccessControlEntry()} style={{ ...adminButtonStyle, width: "fit-content" }}>
+                      Add Rule
+                    </button>
+                    <button type="button" onClick={loadAccessControl} style={{ ...adminButtonStyle, width: "fit-content", borderColor: "#94a3b8", background: "#94a3b8" }}>
+                      Refresh Rules
+                    </button>
+                  </div>
+                  <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 800 }}>{accessControlStatus}</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 8 }}>
+                    {renderAccessControlList("BLACKLISTED IPS", "blacklistIp", accessControl.blacklistIps)}
+                    {renderAccessControlList("WHITELISTED IPS", "whitelistIp", accessControl.whitelistIps)}
+                    {renderAccessControlList("BLACKLISTED DEVICES", "blacklistDevice", accessControl.blacklistDevices)}
+                    {renderAccessControlList("WHITELISTED DEVICES", "whitelistDevice", accessControl.whitelistDevices)}
+                  </div>
+                </div>
               </div>
             </section>
             <section style={sectionStyle}>
@@ -5863,6 +5969,8 @@ function AdminPage({ onClose }) {
                       <div>
                         <div style={controlLabelStyle}>HOUSEHOLD IP</div>
                         <div style={{ fontSize: 16, fontWeight: 1000, color: "#f8fafc" }}>{household.ip || "unknown"}</div>
+                        {household.accessStatus?.blacklisted && <div style={{ color: "#fecaca", fontSize: 11, fontWeight: 1000 }}>BLACKLISTED</div>}
+                        {household.accessStatus?.whitelisted && <div style={{ color: "#bbf7d0", fontSize: 11, fontWeight: 1000 }}>WHITELISTED</div>}
                       </div>
                       <div style={{ textAlign: "right" }}>
                         <div style={controlLabelStyle}>USER DEVICES CONNECTED</div>
@@ -5871,9 +5979,16 @@ function AdminPage({ onClose }) {
                     </div>
                   </summary>
                   <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button type="button" onClick={() => addAccessControlEntry("blacklistIp", household.ip, "Added from online users")} style={{ ...adminButtonStyle, padding: "8px 10px", fontSize: 12, borderColor: "#fb7185", background: "#fb7185" }}>Blacklist IP</button>
+                      <button type="button" onClick={() => removeAccessControlEntry("blacklistIp", household.ip)} style={{ ...adminButtonStyle, padding: "8px 10px", fontSize: 12 }}>Unblacklist IP</button>
+                      <button type="button" onClick={() => addAccessControlEntry("whitelistIp", household.ip, "Added from online users")} style={{ ...adminButtonStyle, padding: "8px 10px", fontSize: 12, borderColor: "#bbf7d0", background: "#bbf7d0" }}>Whitelist IP</button>
+                    </div>
                     {(household.devices || []).map(device => (
                       <div key={device.deviceId} style={{ borderTop: "1px solid rgba(148,163,184,.18)", paddingTop: 8, display: "grid", gap: 4 }}>
                         <div style={{ color: "#dbeafe", fontSize: 13, fontWeight: 1000, overflowWrap: "anywhere" }}>Device ID: {device.deviceId || "unknown"}</div>
+                        {device.accessStatus?.blacklisted && <div style={{ color: "#fecaca", fontSize: 11, fontWeight: 1000 }}>DEVICE BLACKLISTED</div>}
+                        {device.accessStatus?.whitelisted && <div style={{ color: "#bbf7d0", fontSize: 11, fontWeight: 1000 }}>DEVICE WHITELISTED</div>}
                         <div style={{ color: "#fef3c7", fontSize: 12, fontWeight: 1000, overflowWrap: "anywhere" }}>Detected Device: {formatDeviceProfile(device.deviceProfile)}</div>
                         {device.deviceProfile?.platform && (
                           <div style={{ color: "#fde68a", fontSize: 11, fontWeight: 800, overflowWrap: "anywhere" }}>Platform Hint: {device.deviceProfile.platform}{device.deviceProfile.brands ? ` - ${device.deviceProfile.brands}` : ""}</div>
@@ -5881,6 +5996,11 @@ function AdminPage({ onClose }) {
                         <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 800, overflowWrap: "anywhere" }}>Location From Weather Check: {formatWeatherLocation(device.weatherLocation)}</div>
                         <div style={{ color: "#94a3b8", fontSize: 11, fontWeight: 800, overflowWrap: "anywhere" }}>Weather Permission: {device.weatherStatus || "unknown"}</div>
                         <div style={{ color: "#64748b", fontSize: 10, fontWeight: 800, overflowWrap: "anywhere" }}>Device Browser: {device.userAgent || "unknown"}</div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button type="button" onClick={() => addAccessControlEntry("blacklistDevice", device.deviceId, "Added from online users")} style={{ ...adminButtonStyle, padding: "7px 9px", fontSize: 11, borderColor: "#fb7185", background: "#fb7185" }}>Blacklist Device</button>
+                          <button type="button" onClick={() => removeAccessControlEntry("blacklistDevice", device.deviceId)} style={{ ...adminButtonStyle, padding: "7px 9px", fontSize: 11 }}>Unblacklist Device</button>
+                          <button type="button" onClick={() => addAccessControlEntry("whitelistDevice", device.deviceId, "Added from online users")} style={{ ...adminButtonStyle, padding: "7px 9px", fontSize: 11, borderColor: "#bbf7d0", background: "#bbf7d0" }}>Whitelist Device</button>
+                        </div>
                       </div>
                     ))}
                   </div>

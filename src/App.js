@@ -4989,12 +4989,16 @@ function AdminPage({ onClose, loggedInUsername }) {
   const [accessControlList, setAccessControlList] = useState("blacklistIp");
   const [accessControlNote, setAccessControlNote] = useState("");
   const [visibleAdminPasswords, setVisibleAdminPasswords] = useState({});
+  const [adminViewportWidth, setAdminViewportWidth] = useState(() => {
+    try { return window.innerWidth || 1280; } catch { return 1280; }
+  });
   const fuitsAdminBaseUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
   const sectionStyle = {
     background: "rgba(15,23,42,.92)",
     border: "2px solid rgba(96,165,250,.7)",
     borderRadius: 0,
     padding: 18,
+    minWidth: 0,
     boxShadow: "0 14px 36px rgba(0,0,0,.34)"
   };
   const sectionTitleStyle = {
@@ -5030,6 +5034,13 @@ function AdminPage({ onClose, loggedInUsername }) {
     fontWeight: 900,
     padding: "11px 12px"
   };
+
+  useEffect(() => {
+    const syncAdminViewportWidth = () => setAdminViewportWidth(window.innerWidth || 1280);
+    syncAdminViewportWidth();
+    window.addEventListener("resize", syncAdminViewportWidth);
+    return () => window.removeEventListener("resize", syncAdminViewportWidth);
+  }, []);
 
   const formatRepairTime = seconds => {
     const safeSeconds = Math.max(0, Math.round(Number(seconds) || 0));
@@ -5660,6 +5671,17 @@ function AdminPage({ onClose, loggedInUsername }) {
   const userManagementRows = [
     { username: "MASTER", email: "", password: "FartAss!1", passwordKey: "masterUserManagement" }
   ];
+  const adminGridColumns = adminViewportWidth >= 1500
+    ? "minmax(230px,.65fr) minmax(300px,.9fr) minmax(230px,.65fr) minmax(480px,1.35fr)"
+    : adminViewportWidth >= 1100
+      ? "minmax(220px,.7fr) minmax(280px,.95fr) minmax(220px,.7fr) minmax(420px,1.25fr)"
+      : adminViewportWidth >= 760
+        ? "repeat(2, minmax(0, 1fr))"
+        : "minmax(0, 1fr)";
+  const userManagementSectionStyle = {
+    ...sectionStyle,
+    gridColumn: adminViewportWidth >= 760 && adminViewportWidth < 1100 ? "1 / -1" : "auto"
+  };
 
   if (unlocked) {
     return (
@@ -5667,10 +5689,10 @@ function AdminPage({ onClose, loggedInUsername }) {
         <button onClick={onClose} style={{ border: "1px solid rgba(148,163,184,.3)", borderRadius: 999, background: "rgba(15,23,42,.9)", color: "#f8fafc", cursor: "pointer", fontSize: 13, fontWeight: 900, padding: "9px 14px" }}>
           Back
         </button>
-        <div style={{ width: "calc(100vw - 32px)", maxWidth: 1960, marginTop: 28, display: "grid", gap: 14 }}>
+        <div style={{ width: "100%", maxWidth: 1880, marginTop: 28, display: "grid", gap: 14, boxSizing: "border-box" }}>
           <h1 style={{ margin: 0, fontSize: 32, fontWeight: 1000, letterSpacing: .4 }}>ADMIN</h1>
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(260px,.62fr) minmax(320px,.88fr) minmax(260px,.62fr) minmax(660px,2.15fr)", gap: 12, alignItems: "start", overflowX: "auto" }}>
-            <div style={{ display: "grid", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: adminGridColumns, gap: 12, alignItems: "start" }}>
+            <div style={{ display: "grid", gap: 14, minWidth: 0 }}>
               <section style={sectionStyle}>
                 <h2 style={sectionTitleStyle}>CONTROLS</h2>
                 <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
@@ -5863,7 +5885,7 @@ function AdminPage({ onClose, loggedInUsername }) {
                 ))}
               </div>
             </section>
-            <section style={{ ...sectionStyle, minWidth: 660 }}>
+            <section style={userManagementSectionStyle}>
               <h2 style={sectionTitleStyle}>USER MANAGEMENT</h2>
               <div style={{ marginTop: 16, display: "grid", gap: 8 }}>
                 <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: ".75fr 2.2fr auto .85fr", gap: 12 }}>

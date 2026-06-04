@@ -115,6 +115,8 @@ const PROJECTS_KEY = "hoursTrackerProjects_v2";
 const RATES_KEY = "hoursTrackerRates_v1";
 const MONTHLY_TRACKER_KEY = "hoursTrackerMonthlyTrackerMonths_v1";
 const KICK_GAMING_CHANNEL_KEY = "fuitLiveGamingKickChannel_v1";
+const SIGNUP_REQUESTS_KEY = "fuitsSignupRequests_v1";
+const APPROVED_USERS_KEY = "fuitsApprovedUsers_v1";
 
 function loadData() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
@@ -147,6 +149,18 @@ function loadMonthlyTrackerMonths() {
 }
 function saveMonthlyTrackerMonths(months) {
   try { localStorage.setItem(MONTHLY_TRACKER_KEY, JSON.stringify(months)); } catch {}
+}
+function loadSignupRequests() {
+  try { return JSON.parse(localStorage.getItem(SIGNUP_REQUESTS_KEY)) || []; } catch { return []; }
+}
+function saveSignupRequests(requests) {
+  try { localStorage.setItem(SIGNUP_REQUESTS_KEY, JSON.stringify(requests)); } catch {}
+}
+function loadApprovedUsers() {
+  try { return JSON.parse(localStorage.getItem(APPROVED_USERS_KEY)) || []; } catch { return []; }
+}
+function saveApprovedUsers(users) {
+  try { localStorage.setItem(APPROVED_USERS_KEY, JSON.stringify(users)); } catch {}
 }
 
 function normalizeKickChannel(value) {
@@ -4955,7 +4969,7 @@ function EmptyUtilityPage({ title, onClose }) {
   );
 }
 
-function AdminPage({ onClose, loggedInUsername }) {
+function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, onApproveSignup, onDenySignup }) {
   const [password, setPassword] = useState("");
   const [unlocked, setUnlocked] = useState(false);
   const [error, setError] = useState("");
@@ -5659,7 +5673,11 @@ function AdminPage({ onClose, loggedInUsername }) {
     { label: "Crypto Admin", password: "FUCKNUTZ22!" }
   ];
   const userManagementRows = [
-    { username: "MASTER", email: "", password: "FartAss!1", passwordKey: "masterUserManagement" }
+    { username: "MASTER", email: "", password: "FartAss!1", passwordKey: "masterUserManagement" },
+    ...approvedUsers.map(user => ({
+      ...user,
+      passwordKey: `approvedUser_${user.id || user.username}`
+    }))
   ];
 
   if (unlocked) {
@@ -5909,9 +5927,59 @@ function AdminPage({ onClose, loggedInUsername }) {
                 })}
                 <div style={{ borderTop: "1px solid rgba(148,163,184,.22)", marginTop: 8, paddingTop: 14, display: "grid", gap: 8 }}>
                   <h3 style={{ margin: 0, color: "#dbeafe", fontSize: 16, fontWeight: 1000, textTransform: "uppercase" }}>SIGN UP / COMMUNICATION</h3>
-                  <div style={{ border: "1px dashed rgba(148,163,184,.28)", background: "rgba(2,6,23,.36)", padding: 12, color: "#94a3b8", fontSize: 13, fontWeight: 900, textAlign: "center" }}>
-                    Signup requests and future form messages will appear here.
-                  </div>
+                  {!signupRequests.length && (
+                    <div style={{ border: "1px dashed rgba(148,163,184,.28)", background: "rgba(2,6,23,.36)", padding: 12, color: "#94a3b8", fontSize: 13, fontWeight: 900, textAlign: "center" }}>
+                      No signup requests yet.
+                    </div>
+                  )}
+                  {signupRequests.map(request => {
+                    const status = request.status || "pending";
+                    const isPending = status === "pending";
+                    return (
+                      <div key={request.id} style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gap: 8 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 8, alignItems: "start" }}>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 1000, textTransform: "uppercase", overflowWrap: "anywhere" }}>{request.username}</div>
+                            <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 900, overflowWrap: "anywhere" }}>{request.email}</div>
+                          </div>
+                          <div style={{
+                            border: `1px solid ${status === "approved" ? "rgba(34,197,94,.72)" : status === "denied" ? "rgba(248,113,113,.72)" : "rgba(250,204,21,.72)"}`,
+                            background: status === "approved" ? "rgba(22,101,52,.62)" : status === "denied" ? "rgba(127,29,29,.62)" : "rgba(113,63,18,.62)",
+                            color: status === "approved" ? "#bbf7d0" : status === "denied" ? "#fecaca" : "#fef3c7",
+                            fontSize: 10,
+                            fontWeight: 1000,
+                            padding: "5px 8px",
+                            textTransform: "uppercase",
+                            whiteSpace: "nowrap"
+                          }}>
+                            {status}
+                          </div>
+                        </div>
+                        <div style={{ color: "#94a3b8", fontSize: 11, fontWeight: 800 }}>
+                          Requested password: {visibleAdminPasswords[`signup_${request.id}`] ? request.password : "********"}
+                        </div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button
+                            type="button"
+                            onClick={() => setVisibleAdminPasswords(current => ({ ...current, [`signup_${request.id}`]: !current[`signup_${request.id}`] }))}
+                            style={{ ...adminButtonStyle, padding: "7px 10px", fontSize: 11, borderColor: "#94a3b8", background: "#94a3b8" }}
+                          >
+                            {visibleAdminPasswords[`signup_${request.id}`] ? "Hide" : "Show"}
+                          </button>
+                          {isPending && (
+                            <button type="button" onClick={() => onApproveSignup(request.id)} style={{ ...adminButtonStyle, padding: "7px 10px", fontSize: 11 }}>
+                              Approve
+                            </button>
+                          )}
+                          {isPending && (
+                            <button type="button" onClick={() => onDenySignup(request.id)} style={{ ...adminButtonStyle, padding: "7px 10px", fontSize: 11, borderColor: "#fb7185", background: "#fb7185" }}>
+                              No
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </section>
@@ -6232,10 +6300,13 @@ function ProjectDropdown({ projects, activeId, onSelect, onManage }) {
   );
 }
 
-function LoginPage({ onLogin }) {
+function LoginPage({ onLogin, approvedUsers, onSignupRequest }) {
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [mode, setMode] = useState("login");
 
   const submitLogin = event => {
     event.preventDefault();
@@ -6245,7 +6316,66 @@ function LoginPage({ onLogin }) {
       onLogin("MASTER");
       return;
     }
+    const approvedUser = approvedUsers.find(user => {
+      const entered = cleanUsername.toLowerCase();
+      return (user.username || "").toLowerCase() === entered || (user.email || "").toLowerCase() === entered;
+    });
+    if (approvedUser && approvedUser.password === password) {
+      setError("");
+      onLogin(approvedUser.username);
+      return;
+    }
     setError("Login not approved yet.");
+  };
+
+  const submitSignup = event => {
+    event.preventDefault();
+    const cleanUsername = username.trim();
+    const cleanEmail = email.trim();
+    if (!cleanUsername || !cleanEmail || !password) {
+      setSuccess("");
+      setError("Fill in username, email, and password.");
+      return;
+    }
+    if (!cleanEmail.includes("@")) {
+      setSuccess("");
+      setError("Enter a valid email.");
+      return;
+    }
+    const message = onSignupRequest({ username: cleanUsername, email: cleanEmail, password });
+    setUsername("");
+    setEmail("");
+    setPassword("");
+    setError("");
+    setSuccess(message || "Signup request sent. Wait for approval.");
+    setMode("login");
+  };
+
+  const loginInputStyle = {
+    border: "1px solid rgba(148,163,184,.38)",
+    borderRadius: 8,
+    background: "rgba(15,23,42,.92)",
+    color: "#f8fafc",
+    fontSize: 15,
+    fontWeight: 900,
+    padding: "12px 13px",
+    minWidth: 0
+  };
+  const loginPrimaryButtonStyle = {
+    border: "1px solid #67e8f9",
+    borderRadius: 8,
+    background: "#67e8f9",
+    color: "#020617",
+    cursor: "pointer",
+    fontSize: 13,
+    fontWeight: 1000,
+    padding: "12px 14px",
+    textTransform: "uppercase"
+  };
+  const switchMode = nextMode => {
+    setMode(nextMode);
+    setError("");
+    setSuccess("");
   };
 
   return (
@@ -6259,7 +6389,7 @@ function LoginPage({ onLogin }) {
       padding: 22,
       boxSizing: "border-box"
     }}>
-      <form onSubmit={submitLogin} style={{
+      <form onSubmit={mode === "signup" ? submitSignup : submitLogin} style={{
         width: "min(100%, 430px)",
         border: "2px solid rgba(96,165,250,.72)",
         background: "rgba(2,6,23,.9)",
@@ -6271,22 +6401,24 @@ function LoginPage({ onLogin }) {
         <h1 style={{ margin: 0, color: "#fef08a", fontSize: 28, fontWeight: 1000, lineHeight: 1.08, textTransform: "uppercase" }}>
           Welcome to FUITS Live TV + Internet Center
         </h1>
-        <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 900, textTransform: "uppercase" }}>Login</div>
+        <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 900, textTransform: "uppercase" }}>{mode === "signup" ? "Signup Request" : "Login"}</div>
         <input
           value={username}
           onChange={event => setUsername(event.target.value)}
           placeholder="Username"
           autoComplete="username"
-          style={{
-            border: "1px solid rgba(148,163,184,.38)",
-            borderRadius: 8,
-            background: "rgba(15,23,42,.92)",
-            color: "#f8fafc",
-            fontSize: 15,
-            fontWeight: 900,
-            padding: "12px 13px"
-          }}
+          style={loginInputStyle}
         />
+        {mode === "signup" && (
+          <input
+            type="email"
+            value={email}
+            onChange={event => setEmail(event.target.value)}
+            placeholder="Email"
+            autoComplete="email"
+            style={loginInputStyle}
+          />
+        )}
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 10 }}>
           <input
             type="password"
@@ -6294,40 +6426,22 @@ function LoginPage({ onLogin }) {
             onChange={event => setPassword(event.target.value)}
             placeholder="Password"
             autoComplete="current-password"
-            style={{
-              border: "1px solid rgba(148,163,184,.38)",
-              borderRadius: 8,
-              background: "rgba(15,23,42,.92)",
-              color: "#f8fafc",
-              fontSize: 15,
-              fontWeight: 900,
-              padding: "12px 13px",
-              minWidth: 0
-            }}
+            style={loginInputStyle}
           />
-          <button type="submit" style={{
-            border: "1px solid #67e8f9",
-            borderRadius: 8,
-            background: "#67e8f9",
-            color: "#020617",
-            cursor: "pointer",
-            fontSize: 13,
-            fontWeight: 1000,
-            padding: "12px 14px",
-            textTransform: "uppercase"
-          }}>
-            Sign In
+          <button type="submit" style={loginPrimaryButtonStyle}>
+            {mode === "signup" ? "Send" : "Sign In"}
           </button>
         </div>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
-          <button type="button" onClick={() => alert("Signup requests will be added in the next step.")} style={{ border: "none", background: "transparent", color: "#bfdbfe", cursor: "pointer", fontSize: 13, fontWeight: 1000, padding: 0 }}>
-            Sign Up
+          <button type="button" onClick={() => switchMode(mode === "signup" ? "login" : "signup")} style={{ border: "none", background: "transparent", color: "#bfdbfe", cursor: "pointer", fontSize: 13, fontWeight: 1000, padding: 0 }}>
+            {mode === "signup" ? "Back To Login" : "Sign Up"}
           </button>
-          <button type="button" onClick={() => alert("Forgot password recovery will be added later.")} style={{ border: "none", background: "transparent", color: "#bfdbfe", cursor: "pointer", fontSize: 13, fontWeight: 1000, padding: 0 }}>
+          {mode === "login" && <button type="button" onClick={() => alert("Forgot password recovery will be added later.")} style={{ border: "none", background: "transparent", color: "#bfdbfe", cursor: "pointer", fontSize: 13, fontWeight: 1000, padding: 0 }}>
             Forget Password
-          </button>
+          </button>}
         </div>
         {error && <div style={{ color: "#fecaca", fontSize: 13, fontWeight: 900 }}>{error}</div>}
+        {success && <div style={{ color: "#bbf7d0", fontSize: 13, fontWeight: 900 }}>{success}</div>}
       </form>
     </div>
   );
@@ -6358,6 +6472,8 @@ export default function App() {
   const [newProjectColor, setNewProjectColor] = useState(PROJECT_COLORS[0]);
   const [editingProjectId, setEditingProjectId] = useState(null);
   const [editProjectName, setEditProjectName] = useState("");
+  const [signupRequests, setSignupRequests] = useState(loadSignupRequests);
+  const [approvedUsers, setApprovedUsers] = useState(loadApprovedUsers);
   const weekDates = getWeekDates(weekOffset);
 
   useEffect(() => { saveData(entries); }, [entries]);
@@ -6367,6 +6483,8 @@ export default function App() {
   useEffect(() => { saveThemeId(themeId); }, [themeId]);
   useEffect(() => { saveCustomBackground(customBackground); }, [customBackground]);
   useEffect(() => { saveMusicSettings(musicSettings); }, [musicSettings]);
+  useEffect(() => { saveSignupRequests(signupRequests); }, [signupRequests]);
+  useEffect(() => { saveApprovedUsers(approvedUsers); }, [approvedUsers]);
   const activeMusicSrc = musicData || "";
 
   const hourlyRate = projectRates[activeProjectId] || 0;
@@ -6412,6 +6530,49 @@ export default function App() {
     setLoggedInUsername("");
     setView("week");
     try { localStorage.removeItem("fuitsLoggedInUsername"); } catch {}
+  };
+  const submitSignupRequest = request => {
+    const cleanUsername = request.username.trim();
+    const cleanEmail = request.email.trim();
+    const usernameTaken = ["MASTER", ...approvedUsers.map(user => user.username.toUpperCase())].includes(cleanUsername.toUpperCase());
+    const emailTaken = approvedUsers.some(user => (user.email || "").toLowerCase() === cleanEmail.toLowerCase());
+    if (usernameTaken || emailTaken) return "That username or email is already approved.";
+    const existingPending = signupRequests.some(item =>
+      (item.status || "pending") === "pending" &&
+      ((item.username || "").toUpperCase() === cleanUsername.toUpperCase() || (item.email || "").toLowerCase() === cleanEmail.toLowerCase())
+    );
+    if (existingPending) return "Signup request already waiting for approval.";
+    setSignupRequests(current => [
+      {
+        id: `signup_${Date.now()}`,
+        username: cleanUsername,
+        email: cleanEmail,
+        password: request.password,
+        status: "pending",
+        createdAt: new Date().toISOString()
+      },
+      ...current
+    ]);
+    return "Signup request sent. Wait for approval.";
+  };
+  const approveSignupRequest = requestId => {
+    const request = signupRequests.find(item => item.id === requestId);
+    if (!request) return;
+    setApprovedUsers(current => {
+      const alreadyApproved = current.some(user =>
+        (user.username || "").toUpperCase() === request.username.toUpperCase() ||
+        (user.email || "").toLowerCase() === request.email.toLowerCase()
+      );
+      if (alreadyApproved) return current;
+      return [
+        ...current,
+        { id: request.id, username: request.username, email: request.email, password: request.password }
+      ];
+    });
+    setSignupRequests(current => current.map(item => item.id === requestId ? { ...item, status: "approved" } : item));
+  };
+  const denySignupRequest = requestId => {
+    setSignupRequests(current => current.map(item => item.id === requestId ? { ...item, status: "denied" } : item));
   };
 
   const miniStatValueStyle = {
@@ -6536,7 +6697,7 @@ export default function App() {
   }, [activeMusicSrc]);
 
   if (!loggedInUsername) {
-    return <LoginPage onLogin={loginUser} />;
+    return <LoginPage onLogin={loginUser} approvedUsers={approvedUsers} onSignupRequest={submitSignupRequest} />;
   }
 
   const toggleMusic = async () => {
@@ -6636,7 +6797,14 @@ export default function App() {
 
   
   if (view === "admin") {
-    return <AdminPage onClose={() => setView("week")} loggedInUsername={loggedInUsername} />;
+    return <AdminPage
+      onClose={() => setView("week")}
+      loggedInUsername={loggedInUsername}
+      signupRequests={signupRequests}
+      approvedUsers={approvedUsers}
+      onApproveSignup={approveSignupRequest}
+      onDenySignup={denySignupRequest}
+    />;
   }
 
   if (view === "news") {

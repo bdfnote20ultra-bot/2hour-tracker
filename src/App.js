@@ -5667,9 +5667,9 @@ function AdminPage({ onClose, loggedInUsername }) {
         <button onClick={onClose} style={{ border: "1px solid rgba(148,163,184,.3)", borderRadius: 999, background: "rgba(15,23,42,.9)", color: "#f8fafc", cursor: "pointer", fontSize: 13, fontWeight: 900, padding: "9px 14px" }}>
           Back
         </button>
-        <div style={{ maxWidth: 1680, marginTop: 28, display: "grid", gap: 14 }}>
+        <div style={{ width: "calc(100vw - 32px)", maxWidth: 1960, marginTop: 28, display: "grid", gap: 14 }}>
           <h1 style={{ margin: 0, fontSize: 32, fontWeight: 1000, letterSpacing: .4 }}>ADMIN</h1>
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(300px,.9fr) minmax(360px,1.15fr) minmax(300px,.9fr) minmax(300px,.9fr)", gap: 14, alignItems: "start", overflowX: "auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(260px,.62fr) minmax(320px,.88fr) minmax(260px,.62fr) minmax(660px,2.15fr)", gap: 12, alignItems: "start", overflowX: "auto" }}>
             <div style={{ display: "grid", gap: 14 }}>
               <section style={sectionStyle}>
                 <h2 style={sectionTitleStyle}>CONTROLS</h2>
@@ -5863,10 +5863,10 @@ function AdminPage({ onClose, loggedInUsername }) {
                 ))}
               </div>
             </section>
-            <section style={sectionStyle}>
+            <section style={{ ...sectionStyle, minWidth: 660 }}>
               <h2 style={sectionTitleStyle}>USER MANAGEMENT</h2>
               <div style={{ marginTop: 16, display: "grid", gap: 8 }}>
-                <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "1fr 1fr auto 1fr", gap: 10 }}>
+                <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: ".75fr 2.2fr auto .85fr", gap: 12 }}>
                   <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>Username</div>
                   <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>Email</div>
                   <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", textAlign: "center" }}>Status</div>
@@ -5875,7 +5875,7 @@ function AdminPage({ onClose, loggedInUsername }) {
                 {userManagementRows.map(user => {
                   const isLoggedIn = String(loggedInUsername || "").toUpperCase() === user.username.toUpperCase();
                   return (
-                    <div key={user.username} style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "1fr 1fr auto minmax(72px,auto) auto", gap: 10, alignItems: "center" }}>
+                    <div key={user.username} style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: ".75fr 2.2fr auto minmax(72px,auto) auto", gap: 12, alignItems: "center" }}>
                       <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 1000, textTransform: "uppercase" }}>{user.username}</div>
                       <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 900, overflowWrap: "anywhere" }}>
                         {user.email || "No email yet"}

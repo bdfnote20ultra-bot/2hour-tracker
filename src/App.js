@@ -6307,6 +6307,7 @@ function LoginPage({ onLogin, approvedUsers, onSignupRequest }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [mode, setMode] = useState("login");
+  const [showPassword, setShowPassword] = useState(false);
 
   const clearLoginFeedback = () => {
     if (error) setError("");
@@ -6444,15 +6445,34 @@ function LoginPage({ onLogin, approvedUsers, onSignupRequest }) {
             style={loginInputStyle}
           />
         )}
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto auto", gap: 10 }}>
           <input
-            type="password"
+            type={showPassword ? "text" : "password"}
             value={password}
             onChange={event => updatePassword(event.target.value)}
             placeholder="Password"
-            autoComplete="current-password"
+            autoComplete={mode === "signup" ? "new-password" : "current-password"}
             style={loginInputStyle}
           />
+          <button
+            type="button"
+            onClick={() => setShowPassword(current => !current)}
+            aria-label={showPassword ? "Hide password" : "Reveal password"}
+            style={{
+              border: "1px solid rgba(191,219,254,.58)",
+              borderRadius: 8,
+              background: "rgba(30,41,59,.92)",
+              color: "#bfdbfe",
+              cursor: "pointer",
+              fontSize: 12,
+              fontWeight: 1000,
+              padding: "12px 10px",
+              textTransform: "uppercase",
+              whiteSpace: "nowrap"
+            }}
+          >
+            {showPassword ? "Hide" : "Reveal"}
+          </button>
           <button type="submit" style={loginPrimaryButtonStyle}>
             {mode === "signup" ? "Send" : "Sign In"}
           </button>

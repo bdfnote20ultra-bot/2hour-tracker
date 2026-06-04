@@ -162,6 +162,36 @@ function loadApprovedUsers() {
 function saveApprovedUsers(users) {
   try { localStorage.setItem(APPROVED_USERS_KEY, JSON.stringify(users)); } catch {}
 }
+function resizeProfilePicture(file) {
+  return new Promise((resolve, reject) => {
+    if (!file || !String(file.type || "").startsWith("image/")) {
+      reject(new Error("Choose an image from photos."));
+      return;
+    }
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const maxSize = 160;
+      const ratio = Math.min(1, maxSize / Math.max(image.width || 1, image.height || 1));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round((image.width || maxSize) * ratio));
+      canvas.height = Math.max(1, Math.round((image.height || maxSize) * ratio));
+      const context = canvas.getContext("2d");
+      if (!context) {
+        reject(new Error("Could not prepare profile picture."));
+        return;
+      }
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", 0.82));
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Could not read that profile picture."));
+    };
+    image.src = objectUrl;
+  });
+}
 
 function normalizeKickChannel(value) {
   const trimmed = (value || "").trim();
@@ -5673,7 +5703,7 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
     { label: "Crypto Admin", password: "FUCKNUTZ22!" }
   ];
   const userManagementRows = [
-    { username: "MASTER", email: "", password: "FartAss!1", passwordKey: "masterUserManagement" },
+    { username: "MASTER", email: "", password: "FartAss!1", passwordKey: "masterUserManagement", profilePicture: "" },
     ...approvedUsers.map(user => ({
       ...user,
       passwordKey: `approvedUser_${user.id || user.username}`
@@ -5895,7 +5925,26 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
                   const isLoggedIn = String(loggedInUsername || "").toUpperCase() === user.username.toUpperCase();
                   return (
                     <div key={user.username} style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "minmax(58px,.8fr) minmax(0,1.3fr) minmax(54px,auto) minmax(58px,.8fr) auto", gap: 8, alignItems: "center" }}>
-                      <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 1000, textTransform: "uppercase" }}>{user.username}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                        <div style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: "50%",
+                          border: "1px solid rgba(191,219,254,.58)",
+                          background: user.profilePicture ? `center / cover no-repeat url(${user.profilePicture})` : "rgba(30,41,59,.92)",
+                          color: "#bfdbfe",
+                          display: "grid",
+                          placeItems: "center",
+                          fontSize: 10,
+                          fontWeight: 1000,
+                          flexShrink: 0,
+                          overflow: "hidden",
+                          textTransform: "uppercase"
+                        }}>
+                          {!user.profilePicture && String(user.username || "?").slice(0, 1)}
+                        </div>
+                        <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 1000, textTransform: "uppercase", overflowWrap: "anywhere" }}>{user.username}</div>
+                      </div>
                       <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 900, overflowWrap: "anywhere" }}>
                         {user.email || "No email yet"}
                       </div>
@@ -5938,9 +5987,28 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
                     return (
                       <div key={request.id} style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gap: 8 }}>
                         <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 8, alignItems: "start" }}>
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 1000, textTransform: "uppercase", overflowWrap: "anywhere" }}>{request.username}</div>
-                            <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 900, overflowWrap: "anywhere" }}>{request.email}</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                            <div style={{
+                              width: 34,
+                              height: 34,
+                              borderRadius: "50%",
+                              border: "1px solid rgba(191,219,254,.58)",
+                              background: request.profilePicture ? `center / cover no-repeat url(${request.profilePicture})` : "rgba(30,41,59,.92)",
+                              color: "#bfdbfe",
+                              display: "grid",
+                              placeItems: "center",
+                              fontSize: 10,
+                              fontWeight: 1000,
+                              flexShrink: 0,
+                              overflow: "hidden",
+                              textTransform: "uppercase"
+                            }}>
+                              {!request.profilePicture && String(request.username || "?").slice(0, 1)}
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 1000, textTransform: "uppercase", overflowWrap: "anywhere" }}>{request.username}</div>
+                              <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 900, overflowWrap: "anywhere" }}>{request.email}</div>
+                            </div>
                           </div>
                           <div style={{
                             border: `1px solid ${status === "approved" ? "rgba(34,197,94,.72)" : status === "denied" ? "rgba(248,113,113,.72)" : "rgba(250,204,21,.72)"}`,
@@ -6304,6 +6372,7 @@ function LoginPage({ onLogin, approvedUsers, onSignupRequest }) {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [profilePicture, setProfilePicture] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [mode, setMode] = useState("login");
@@ -6324,6 +6393,20 @@ function LoginPage({ onLogin, approvedUsers, onSignupRequest }) {
   const updatePassword = value => {
     setPassword(value);
     clearLoginFeedback();
+  };
+  const updateProfilePicture = async file => {
+    clearLoginFeedback();
+    if (!file) {
+      setProfilePicture("");
+      return;
+    }
+    try {
+      setProfilePicture(await resizeProfilePicture(file));
+    } catch (err) {
+      setProfilePicture("");
+      setSuccess("");
+      setError(err?.message || "Choose an image from photos.");
+    }
   };
 
   const submitLogin = event => {
@@ -6368,10 +6451,16 @@ function LoginPage({ onLogin, approvedUsers, onSignupRequest }) {
       setError("Enter a valid email.");
       return;
     }
-    const message = onSignupRequest({ username: cleanUsername, email: cleanEmail, password });
+    if (!profilePicture) {
+      setSuccess("");
+      setError("Choose a profile picture from photos.");
+      return;
+    }
+    const message = onSignupRequest({ username: cleanUsername, email: cleanEmail, password, profilePicture });
     setUsername("");
     setEmail("");
     setPassword("");
+    setProfilePicture("");
     setError("");
     setSuccess(message || "Signup request sent. Wait for approval.");
     setMode("login");
@@ -6402,6 +6491,7 @@ function LoginPage({ onLogin, approvedUsers, onSignupRequest }) {
     setMode(nextMode);
     setError("");
     setSuccess("");
+    if (nextMode !== "signup") setProfilePicture("");
   };
 
   return (
@@ -6444,6 +6534,39 @@ function LoginPage({ onLogin, approvedUsers, onSignupRequest }) {
             autoComplete="email"
             style={loginInputStyle}
           />
+        )}
+        {mode === "signup" && (
+          <div style={{ display: "grid", gap: 8 }}>
+            <label style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>
+              Profile Picture
+            </label>
+            <div style={{ display: "grid", gridTemplateColumns: "44px minmax(0,1fr)", gap: 10, alignItems: "center" }}>
+              <div style={{
+                width: 44,
+                height: 44,
+                borderRadius: "50%",
+                border: "1px solid rgba(191,219,254,.58)",
+                background: profilePicture ? `center / cover no-repeat url(${profilePicture})` : "rgba(30,41,59,.92)",
+                display: "grid",
+                placeItems: "center",
+                color: "#bfdbfe",
+                fontSize: 11,
+                fontWeight: 1000,
+                overflow: "hidden"
+              }}>
+                {!profilePicture && "PIC"}
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={event => updateProfilePicture(event.target.files?.[0])}
+                style={{ ...loginInputStyle, padding: "9px 10px" }}
+              />
+            </div>
+            <div style={{ color: "#94a3b8", fontSize: 11, fontWeight: 800 }}>
+              Photos/images only. Choose from your photo library.
+            </div>
+          </div>
         )}
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto auto", gap: 10 }}>
           <input
@@ -6593,6 +6716,7 @@ export default function App() {
         username: cleanUsername,
         email: cleanEmail,
         password: request.password,
+        profilePicture: request.profilePicture || "",
         status: "pending",
         createdAt: new Date().toISOString()
       },
@@ -6611,7 +6735,7 @@ export default function App() {
       if (alreadyApproved) return current;
       return [
         ...current,
-        { id: request.id, username: request.username, email: request.email, password: request.password }
+        { id: request.id, username: request.username, email: request.email, password: request.password, profilePicture: request.profilePicture || "" }
       ];
     });
     setSignupRequests(current => current.map(item => item.id === requestId ? { ...item, status: "approved" } : item));

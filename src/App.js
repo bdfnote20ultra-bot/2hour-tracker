@@ -2932,7 +2932,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
             <video
               ref={videoRef}
               src={videoSrc}
-              controls={!playbackLocked}
+              controls
               playsInline
               muted={playerMuted}
               autoPlay={!needsLargeVideoPreload}

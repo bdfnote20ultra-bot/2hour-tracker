@@ -4960,8 +4960,6 @@ function AdminPage({ onClose }) {
   const [accessControlList, setAccessControlList] = useState("blacklistIp");
   const [accessControlNote, setAccessControlNote] = useState("");
   const [visibleAdminPasswords, setVisibleAdminPasswords] = useState({});
-  const [passwordManagementUsername, setPasswordManagementUsername] = useState("");
-  const [passwordManagementPassword, setPasswordManagementPassword] = useState("");
   const fuitsAdminBaseUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
   const sectionStyle = {
     background: "rgba(15,23,42,.92)",
@@ -5834,20 +5832,14 @@ function AdminPage({ onClose }) {
             </section>
             <section style={sectionStyle}>
               <h2 style={sectionTitleStyle}>PASSWORD MANAGEMENT</h2>
-              <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
-                <input
-                  value={passwordManagementUsername}
-                  onChange={event => setPasswordManagementUsername(event.target.value)}
-                  placeholder="Username"
-                  style={adminInputStyle}
-                />
-                <input
-                  type="password"
-                  value={passwordManagementPassword}
-                  onChange={event => setPasswordManagementPassword(event.target.value)}
-                  placeholder="Password"
-                  style={adminInputStyle}
-                />
+              <div style={{ marginTop: 16, display: "grid", gap: 8 }}>
+                <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>Username</div>
+                  <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", textAlign: "right" }}>Password</div>
+                </div>
+                <div style={{ border: "1px dashed rgba(148,163,184,.28)", background: "rgba(2,6,23,.36)", padding: 12, color: "#94a3b8", fontSize: 13, fontWeight: 900, textAlign: "center" }}>
+                  Blank list ready for usernames and passwords
+                </div>
               </div>
             </section>
           </div>

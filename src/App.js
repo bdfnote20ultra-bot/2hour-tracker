@@ -6321,33 +6321,6 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
                   ))}
                 </div>
               )}
-              <div style={{ borderTop: "1px solid rgba(148,163,184,.24)", marginTop: 4, paddingTop: 14, display: "grid", gap: 10 }}>
-                <h2 style={{ ...sectionTitleStyle, fontSize: 22 }}>FUIT COINS</h2>
-                <div style={{ border: "1px solid rgba(34,197,94,.42)", background: "rgba(20,83,45,.34)", padding: 12, display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-                  <div style={controlLabelStyle}>BALANCE</div>
-                  <div style={{ color: "#bbf7d0", fontSize: 24, fontWeight: 1000 }}>0 FUIT COINS</div>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="Deposit USDT"
-                    style={{ ...adminInputStyle, minWidth: 0 }}
-                  />
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="Deposit USDC"
-                    style={{ ...adminInputStyle, minWidth: 0 }}
-                  />
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="Withdrawl FUIT Coin"
-                    style={{ ...adminInputStyle, minWidth: 0 }}
-                  />
-                </div>
-              </div>
             </div>
           </section>
           <section style={sectionStyle}>
@@ -6416,6 +6389,51 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
                   </div>
                 </details>
               ))}
+            </div>
+          </section>
+          <section style={sectionStyle}>
+            <h2 style={sectionTitleStyle}>FUIT COINS</h2>
+            <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
+              <div style={{ border: "1px solid rgba(34,197,94,.42)", background: "rgba(20,83,45,.34)", padding: 12, display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                <div style={controlLabelStyle}>BALANCE</div>
+                <div style={{ color: "#bbf7d0", fontSize: 24, fontWeight: 1000 }}>0 FUIT COINS</div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Deposit USDT"
+                  style={{ ...adminInputStyle, minWidth: 0 }}
+                />
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Deposit USDC"
+                  style={{ ...adminInputStyle, minWidth: 0 }}
+                />
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Withdrawl FUIT Coin"
+                  style={{ ...adminInputStyle, minWidth: 0 }}
+                />
+              </div>
+            </div>
+          </section>
+          <section style={sectionStyle}>
+            <h2 style={sectionTitleStyle}>USER PHOTO / ACESS</h2>
+            <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>
+              <div style={{ border: "1px solid rgba(96,165,250,.35)", background: "rgba(2,6,23,.72)", padding: 12 }}>
+                <div style={controlLabelStyle}>USERS WITH PHOTOS</div>
+                <div style={{ color: "#bfdbfe", fontSize: 28, fontWeight: 1000 }}>{signupInformationRows.filter(user => user.profilePicture).length}</div>
+              </div>
+              <div style={{ border: "1px solid rgba(34,197,94,.42)", background: "rgba(20,83,45,.34)", padding: 12 }}>
+                <div style={controlLabelStyle}>ALL PHOTO ACCESS</div>
+                <div style={{ color: "#bbf7d0", fontSize: 28, fontWeight: 1000 }}>{signupInformationRows.filter(user => user.fullPhotoLibraryAccess).length}</div>
+              </div>
+            </div>
+            <div style={{ marginTop: 12, color: "#cbd5e1", fontSize: 13, fontWeight: 900, lineHeight: 1.45 }}>
+              Signup requires all photo access and a chosen profile picture.
             </div>
           </section>
           </div>

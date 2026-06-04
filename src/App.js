@@ -5734,6 +5734,7 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
       id: request.id,
       username: request.username,
       email: request.email || "",
+      profilePicture: request.profilePicture || "",
       status: request.status || "pending",
       fullPhotoLibraryAccess: request.fullPhotoLibraryAccess === true
     })),
@@ -5746,6 +5747,7 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
         id: user.id || user.username,
         username: user.username,
         email: user.email || "",
+        profilePicture: user.profilePicture || "",
         status: "approved",
         fullPhotoLibraryAccess: user.fullPhotoLibraryAccess === true
       }))
@@ -6092,11 +6094,11 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
                   })}
                   <div style={{ borderTop: "1px solid rgba(148,163,184,.22)", marginTop: 8, paddingTop: 14, display: "grid", gap: 8 }}>
                     <h3 style={{ margin: 0, color: "#dbeafe", fontSize: 16, fontWeight: 1000, textTransform: "uppercase" }}>USER INFORMATION</h3>
-                    <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "minmax(90px,1fr) minmax(0,1.35fr) minmax(74px,auto) minmax(72px,auto)", gap: 8, alignItems: "center" }}>
-                      <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>Username</div>
-                      <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>Email</div>
-                      <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", textAlign: "center" }}>Status</div>
-                      <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", textAlign: "center" }}>All Photos</div>
+                    <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 8, display: "grid", gridTemplateColumns: "minmax(118px,1.1fr) minmax(90px,1.2fr) minmax(58px,auto) minmax(58px,auto)", gap: 6, alignItems: "center" }}>
+                      <div style={{ color: "#dbeafe", fontSize: 10, fontWeight: 1000, textTransform: "uppercase" }}>Username</div>
+                      <div style={{ color: "#dbeafe", fontSize: 10, fontWeight: 1000, textTransform: "uppercase" }}>Email</div>
+                      <div style={{ color: "#dbeafe", fontSize: 10, fontWeight: 1000, textTransform: "uppercase", textAlign: "center" }}>Status</div>
+                      <div style={{ color: "#dbeafe", fontSize: 10, fontWeight: 1000, textTransform: "uppercase", textAlign: "center" }}>All Photos</div>
                     </div>
                     {!signupInformationRows.length && (
                       <div style={{ border: "1px dashed rgba(148,163,184,.28)", background: "rgba(2,6,23,.36)", padding: 12, color: "#94a3b8", fontSize: 13, fontWeight: 900, textAlign: "center" }}>
@@ -6104,17 +6106,36 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
                       </div>
                     )}
                     {signupInformationRows.map(user => (
-                      <div key={`signupInfo_${user.id}`} style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "minmax(90px,1fr) minmax(0,1.35fr) minmax(74px,auto) minmax(72px,auto)", gap: 8, alignItems: "center" }}>
-                        <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 1000, textTransform: "uppercase", overflowWrap: "anywhere" }}>{user.username}</div>
-                        <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 900, overflowWrap: "anywhere" }}>{user.email || "No email"}</div>
-                        <div style={{ color: "#fef3c7", fontSize: 10, fontWeight: 1000, textTransform: "uppercase", textAlign: "center" }}>{user.status}</div>
+                      <div key={`signupInfo_${user.id}`} style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 8, display: "grid", gridTemplateColumns: "minmax(118px,1.1fr) minmax(90px,1.2fr) minmax(58px,auto) minmax(58px,auto)", gap: 6, alignItems: "center", minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                          <div style={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: "50%",
+                            border: "1px solid rgba(191,219,254,.58)",
+                            background: user.profilePicture ? `center / cover no-repeat url(${user.profilePicture})` : "rgba(30,41,59,.92)",
+                            color: "#bfdbfe",
+                            display: "grid",
+                            placeItems: "center",
+                            fontSize: 9,
+                            fontWeight: 1000,
+                            flexShrink: 0,
+                            overflow: "hidden",
+                            textTransform: "uppercase"
+                          }}>
+                            {!user.profilePicture && String(user.username || "?").slice(0, 1)}
+                          </div>
+                          <div style={{ color: "#f8fafc", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", overflowWrap: "anywhere", lineHeight: 1.15, minWidth: 0 }}>{user.username}</div>
+                        </div>
+                        <div style={{ color: "#cbd5e1", fontSize: 11, fontWeight: 900, overflowWrap: "anywhere", lineHeight: 1.15, minWidth: 0 }}>{user.email || "No email"}</div>
+                        <div style={{ color: "#fef3c7", fontSize: 9, fontWeight: 1000, textTransform: "uppercase", textAlign: "center", overflowWrap: "anywhere" }}>{user.status}</div>
                         <div style={{
                           border: `1px solid ${user.fullPhotoLibraryAccess ? "rgba(34,197,94,.72)" : "rgba(248,113,113,.72)"}`,
                           background: user.fullPhotoLibraryAccess ? "rgba(22,101,52,.62)" : "rgba(127,29,29,.62)",
                           color: user.fullPhotoLibraryAccess ? "#bbf7d0" : "#fecaca",
-                          fontSize: 11,
+                          fontSize: 10,
                           fontWeight: 1000,
-                          padding: "5px 8px",
+                          padding: "4px 6px",
                           textAlign: "center",
                           textTransform: "uppercase"
                         }}>
@@ -6127,7 +6148,7 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, o
               </div>
             </section>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(240px, 340px)", gap: 12, alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, alignItems: "start" }}>
           <section style={sectionStyle}>
             <h2 style={sectionTitleStyle}>VIDEO REPAIR</h2>
             <div style={{ marginTop: 16, display: "grid", gap: 12 }}>

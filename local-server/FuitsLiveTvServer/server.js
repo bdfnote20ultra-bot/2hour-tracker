@@ -52,6 +52,7 @@ const RADIO_MUSIC_DIR = path.join(RADIO_ROOT, "Music");
 const RADIO_PLAYLIST_DIR = path.join(RADIO_ROOT, "Playlists");
 const DEFAULT_RADIO_PLAYLISTS = ["ChannelA.m3u", "ChannelB.m3u"];
 const ONLINE_STATS_TTL_MS = 15 * 60 * 1000;
+const ADULT_RELAX_MAX_PARTICIPANTS = 8;
 let owncastBaseUrlCache = null;
 let owncastBaseUrlCacheExpiresAt = 0;
 const onlineDevices = new Map();
@@ -2222,8 +2223,23 @@ function touchAdultRelaxParticipant(room, clientId) {
   let participant = room.participants.get(safeClientId);
   if (!participant) {
     const usedSlots = new Set([...room.participants.values()].map(value => value.slot));
+    let slot = 0;
+    for (let index = 1; index <= ADULT_RELAX_MAX_PARTICIPANTS; index += 1) {
+      if (!usedSlots.has(index)) {
+        slot = index;
+        break;
+      }
+    }
+    if (!slot) {
+      return {
+        clientId: safeClientId,
+        slot: 0,
+        joinedAt: now,
+        lastSeen: now
+      };
+    }
     participant = {
-      slot: usedSlots.has(1) ? usedSlots.has(2) ? 0 : 2 : 1,
+      slot,
       joinedAt: now,
       lastSeen: now
     };
@@ -2236,7 +2252,7 @@ function touchAdultRelaxParticipant(room, clientId) {
 
 function getAdultRelaxParticipants(room) {
   return [...room.participants.entries()]
-    .map(([clientId, participant]) => ({ clientId, slot: participant.slot, lastSeen: participant.lastSeen }))
+    .map(([clientId, participant]) => ({ clientId, slot: participant.slot, joinedAt: participant.joinedAt, lastSeen: participant.lastSeen }))
     .sort((a, b) => a.slot - b.slot || a.lastSeen - b.lastSeen);
 }
 

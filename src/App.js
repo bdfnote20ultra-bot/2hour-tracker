@@ -1859,18 +1859,20 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
   const [status, setStatus] = useState("Ready when you are.");
   const [error, setError] = useState("");
   const [participantCount, setParticipantCount] = useState(0);
+  const [participants, setParticipants] = useState([]);
+  const [localSlot, setLocalSlot] = useState(0);
   const [localReady, setLocalReady] = useState(false);
-  const [remoteReady, setRemoteReady] = useState(false);
+  const [remoteStreams, setRemoteStreams] = useState({});
   const localVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
   const roomShellRef = useRef(null);
   const localStreamRef = useRef(null);
-  const peerRef = useRef(null);
+  const peerRefs = useRef(new Map());
   const pollingRef = useRef(null);
   const lastSeqRef = useRef(0);
   const clientIdRef = useRef(`adult-relax-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   const workingSignalBaseRef = useRef("");
   const roomId = "adult-relax-time";
+  const maxParticipants = 8;
   const signalBaseUrls = useMemo(() => {
     const urls = [`${baseUrl.replace(/\/+$/, "")}/adult-relax-signal`];
     if (typeof window !== "undefined" && /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/i.test(window.location.origin)) {
@@ -1921,33 +1923,78 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
     await requestSignal(payload);
   }, [requestSignal]);
 
+  const closePeer = useCallback(clientId => {
+    const peerInfo = peerRefs.current.get(clientId);
+    if (peerInfo?.peer) peerInfo.peer.close();
+    peerRefs.current.delete(clientId);
+    setRemoteStreams(current => {
+      const next = { ...current };
+      delete next[clientId];
+      return next;
+    });
+  }, []);
+
   const stopRoom = useCallback(() => {
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
       pollingRef.current = null;
     }
-    if (peerRef.current) {
-      peerRef.current.close();
-      peerRef.current = null;
-    }
+    peerRefs.current.forEach(peerInfo => peerInfo.peer.close());
+    peerRefs.current.clear();
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
       localStreamRef.current = null;
     }
     if (localVideoRef.current) localVideoRef.current.srcObject = null;
-    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
     setLocalReady(false);
-    setRemoteReady(false);
+    setRemoteStreams({});
+    setParticipants([]);
+    setLocalSlot(0);
     setParticipantCount(0);
     setStarted(false);
     setStatus("Ready when you are.");
   }, []);
 
-  const handleSignalMessages = useCallback(async messages => {
-    const peer = peerRef.current;
-    if (!peer) return;
+  const ensurePeer = useCallback((remoteClientId, remoteSlot) => {
+    if (!remoteClientId || remoteClientId === clientIdRef.current) return null;
+    const existing = peerRefs.current.get(remoteClientId);
+    if (existing) return existing;
 
+    const peer = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+    });
+    const peerInfo = { peer, remoteSlot, offerSent: false };
+    peerRefs.current.set(remoteClientId, peerInfo);
+
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => peer.addTrack(track, localStreamRef.current));
+    }
+
+    peer.ontrack = event => {
+      if (event.streams[0]) {
+        setRemoteStreams(current => ({ ...current, [remoteClientId]: event.streams[0] }));
+        setStatus("Live chat connected.");
+      }
+    };
+    peer.onicecandidate = event => {
+      if (event.candidate) {
+        sendSignal({ action: "signal", type: "candidate", to: remoteClientId, data: event.candidate }).catch(() => {});
+      }
+    };
+    peer.onconnectionstatechange = () => {
+      if (peer.connectionState === "connected") setStatus("Live chat connected.");
+      if (peer.connectionState === "failed" || peer.connectionState === "closed") closePeer(remoteClientId);
+    };
+
+    return peerInfo;
+  }, [closePeer, sendSignal]);
+
+  const handleSignalMessages = useCallback(async messages => {
     for (const message of messages) {
+      const peerInfo = ensurePeer(message.from);
+      const peer = peerInfo?.peer;
+      if (!peer) continue;
+
       if (message.type === "offer" && message.data) {
         await peer.setRemoteDescription(new RTCSessionDescription(message.data));
         const answer = await peer.createAnswer();
@@ -1965,7 +2012,7 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
         } catch {}
       }
     }
-  }, [sendSignal]);
+  }, [ensurePeer, sendSignal]);
 
   const pollSignals = useCallback(async () => {
     const params = new URLSearchParams({
@@ -1977,9 +2024,37 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
     if (!data.ok) return;
 
     lastSeqRef.current = Math.max(lastSeqRef.current, Number(data.seq) || 0);
-    setParticipantCount(Array.isArray(data.participants) ? data.participants.filter(item => item.slot === 1 || item.slot === 2).length : 0);
+    const activeParticipants = Array.isArray(data.participants)
+      ? data.participants.filter(item => item.slot >= 1 && item.slot <= maxParticipants)
+      : [];
+    const participant = data.participant || activeParticipants.find(item => item.clientId === clientIdRef.current);
+    const mySlot = Number(participant?.slot) || localSlot;
+    if (mySlot) setLocalSlot(mySlot);
+    setParticipants(activeParticipants);
+    setParticipantCount(activeParticipants.length);
+
+    const activeClientIds = new Set(activeParticipants.map(item => item.clientId));
+    [...peerRefs.current.keys()].forEach(clientId => {
+      if (!activeClientIds.has(clientId)) closePeer(clientId);
+    });
+
+    for (const remoteParticipant of activeParticipants) {
+      if (remoteParticipant.clientId === clientIdRef.current || !mySlot) continue;
+      const peerInfo = ensurePeer(remoteParticipant.clientId, remoteParticipant.slot);
+      if (
+        peerInfo &&
+        mySlot < remoteParticipant.slot &&
+        !peerInfo.offerSent &&
+        peerInfo.peer.signalingState === "stable"
+      ) {
+        peerInfo.offerSent = true;
+        const offer = await peerInfo.peer.createOffer();
+        await peerInfo.peer.setLocalDescription(offer);
+        await sendSignal({ action: "signal", type: "offer", to: remoteParticipant.clientId, data: peerInfo.peer.localDescription });
+      }
+    }
     await handleSignalMessages(Array.isArray(data.messages) ? data.messages : []);
-  }, [handleSignalMessages, requestSignal]);
+  }, [closePeer, ensurePeer, handleSignalMessages, localSlot, requestSignal, sendSignal]);
 
   const startRoom = async () => {
     setError("");
@@ -1993,45 +2068,21 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
       setLocalReady(true);
       setStatus("Camera is on. Looking for the other person...");
 
-      const peer = new RTCPeerConnection({
-        iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-      });
-      peerRef.current = peer;
-      stream.getTracks().forEach(track => peer.addTrack(track, stream));
-      peer.ontrack = event => {
-        if (remoteVideoRef.current && event.streams[0]) {
-          remoteVideoRef.current.srcObject = event.streams[0];
-          setRemoteReady(true);
-          setStatus("Live chat connected.");
-        }
-      };
-      peer.onicecandidate = event => {
-        if (event.candidate) {
-          sendSignal({ action: "signal", type: "candidate", data: event.candidate }).catch(() => {});
-        }
-      };
-      peer.onconnectionstatechange = () => {
-        if (peer.connectionState === "connected") setStatus("Live chat connected.");
-        if (peer.connectionState === "disconnected" || peer.connectionState === "failed") {
-          setRemoteReady(false);
-          setStatus("The other person disconnected. Waiting...");
-        }
-      };
-
       const joinData = await requestSignal({ action: "join" });
       const slot = joinData?.participant?.slot;
       lastSeqRef.current = 0;
-      setParticipantCount(Array.isArray(joinData.participants) ? joinData.participants.filter(item => item.slot === 1 || item.slot === 2).length : 1);
+      if (slot) setLocalSlot(slot);
+      const activeParticipants = Array.isArray(joinData.participants)
+        ? joinData.participants.filter(item => item.slot >= 1 && item.slot <= maxParticipants)
+        : [];
+      setParticipants(activeParticipants);
+      setParticipantCount(activeParticipants.length || 1);
 
       pollingRef.current = setInterval(() => pollSignals().catch(() => {}), 1000);
       await pollSignals();
 
-      if (slot === 1) {
-        const offer = await peer.createOffer();
-        await peer.setLocalDescription(offer);
-        await sendSignal({ action: "signal", type: "offer", data: peer.localDescription });
-      } else if (slot === 0) {
-        setStatus("Two people are already in the room. You can wait here for a spot.");
+      if (slot === 0) {
+        setStatus("Eight people are already in the room. You can wait here for a spot.");
       }
     } catch (roomError) {
       stopRoom();
@@ -2040,6 +2091,12 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
       setStatus("Camera and mic are off.");
     }
   };
+
+  useEffect(() => {
+    if (localVideoRef.current && localStreamRef.current) {
+      localVideoRef.current.srcObject = localStreamRef.current;
+    }
+  }, [localReady, localSlot]);
 
   const fullscreenRoom = async () => {
     const roomShell = roomShellRef.current;
@@ -2143,7 +2200,7 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
           }}>
             <span>{status}</span>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <span>{participantCount}/2 PEOPLE</span>
+              <span>{participantCount}/{maxParticipants} PEOPLE</span>
               <button
                 type="button"
                 onClick={fullscreenRoom}
@@ -2178,48 +2235,62 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
           )}
           <div style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
             gap: 10
           }}>
-            <div style={slotStyle}>
-              <video ref={localVideoRef} autoPlay muted playsInline style={{ width: "100%", height: "100%", minHeight: 210, objectFit: "cover", display: localReady ? "block" : "none" }} />
-              {!localReady && <div style={{ padding: 18, color: "#cbd5e1", fontWeight: 900 }}>Camera spot 1</div>}
-              <div style={{ position: "absolute", left: 8, bottom: 8, borderRadius: 999, padding: "4px 8px", background: "rgba(2,6,23,.76)", color: "#fff", fontSize: 10, fontWeight: 1000 }}>
-                YOU
-              </div>
-            </div>
-            <div style={slotStyle}>
-              <video ref={remoteVideoRef} autoPlay playsInline style={{ width: "100%", height: "100%", minHeight: 210, objectFit: "cover", display: remoteReady ? "block" : "none" }} />
-              {!remoteReady && (
-                <div style={{ padding: 18, display: "grid", gap: 10, color: "#cbd5e1", fontWeight: 900 }}>
-                  <div>Waiting for person 2...</div>
-                  {localReady && (
-                    <button
-                      type="button"
-                      onClick={() => setStatus("Person 2 should open Adult Relax Time and click WANT TO CHAT to join.")}
-                      style={{
-                        width: "100%",
-                        minHeight: 86,
-                        border: `1px solid ${accentColor}`,
-                        borderRadius: 10,
-                        background: `linear-gradient(135deg, ${accentColor}, #14b8a6)`,
-                        color: "#fff",
-                        cursor: "pointer",
-                        fontSize: 18,
-                        fontWeight: 1000,
-                        textTransform: "uppercase",
-                        letterSpacing: 0
-                      }}
-                    >
-                      WANT TO CHAT?
-                    </button>
+            {Array.from({ length: maxParticipants }, (_, index) => {
+              const slot = index + 1;
+              const participant = participants.find(item => item.slot === slot);
+              const isLocal = localReady && localSlot === slot;
+              const remoteStream = participant && !isLocal ? remoteStreams[participant.clientId] : null;
+              const hasVideo = isLocal || Boolean(remoteStream);
+              return (
+                <div key={slot} style={slotStyle}>
+                  {isLocal && (
+                    <video ref={localVideoRef} autoPlay muted playsInline style={{ width: "100%", height: "100%", minHeight: 190, objectFit: "cover", display: "block" }} />
                   )}
+                  {remoteStream && (
+                    <video
+                      ref={element => {
+                        if (element && element.srcObject !== remoteStream) element.srcObject = remoteStream;
+                      }}
+                      autoPlay
+                      playsInline
+                      style={{ width: "100%", height: "100%", minHeight: 190, objectFit: "cover", display: "block" }}
+                    />
+                  )}
+                  {!hasVideo && (
+                    <div style={{ padding: 18, display: "grid", gap: 10, color: "#cbd5e1", fontWeight: 900 }}>
+                      <div>{participant ? `Person ${slot} connecting...` : `Open spot ${slot}`}</div>
+                      {localReady && !participant && (
+                        <button
+                          type="button"
+                          onClick={() => setStatus(`Person ${slot} should open Adult Relax Time and click WANT TO CHAT to join.`)}
+                          style={{
+                            width: "100%",
+                            minHeight: 76,
+                            border: `1px solid ${accentColor}`,
+                            borderRadius: 10,
+                            background: `linear-gradient(135deg, ${accentColor}, #14b8a6)`,
+                            color: "#fff",
+                            cursor: "pointer",
+                            fontSize: 16,
+                            fontWeight: 1000,
+                            textTransform: "uppercase",
+                            letterSpacing: 0
+                          }}
+                        >
+                          WANT TO CHAT?
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  <div style={{ position: "absolute", left: 8, bottom: 8, borderRadius: 999, padding: "4px 8px", background: "rgba(2,6,23,.76)", color: "#fff", fontSize: 10, fontWeight: 1000 }}>
+                    {isLocal ? "YOU" : `PERSON ${slot}`}
+                  </div>
                 </div>
-              )}
-              <div style={{ position: "absolute", left: 8, bottom: 8, borderRadius: 999, padding: "4px 8px", background: "rgba(2,6,23,.76)", color: "#fff", fontSize: 10, fontWeight: 1000 }}>
-                PERSON 2
-              </div>
-            </div>
+              );
+            })}
           </div>
           <button
             type="button"
@@ -2400,6 +2471,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
   const [stretchVideoFullscreen, setStretchVideoFullscreen] = useState(false);
   const [videoLoading, setVideoLoading] = useState(false);
   const [videoError, setVideoError] = useState("");
+  const [playbackLocked, setPlaybackLocked] = useState(false);
   const [restartAnchor, setRestartAnchor] = useState(null);
   const currentItem = channel?.playlist?.[channel.currentIndex] || null;
   const videoSrc = currentItem?.src
@@ -2649,6 +2721,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     setVideoLoading(true);
     setVideoError("");
     setLargePreloadProgress(0);
+    setPlaybackLocked(false);
     if (syncedVideoSrcRef.current && syncedVideoSrcRef.current !== videoSrc) {
       transitionBufferPendingRef.current = true;
       pendingTransitionStartRef.current = true;
@@ -2859,7 +2932,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
             <video
               ref={videoRef}
               src={videoSrc}
-              controls
+              controls={!playbackLocked}
               playsInline
               muted={playerMuted}
               autoPlay={!needsLargeVideoPreload}
@@ -2905,8 +2978,15 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                   pendingTransitionStartRef.current = false;
                   syncedVideoSrcRef.current = videoSrc;
                 }
+                setPlaybackLocked(true);
                 setVideoLoading(false);
                 setVideoError("");
+              }}
+              onPause={() => {
+                const video = videoRef.current;
+                if (!playbackLocked || liveAnnouncementOnline || video?.ended) return;
+                const playPromise = video?.play();
+                if (playPromise?.catch) playPromise.catch(() => {});
               }}
               onEnded={handleVideoEnded}
               onWaiting={showBufferingIfNeeded}

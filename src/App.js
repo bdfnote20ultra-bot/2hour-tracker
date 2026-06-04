@@ -5861,14 +5861,24 @@ function AdminPage({ onClose }) {
               </div>
             </section>
             <section style={sectionStyle}>
-              <h2 style={sectionTitleStyle}>PASSWORD MANAGEMENT</h2>
+              <h2 style={sectionTitleStyle}>USER MANAGEMENT</h2>
               <div style={{ marginTop: 16, display: "grid", gap: 8 }}>
                 <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>Username</div>
                   <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", textAlign: "right" }}>Password</div>
                 </div>
-                <div style={{ border: "1px dashed rgba(148,163,184,.28)", background: "rgba(2,6,23,.36)", padding: 12, color: "#94a3b8", fontSize: 13, fontWeight: 900, textAlign: "center" }}>
-                  Blank list ready for usernames and passwords
+                <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "1fr minmax(72px,auto) auto", gap: 10, alignItems: "center" }}>
+                  <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 1000, textTransform: "uppercase" }}>MASTER</div>
+                  <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 1000, overflowWrap: "anywhere", textAlign: "right" }}>
+                    {visibleAdminPasswords.masterUserManagement ? "FartAss!1" : "********"}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setVisibleAdminPasswords(current => ({ ...current, masterUserManagement: !current.masterUserManagement }))}
+                    style={{ ...adminButtonStyle, padding: "7px 10px", fontSize: 11, borderColor: "#94a3b8", background: "#94a3b8" }}
+                  >
+                    {visibleAdminPasswords.masterUserManagement ? "Hide" : "Show"}
+                  </button>
                 </div>
               </div>
             </section>

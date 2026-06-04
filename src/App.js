@@ -4989,9 +4989,6 @@ function AdminPage({ onClose, loggedInUsername }) {
   const [accessControlList, setAccessControlList] = useState("blacklistIp");
   const [accessControlNote, setAccessControlNote] = useState("");
   const [visibleAdminPasswords, setVisibleAdminPasswords] = useState({});
-  const [adminViewportWidth, setAdminViewportWidth] = useState(() => {
-    try { return window.innerWidth || 1280; } catch { return 1280; }
-  });
   const fuitsAdminBaseUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
   const sectionStyle = {
     background: "rgba(15,23,42,.92)",
@@ -5034,13 +5031,6 @@ function AdminPage({ onClose, loggedInUsername }) {
     fontWeight: 900,
     padding: "11px 12px"
   };
-
-  useEffect(() => {
-    const syncAdminViewportWidth = () => setAdminViewportWidth(window.innerWidth || 1280);
-    syncAdminViewportWidth();
-    window.addEventListener("resize", syncAdminViewportWidth);
-    return () => window.removeEventListener("resize", syncAdminViewportWidth);
-  }, []);
 
   const formatRepairTime = seconds => {
     const safeSeconds = Math.max(0, Math.round(Number(seconds) || 0));
@@ -5671,17 +5661,6 @@ function AdminPage({ onClose, loggedInUsername }) {
   const userManagementRows = [
     { username: "MASTER", email: "", password: "FartAss!1", passwordKey: "masterUserManagement" }
   ];
-  const adminGridColumns = adminViewportWidth >= 1500
-    ? "minmax(230px,.65fr) minmax(300px,.9fr) minmax(230px,.65fr) minmax(480px,1.35fr)"
-    : adminViewportWidth >= 1100
-      ? "minmax(220px,.7fr) minmax(280px,.95fr) minmax(220px,.7fr) minmax(420px,1.25fr)"
-      : adminViewportWidth >= 760
-        ? "repeat(2, minmax(0, 1fr))"
-        : "minmax(0, 1fr)";
-  const userManagementSectionStyle = {
-    ...sectionStyle,
-    gridColumn: adminViewportWidth >= 760 && adminViewportWidth < 1100 ? "1 / -1" : "auto"
-  };
 
   if (unlocked) {
     return (
@@ -5691,7 +5670,7 @@ function AdminPage({ onClose, loggedInUsername }) {
         </button>
         <div style={{ width: "100%", maxWidth: 1880, marginTop: 28, display: "grid", gap: 14, boxSizing: "border-box" }}>
           <h1 style={{ margin: 0, fontSize: 32, fontWeight: 1000, letterSpacing: .4 }}>ADMIN</h1>
-          <div style={{ display: "grid", gridTemplateColumns: adminGridColumns, gap: 12, alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12, alignItems: "start" }}>
             <div style={{ display: "grid", gap: 14, minWidth: 0 }}>
               <section style={sectionStyle}>
                 <h2 style={sectionTitleStyle}>CONTROLS</h2>
@@ -5885,10 +5864,10 @@ function AdminPage({ onClose, loggedInUsername }) {
                 ))}
               </div>
             </section>
-            <section style={userManagementSectionStyle}>
+            <section style={sectionStyle}>
               <h2 style={sectionTitleStyle}>USER MANAGEMENT</h2>
               <div style={{ marginTop: 16, display: "grid", gap: 8 }}>
-                <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: ".75fr 2.2fr auto .85fr", gap: 12 }}>
+                <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "minmax(58px,.8fr) minmax(0,1.3fr) minmax(54px,auto) minmax(58px,.8fr)", gap: 8, alignItems: "center" }}>
                   <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>Username</div>
                   <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>Email</div>
                   <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", textAlign: "center" }}>Status</div>
@@ -5897,7 +5876,7 @@ function AdminPage({ onClose, loggedInUsername }) {
                 {userManagementRows.map(user => {
                   const isLoggedIn = String(loggedInUsername || "").toUpperCase() === user.username.toUpperCase();
                   return (
-                    <div key={user.username} style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: ".75fr 2.2fr auto minmax(72px,auto) auto", gap: 12, alignItems: "center" }}>
+                    <div key={user.username} style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "minmax(58px,.8fr) minmax(0,1.3fr) minmax(54px,auto) minmax(58px,.8fr) auto", gap: 8, alignItems: "center" }}>
                       <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 1000, textTransform: "uppercase" }}>{user.username}</div>
                       <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 900, overflowWrap: "anywhere" }}>
                         {user.email || "No email yet"}

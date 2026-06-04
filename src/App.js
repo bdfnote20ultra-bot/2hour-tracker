@@ -3156,9 +3156,20 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
   const filteredMusic = filteredLibrary.filter(item =>
     item.type === "audio" || (item.src || "").toLowerCase().endsWith(".mp3")
   );
+  const separateFuitsLiveTvChannelIds = useMemo(() => new Set([
+    "channel-adult-relax-time",
+    "channel-adultrelaxtime",
+    "channel-smoking-channel",
+    "channel-smokingchannel"
+  ]), []);
+  const isSeparateFuitsLiveTvChannel = useCallback(channel => {
+    const label = (channel.label || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+    return separateFuitsLiveTvChannelIds.has(channel.id) || label === "adultrelaxtime" || label === "smokingchannel";
+  }, [separateFuitsLiveTvChannelIds]);
   const liveTvOptions = [
     { id: "fattys", label: "FUITS LIVE TV WORLD", heading: "FUITS LIVE TV WORLD", custom: true },
     { id: "adultRelax", label: "ADULT RELAX TIME", heading: "ADULT RELAX TIME", custom: true, defaultChannel: "channel-adult-relax-time" },
+    { id: "smokingChannel", label: "SMOKING CHANNEL", heading: "SMOKING CHANNEL", custom: true, defaultChannel: "channel-smoking-channel" },
     { id: "fuit", label: "Open Fuit LIVE TV", heading: "SPORTS + CABLE TV", url: "https://thetvapp.to/", embed: false },
     { id: "athf", label: "ADULT SWIM ZONE", heading: "ADULT SWIM ZONE", url: "https://www.adultswim.com/streams/aqua-teen-hunger-force", embed: true },
     { id: "youtube", label: "YOUTUBE", heading: "YOUTUBE", url: "https://www.youtube.com/", embed: false },
@@ -3170,13 +3181,13 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
     { id: "channel-b", label: "Channel B" },
     { id: "channel-fuit-mom-channel", label: "FUIT MOM CHANNEL" },
     { id: "channel-fuits-live-tv-world", label: "FUITS LIVE TV WORLD" },
-    { id: "channel-adult-relax-time", label: "ADULT RELAX TIME" },
     { id: "channel-movie-night", label: "MOVIE NIGHT" },
     { id: "channel-new-releases", label: "NEW RELEASES" },
     { id: "channel-sleep-chill", label: "SLEEP CHILL" }
   ]), []);
   const [liveFuitsLiveTvChannels, setLiveFuitsLiveTvChannels] = useState(fuitsLiveTvChannels);
   const activeLiveTvOption = liveTvOptions.find(option => option.id === activeLiveTv) || liveTvOptions[0];
+  const activeLiveTvFixedChannel = Boolean(activeLiveTvOption.defaultChannel);
   const musicViewOptions = [
     { id: "library", label: "Music Library" },
     { id: "radio", label: "FUIT RADIO WORLD" },
@@ -3222,9 +3233,10 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
           }
         });
 
-        setLiveFuitsLiveTvChannels(mergedChannels);
-        if (!seen.has(activeFuitsLiveTvChannel)) {
-          setActiveFuitsLiveTvChannel(mergedChannels[0].id);
+        const visibleChannels = mergedChannels.filter(channel => !isSeparateFuitsLiveTvChannel(channel));
+        setLiveFuitsLiveTvChannels(visibleChannels);
+        if (!seen.has(activeFuitsLiveTvChannel) && !separateFuitsLiveTvChannelIds.has(activeFuitsLiveTvChannel)) {
+          setActiveFuitsLiveTvChannel((visibleChannels[0] || mergedChannels[0]).id);
         }
       } catch {
         if (!canceled) {
@@ -3237,7 +3249,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
     return () => {
       canceled = true;
     };
-  }, [activeFuitsLiveTvChannel, fuitsLiveTvChannelUrl, fuitsLiveTvChannels]);
+  }, [activeFuitsLiveTvChannel, fuitsLiveTvChannelUrl, fuitsLiveTvChannels, isSeparateFuitsLiveTvChannel, separateFuitsLiveTvChannelIds]);
 
   useEffect(() => {
     if (!musicViewOptions.some(option => option.id === activeMusicView)) {
@@ -3856,7 +3868,11 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
                   {liveTvOptions.map(option => (
                     <button key={option.id} onClick={() => {
                       setActiveLiveTv(option.id);
-                      if (option.defaultChannel) setActiveFuitsLiveTvChannel(option.defaultChannel);
+                      if (option.defaultChannel) {
+                        setActiveFuitsLiveTvChannel(option.defaultChannel);
+                      } else if (option.id === "fattys" && separateFuitsLiveTvChannelIds.has(activeFuitsLiveTvChannel)) {
+                        setActiveFuitsLiveTvChannel((liveFuitsLiveTvChannels[0] || fuitsLiveTvChannels[0]).id);
+                      }
                       setLiveTvMenuOpen(false);
                     }} style={{
                       width: "100%",
@@ -3880,27 +3896,29 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             </div>
             {activeLiveTvOption.custom && fuitsLiveTvChannelUrl && (
               <>
-                <select
-                  value={activeFuitsLiveTvChannel}
-                  onChange={event => setActiveFuitsLiveTvChannel(event.target.value)}
-                  style={{
-                    width: "100%",
-                    border: "1px solid rgba(148,163,184,.28)",
-                    borderRadius: 12,
-                    background: "#020617",
-                    color: "#f8fafc",
-                    padding: "7px 9px",
-                    outline: "none",
-                    fontSize: 11,
-                    fontWeight: 1000,
-                    textTransform: "uppercase",
-                    letterSpacing: .7
-                  }}
-                >
-                  {liveFuitsLiveTvChannels.map(channel => (
-                    <option key={channel.id} value={channel.id}>{channel.label}</option>
-                  ))}
-                </select>
+                {!activeLiveTvFixedChannel && (
+                  <select
+                    value={activeFuitsLiveTvChannel}
+                    onChange={event => setActiveFuitsLiveTvChannel(event.target.value)}
+                    style={{
+                      width: "100%",
+                      border: "1px solid rgba(148,163,184,.28)",
+                      borderRadius: 12,
+                      background: "#020617",
+                      color: "#f8fafc",
+                      padding: "7px 9px",
+                      outline: "none",
+                      fontSize: 11,
+                      fontWeight: 1000,
+                      textTransform: "uppercase",
+                      letterSpacing: .7
+                    }}
+                  >
+                    {liveFuitsLiveTvChannels.map(channel => (
+                      <option key={channel.id} value={channel.id}>{channel.label}</option>
+                    ))}
+                  </select>
+                )}
                 <div style={{ width: "100%", display: "flex", justifyContent: "flex-start", gap: 6, flexWrap: "wrap" }}>
                   <button
                     type="button"

@@ -2162,7 +2162,23 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
         }
         .adult-relax-room-shell:fullscreen video,
         .adult-relax-room-shell:-webkit-full-screen video {
-          min-height: min(58vh, 620px) !important;
+          min-height: 0 !important;
+          height: 100% !important;
+          object-fit: cover !important;
+        }
+        .adult-relax-room-shell:fullscreen .adult-relax-grid,
+        .adult-relax-room-shell:-webkit-full-screen .adult-relax-grid {
+          grid-template-columns: repeat(auto-fit, minmax(min(34vw, 220px), 1fr)) !important;
+          align-items: stretch;
+        }
+        .adult-relax-room-shell:fullscreen .adult-relax-slot,
+        .adult-relax-room-shell:-webkit-full-screen .adult-relax-slot {
+          aspect-ratio: 1 / 1;
+          min-height: 0 !important;
+        }
+        .adult-relax-room-shell:fullscreen .adult-relax-slot-empty,
+        .adult-relax-room-shell:-webkit-full-screen .adult-relax-slot-empty {
+          display: none !important;
         }
       `}</style>
       {!started ? (
@@ -2233,7 +2249,7 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
               {error}
             </div>
           )}
-          <div style={{
+          <div className="adult-relax-grid" style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
             gap: 10
@@ -2244,8 +2260,9 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
               const isLocal = localReady && localSlot === slot;
               const remoteStream = participant && !isLocal ? remoteStreams[participant.clientId] : null;
               const hasVideo = isLocal || Boolean(remoteStream);
+              const isOccupied = isLocal || Boolean(participant);
               return (
-                <div key={slot} style={slotStyle}>
+                <div key={slot} className={`adult-relax-slot ${isOccupied ? "adult-relax-slot-active" : "adult-relax-slot-empty"}`} style={slotStyle}>
                   {isLocal && (
                     <video ref={localVideoRef} autoPlay muted playsInline style={{ width: "100%", height: "100%", minHeight: 190, objectFit: "cover", display: "block" }} />
                   )}

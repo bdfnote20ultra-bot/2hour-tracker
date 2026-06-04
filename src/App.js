@@ -6749,7 +6749,7 @@ function LoginPage({ onLogin, approvedUsers, bannedUsers = [], onSignupRequest }
                 }}
                 style={{ width: 18, height: 18, marginTop: 1, flexShrink: 0 }}
               />
-              <span>Phone signup requires ALL photos access. If your phone offers Limited Photos, cancel and choose Allow All Photos before picking your profile picture.</span>
+              <span>Allow full photo access</span>
             </label>
             <div style={{ display: "grid", gridTemplateColumns: "44px minmax(0,1fr)", gap: 10, alignItems: "center" }}>
               <div style={{
@@ -6767,16 +6767,19 @@ function LoginPage({ onLogin, approvedUsers, bannedUsers = [], onSignupRequest }
               }}>
                 {!profilePicture && "PIC"}
               </div>
-              <input
-                type="file"
-                accept="image/*"
-                disabled={!fullPhotoLibraryAccess}
-                onChange={event => updateProfilePicture(event.target.files?.[0])}
-                style={{ ...loginInputStyle, padding: "9px 10px", opacity: fullPhotoLibraryAccess ? 1 : .52 }}
-              />
+              <label style={{ ...loginInputStyle, padding: "11px 12px", opacity: fullPhotoLibraryAccess ? 1 : .52, cursor: fullPhotoLibraryAccess ? "pointer" : "not-allowed", textTransform: "uppercase", textAlign: "center" }}>
+                {profilePicture ? "Photo selected" : "Select here"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={!fullPhotoLibraryAccess}
+                  onChange={event => updateProfilePicture(event.target.files?.[0])}
+                  style={{ display: "none" }}
+                />
+              </label>
             </div>
             <div style={{ color: "#94a3b8", fontSize: 11, fontWeight: 800 }}>
-              Photos/images only. The picker unlocks after ALL photos access is confirmed.
+              Photos/images only.
             </div>
           </div>
         )}
@@ -6808,7 +6811,17 @@ function LoginPage({ onLogin, approvedUsers, bannedUsers = [], onSignupRequest }
           >
             {showPassword ? "Hide" : "Reveal"}
           </button>
-          <button type="submit" style={loginPrimaryButtonStyle}>
+          <button
+            type="submit"
+            disabled={mode === "signup" && !profilePicture}
+            style={{
+              ...loginPrimaryButtonStyle,
+              opacity: mode === "signup" && !profilePicture ? .45 : 1,
+              cursor: mode === "signup" && !profilePicture ? "not-allowed" : "pointer",
+              background: mode === "signup" && !profilePicture ? "#64748b" : loginPrimaryButtonStyle.background,
+              borderColor: mode === "signup" && !profilePicture ? "#64748b" : loginPrimaryButtonStyle.borderColor
+            }}
+          >
             {mode === "signup" ? "Send" : "Sign In"}
           </button>
         </div>

@@ -1143,14 +1143,14 @@ function PokemonSidebar() {
   return (
     <div className="pokemon-desktop-stack" style={{
       position: "fixed",
-      left: 18,
-      top: 4,
-      bottom: 8,
-      width: collapsed ? 72 : 390,
+      left: "calc(18px * var(--flive-scale, 1))",
+      top: "calc(4px * var(--flive-scale, 1))",
+      bottom: "calc(8px * var(--flive-scale, 1))",
+      width: collapsed ? "calc(72px * var(--flive-scale, 1))" : "calc(390px * var(--flive-scale, 1))",
       zIndex: 4,
       display: "flex",
       flexDirection: "column",
-      gap: 10,
+      gap: "calc(10px * var(--flive-scale, 1))",
       paddingBottom: 0,
       boxSizing: "border-box",
       overflowX: "hidden",
@@ -1161,13 +1161,13 @@ function PokemonSidebar() {
     <aside className="pokemon-desktop-sidebar" style={{
       width: "100%",
       flex: "0 0 auto",
-      borderRadius: 24,
+      borderRadius: "calc(24px * var(--flive-scale, 1))",
       border: "2px solid rgba(255,255,255,0.22)",
       background: `linear-gradient(rgba(2,6,23,0.62), rgba(2,6,23,0.82)), url(${process.env.PUBLIC_URL}/${backgroundImage})`,
       backgroundSize: "cover",
       backgroundPosition: "center",
       boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
-      padding: collapsed ? 12 : 12,
+      padding: "calc(12px * var(--flive-scale, 1))",
       color: "#f8fafc",
       fontFamily: "system-ui, sans-serif",
       transition: "width .25s ease, padding .25s ease",
@@ -3437,16 +3437,16 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
   return (
     <aside className="music-library-desktop-sidebar" style={{
       position: "fixed",
-      right: 18,
-      top: 18,
-      bottom: 18,
-      width: 360,
+      right: "calc(18px * var(--flive-scale, 1))",
+      top: "calc(18px * var(--flive-scale, 1))",
+      bottom: "calc(18px * var(--flive-scale, 1))",
+      width: "calc(360px * var(--flive-scale, 1))",
       zIndex: 4,
-      borderRadius: 20,
+      borderRadius: "calc(20px * var(--flive-scale, 1))",
       border: "1px solid rgba(148,163,184,0.2)",
       background: "linear-gradient(180deg, rgba(15,23,42,.94), rgba(2,6,23,.96))",
       boxShadow: "0 18px 48px rgba(0,0,0,0.46)",
-      padding: 14,
+      padding: "calc(14px * var(--flive-scale, 1))",
       color: "#f8fafc",
       fontFamily: "system-ui, sans-serif",
       overflow: "hidden",
@@ -3469,15 +3469,15 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
 
       <div className="fuits-online-indicator" style={{
         position: "fixed",
-        right: 430,
-        top: 18,
+        right: "calc(430px * var(--flive-scale, 1))",
+        top: "calc(18px * var(--flive-scale, 1))",
         zIndex: 8,
-        width: 220,
+        width: "calc(220px * var(--flive-scale, 1))",
         border: "1px solid rgba(239,68,68,.28)",
-        borderRadius: 14,
+        borderRadius: "calc(14px * var(--flive-scale, 1))",
         background: "rgba(2,6,23,.88)",
         boxShadow: "0 14px 34px rgba(0,0,0,.45)",
-        padding: "10px 12px",
+        padding: "calc(10px * var(--flive-scale, 1)) calc(12px * var(--flive-scale, 1))",
         color: "#f8fafc",
         display: "grid",
         gap: 6
@@ -3505,15 +3505,15 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
 
       <div className="fuits-weather-panel" style={{
         position: "fixed",
-        right: 430,
-        top: 110,
+        right: "calc(430px * var(--flive-scale, 1))",
+        top: "calc(110px * var(--flive-scale, 1))",
         zIndex: 8,
-        width: 220,
+        width: "calc(220px * var(--flive-scale, 1))",
         border: "1px solid rgba(56,189,248,.28)",
-        borderRadius: 14,
+        borderRadius: "calc(14px * var(--flive-scale, 1))",
         background: "rgba(2,6,23,.88)",
         boxShadow: "0 14px 34px rgba(0,0,0,.45)",
-        padding: "10px 12px",
+        padding: "calc(10px * var(--flive-scale, 1)) calc(12px * var(--flive-scale, 1))",
         color: "#f8fafc",
         display: "grid",
         gap: 8
@@ -3569,15 +3569,15 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
 
       <div className="fuits-schedule-panel" style={{
         position: "fixed",
-        right: 390,
-        bottom: 26,
+        right: "calc(390px * var(--flive-scale, 1))",
+        bottom: "calc(26px * var(--flive-scale, 1))",
         zIndex: 8,
-        width: 300,
+        width: "calc(300px * var(--flive-scale, 1))",
         border: "1px solid rgba(250,204,21,.32)",
-        borderRadius: 14,
+        borderRadius: "calc(14px * var(--flive-scale, 1))",
         background: "rgba(2,6,23,.9)",
         boxShadow: "0 16px 38px rgba(0,0,0,.48)",
-        padding: "12px 14px",
+        padding: "calc(12px * var(--flive-scale, 1)) calc(14px * var(--flive-scale, 1))",
         color: "#f8fafc",
         display: "grid",
         gap: 8
@@ -7449,11 +7449,22 @@ if (view === "gambling") {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#000", position: "relative" }}>
+    <div style={{
+      minHeight: "100vh",
+      background: "#000",
+      position: "relative"
+    }}>
       <style>{`
+        :root { --flive-scale: 1; }
+        @media (max-width: 1891px) {
+          :root { --flive-scale: clamp(.67, calc(100vw / 1892), 1); }
+        }
+        @media (min-width: 2100px) {
+          :root { --flive-scale: min(calc(100vw / 1892), 2.15); }
+        }
         @media (max-width: 1180px) { .flive-main-coins-ticker { display: none !important; } }
         @keyframes flive-main-coins-ticker-scroll {
-          0% { transform: translateX(calc(100vw - 700px)); }
+          0% { transform: translateX(calc(100vw - (700px * var(--flive-scale, 1)))); }
           100% { transform: translateX(0); }
         }
       `}</style>
@@ -7461,11 +7472,11 @@ if (view === "gambling") {
       {view === "week" && (
         <div className="flive-main-coins-ticker" style={{
           position: "fixed",
-          left: "calc(50% - 240px)",
-          right: 390,
-          top: 246,
+          left: "calc(50% - (240px * var(--flive-scale, 1)))",
+          right: "calc(390px * var(--flive-scale, 1))",
+          top: "calc(246px * var(--flive-scale, 1))",
           zIndex: 3,
-          height: 34,
+          height: "calc(34px * var(--flive-scale, 1))",
           overflow: "hidden",
           display: "flex",
           alignItems: "center",
@@ -7476,7 +7487,7 @@ if (view === "gambling") {
             whiteSpace: "nowrap",
             color: "#ffffff",
             fontFamily: "'Arial Black', Impact, 'Trebuchet MS', system-ui, sans-serif",
-            fontSize: 18,
+            fontSize: "calc(18px * var(--flive-scale, 1))",
             fontWeight: 1000,
             letterSpacing: 1,
             textTransform: "uppercase",
@@ -7518,15 +7529,15 @@ if (view === "gambling") {
                 onClick={() => link.nextView ? setView(link.nextView) : window.open(link.href, "_blank", "noopener,noreferrer")}
                 style={{
                   position: "fixed",
-                  top: link.top,
-                  left: 430,
+                  top: `calc(${link.top}px * var(--flive-scale, 1))`,
+                  left: "calc(430px * var(--flive-scale, 1))",
                   zIndex: 20,
-                  width: 430,
+                  width: "calc(430px * var(--flive-scale, 1))",
                   background: "transparent",
                   border: "none",
                   color: "#38bdf8",
                   cursor: "pointer",
-                  fontSize: link.label.length > 18 ? 17 : 22,
+                  fontSize: `calc(${link.label.length > 18 ? 17 : 22}px * var(--flive-scale, 1))`,
                   fontWeight: 1000,
                   lineHeight: 1.05,
                   letterSpacing: .6,
@@ -7542,26 +7553,26 @@ if (view === "gambling") {
           ))}
           <div style={{
             position: "fixed",
-            top: 846,
-            left: 470,
+            top: "calc(846px * var(--flive-scale, 1))",
+            left: "calc(470px * var(--flive-scale, 1))",
             zIndex: 20,
-            width: 430,
+            width: "calc(430px * var(--flive-scale, 1))",
             color: "#22c55e",
             textShadow: "0 2px 10px rgba(34,197,94,.45)",
             fontFamily: "system-ui",
             textTransform: "uppercase"
           }}>
-            <div style={{ fontSize: 22, fontWeight: 1000, letterSpacing: .6, lineHeight: 1.05 }}>
+            <div style={{ fontSize: "calc(22px * var(--flive-scale, 1))", fontWeight: 1000, letterSpacing: .6, lineHeight: 1.05 }}>
               FUITS WEALTH
             </div>
-            <div style={{ fontSize: 22, fontWeight: 1000, letterSpacing: .6, lineHeight: 1.05, marginTop: 4 }}>
+            <div style={{ fontSize: "calc(22px * var(--flive-scale, 1))", fontWeight: 1000, letterSpacing: .6, lineHeight: 1.05, marginTop: "calc(4px * var(--flive-scale, 1))" }}>
               0 FUIT COINS
             </div>
           </div>
         </>
       )}
       {view === "week" && <MusicLibrarySidebar accentColor={accentColor} loggedInUsername={loggedInUsername} approvedUsers={approvedUsers} onLogout={logoutUser} />}
-      <div style={{ minHeight: "100vh", background: pageBackground, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed", fontFamily: theme.font, maxWidth: 480, margin: "0 auto", color: appTextColor, transition: "background 0.25s ease, color 0.25s ease", position: "relative", zIndex: 5 }}>
+      <div style={{ minHeight: "100vh", background: pageBackground, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed", fontFamily: theme.font, maxWidth: "calc(480px * var(--flive-scale, 1))", margin: "0 auto", color: appTextColor, transition: "background 0.25s ease, color 0.25s ease", position: "relative", zIndex: 5 }}>
       {activeMusicSrc && <audio ref={musicRef} src={activeMusicSrc} loop playsInline onPlay={() => setIsMusicPlaying(true)} onPause={() => setIsMusicPlaying(false)} onEnded={() => setIsMusicPlaying(false)} />}
       {inAppBrowserOpen && (
         <div

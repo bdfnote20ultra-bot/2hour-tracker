@@ -1863,20 +1863,63 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
   const [remoteReady, setRemoteReady] = useState(false);
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
+  const roomShellRef = useRef(null);
   const localStreamRef = useRef(null);
   const peerRef = useRef(null);
   const pollingRef = useRef(null);
   const lastSeqRef = useRef(0);
   const clientIdRef = useRef(`adult-relax-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const workingSignalBaseRef = useRef("");
   const roomId = "adult-relax-time";
-  const signalBaseUrl = `${baseUrl.replace(/\/+$/, "")}/adult-relax-signal`;
+  const signalBaseUrls = useMemo(() => {
+    const urls = [`${baseUrl.replace(/\/+$/, "")}/adult-relax-signal`];
+    if (typeof window !== "undefined" && /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/i.test(window.location.origin)) {
+      urls.push("http://127.0.0.1:8099/adult-relax-signal");
+    }
+    return [...new Set(urls)];
+  }, [baseUrl]);
+
+  const readSignalJson = async response => {
+    const text = await response.text();
+    if (!response.ok) {
+      throw new Error(text || `Live chat server returned ${response.status}.`);
+    }
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new Error(text || "Live chat server did not return JSON.");
+    }
+  };
+
+  const requestSignal = useCallback(async (payload = null, query = {}) => {
+    const orderedUrls = workingSignalBaseRef.current
+      ? [workingSignalBaseRef.current, ...signalBaseUrls.filter(url => url !== workingSignalBaseRef.current)]
+      : signalBaseUrls;
+    let lastError = null;
+
+    for (const signalUrl of orderedUrls) {
+      try {
+        const params = new URLSearchParams({ room: roomId, ...query });
+        const response = await fetch(`${signalUrl}?${params.toString()}`, payload ? {
+          method: "POST",
+          body: JSON.stringify({ room: roomId, clientId: clientIdRef.current, ...payload })
+        } : {
+          cache: "no-store"
+        });
+        const data = await readSignalJson(response);
+        workingSignalBaseRef.current = signalUrl;
+        return data;
+      } catch (signalError) {
+        lastError = signalError;
+      }
+    }
+
+    throw new Error(lastError?.message || "Live chat server is not ready yet.");
+  }, [signalBaseUrls]);
 
   const sendSignal = useCallback(async payload => {
-    await fetch(signalBaseUrl, {
-      method: "POST",
-      body: JSON.stringify({ room: roomId, clientId: clientIdRef.current, ...payload })
-    });
-  }, [signalBaseUrl]);
+    await requestSignal(payload);
+  }, [requestSignal]);
 
   const stopRoom = useCallback(() => {
     if (pollingRef.current) {
@@ -1930,14 +1973,13 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
       client: clientIdRef.current,
       since: String(lastSeqRef.current)
     });
-    const response = await fetch(`${signalBaseUrl}?${params.toString()}`, { cache: "no-store" });
-    const data = await response.json();
+    const data = await requestSignal(null, Object.fromEntries(params.entries()));
     if (!data.ok) return;
 
     lastSeqRef.current = Math.max(lastSeqRef.current, Number(data.seq) || 0);
     setParticipantCount(Array.isArray(data.participants) ? data.participants.filter(item => item.slot === 1 || item.slot === 2).length : 0);
     await handleSignalMessages(Array.isArray(data.messages) ? data.messages : []);
-  }, [handleSignalMessages, signalBaseUrl]);
+  }, [handleSignalMessages, requestSignal]);
 
   const startRoom = async () => {
     setError("");
@@ -1976,11 +2018,7 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
         }
       };
 
-      const joinResponse = await fetch(signalBaseUrl, {
-        method: "POST",
-        body: JSON.stringify({ action: "join", room: roomId, clientId: clientIdRef.current })
-      });
-      const joinData = await joinResponse.json();
+      const joinData = await requestSignal({ action: "join" });
       const slot = joinData?.participant?.slot;
       lastSeqRef.current = 0;
       setParticipantCount(Array.isArray(joinData.participants) ? joinData.participants.filter(item => item.slot === 1 || item.slot === 2).length : 1);
@@ -2003,6 +2041,34 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
     }
   };
 
+  const fullscreenRoom = async () => {
+    const roomShell = roomShellRef.current;
+    if (!roomShell) return;
+
+    try {
+      const fullscreenElement =
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.msFullscreenElement;
+      if (fullscreenElement === roomShell) {
+        const exitFullscreen =
+          document.exitFullscreen ||
+          document.webkitExitFullscreen ||
+          document.msExitFullscreen;
+        exitFullscreen?.call(document);
+        return;
+      }
+
+      const requestFullscreen =
+        roomShell.requestFullscreen ||
+        roomShell.webkitRequestFullscreen ||
+        roomShell.msRequestFullscreen;
+      requestFullscreen?.call(roomShell);
+    } catch {
+      setStatus("Fullscreen is not available in this browser.");
+    }
+  };
+
   useEffect(() => () => {
     sendSignal({ action: "leave" }).catch(() => {});
     stopRoom();
@@ -2018,7 +2084,7 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
   };
 
   return (
-    <div style={{
+    <div ref={roomShellRef} className="adult-relax-room-shell" style={{
       width: "100%",
       display: "grid",
       gap: 10,
@@ -2027,6 +2093,21 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
       padding: 12,
       background: "rgba(15,23,42,.78)"
     }}>
+      <style>{`
+        .adult-relax-room-shell:fullscreen,
+        .adult-relax-room-shell:-webkit-full-screen {
+          width: 100vw !important;
+          height: 100vh !important;
+          padding: 16px !important;
+          align-content: start;
+          overflow: auto;
+          background: #020617 !important;
+        }
+        .adult-relax-room-shell:fullscreen video,
+        .adult-relax-room-shell:-webkit-full-screen video {
+          min-height: min(58vh, 620px) !important;
+        }
+      `}</style>
       {!started ? (
         <button
           type="button"
@@ -2061,7 +2142,26 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
             fontWeight: 900
           }}>
             <span>{status}</span>
-            <span>{participantCount}/2 PEOPLE</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span>{participantCount}/2 PEOPLE</span>
+              <button
+                type="button"
+                onClick={fullscreenRoom}
+                style={{
+                  border: "1px solid rgba(148,163,184,.32)",
+                  borderRadius: 8,
+                  padding: "5px 8px",
+                  background: "rgba(2,6,23,.82)",
+                  color: "#f8fafc",
+                  cursor: "pointer",
+                  fontSize: 10,
+                  fontWeight: 1000,
+                  textTransform: "uppercase"
+                }}
+              >
+                Fullscreen
+              </button>
+            </div>
           </div>
           {error && (
             <div style={{
@@ -2090,7 +2190,32 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
             </div>
             <div style={slotStyle}>
               <video ref={remoteVideoRef} autoPlay playsInline style={{ width: "100%", height: "100%", minHeight: 210, objectFit: "cover", display: remoteReady ? "block" : "none" }} />
-              {!remoteReady && <div style={{ padding: 18, color: "#cbd5e1", fontWeight: 900 }}>Waiting for person 2...</div>}
+              {!remoteReady && (
+                <div style={{ padding: 18, display: "grid", gap: 10, color: "#cbd5e1", fontWeight: 900 }}>
+                  <div>Waiting for person 2...</div>
+                  {localReady && (
+                    <button
+                      type="button"
+                      onClick={() => setStatus("Person 2 should open Adult Relax Time and click WANT TO CHAT to join.")}
+                      style={{
+                        width: "100%",
+                        minHeight: 86,
+                        border: `1px solid ${accentColor}`,
+                        borderRadius: 10,
+                        background: `linear-gradient(135deg, ${accentColor}, #14b8a6)`,
+                        color: "#fff",
+                        cursor: "pointer",
+                        fontSize: 18,
+                        fontWeight: 1000,
+                        textTransform: "uppercase",
+                        letterSpacing: 0
+                      }}
+                    >
+                      WANT TO CHAT?
+                    </button>
+                  )}
+                </div>
+              )}
               <div style={{ position: "absolute", left: 8, bottom: 8, borderRadius: 999, padding: "4px 8px", background: "rgba(2,6,23,.76)", color: "#fff", fontSize: 10, fontWeight: 1000 }}>
                 PERSON 2
               </div>

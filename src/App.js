@@ -4959,6 +4959,7 @@ function AdminPage({ onClose }) {
   const [accessControlValue, setAccessControlValue] = useState("");
   const [accessControlList, setAccessControlList] = useState("blacklistIp");
   const [accessControlNote, setAccessControlNote] = useState("");
+  const [visibleAdminPasswords, setVisibleAdminPasswords] = useState({});
   const fuitsAdminBaseUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
   const sectionStyle = {
     background: "rgba(15,23,42,.92)",
@@ -5623,6 +5624,7 @@ function AdminPage({ onClose }) {
     { label: "Stream Controls", password: "FOOLIO" },
     { label: "Shuffle / Next / Back", password: "FOOLIO" },
     { label: "Restart Controls", password: "FOOLIO" },
+    { label: "Owner Everyone Ban", password: "fukuu" },
     { label: "Crypto Admin", password: "FUCKNUTZ22!" }
   ];
 
@@ -5812,9 +5814,18 @@ function AdminPage({ onClose }) {
               <h2 style={sectionTitleStyle}>ADMIN PASSWORDS</h2>
               <div style={{ marginTop: 16, display: "grid", gap: 8 }}>
                 {adminPasswordRows.map(row => (
-                  <div key={row.label} style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "minmax(130px,1fr) auto", gap: 10, alignItems: "center" }}>
+                  <div key={row.label} style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "minmax(130px,1fr) minmax(72px,auto) auto", gap: 10, alignItems: "center" }}>
                     <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>{row.label}</div>
-                    <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 1000, overflowWrap: "anywhere", textAlign: "right" }}>{row.password}</div>
+                    <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 1000, overflowWrap: "anywhere", textAlign: "right" }}>
+                      {visibleAdminPasswords[row.label] ? row.password : "********"}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setVisibleAdminPasswords(current => ({ ...current, [row.label]: !current[row.label] }))}
+                      style={{ ...adminButtonStyle, padding: "7px 10px", fontSize: 11, borderColor: "#94a3b8", background: "#94a3b8" }}
+                    >
+                      {visibleAdminPasswords[row.label] ? "Hide" : "Show"}
+                    </button>
                   </div>
                 ))}
               </div>

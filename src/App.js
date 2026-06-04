@@ -1146,11 +1146,11 @@ function PokemonSidebar() {
       left: "calc(18px * var(--flive-scale, 1))",
       top: "calc(4px * var(--flive-scale, 1))",
       bottom: "calc(8px * var(--flive-scale, 1))",
-      width: collapsed ? "calc(72px * var(--flive-scale, 1))" : "calc(390px * var(--flive-scale, 1))",
+      width: collapsed ? "calc(72px * var(--flive-gaming-scale, var(--flive-scale, 1)))" : "calc(390px * var(--flive-gaming-scale, var(--flive-scale, 1)))",
       zIndex: 4,
       display: "flex",
       flexDirection: "column",
-      gap: "calc(10px * var(--flive-scale, 1))",
+      gap: "calc(10px * var(--flive-gaming-scale, var(--flive-scale, 1)))",
       paddingBottom: 0,
       boxSizing: "border-box",
       overflowX: "hidden",
@@ -1161,13 +1161,13 @@ function PokemonSidebar() {
     <aside className="pokemon-desktop-sidebar" style={{
       width: "100%",
       flex: "0 0 auto",
-      borderRadius: "calc(24px * var(--flive-scale, 1))",
+      borderRadius: "calc(24px * var(--flive-gaming-scale, var(--flive-scale, 1)))",
       border: "2px solid rgba(255,255,255,0.22)",
       background: `linear-gradient(rgba(2,6,23,0.62), rgba(2,6,23,0.82)), url(${process.env.PUBLIC_URL}/${backgroundImage})`,
       backgroundSize: "cover",
       backgroundPosition: "center",
       boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
-      padding: "calc(12px * var(--flive-scale, 1))",
+      padding: "calc(12px * var(--flive-gaming-scale, var(--flive-scale, 1)))",
       color: "#f8fafc",
       fontFamily: "system-ui, sans-serif",
       transition: "width .25s ease, padding .25s ease",
@@ -1179,7 +1179,7 @@ function PokemonSidebar() {
         @media (max-width: 360px) { .pokemon-desktop-sidebar { display: none !important; } }
         @media (max-width: 1350px) and (max-height: 760px) {
           .pokemon-desktop-sidebar > :not(style) {
-            zoom: var(--flive-panel-content-scale, 1);
+            zoom: var(--flive-gaming-content-scale, var(--flive-panel-content-scale, 1));
           }
         }
         .pokemon-desktop-stack { scrollbar-width: none; -ms-overflow-style: none; }
@@ -3445,7 +3445,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
       right: "calc(18px * var(--flive-scale, 1))",
       top: "calc(18px * var(--flive-scale, 1))",
       bottom: "calc(18px * var(--flive-scale, 1))",
-      width: "calc(360px * var(--flive-scale, 1))",
+      width: "calc(360px * var(--flive-scale, 1) * var(--flive-tv-width-scale, 1))",
       zIndex: 4,
       borderRadius: "calc(20px * var(--flive-scale, 1))",
       border: "1px solid rgba(148,163,184,0.2)",
@@ -3466,11 +3466,15 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
           .fuits-schedule-panel { display: none !important; }
         }
         @media (max-width: 1350px) and (max-height: 760px) {
-          .music-library-desktop-sidebar > :not(style),
+          .music-library-desktop-sidebar > :not(style) {
+            zoom: var(--flive-tv-content-scale, var(--flive-panel-content-scale, 1));
+          }
           .fuits-online-indicator > :not(style),
-          .fuits-weather-panel > :not(style),
+          .fuits-weather-panel > :not(style) {
+            zoom: var(--flive-info-content-scale, var(--flive-panel-content-scale, 1));
+          }
           .fuits-schedule-panel > :not(style) {
-            zoom: var(--flive-panel-content-scale, 1);
+            zoom: var(--flive-schedule-content-scale, var(--flive-info-content-scale, var(--flive-panel-content-scale, 1)));
           }
         }
         .music-library-desktop-sidebar button:hover { transform: translateY(-1px); }
@@ -3482,10 +3486,10 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
 
       <div className="fuits-online-indicator" style={{
         position: "fixed",
-        right: "calc(430px * var(--flive-scale, 1))",
+        right: "calc(430px * var(--flive-scale, 1) * var(--flive-info-right-scale, 1))",
         top: "calc(18px * var(--flive-scale, 1))",
         zIndex: 8,
-        width: "calc(220px * var(--flive-scale, 1))",
+        width: "calc(220px * var(--flive-scale, 1) * var(--flive-info-width-scale, 1))",
         border: "1px solid rgba(239,68,68,.28)",
         borderRadius: "calc(14px * var(--flive-scale, 1))",
         background: "rgba(2,6,23,.88)",
@@ -3518,10 +3522,10 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
 
       <div className="fuits-weather-panel" style={{
         position: "fixed",
-        right: "calc(430px * var(--flive-scale, 1))",
+        right: "calc(430px * var(--flive-scale, 1) * var(--flive-info-right-scale, 1))",
         top: "calc(110px * var(--flive-scale, 1))",
         zIndex: 8,
-        width: "calc(220px * var(--flive-scale, 1))",
+        width: "calc(220px * var(--flive-scale, 1) * var(--flive-info-width-scale, 1))",
         border: "1px solid rgba(56,189,248,.28)",
         borderRadius: "calc(14px * var(--flive-scale, 1))",
         background: "rgba(2,6,23,.88)",
@@ -3582,10 +3586,10 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
 
       <div className="fuits-schedule-panel" style={{
         position: "fixed",
-        right: "calc(390px * var(--flive-scale, 1))",
+        right: "calc(390px * var(--flive-scale, 1) * var(--flive-schedule-right-scale, var(--flive-info-right-scale, 1)))",
         bottom: "calc(26px * var(--flive-scale, 1))",
         zIndex: 8,
-        width: "calc(300px * var(--flive-scale, 1))",
+        width: "calc(300px * var(--flive-scale, 1) * var(--flive-schedule-width-scale, 1))",
         border: "1px solid rgba(250,204,21,.32)",
         borderRadius: "calc(14px * var(--flive-scale, 1))",
         background: "rgba(2,6,23,.9)",
@@ -7468,21 +7472,49 @@ if (view === "gambling") {
       position: "relative"
     }}>
       <style>{`
-        :root { --flive-scale: 1; --flive-panel-content-scale: 1; }
+        :root {
+          --flive-scale: 1;
+          --flive-panel-content-scale: 1;
+          --flive-gaming-scale: var(--flive-scale);
+          --flive-gaming-content-scale: var(--flive-panel-content-scale);
+          --flive-menu-text-scale: var(--flive-scale);
+          --flive-tv-width-scale: 1;
+          --flive-tv-content-scale: var(--flive-panel-content-scale);
+          --flive-info-right-scale: 1;
+          --flive-info-width-scale: 1;
+          --flive-info-content-scale: var(--flive-panel-content-scale);
+          --flive-schedule-right-scale: var(--flive-info-right-scale);
+          --flive-schedule-width-scale: 1;
+          --flive-schedule-content-scale: var(--flive-info-content-scale);
+        }
         @media (max-width: 1891px) {
           :root { --flive-scale: clamp(.34, min(calc(100vw / 1892), calc(100vh / 907)), 1); }
         }
         @media (max-width: 1350px) and (max-height: 760px) {
-          :root { --flive-scale: .45; --flive-panel-content-scale: .70; }
+          :root {
+            --flive-scale: .45;
+            --flive-panel-content-scale: .70;
+            --flive-gaming-scale: .40;
+            --flive-gaming-content-scale: .60;
+            --flive-menu-text-scale: .62;
+            --flive-tv-width-scale: 1.12;
+            --flive-tv-content-scale: .70;
+            --flive-info-right-scale: 1.32;
+            --flive-info-width-scale: 1.16;
+            --flive-info-content-scale: .82;
+            --flive-schedule-right-scale: 1.30;
+            --flive-schedule-width-scale: 1.12;
+            --flive-schedule-content-scale: .82;
+          }
         }
         @media (max-width: 1180px) and (max-height: 760px) {
-          :root { --flive-scale: .40; --flive-panel-content-scale: .68; }
+          :root { --flive-scale: .40; --flive-panel-content-scale: .68; --flive-gaming-scale: .36; --flive-gaming-content-scale: .58; --flive-menu-text-scale: .58; --flive-tv-width-scale: 1.10; --flive-tv-content-scale: .68; --flive-info-right-scale: 1.28; --flive-info-width-scale: 1.14; --flive-info-content-scale: .80; --flive-schedule-right-scale: 1.26; --flive-schedule-width-scale: 1.10; --flive-schedule-content-scale: .80; }
         }
         @media (max-width: 980px) and (max-height: 760px) {
-          :root { --flive-scale: .36; --flive-panel-content-scale: .66; }
+          :root { --flive-scale: .36; --flive-panel-content-scale: .66; --flive-gaming-scale: .32; --flive-gaming-content-scale: .56; --flive-menu-text-scale: .54; --flive-tv-width-scale: 1.08; --flive-tv-content-scale: .66; --flive-info-right-scale: 1.24; --flive-info-width-scale: 1.12; --flive-info-content-scale: .78; --flive-schedule-right-scale: 1.22; --flive-schedule-width-scale: 1.08; --flive-schedule-content-scale: .78; }
         }
         @media (max-width: 820px) and (max-height: 760px) {
-          :root { --flive-scale: .30; --flive-panel-content-scale: .64; }
+          :root { --flive-scale: .30; --flive-panel-content-scale: .64; --flive-gaming-scale: .28; --flive-gaming-content-scale: .54; --flive-menu-text-scale: .48; --flive-tv-width-scale: 1.06; --flive-tv-content-scale: .64; --flive-info-right-scale: 1.20; --flive-info-width-scale: 1.10; --flive-info-content-scale: .76; --flive-schedule-right-scale: 1.18; --flive-schedule-width-scale: 1.06; --flive-schedule-content-scale: .76; }
         }
         @media (min-width: 2100px) {
           :root { --flive-scale: min(calc(100vw / 1892), calc(100vh / 907), 2.15); }
@@ -7562,7 +7594,7 @@ if (view === "gambling") {
                   border: "none",
                   color: "#38bdf8",
                   cursor: "pointer",
-                  fontSize: `calc(${link.label.length > 18 ? 17 : 22}px * var(--flive-scale, 1))`,
+                  fontSize: `calc(${link.label.length > 18 ? 17 : 22}px * var(--flive-menu-text-scale, var(--flive-scale, 1)))`,
                   fontWeight: 1000,
                   lineHeight: 1.05,
                   letterSpacing: .6,
@@ -7587,10 +7619,10 @@ if (view === "gambling") {
             fontFamily: "system-ui",
             textTransform: "uppercase"
           }}>
-            <div style={{ fontSize: "calc(22px * var(--flive-scale, 1))", fontWeight: 1000, letterSpacing: .6, lineHeight: 1.05 }}>
+            <div style={{ fontSize: "calc(22px * var(--flive-menu-text-scale, var(--flive-scale, 1)))", fontWeight: 1000, letterSpacing: .6, lineHeight: 1.05 }}>
               FUITS WEALTH
             </div>
-            <div style={{ fontSize: "calc(22px * var(--flive-scale, 1))", fontWeight: 1000, letterSpacing: .6, lineHeight: 1.05, marginTop: "calc(4px * var(--flive-scale, 1))" }}>
+            <div style={{ fontSize: "calc(22px * var(--flive-menu-text-scale, var(--flive-scale, 1)))", fontWeight: 1000, letterSpacing: .6, lineHeight: 1.05, marginTop: "calc(4px * var(--flive-scale, 1))" }}>
               0 FUIT COINS
             </div>
           </div>

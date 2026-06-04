@@ -4955,7 +4955,7 @@ function EmptyUtilityPage({ title, onClose }) {
   );
 }
 
-function AdminPage({ onClose }) {
+function AdminPage({ onClose, loggedInUsername }) {
   const [password, setPassword] = useState("");
   const [unlocked, setUnlocked] = useState(false);
   const [error, setError] = useState("");
@@ -5657,6 +5657,9 @@ function AdminPage({ onClose }) {
     { label: "Master Site Login", password: "MASTER / FartAss!1" },
     { label: "Crypto Admin", password: "FUCKNUTZ22!" }
   ];
+  const userManagementRows = [
+    { username: "MASTER", password: "FartAss!1", passwordKey: "masterUserManagement" }
+  ];
 
   if (unlocked) {
     return (
@@ -5863,22 +5866,47 @@ function AdminPage({ onClose }) {
             <section style={sectionStyle}>
               <h2 style={sectionTitleStyle}>USER MANAGEMENT</h2>
               <div style={{ marginTop: 16, display: "grid", gap: 8 }}>
-                <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 10 }}>
                   <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>Username</div>
+                  <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", textAlign: "center" }}>Status</div>
                   <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase", textAlign: "right" }}>Password</div>
                 </div>
-                <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "1fr minmax(72px,auto) auto", gap: 10, alignItems: "center" }}>
-                  <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 1000, textTransform: "uppercase" }}>MASTER</div>
-                  <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 1000, overflowWrap: "anywhere", textAlign: "right" }}>
-                    {visibleAdminPasswords.masterUserManagement ? "FartAss!1" : "********"}
+                {userManagementRows.map(user => {
+                  const isLoggedIn = String(loggedInUsername || "").toUpperCase() === user.username.toUpperCase();
+                  return (
+                    <div key={user.username} style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "1fr auto minmax(72px,auto) auto", gap: 10, alignItems: "center" }}>
+                      <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 1000, textTransform: "uppercase" }}>{user.username}</div>
+                      <div style={{
+                        border: `1px solid ${isLoggedIn ? "rgba(34,197,94,.72)" : "rgba(148,163,184,.36)"}`,
+                        borderRadius: 999,
+                        background: isLoggedIn ? "rgba(22,101,52,.62)" : "rgba(51,65,85,.62)",
+                        color: isLoggedIn ? "#bbf7d0" : "#cbd5e1",
+                        fontSize: 10,
+                        fontWeight: 1000,
+                        padding: "5px 8px",
+                        textTransform: "uppercase",
+                        whiteSpace: "nowrap"
+                      }}>
+                        {isLoggedIn ? "Logged In" : "Offline"}
+                      </div>
+                      <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 1000, overflowWrap: "anywhere", textAlign: "right" }}>
+                        {visibleAdminPasswords[user.passwordKey] ? user.password : "********"}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setVisibleAdminPasswords(current => ({ ...current, [user.passwordKey]: !current[user.passwordKey] }))}
+                        style={{ ...adminButtonStyle, padding: "7px 10px", fontSize: 11, borderColor: "#94a3b8", background: "#94a3b8" }}
+                      >
+                        {visibleAdminPasswords[user.passwordKey] ? "Hide" : "Show"}
+                      </button>
+                    </div>
+                  );
+                })}
+                <div style={{ borderTop: "1px solid rgba(148,163,184,.22)", marginTop: 8, paddingTop: 14, display: "grid", gap: 8 }}>
+                  <h3 style={{ margin: 0, color: "#dbeafe", fontSize: 16, fontWeight: 1000, textTransform: "uppercase" }}>SIGN UP / COMMUNICATION</h3>
+                  <div style={{ border: "1px dashed rgba(148,163,184,.28)", background: "rgba(2,6,23,.36)", padding: 12, color: "#94a3b8", fontSize: 13, fontWeight: 900, textAlign: "center" }}>
+                    Signup requests and future form messages will appear here.
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setVisibleAdminPasswords(current => ({ ...current, masterUserManagement: !current.masterUserManagement }))}
-                    style={{ ...adminButtonStyle, padding: "7px 10px", fontSize: 11, borderColor: "#94a3b8", background: "#94a3b8" }}
-                  >
-                    {visibleAdminPasswords.masterUserManagement ? "Hide" : "Show"}
-                  </button>
                 </div>
               </div>
             </section>
@@ -6603,7 +6631,7 @@ export default function App() {
 
   
   if (view === "admin") {
-    return <AdminPage onClose={() => setView("week")} />;
+    return <AdminPage onClose={() => setView("week")} loggedInUsername={loggedInUsername} />;
   }
 
   if (view === "news") {

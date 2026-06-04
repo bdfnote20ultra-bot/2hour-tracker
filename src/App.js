@@ -1854,6 +1854,274 @@ function LiveChatBox({ title = "Live Chat", src, height = 250, minHeight = 250 }
   );
 }
 
+function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
+  const [started, setStarted] = useState(false);
+  const [status, setStatus] = useState("Ready when you are.");
+  const [error, setError] = useState("");
+  const [participantCount, setParticipantCount] = useState(0);
+  const [localReady, setLocalReady] = useState(false);
+  const [remoteReady, setRemoteReady] = useState(false);
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+  const localStreamRef = useRef(null);
+  const peerRef = useRef(null);
+  const pollingRef = useRef(null);
+  const lastSeqRef = useRef(0);
+  const clientIdRef = useRef(`adult-relax-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const roomId = "adult-relax-time";
+  const signalBaseUrl = `${baseUrl.replace(/\/+$/, "")}/adult-relax-signal`;
+
+  const sendSignal = useCallback(async payload => {
+    await fetch(signalBaseUrl, {
+      method: "POST",
+      body: JSON.stringify({ room: roomId, clientId: clientIdRef.current, ...payload })
+    });
+  }, [signalBaseUrl]);
+
+  const stopRoom = useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+    if (peerRef.current) {
+      peerRef.current.close();
+      peerRef.current = null;
+    }
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current = null;
+    }
+    if (localVideoRef.current) localVideoRef.current.srcObject = null;
+    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+    setLocalReady(false);
+    setRemoteReady(false);
+    setParticipantCount(0);
+    setStarted(false);
+    setStatus("Ready when you are.");
+  }, []);
+
+  const handleSignalMessages = useCallback(async messages => {
+    const peer = peerRef.current;
+    if (!peer) return;
+
+    for (const message of messages) {
+      if (message.type === "offer" && message.data) {
+        await peer.setRemoteDescription(new RTCSessionDescription(message.data));
+        const answer = await peer.createAnswer();
+        await peer.setLocalDescription(answer);
+        await sendSignal({ action: "signal", type: "answer", to: message.from, data: peer.localDescription });
+        setStatus("Connected. Waiting for video to appear...");
+      }
+      if (message.type === "answer" && message.data && peer.signalingState !== "stable") {
+        await peer.setRemoteDescription(new RTCSessionDescription(message.data));
+        setStatus("Connected. Waiting for video to appear...");
+      }
+      if (message.type === "candidate" && message.data) {
+        try {
+          await peer.addIceCandidate(new RTCIceCandidate(message.data));
+        } catch {}
+      }
+    }
+  }, [sendSignal]);
+
+  const pollSignals = useCallback(async () => {
+    const params = new URLSearchParams({
+      room: roomId,
+      client: clientIdRef.current,
+      since: String(lastSeqRef.current)
+    });
+    const response = await fetch(`${signalBaseUrl}?${params.toString()}`, { cache: "no-store" });
+    const data = await response.json();
+    if (!data.ok) return;
+
+    lastSeqRef.current = Math.max(lastSeqRef.current, Number(data.seq) || 0);
+    setParticipantCount(Array.isArray(data.participants) ? data.participants.filter(item => item.slot === 1 || item.slot === 2).length : 0);
+    await handleSignalMessages(Array.isArray(data.messages) ? data.messages : []);
+  }, [handleSignalMessages, signalBaseUrl]);
+
+  const startRoom = async () => {
+    setError("");
+    setStatus("Asking for camera and mic...");
+    setStarted(true);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localStreamRef.current = stream;
+      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+      setLocalReady(true);
+      setStatus("Camera is on. Looking for the other person...");
+
+      const peer = new RTCPeerConnection({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+      });
+      peerRef.current = peer;
+      stream.getTracks().forEach(track => peer.addTrack(track, stream));
+      peer.ontrack = event => {
+        if (remoteVideoRef.current && event.streams[0]) {
+          remoteVideoRef.current.srcObject = event.streams[0];
+          setRemoteReady(true);
+          setStatus("Live chat connected.");
+        }
+      };
+      peer.onicecandidate = event => {
+        if (event.candidate) {
+          sendSignal({ action: "signal", type: "candidate", data: event.candidate }).catch(() => {});
+        }
+      };
+      peer.onconnectionstatechange = () => {
+        if (peer.connectionState === "connected") setStatus("Live chat connected.");
+        if (peer.connectionState === "disconnected" || peer.connectionState === "failed") {
+          setRemoteReady(false);
+          setStatus("The other person disconnected. Waiting...");
+        }
+      };
+
+      const joinResponse = await fetch(signalBaseUrl, {
+        method: "POST",
+        body: JSON.stringify({ action: "join", room: roomId, clientId: clientIdRef.current })
+      });
+      const joinData = await joinResponse.json();
+      const slot = joinData?.participant?.slot;
+      lastSeqRef.current = 0;
+      setParticipantCount(Array.isArray(joinData.participants) ? joinData.participants.filter(item => item.slot === 1 || item.slot === 2).length : 1);
+
+      pollingRef.current = setInterval(() => pollSignals().catch(() => {}), 1000);
+      await pollSignals();
+
+      if (slot === 1) {
+        const offer = await peer.createOffer();
+        await peer.setLocalDescription(offer);
+        await sendSignal({ action: "signal", type: "offer", data: peer.localDescription });
+      } else if (slot === 0) {
+        setStatus("Two people are already in the room. You can wait here for a spot.");
+      }
+    } catch (roomError) {
+      stopRoom();
+      setStarted(true);
+      setError(roomError?.message || "Camera or mic could not start.");
+      setStatus("Camera and mic are off.");
+    }
+  };
+
+  useEffect(() => () => {
+    sendSignal({ action: "leave" }).catch(() => {});
+    stopRoom();
+  }, [sendSignal, stopRoom]);
+
+  const slotStyle = {
+    position: "relative",
+    minHeight: 210,
+    border: "1px solid rgba(148,163,184,.24)",
+    borderRadius: 12,
+    background: "rgba(2,6,23,.92)",
+    overflow: "hidden"
+  };
+
+  return (
+    <div style={{
+      width: "100%",
+      display: "grid",
+      gap: 10,
+      border: "1px solid rgba(148,163,184,.22)",
+      borderRadius: 14,
+      padding: 12,
+      background: "rgba(15,23,42,.78)"
+    }}>
+      {!started ? (
+        <button
+          type="button"
+          onClick={startRoom}
+          style={{
+            width: "100%",
+            minHeight: 170,
+            border: `1px solid ${accentColor}`,
+            borderRadius: 12,
+            background: `linear-gradient(135deg, ${accentColor}, #14b8a6)`,
+            color: "#fff",
+            cursor: "pointer",
+            fontSize: 24,
+            fontWeight: 1000,
+            textTransform: "uppercase",
+            letterSpacing: 0,
+            boxShadow: "0 18px 44px rgba(0,0,0,.35)"
+          }}
+        >
+          WANT TO LIVE CHAT?
+        </button>
+      ) : (
+        <>
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 8,
+            alignItems: "center",
+            flexWrap: "wrap",
+            color: "#e2e8f0",
+            fontSize: 12,
+            fontWeight: 900
+          }}>
+            <span>{status}</span>
+            <span>{participantCount}/2 PEOPLE</span>
+          </div>
+          {error && (
+            <div style={{
+              border: "1px solid rgba(248,113,113,.42)",
+              borderRadius: 8,
+              padding: "8px 10px",
+              background: "rgba(127,29,29,.32)",
+              color: "#fecaca",
+              fontSize: 12,
+              fontWeight: 900
+            }}>
+              {error}
+            </div>
+          )}
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+            gap: 10
+          }}>
+            <div style={slotStyle}>
+              <video ref={localVideoRef} autoPlay muted playsInline style={{ width: "100%", height: "100%", minHeight: 210, objectFit: "cover", display: localReady ? "block" : "none" }} />
+              {!localReady && <div style={{ padding: 18, color: "#cbd5e1", fontWeight: 900 }}>Camera spot 1</div>}
+              <div style={{ position: "absolute", left: 8, bottom: 8, borderRadius: 999, padding: "4px 8px", background: "rgba(2,6,23,.76)", color: "#fff", fontSize: 10, fontWeight: 1000 }}>
+                YOU
+              </div>
+            </div>
+            <div style={slotStyle}>
+              <video ref={remoteVideoRef} autoPlay playsInline style={{ width: "100%", height: "100%", minHeight: 210, objectFit: "cover", display: remoteReady ? "block" : "none" }} />
+              {!remoteReady && <div style={{ padding: 18, color: "#cbd5e1", fontWeight: 900 }}>Waiting for person 2...</div>}
+              <div style={{ position: "absolute", left: 8, bottom: 8, borderRadius: 999, padding: "4px 8px", background: "rgba(2,6,23,.76)", color: "#fff", fontSize: 10, fontWeight: 1000 }}>
+                PERSON 2
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              sendSignal({ action: "leave" }).catch(() => {});
+              stopRoom();
+            }}
+            style={{
+              border: "1px solid rgba(248,113,113,.36)",
+              borderRadius: 10,
+              padding: "9px 10px",
+              background: "rgba(127,29,29,.28)",
+              color: "#fecaca",
+              cursor: "pointer",
+              fontSize: 12,
+              fontWeight: 1000,
+              textTransform: "uppercase"
+            }}
+          >
+            Leave Live Chat
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 function FuitsLiveAnnouncementPlayer({ baseUrl, playerMuted, playerVolume, onVolumeChange }) {
   const liveVideoRef = useRef(null);
   const hlsRef = useRef(null);
@@ -3168,7 +3436,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
   }, [separateFuitsLiveTvChannelIds]);
   const liveTvOptions = [
     { id: "fattys", label: "FUITS LIVE TV WORLD", heading: "FUITS LIVE TV WORLD", custom: true },
-    { id: "adultRelax", label: "ADULT RELAX TIME", heading: "ADULT RELAX TIME", custom: true, defaultChannel: "channel-adult-relax-time" },
+    { id: "adultRelax", label: "ADULT RELAX TIME", heading: "ADULT RELAX TIME", custom: true, liveChat: true },
     { id: "smokingChannel", label: "SMOKING CHANNEL", heading: "SMOKING CHANNEL", custom: true, defaultChannel: "channel-smoking-channel" },
     { id: "fuit", label: "Open Fuit LIVE TV", heading: "SPORTS + CABLE TV", url: "https://thetvapp.to/", embed: false },
     { id: "athf", label: "ADULT SWIM ZONE", heading: "ADULT SWIM ZONE", url: "https://www.adultswim.com/streams/aqua-teen-hunger-force", embed: true },
@@ -3896,83 +4164,89 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             </div>
             {activeLiveTvOption.custom && fuitsLiveTvChannelUrl && (
               <>
-                {!activeLiveTvFixedChannel && (
-                  <select
-                    value={activeFuitsLiveTvChannel}
-                    onChange={event => setActiveFuitsLiveTvChannel(event.target.value)}
-                    style={{
-                      width: "100%",
-                      border: "1px solid rgba(148,163,184,.28)",
-                      borderRadius: 12,
-                      background: "#020617",
-                      color: "#f8fafc",
-                      padding: "7px 9px",
-                      outline: "none",
-                      fontSize: 11,
-                      fontWeight: 1000,
-                      textTransform: "uppercase",
-                      letterSpacing: .7
-                    }}
-                  >
-                    {liveFuitsLiveTvChannels.map(channel => (
-                      <option key={channel.id} value={channel.id}>{channel.label}</option>
-                    ))}
-                  </select>
+                {activeLiveTvOption.liveChat ? (
+                  <AdultRelaxLiveChatRoom baseUrl={fuitsLiveTvChannelUrl} accentColor={accentColor} />
+                ) : (
+                  <>
+                    {!activeLiveTvFixedChannel && (
+                      <select
+                        value={activeFuitsLiveTvChannel}
+                        onChange={event => setActiveFuitsLiveTvChannel(event.target.value)}
+                        style={{
+                          width: "100%",
+                          border: "1px solid rgba(148,163,184,.28)",
+                          borderRadius: 12,
+                          background: "#020617",
+                          color: "#f8fafc",
+                          padding: "7px 9px",
+                          outline: "none",
+                          fontSize: 11,
+                          fontWeight: 1000,
+                          textTransform: "uppercase",
+                          letterSpacing: .7
+                        }}
+                      >
+                        {liveFuitsLiveTvChannels.map(channel => (
+                          <option key={channel.id} value={channel.id}>{channel.label}</option>
+                        ))}
+                      </select>
+                    )}
+                    <div style={{ width: "100%", display: "flex", justifyContent: "flex-start", gap: 6, flexWrap: "wrap" }}>
+                      <button
+                        type="button"
+                        onClick={backFuitsChannelWithPassword}
+                        style={{
+                          border: "1px solid rgba(255,255,255,.26)",
+                          borderRadius: 999,
+                          padding: "4px 7px",
+                          background: "rgba(15,23,42,.88)",
+                          color: "#fff",
+                          fontSize: 9,
+                          fontWeight: 1000,
+                          cursor: "pointer",
+                          boxShadow: "0 5px 12px rgba(0,0,0,.26)",
+                          textTransform: "uppercase"
+                        }}
+                      >
+                        Back
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => fuitsLiveTvPlayerRef.current?.stretchVideoToFullscreen()}
+                        style={{
+                          border: "1px solid rgba(255,255,255,.26)",
+                          borderRadius: 999,
+                          padding: "4px 7px",
+                          background: "rgba(15,23,42,.88)",
+                          color: "#fff",
+                          fontSize: 9,
+                          fontWeight: 1000,
+                          cursor: "pointer",
+                          boxShadow: "0 5px 12px rgba(0,0,0,.26)",
+                          textTransform: "uppercase"
+                        }}
+                      >
+                        Stretch Fullscreen
+                      </button>
+                    </div>
+                    <FuitsLiveTvPlayer
+                      ref={fuitsLiveTvPlayerRef}
+                      baseUrl={fuitsLiveTvChannelUrl}
+                      channelId={activeFuitsLiveTvChannel}
+                      startupBufferSeconds={0.2}
+                      liveAnnouncementOnline={owncastOnline}
+                      restartSignal={playlistRestartSignal}
+                      onPlaybackAnchor={setFuitsPlaybackAnchor}
+                    />
+                    {renderFuitsOwnerControls()}
+                    <LiveChatBox
+                      title="FUITS Live TV Chat"
+                      src={fuitsLiveTvChatUrl || `${fuitsLiveTvChannelUrl}/chat-only`}
+                      height={260}
+                      minHeight={260}
+                    />
+                  </>
                 )}
-                <div style={{ width: "100%", display: "flex", justifyContent: "flex-start", gap: 6, flexWrap: "wrap" }}>
-                  <button
-                    type="button"
-                    onClick={backFuitsChannelWithPassword}
-                    style={{
-                      border: "1px solid rgba(255,255,255,.26)",
-                      borderRadius: 999,
-                      padding: "4px 7px",
-                      background: "rgba(15,23,42,.88)",
-                      color: "#fff",
-                      fontSize: 9,
-                      fontWeight: 1000,
-                      cursor: "pointer",
-                      boxShadow: "0 5px 12px rgba(0,0,0,.26)",
-                      textTransform: "uppercase"
-                    }}
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => fuitsLiveTvPlayerRef.current?.stretchVideoToFullscreen()}
-                    style={{
-                      border: "1px solid rgba(255,255,255,.26)",
-                      borderRadius: 999,
-                      padding: "4px 7px",
-                      background: "rgba(15,23,42,.88)",
-                      color: "#fff",
-                      fontSize: 9,
-                      fontWeight: 1000,
-                      cursor: "pointer",
-                      boxShadow: "0 5px 12px rgba(0,0,0,.26)",
-                      textTransform: "uppercase"
-                    }}
-                  >
-                    Stretch Fullscreen
-                  </button>
-                </div>
-                <FuitsLiveTvPlayer
-                  ref={fuitsLiveTvPlayerRef}
-                  baseUrl={fuitsLiveTvChannelUrl}
-                  channelId={activeFuitsLiveTvChannel}
-                  startupBufferSeconds={0.2}
-                  liveAnnouncementOnline={owncastOnline}
-                  restartSignal={playlistRestartSignal}
-                  onPlaybackAnchor={setFuitsPlaybackAnchor}
-                />
-                {renderFuitsOwnerControls()}
-                <LiveChatBox
-                  title="FUITS Live TV Chat"
-                  src={fuitsLiveTvChatUrl || `${fuitsLiveTvChannelUrl}/chat-only`}
-                  height={260}
-                  minHeight={260}
-                />
               </>
             )}
             {activeLiveTvOption.custom && !owncastOnline && !fuitsLiveTvChannelUrl && (

@@ -8,7 +8,7 @@ const { URL } = require("url");
 const PORT = Number(process.env.FUITS_TV_PORT || 8099);
 const ROOT = "T:\\FattysLiveTV";
 const CHANNEL_PLAYLIST_DIR = path.join(ROOT, "Playlists", "FuitsLiveTV");
-const DEFAULT_CHANNEL_PLAYLISTS = ["ChannelA.m3u", "ChannelB.m3u", "ADULT-RELAX-TIME.m3u", "SMOKING-CHANNEL.m3u"];
+const DEFAULT_CHANNEL_PLAYLISTS = ["ChannelA.m3u", "ChannelB.m3u", "SMOKING-CHANNEL.m3u"];
 const PASSWORD_PATH = path.join(__dirname, "admin-password.txt");
 const ACCESS_CONTROL_PATH = path.join(__dirname, "access-control.json");
 const SHUFFLE_PASSWORD = "FOOLIO";
@@ -55,6 +55,7 @@ const ONLINE_STATS_TTL_MS = 15 * 60 * 1000;
 let owncastBaseUrlCache = null;
 let owncastBaseUrlCacheExpiresAt = 0;
 const onlineDevices = new Map();
+const adultRelaxSignalRooms = new Map();
 let latestVideoRepairScan = null;
 let activeVideoRepairProcess = null;
 let activeVideoRepairDetails = null;
@@ -2184,6 +2185,120 @@ function send(res, statusCode, body, contentType = "text/plain; charset=utf-8") 
 
 function sendJson(res, statusCode, value) {
   send(res, statusCode, JSON.stringify(value, null, 2), "application/json; charset=utf-8");
+}
+
+function getAdultRelaxRoom(roomId) {
+  const safeRoomId = String(roomId || "adult-relax-time")
+    .replace(/[^a-zA-Z0-9_-]/g, "")
+    .slice(0, 80) || "adult-relax-time";
+  const now = Date.now();
+  let room = adultRelaxSignalRooms.get(safeRoomId);
+  if (!room) {
+    room = { nextSeq: 1, participants: new Map(), messages: [] };
+    adultRelaxSignalRooms.set(safeRoomId, room);
+  }
+
+  for (const [clientId, participant] of room.participants) {
+    if (now - participant.lastSeen > 45000) {
+      room.participants.delete(clientId);
+    }
+  }
+  if (!room.participants.size) {
+    room.nextSeq = 1;
+    room.messages = [];
+  } else {
+    room.messages = room.messages.filter(message => now - message.createdAt < 120000);
+  }
+  return room;
+}
+
+function touchAdultRelaxParticipant(room, clientId) {
+  const now = Date.now();
+  const safeClientId = String(clientId || "")
+    .replace(/[^a-zA-Z0-9_-]/g, "")
+    .slice(0, 80);
+  if (!safeClientId) return null;
+
+  let participant = room.participants.get(safeClientId);
+  if (!participant) {
+    const usedSlots = new Set([...room.participants.values()].map(value => value.slot));
+    participant = {
+      slot: usedSlots.has(1) ? usedSlots.has(2) ? 0 : 2 : 1,
+      joinedAt: now,
+      lastSeen: now
+    };
+    room.participants.set(safeClientId, participant);
+  } else {
+    participant.lastSeen = now;
+  }
+  return { clientId: safeClientId, ...participant };
+}
+
+function getAdultRelaxParticipants(room) {
+  return [...room.participants.entries()]
+    .map(([clientId, participant]) => ({ clientId, slot: participant.slot, lastSeen: participant.lastSeen }))
+    .sort((a, b) => a.slot - b.slot || a.lastSeen - b.lastSeen);
+}
+
+function handleAdultRelaxSignal(req, res, url) {
+  const room = getAdultRelaxRoom(url.searchParams.get("room"));
+  const clientId = String(url.searchParams.get("client") || "")
+    .replace(/[^a-zA-Z0-9_-]/g, "")
+    .slice(0, 80);
+
+  if (req.method === "GET") {
+    const participant = touchAdultRelaxParticipant(room, clientId);
+    const since = Number(url.searchParams.get("since")) || 0;
+    sendJson(res, 200, {
+      ok: true,
+      participant,
+      participants: getAdultRelaxParticipants(room),
+      seq: room.nextSeq - 1,
+      messages: room.messages.filter(message =>
+        message.seq > since &&
+        message.from !== clientId &&
+        (!message.to || message.to === clientId)
+      )
+    });
+    return;
+  }
+
+  if (req.method !== "POST") {
+    send(res, 405, "Method not allowed");
+    return;
+  }
+
+  readRequestBody(req)
+    .then(body => {
+      const payload = JSON.parse(body || "{}");
+      const participant = touchAdultRelaxParticipant(room, payload.clientId || clientId);
+      if (!participant) throw new Error("Missing caller ID.");
+
+      if (payload.action === "leave") {
+        room.participants.delete(participant.clientId);
+        sendJson(res, 200, { ok: true, participants: getAdultRelaxParticipants(room) });
+        return;
+      }
+
+      if (payload.action === "signal") {
+        room.messages.push({
+          seq: room.nextSeq++,
+          createdAt: Date.now(),
+          from: participant.clientId,
+          to: String(payload.to || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80),
+          type: String(payload.type || "").slice(0, 40),
+          data: payload.data || null
+        });
+      }
+
+      sendJson(res, 200, {
+        ok: true,
+        participant,
+        participants: getAdultRelaxParticipants(room),
+        seq: room.nextSeq - 1
+      });
+    })
+    .catch(error => sendJson(res, 400, { ok: false, error: error.message || "Signal failed" }));
 }
 
 function getOwncastContentType(pathname, fallback) {
@@ -4999,6 +5114,11 @@ const server = http.createServer((req, res) => {
 
   if (url.pathname === "/chat-only") {
     send(res, 200, chatOnlyHtml(), "text/html; charset=utf-8");
+    return;
+  }
+
+  if (url.pathname === "/adult-relax-signal") {
+    handleAdultRelaxSignal(req, res, url);
     return;
   }
 

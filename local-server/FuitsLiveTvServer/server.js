@@ -173,10 +173,16 @@ function isRequestBlocked(req, url) {
   return getAccessStatus(getClientIp(req), deviceId).blacklisted;
 }
 
-function updateAccessControl(payload) {
+function updateAccessControl(payload, req = null) {
   const access = readAccessControl();
   const action = payload.action || "load";
   if (action === "load") return { ok: true, accessControl: access };
+  if (action === "unblockCurrent") {
+    const currentIp = req ? getClientIp(req) : "";
+    if (!currentIp || !net.isIP(currentIp)) throw new Error("Could not detect the current IP.");
+    access.blacklistIps = removeAccessEntry(access.blacklistIps, currentIp);
+    return { ok: true, accessControl: writeAccessControl(access), unblockedIp: currentIp };
+  }
 
   const listKey = {
     whitelistIp: "whitelistIps",
@@ -2990,6 +2996,21 @@ function blankPageHtml() {
       letter-spacing: 0;
       text-transform: lowercase;
     }
+    .unban {
+      display: grid;
+      gap: 10px;
+      width: min(100%, 320px);
+    }
+    input {
+      border: 1px solid rgba(255, 255, 255, .28);
+      background: #111;
+      color: #fff;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 16px;
+      font-weight: 800;
+      text-align: center;
+    }
     button {
       border: 1px solid rgba(255, 255, 255, .28);
       background: #111;
@@ -3003,11 +3024,22 @@ function blankPageHtml() {
     button:hover {
       border-color: rgba(255, 255, 255, .72);
     }
+    .status {
+      min-height: 18px;
+      color: #cbd5e1;
+      font-size: 13px;
+      font-weight: 800;
+    }
   </style>
 </head>
 <body>
   <main>
     <h1>you are banned</h1>
+    <form id="blankUnbanForm" class="unban">
+      <input id="blankUnbanPassword" type="password" placeholder="Enter password to unban" autocomplete="current-password" />
+      <button type="submit">Unban</button>
+      <div id="blankUnbanStatus" class="status"></div>
+    </form>
     <button id="ownerRestoreButton" type="button">Owner</button>
   </main>
   <script>
@@ -3020,10 +3052,7 @@ function blankPageHtml() {
       }
     } catch {}
 
-    document.getElementById("ownerRestoreButton").addEventListener("click", async () => {
-      const password = window.prompt("Owner password");
-      if (!password) return;
-
+    async function restoreSite(password, statusElement) {
       const res = await fetch("/admin/site-blank", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -3031,7 +3060,8 @@ function blankPageHtml() {
       });
 
       if (!res.ok) {
-        window.alert("Wrong password.");
+        if (statusElement) statusElement.textContent = "Wrong password.";
+        else window.alert("Wrong password.");
         return;
       }
 
@@ -3063,6 +3093,24 @@ function blankPageHtml() {
       }
 
       window.location.href = "/";
+    }
+
+    document.getElementById("blankUnbanForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      const password = document.getElementById("blankUnbanPassword").value;
+      const status = document.getElementById("blankUnbanStatus");
+      if (!password) {
+        status.textContent = "Enter password.";
+        return;
+      }
+      status.textContent = "Checking...";
+      await restoreSite(password, status);
+    });
+
+    document.getElementById("ownerRestoreButton").addEventListener("click", async () => {
+      const password = window.prompt("Owner password");
+      if (!password) return;
+      await restoreSite(password);
     });
   </script>
 </body>
@@ -3101,11 +3149,51 @@ function bannedPageHtml() {
       letter-spacing: 0;
       text-transform: lowercase;
     }
+    .unban {
+      display: grid;
+      gap: 10px;
+      width: min(100%, 320px);
+      margin-top: 4px;
+    }
+    input {
+      border: 1px solid rgba(255, 255, 255, .28);
+      background: #111;
+      color: #fff;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 16px;
+      font-weight: 800;
+      text-align: center;
+    }
+    button {
+      border: 1px solid rgba(255, 255, 255, .28);
+      background: #111;
+      color: #fff;
+      border-radius: 8px;
+      padding: 12px 18px;
+      font-size: 16px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+    button:hover {
+      border-color: rgba(255, 255, 255, .72);
+    }
+    .status {
+      min-height: 18px;
+      color: #cbd5e1;
+      font-size: 13px;
+      font-weight: 800;
+    }
   </style>
 </head>
 <body>
   <main>
     <h1>you are banned</h1>
+    <form id="unbanForm" class="unban">
+      <input id="unbanPassword" type="password" placeholder="Enter password to unban" autocomplete="current-password" />
+      <button type="submit">Unban</button>
+      <div id="unbanStatus" class="status"></div>
+    </form>
   </main>
   <script>
     try {
@@ -3116,6 +3204,31 @@ function bannedPageHtml() {
         window.top.location.href = window.location.href;
       }
     } catch {}
+
+    document.getElementById("unbanForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      const password = document.getElementById("unbanPassword").value;
+      const status = document.getElementById("unbanStatus");
+      if (!password) {
+        status.textContent = "Enter password.";
+        return;
+      }
+
+      status.textContent = "Checking...";
+      const res = await fetch("/admin/access-control", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password, action: "unblockCurrent" })
+      });
+
+      if (!res.ok) {
+        status.textContent = "Wrong password.";
+        return;
+      }
+
+      status.textContent = "Unbanned. Reloading...";
+      window.location.href = "/?unbanned=" + Date.now();
+    });
   </script>
 </body>
 </html>`;
@@ -5329,7 +5442,7 @@ const server = http.createServer((req, res) => {
     readRequestBody(req)
       .then(body => {
         const payload = JSON.parse(body || "{}");
-        if (payload.password !== getAdminPassword()) {
+        if (!isAdminPassword(payload.password)) {
           send(res, 401, "Unauthorized");
           return;
         }
@@ -5465,7 +5578,7 @@ const server = http.createServer((req, res) => {
     readRequestBody(req)
       .then(body => {
         const payload = JSON.parse(body || "{}");
-        if (payload.password !== getAdminPassword()) {
+        if (!isAdminPassword(payload.password)) {
           send(res, 401, "Unauthorized");
           return;
         }

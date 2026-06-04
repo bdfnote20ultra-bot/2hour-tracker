@@ -1175,8 +1175,8 @@ function PokemonSidebar() {
       pointerEvents: "auto"
     }}>
       <style>{`
-        @media (max-width: 1180px) { .pokemon-desktop-stack { display: none !important; } }
-        @media (max-width: 1180px) { .pokemon-desktop-sidebar { display: none !important; } }
+        @media (max-width: 760px) { .pokemon-desktop-stack { display: none !important; } }
+        @media (max-width: 760px) { .pokemon-desktop-sidebar { display: none !important; } }
         .pokemon-desktop-stack { scrollbar-width: none; -ms-overflow-style: none; }
         .pokemon-desktop-stack::-webkit-scrollbar { display: none; width: 0; height: 0; }
         .pokemon-desktop-sidebar button:hover { transform: translateY(-1px); }
@@ -3454,8 +3454,8 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
       flexDirection: "column"
     }}>
       <style>{`
-        @media (max-width: 1180px) { .music-library-desktop-sidebar { display: none !important; } }
-        @media (max-width: 1180px) {
+        @media (max-width: 760px) { .music-library-desktop-sidebar { display: none !important; } }
+        @media (max-width: 760px) {
           .fuits-online-indicator,
           .fuits-weather-panel,
           .fuits-schedule-panel { display: none !important; }
@@ -7457,12 +7457,12 @@ if (view === "gambling") {
       <style>{`
         :root { --flive-scale: 1; }
         @media (max-width: 1891px) {
-          :root { --flive-scale: clamp(.67, calc(100vw / 1892), 1); }
+          :root { --flive-scale: clamp(.48, min(calc(100vw / 1892), calc(100vh / 907)), 1); }
         }
         @media (min-width: 2100px) {
-          :root { --flive-scale: min(calc(100vw / 1892), 2.15); }
+          :root { --flive-scale: min(calc(100vw / 1892), calc(100vh / 907), 2.15); }
         }
-        @media (max-width: 1180px) { .flive-main-coins-ticker { display: none !important; } }
+        @media (max-width: 760px) { .flive-main-coins-ticker { display: none !important; } }
         @keyframes flive-main-coins-ticker-scroll {
           0% { transform: translateX(calc(100vw - (700px * var(--flive-scale, 1)))); }
           100% { transform: translateX(0); }

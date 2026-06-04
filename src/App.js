@@ -5614,6 +5614,17 @@ function AdminPage({ onClose }) {
     if (!query) return true;
     return `${video.relativePath || ""} ${video.fileName || ""}`.toLowerCase().includes(query);
   });
+  const adminPasswordRows = [
+    { label: "Admin Page", password: "FOOLIO" },
+    { label: "Owner Ban", password: "FOOLIO" },
+    { label: "Blacklist Page", password: "FOOLIO" },
+    { label: "Playlist Management", password: "FOOLIO" },
+    { label: "Video Repair", password: "FOOLIO" },
+    { label: "Stream Controls", password: "FOOLIO" },
+    { label: "Shuffle / Next / Back", password: "FOOLIO" },
+    { label: "Restart Controls", password: "FOOLIO" },
+    { label: "Crypto Admin", password: "FUCKNUTZ22!" }
+  ];
 
   if (unlocked) {
     return (
@@ -5624,38 +5635,43 @@ function AdminPage({ onClose }) {
         <div style={{ maxWidth: 1280, marginTop: 28, display: "grid", gap: 14 }}>
           <h1 style={{ margin: 0, fontSize: 32, fontWeight: 1000, letterSpacing: .4 }}>ADMIN</h1>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,380px),1fr))", gap: 14, alignItems: "start" }}>
-            <section style={sectionStyle}>
-              <h2 style={sectionTitleStyle}>CONTROLS</h2>
-              <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                  <div>
-                    <div style={controlLabelStyle}>VIDEO CONTROL</div>
-                    <div style={{ color: "#f8fafc", fontSize: 18, fontWeight: 1000 }}>All Stream Chunk Size</div>
+            <div style={{ display: "grid", gap: 14 }}>
+              <section style={sectionStyle}>
+                <h2 style={sectionTitleStyle}>CONTROLS</h2>
+                <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                    <div>
+                      <div style={controlLabelStyle}>VIDEO CONTROL</div>
+                      <div style={{ color: "#f8fafc", fontSize: 18, fontWeight: 1000 }}>All Stream Chunk Size</div>
+                    </div>
+                    <div style={{ color: "#67e8f9", fontSize: 22, fontWeight: 1000 }}>{videoChunkMb} MB</div>
                   </div>
-                  <div style={{ color: "#67e8f9", fontSize: 22, fontWeight: 1000 }}>{videoChunkMb} MB</div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="16"
+                    step="1"
+                    value={videoChunkMb}
+                    onChange={event => setVideoChunkMb(Number(event.target.value))}
+                    style={{ width: "100%", accentColor: "#67e8f9" }}
+                  />
+                  <div style={{ display: "flex", justifyContent: "space-between", color: "#94a3b8", fontSize: 12, fontWeight: 900 }}>
+                    <span>1 MB</span>
+                    <span>16 MB</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={saveVideoChunkSize}
+                    style={{ ...adminButtonStyle, width: "fit-content" }}
+                  >
+                    Save Video Control
+                  </button>
+                  <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 800 }}>{videoChunkStatus}</div>
                 </div>
-                <input
-                  type="range"
-                  min="1"
-                  max="16"
-                  step="1"
-                  value={videoChunkMb}
-                  onChange={event => setVideoChunkMb(Number(event.target.value))}
-                  style={{ width: "100%", accentColor: "#67e8f9" }}
-                />
-                <div style={{ display: "flex", justifyContent: "space-between", color: "#94a3b8", fontSize: 12, fontWeight: 900 }}>
-                  <span>1 MB</span>
-                  <span>16 MB</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={saveVideoChunkSize}
-                  style={{ ...adminButtonStyle, width: "fit-content" }}
-                >
-                  Save Video Control
-                </button>
-                <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 800 }}>{videoChunkStatus}</div>
-                <div style={{ borderTop: "1px solid rgba(148,163,184,.22)", marginTop: 8, paddingTop: 14, display: "grid", gap: 10 }}>
+              </section>
+              <section style={sectionStyle}>
+                <h2 style={sectionTitleStyle}>WHITELIST / BLACKLIST</h2>
+                <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
                   <div>
                     <div style={controlLabelStyle}>ACCESS CONTROL</div>
                     <div style={{ color: "#f8fafc", fontSize: 18, fontWeight: 1000 }}>Whitelist / Blacklist IPs + Devices</div>
@@ -5686,8 +5702,8 @@ function AdminPage({ onClose }) {
                     {renderAccessControlList("WHITELISTED DEVICES", "whitelistDevice", accessControl.whitelistDevices)}
                   </div>
                 </div>
-              </div>
-            </section>
+              </section>
+            </div>
             <section style={sectionStyle}>
               <h2 style={sectionTitleStyle}>PLAYLIST MANAGEMENT</h2>
               <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
@@ -5790,6 +5806,17 @@ function AdminPage({ onClose }) {
                   Showing {Math.min(playlistAvailableVideos.length, 250)} of {playlistAvailableVideos.length} matching videos.
                 </div>
               </div>
+              </div>
+            </section>
+            <section style={sectionStyle}>
+              <h2 style={sectionTitleStyle}>ADMIN PASSWORDS</h2>
+              <div style={{ marginTop: 16, display: "grid", gap: 8 }}>
+                {adminPasswordRows.map(row => (
+                  <div key={row.label} style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "minmax(130px,1fr) auto", gap: 10, alignItems: "center" }}>
+                    <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>{row.label}</div>
+                    <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 1000, overflowWrap: "anywhere", textAlign: "right" }}>{row.password}</div>
+                  </div>
+                ))}
               </div>
             </section>
           </div>

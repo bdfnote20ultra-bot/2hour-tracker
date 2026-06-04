@@ -7591,27 +7591,27 @@ if (view === "gambling") {
       {view === "week" && (
         <>
           {[
-            { label: "ADMIN", nextView: "admin", top: 24 },
-            { label: "GAMBLING", nextView: "gambling", top: 68 },
-            { label: "CRYPTO + NFTS", nextView: "cryptoNfts", top: 112 },
-            { label: "NEWS", nextView: "news", top: 156 },
-            { label: "DISCOUNTS", nextView: "discounts", top: 200 },
-            { label: "AVAILABLE RESIDENCE", nextView: "availableResidence", top: 244 },
-            { label: "EMERGENCY PLANNING!", nextView: "emergencyPlanning", top: 288 },
-            { label: "FAMILY HUB", nextView: "familyHub", top: 332 },
-            { label: "PROGRAMMING", nextView: "programming", top: 376 },
-            { label: "HOUSING + LAND FOR SALE", nextView: "housingLandForSale", top: 420 },
-            { label: "RADIO + COMMUNICATION", nextView: "radioCommunication", top: 464 },
-            { label: "JOBS BOARD", nextView: "jobsBoard", top: 508 },
-            { label: "SPIRITUALISM", nextView: "spiritualism", top: 552 },
-            { label: "SCIENCE", nextView: "science", top: 596 },
-            { label: "USER REQUEST & UPLOADS", nextView: "userRequestsUploads", top: 640 },
-            { label: "ITEMS / SERVICES FOR SALE", nextView: "itemsServicesForSale", top: 684 },
-            { label: "FOOD AND COOKING", nextView: "foodCooking", top: 728 },
-            { label: "DISPATCHING", nextView: "dispatching", top: 772 },
-            { label: "SYSTEM UPGRADES", nextView: "systemUpgrades", top: 816 },
-            { label: "CARD + COIN COLLECTING", nextView: "cardCoinCollecting", top: 860 },
-            { label: "EXIT THE MATRIX", nextView: "exitMatrix", top: 904 }
+            { label: "ADMIN", nextView: "admin", top: 12 },
+            { label: "GAMBLING", nextView: "gambling", top: 52.6 },
+            { label: "CRYPTO + NFTS", nextView: "cryptoNfts", top: 93.2 },
+            { label: "NEWS", nextView: "news", top: 133.8 },
+            { label: "DISCOUNTS", nextView: "discounts", top: 174.4 },
+            { label: "AVAILABLE RESIDENCE", nextView: "availableResidence", top: 215 },
+            { label: "EMERGENCY PLANNING!", nextView: "emergencyPlanning", top: 255.6 },
+            { label: "FAMILY HUB", nextView: "familyHub", top: 296.2 },
+            { label: "PROGRAMMING", nextView: "programming", top: 336.8 },
+            { label: "HOUSING + LAND FOR SALE", nextView: "housingLandForSale", top: 377.4 },
+            { label: "RADIO + COMMUNICATION", nextView: "radioCommunication", top: 418 },
+            { label: "JOBS BOARD", nextView: "jobsBoard", top: 458.6 },
+            { label: "SPIRITUALISM", nextView: "spiritualism", top: 499.2 },
+            { label: "SCIENCE", nextView: "science", top: 539.8 },
+            { label: "USER REQUEST & UPLOADS", nextView: "userRequestsUploads", top: 580.4 },
+            { label: "ITEMS / SERVICES FOR SALE", nextView: "itemsServicesForSale", top: 621 },
+            { label: "FOOD AND COOKING", nextView: "foodCooking", top: 661.6 },
+            { label: "DISPATCHING", nextView: "dispatching", top: 702.2 },
+            { label: "SYSTEM UPGRADES", nextView: "systemUpgrades", top: 742.8 },
+            { label: "CARD + COIN COLLECTING", nextView: "cardCoinCollecting", top: 783.4 },
+            { label: "EXIT THE MATRIX", nextView: "exitMatrix", top: 824 }
           ].map(link => (
             <div key={link.nextView || link.label}>
               <button

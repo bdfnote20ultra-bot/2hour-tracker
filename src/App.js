@@ -7499,22 +7499,22 @@ if (view === "gambling") {
             --flive-menu-text-scale: .62;
             --flive-tv-width-scale: 1.12;
             --flive-tv-content-scale: .70;
-            --flive-info-right-scale: 1.32;
+            --flive-info-right-scale: 1.58;
             --flive-info-width-scale: 1.16;
             --flive-info-content-scale: .82;
-            --flive-schedule-right-scale: 1.30;
+            --flive-schedule-right-scale: 1.56;
             --flive-schedule-width-scale: 1.12;
             --flive-schedule-content-scale: .82;
           }
         }
         @media (max-width: 1180px) and (max-height: 760px) {
-          :root { --flive-scale: .40; --flive-panel-content-scale: .68; --flive-gaming-scale: .36; --flive-gaming-content-scale: .58; --flive-menu-text-scale: .58; --flive-tv-width-scale: 1.10; --flive-tv-content-scale: .68; --flive-info-right-scale: 1.28; --flive-info-width-scale: 1.14; --flive-info-content-scale: .80; --flive-schedule-right-scale: 1.26; --flive-schedule-width-scale: 1.10; --flive-schedule-content-scale: .80; }
+          :root { --flive-scale: .40; --flive-panel-content-scale: .68; --flive-gaming-scale: .36; --flive-gaming-content-scale: .58; --flive-menu-text-scale: .58; --flive-tv-width-scale: 1.10; --flive-tv-content-scale: .68; --flive-info-right-scale: 1.52; --flive-info-width-scale: 1.14; --flive-info-content-scale: .80; --flive-schedule-right-scale: 1.50; --flive-schedule-width-scale: 1.10; --flive-schedule-content-scale: .80; }
         }
         @media (max-width: 980px) and (max-height: 760px) {
-          :root { --flive-scale: .36; --flive-panel-content-scale: .66; --flive-gaming-scale: .32; --flive-gaming-content-scale: .56; --flive-menu-text-scale: .54; --flive-tv-width-scale: 1.08; --flive-tv-content-scale: .66; --flive-info-right-scale: 1.24; --flive-info-width-scale: 1.12; --flive-info-content-scale: .78; --flive-schedule-right-scale: 1.22; --flive-schedule-width-scale: 1.08; --flive-schedule-content-scale: .78; }
+          :root { --flive-scale: .36; --flive-panel-content-scale: .66; --flive-gaming-scale: .32; --flive-gaming-content-scale: .56; --flive-menu-text-scale: .54; --flive-tv-width-scale: 1.08; --flive-tv-content-scale: .66; --flive-info-right-scale: 1.46; --flive-info-width-scale: 1.12; --flive-info-content-scale: .78; --flive-schedule-right-scale: 1.44; --flive-schedule-width-scale: 1.08; --flive-schedule-content-scale: .78; }
         }
         @media (max-width: 820px) and (max-height: 760px) {
-          :root { --flive-scale: .30; --flive-panel-content-scale: .64; --flive-gaming-scale: .28; --flive-gaming-content-scale: .54; --flive-menu-text-scale: .48; --flive-tv-width-scale: 1.06; --flive-tv-content-scale: .64; --flive-info-right-scale: 1.20; --flive-info-width-scale: 1.10; --flive-info-content-scale: .76; --flive-schedule-right-scale: 1.18; --flive-schedule-width-scale: 1.06; --flive-schedule-content-scale: .76; }
+          :root { --flive-scale: .30; --flive-panel-content-scale: .64; --flive-gaming-scale: .28; --flive-gaming-content-scale: .54; --flive-menu-text-scale: .48; --flive-tv-width-scale: 1.06; --flive-tv-content-scale: .64; --flive-info-right-scale: 1.38; --flive-info-width-scale: 1.10; --flive-info-content-scale: .76; --flive-schedule-right-scale: 1.36; --flive-schedule-width-scale: 1.06; --flive-schedule-content-scale: .76; }
         }
         @media (min-width: 2100px) {
           :root { --flive-scale: min(calc(100vw / 1892), calc(100vh / 907), 2.15); }

@@ -2755,7 +2755,7 @@ const fetchFuitsLiveOnlineStats = async (baseUrl, extraParams = {}) => {
   throw new Error("online stats unavailable");
 };
 
-function MusicLibrarySidebar({ accentColor, loggedInUsername, onLogout }) {
+function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = [], onLogout }) {
   const fuitsLiveTvChannelUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
   const [musicLibrary, setMusicLibrary] = useState(MUSIC_LIBRARY);
   const [activeGenre, setActiveGenre] = useState("Other");
@@ -2788,6 +2788,10 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, onLogout }) {
   const adultSwimFrameRef = useRef(null);
   const fuitsLiveTvPlayerRef = useRef(null);
   const fuitsScheduleDataRef = useRef(null);
+  const loggedInUserProfile = approvedUsers.find(user =>
+    (user.username || "").toUpperCase() === String(loggedInUsername || "").toUpperCase()
+  );
+  const loggedInProfilePicture = loggedInUserProfile?.profilePicture || "";
   useEffect(() => {
     const handleFuitsBlankPage = event => {
       if (event.data?.type !== "FUITS_SITE_BLANKED") return;
@@ -3571,8 +3575,24 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, onLogout }) {
           borderBottom: "1px solid rgba(148,163,184,.18)",
           paddingBottom: 8
         }}>
-          <div style={{ color: "#bbf7d0", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", overflowWrap: "anywhere" }}>
-            {loggedInUsername || "User"} is currently logged in
+          <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0, color: "#bbf7d0", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", overflowWrap: "anywhere" }}>
+            <div style={{
+              width: 24,
+              height: 24,
+              borderRadius: "50%",
+              border: "1px solid rgba(187,247,208,.62)",
+              background: loggedInProfilePicture ? `center / cover no-repeat url(${loggedInProfilePicture})` : "rgba(20,83,45,.72)",
+              color: "#bbf7d0",
+              display: "grid",
+              placeItems: "center",
+              flexShrink: 0,
+              fontSize: 9,
+              fontWeight: 1000,
+              overflow: "hidden"
+            }}>
+              {!loggedInProfilePicture && String(loggedInUsername || "U").slice(0, 1)}
+            </div>
+            <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>{loggedInUsername || "User"} logged in</span>
           </div>
           <button
             type="button"
@@ -7322,7 +7342,7 @@ if (view === "gambling") {
           </div>
         </>
       )}
-      {view === "week" && <MusicLibrarySidebar accentColor={accentColor} loggedInUsername={loggedInUsername} onLogout={logoutUser} />}
+      {view === "week" && <MusicLibrarySidebar accentColor={accentColor} loggedInUsername={loggedInUsername} approvedUsers={approvedUsers} onLogout={logoutUser} />}
       <div style={{ minHeight: "100vh", background: pageBackground, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed", fontFamily: theme.font, maxWidth: 480, margin: "0 auto", color: appTextColor, transition: "background 0.25s ease, color 0.25s ease", position: "relative", zIndex: 5 }}>
       {activeMusicSrc && <audio ref={musicRef} src={activeMusicSrc} loop playsInline onPlay={() => setIsMusicPlaying(true)} onPause={() => setIsMusicPlaying(false)} onEnded={() => setIsMusicPlaying(false)} />}
       {inAppBrowserOpen && (

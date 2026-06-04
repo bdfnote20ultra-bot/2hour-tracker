@@ -6301,7 +6301,9 @@ function LoginPage({ onLogin }) {
 }
 
 export default function App() {
-  const [loggedInUsername, setLoggedInUsername] = useState("");
+  const [loggedInUsername, setLoggedInUsername] = useState(() => {
+    try { return localStorage.getItem("fuitsLoggedInUsername") || ""; } catch { return ""; }
+  });
   const [weekOffset, setWeekOffset] = useState(0);
   const [entries, setEntries] = useState(loadData);
   const [editingDay, setEditingDay] = useState(null);
@@ -6371,10 +6373,12 @@ export default function App() {
   const loginUser = username => {
     const cleanUsername = username || "MASTER";
     setLoggedInUsername(cleanUsername);
+    try { localStorage.setItem("fuitsLoggedInUsername", cleanUsername); } catch {}
   };
   const logoutUser = () => {
     setLoggedInUsername("");
     setView("week");
+    try { localStorage.removeItem("fuitsLoggedInUsername"); } catch {}
   };
 
   const miniStatValueStyle = {

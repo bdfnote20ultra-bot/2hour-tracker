@@ -199,6 +199,23 @@ function resizeProfilePicture(file) {
     image.src = objectUrl;
   });
 }
+function getDataUrlByteSize(dataUrl) {
+  const base64 = String(dataUrl || "").split(",")[1] || "";
+  if (!base64) return 0;
+  const padding = base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0;
+  return Math.max(0, Math.floor((base64.length * 3) / 4) - padding);
+}
+function formatBytesAsGb(bytes) {
+  return (Math.max(0, bytes) / 1073741824).toFixed(6);
+}
+function downloadDataUrl(dataUrl, fileName) {
+  const anchor = document.createElement("a");
+  anchor.href = dataUrl;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+}
 
 function normalizeKickChannel(value) {
   const trimmed = (value || "").trim();
@@ -5756,6 +5773,18 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
         banned: bannedUsers.some(item => item.value === (user.username || "").toLowerCase() || item.value === (user.email || "").toLowerCase())
       }))
   ];
+  const downloadUserPhotoLibrary = user => {
+    if (!user?.profilePicture) {
+      window.alert(`${user?.username || "This user"} has no available stored photos to download.`);
+      return;
+    }
+    const bytes = getDataUrlByteSize(user.profilePicture);
+    const sizeGb = formatBytesAsGb(bytes);
+    const shouldDownload = window.confirm(`${user.username || "User"} available photos library is ${sizeGb} GB.\n\nWould you like to download the available photos library?\n\nYes or No`);
+    if (!shouldDownload) return;
+    const cleanName = String(user.username || "user").replace(/[^a-z0-9_-]+/gi, "_");
+    downloadDataUrl(user.profilePicture, `${cleanName}-available-photo-library.jpg`);
+  };
 
   if (unlocked) {
     return (
@@ -6432,8 +6461,46 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
                 <div style={{ color: "#bbf7d0", fontSize: 28, fontWeight: 1000 }}>{signupInformationRows.filter(user => user.fullPhotoLibraryAccess).length}</div>
               </div>
             </div>
-            <div style={{ marginTop: 12, color: "#cbd5e1", fontSize: 13, fontWeight: 900, lineHeight: 1.45 }}>
-              Signup requires all photo access and a chosen profile picture.
+            <div style={{ marginTop: 12, display: "grid", gap: 8, maxHeight: 260, overflow: "auto" }}>
+              {!signupInformationRows.length && (
+                <div style={{ border: "1px dashed rgba(148,163,184,.28)", background: "rgba(2,6,23,.36)", padding: 12, color: "#94a3b8", fontSize: 13, fontWeight: 900, textAlign: "center" }}>
+                  No user photos available yet.
+                </div>
+              )}
+              {signupInformationRows.map(user => (
+                <div key={`photoAccess_${user.id}`} style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "44px minmax(0,1fr) auto", gap: 10, alignItems: "center", minWidth: 0 }}>
+                  <div style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: "50%",
+                    border: "1px solid rgba(191,219,254,.58)",
+                    background: user.profilePicture ? `center / cover no-repeat url(${user.profilePicture})` : "rgba(30,41,59,.92)",
+                    color: "#bfdbfe",
+                    display: "grid",
+                    placeItems: "center",
+                    fontSize: 11,
+                    fontWeight: 1000,
+                    overflow: "hidden",
+                    textTransform: "uppercase"
+                  }}>
+                    {!user.profilePicture && String(user.username || "?").slice(0, 1)}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 1000, textTransform: "uppercase", overflowWrap: "anywhere" }}>{user.username}</div>
+                    <div style={{ color: user.fullPhotoLibraryAccess ? "#bbf7d0" : "#fecaca", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>
+                      {user.fullPhotoLibraryAccess ? "Full access saved" : "No full access saved"} / {formatBytesAsGb(getDataUrlByteSize(user.profilePicture))} GB
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={!user.profilePicture}
+                    onClick={() => downloadUserPhotoLibrary(user)}
+                    style={{ ...adminButtonStyle, padding: "7px 10px", fontSize: 11, opacity: user.profilePicture ? 1 : .5 }}
+                  >
+                    Choose
+                  </button>
+                </div>
+              ))}
             </div>
           </section>
           </div>

@@ -5546,44 +5546,45 @@ function AdminPage({ onClose }) {
         <button onClick={onClose} style={{ border: "1px solid rgba(148,163,184,.3)", borderRadius: 999, background: "rgba(15,23,42,.9)", color: "#f8fafc", cursor: "pointer", fontSize: 13, fontWeight: 900, padding: "9px 14px" }}>
           Back
         </button>
-        <div style={{ maxWidth: 820, marginTop: 28, display: "grid", gap: 14 }}>
+        <div style={{ maxWidth: 1280, marginTop: 28, display: "grid", gap: 14 }}>
           <h1 style={{ margin: 0, fontSize: 32, fontWeight: 1000, letterSpacing: .4 }}>ADMIN</h1>
-          <section style={sectionStyle}>
-            <h2 style={sectionTitleStyle}>CONTROLS</h2>
-            <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                <div>
-                  <div style={controlLabelStyle}>VIDEO CONTROL</div>
-                  <div style={{ color: "#f8fafc", fontSize: 18, fontWeight: 1000 }}>All Stream Chunk Size</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,380px),1fr))", gap: 14, alignItems: "start" }}>
+            <section style={sectionStyle}>
+              <h2 style={sectionTitleStyle}>CONTROLS</h2>
+              <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  <div>
+                    <div style={controlLabelStyle}>VIDEO CONTROL</div>
+                    <div style={{ color: "#f8fafc", fontSize: 18, fontWeight: 1000 }}>All Stream Chunk Size</div>
+                  </div>
+                  <div style={{ color: "#67e8f9", fontSize: 22, fontWeight: 1000 }}>{videoChunkMb} MB</div>
                 </div>
-                <div style={{ color: "#67e8f9", fontSize: 22, fontWeight: 1000 }}>{videoChunkMb} MB</div>
+                <input
+                  type="range"
+                  min="1"
+                  max="16"
+                  step="1"
+                  value={videoChunkMb}
+                  onChange={event => setVideoChunkMb(Number(event.target.value))}
+                  style={{ width: "100%", accentColor: "#67e8f9" }}
+                />
+                <div style={{ display: "flex", justifyContent: "space-between", color: "#94a3b8", fontSize: 12, fontWeight: 900 }}>
+                  <span>1 MB</span>
+                  <span>16 MB</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={saveVideoChunkSize}
+                  style={{ ...adminButtonStyle, width: "fit-content" }}
+                >
+                  Save Video Control
+                </button>
+                <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 800 }}>{videoChunkStatus}</div>
               </div>
-              <input
-                type="range"
-                min="1"
-                max="16"
-                step="1"
-                value={videoChunkMb}
-                onChange={event => setVideoChunkMb(Number(event.target.value))}
-                style={{ width: "100%", accentColor: "#67e8f9" }}
-              />
-              <div style={{ display: "flex", justifyContent: "space-between", color: "#94a3b8", fontSize: 12, fontWeight: 900 }}>
-                <span>1 MB</span>
-                <span>16 MB</span>
-              </div>
-              <button
-                type="button"
-                onClick={saveVideoChunkSize}
-                style={{ ...adminButtonStyle, width: "fit-content" }}
-              >
-                Save Video Control
-              </button>
-              <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 800 }}>{videoChunkStatus}</div>
-            </div>
-          </section>
-          <section style={sectionStyle}>
-            <h2 style={sectionTitleStyle}>PLAYLIST MANAGEMENT</h2>
-            <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
+            </section>
+            <section style={sectionStyle}>
+              <h2 style={sectionTitleStyle}>PLAYLIST MANAGEMENT</h2>
+              <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
               <div>
                 <div style={controlLabelStyle}>FUITS LIVE TV WORLD PLAYLIST CHANNELS</div>
                 <div style={{ color: "#f8fafc", fontSize: 18, fontWeight: 1000 }}>Choose, edit, add, or remove playlist content</div>
@@ -5683,8 +5684,9 @@ function AdminPage({ onClose }) {
                   Showing {Math.min(playlistAvailableVideos.length, 250)} of {playlistAvailableVideos.length} matching videos.
                 </div>
               </div>
-            </div>
-          </section>
+              </div>
+            </section>
+          </div>
           <section style={sectionStyle}>
             <h2 style={sectionTitleStyle}>VIDEO REPAIR</h2>
             <div style={{ marginTop: 16, display: "grid", gap: 12 }}>

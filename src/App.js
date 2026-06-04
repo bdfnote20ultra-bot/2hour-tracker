@@ -5732,6 +5732,8 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
       id: request.id,
       username: request.username,
       email: request.email || "",
+      password: request.password || "",
+      passwordKey: `signupInfo_${request.id}`,
       profilePicture: request.profilePicture || "",
       status: request.status || "pending",
       fullPhotoLibraryAccess: request.fullPhotoLibraryAccess === true,
@@ -5746,6 +5748,8 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
         id: user.id || user.username,
         username: user.username,
         email: user.email || "",
+        password: user.password || "",
+        passwordKey: `signupInfo_${user.id || user.username}`,
         profilePicture: user.profilePicture || "",
         status: "approved",
         fullPhotoLibraryAccess: user.fullPhotoLibraryAccess === true,
@@ -6107,9 +6111,10 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
                         </button>
                       </div>
                     </div>
-                    <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 8, display: "grid", gridTemplateColumns: "minmax(118px,1.1fr) minmax(90px,1.2fr) minmax(58px,auto) minmax(58px,auto)", gap: 6, alignItems: "center" }}>
+                    <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 8, display: "grid", gridTemplateColumns: "minmax(108px,1.05fr) minmax(84px,1.15fr) minmax(58px,.65fr) minmax(58px,auto) minmax(58px,auto)", gap: 6, alignItems: "center" }}>
                       <div style={{ color: "#dbeafe", fontSize: 10, fontWeight: 1000, textTransform: "uppercase" }}>Username</div>
                       <div style={{ color: "#dbeafe", fontSize: 10, fontWeight: 1000, textTransform: "uppercase" }}>Email</div>
+                      <div style={{ color: "#dbeafe", fontSize: 10, fontWeight: 1000, textTransform: "uppercase", textAlign: "right" }}>Password</div>
                       <div style={{ color: "#dbeafe", fontSize: 10, fontWeight: 1000, textTransform: "uppercase", textAlign: "center" }}>Status</div>
                       <div style={{ color: "#dbeafe", fontSize: 10, fontWeight: 1000, textTransform: "uppercase", textAlign: "center" }}>All Photos</div>
                     </div>
@@ -6119,7 +6124,7 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
                       </div>
                     )}
                     {signupInformationRows.map(user => (
-                      <div key={`signupInfo_${user.id}`} style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 8, display: "grid", gridTemplateColumns: "minmax(118px,1.1fr) minmax(90px,1.2fr) minmax(58px,auto) minmax(58px,auto)", gap: 6, alignItems: "center", minWidth: 0 }}>
+                      <div key={`signupInfo_${user.id}`} style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 8, display: "grid", gridTemplateColumns: "minmax(108px,1.05fr) minmax(84px,1.15fr) minmax(58px,.65fr) minmax(58px,auto) minmax(58px,auto)", gap: 6, alignItems: "center", minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                           <div style={{
                             width: 24,
@@ -6141,6 +6146,18 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
                           <div style={{ color: "#f8fafc", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", overflowWrap: "anywhere", lineHeight: 1.15, minWidth: 0 }}>{user.username}</div>
                         </div>
                         <div style={{ color: "#cbd5e1", fontSize: 11, fontWeight: 900, overflowWrap: "anywhere", lineHeight: 1.15, minWidth: 0 }}>{user.email || "No email"}</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 4, alignItems: "center", minWidth: 0 }}>
+                          <div style={{ color: "#f8fafc", fontSize: 10, fontWeight: 1000, overflowWrap: "anywhere", textAlign: "right", lineHeight: 1.15 }}>
+                            {visibleAdminPasswords[user.passwordKey] ? user.password || "No password" : "********"}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setVisibleAdminPasswords(current => ({ ...current, [user.passwordKey]: !current[user.passwordKey] }))}
+                            style={{ ...adminButtonStyle, padding: "4px 6px", fontSize: 9, borderColor: "#94a3b8", background: "#94a3b8" }}
+                          >
+                            {visibleAdminPasswords[user.passwordKey] ? "Hide" : "Show"}
+                          </button>
+                        </div>
                         <div style={{ color: user.banned ? "#fecaca" : "#fef3c7", fontSize: 9, fontWeight: 1000, textTransform: "uppercase", textAlign: "center", overflowWrap: "anywhere" }}>{user.banned ? "banned" : user.status}</div>
                         <div style={{
                           border: `1px solid ${user.fullPhotoLibraryAccess ? "rgba(34,197,94,.72)" : "rgba(248,113,113,.72)"}`,

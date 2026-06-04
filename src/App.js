@@ -2711,7 +2711,7 @@ const fetchFuitsLiveOnlineStats = async (baseUrl, extraParams = {}) => {
   throw new Error("online stats unavailable");
 };
 
-function MusicLibrarySidebar({ accentColor }) {
+function MusicLibrarySidebar({ accentColor, loggedInUsername, onLogout }) {
   const fuitsLiveTvChannelUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
   const [musicLibrary, setMusicLibrary] = useState(MUSIC_LIBRARY);
   const [activeGenre, setActiveGenre] = useState("Other");
@@ -3519,6 +3519,35 @@ function MusicLibrarySidebar({ accentColor }) {
         display: "grid",
         gap: 8
       }}>
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 10,
+          borderBottom: "1px solid rgba(148,163,184,.18)",
+          paddingBottom: 8
+        }}>
+          <div style={{ color: "#bbf7d0", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", overflowWrap: "anywhere" }}>
+            {loggedInUsername || "User"} is currently logged in
+          </div>
+          <button
+            type="button"
+            onClick={onLogout}
+            style={{
+              border: "1px solid rgba(248,113,113,.78)",
+              borderRadius: 8,
+              background: "rgba(127,29,29,.78)",
+              color: "#fee2e2",
+              cursor: "pointer",
+              fontSize: 10,
+              fontWeight: 1000,
+              padding: "6px 8px",
+              textTransform: "uppercase"
+            }}
+          >
+            Logout
+          </button>
+        </div>
         <div style={{
           display: "grid",
           gap: 5,
@@ -5625,6 +5654,7 @@ function AdminPage({ onClose }) {
     { label: "Shuffle / Next / Back", password: "FOOLIO" },
     { label: "Restart Controls", password: "FOOLIO" },
     { label: "Owner Everyone Ban", password: "fukuu" },
+    { label: "Master Site Login", password: "MASTER / FartAss!1" },
     { label: "Crypto Admin", password: "FUCKNUTZ22!" }
   ];
 
@@ -6159,7 +6189,109 @@ function ProjectDropdown({ projects, activeId, onSelect, onManage }) {
   );
 }
 
+function LoginPage({ onLogin }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const submitLogin = event => {
+    event.preventDefault();
+    const cleanUsername = username.trim();
+    if (cleanUsername.toUpperCase() === "MASTER" && password === "FartAss!1") {
+      setError("");
+      onLogin("MASTER");
+      return;
+    }
+    setError("Login not approved yet.");
+  };
+
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: "linear-gradient(135deg, #020617, #082f49 52%, #111827)",
+      color: "#f8fafc",
+      fontFamily: "system-ui, sans-serif",
+      display: "grid",
+      placeItems: "center",
+      padding: 22,
+      boxSizing: "border-box"
+    }}>
+      <form onSubmit={submitLogin} style={{
+        width: "min(100%, 430px)",
+        border: "2px solid rgba(96,165,250,.72)",
+        background: "rgba(2,6,23,.9)",
+        boxShadow: "0 24px 70px rgba(0,0,0,.48)",
+        padding: 22,
+        display: "grid",
+        gap: 14
+      }}>
+        <h1 style={{ margin: 0, color: "#fef08a", fontSize: 28, fontWeight: 1000, lineHeight: 1.08, textTransform: "uppercase" }}>
+          Welcome to FUITS Live TV + Internet Center
+        </h1>
+        <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 900, textTransform: "uppercase" }}>Login</div>
+        <input
+          value={username}
+          onChange={event => setUsername(event.target.value)}
+          placeholder="Username"
+          autoComplete="username"
+          style={{
+            border: "1px solid rgba(148,163,184,.38)",
+            borderRadius: 8,
+            background: "rgba(15,23,42,.92)",
+            color: "#f8fafc",
+            fontSize: 15,
+            fontWeight: 900,
+            padding: "12px 13px"
+          }}
+        />
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 10 }}>
+          <input
+            type="password"
+            value={password}
+            onChange={event => setPassword(event.target.value)}
+            placeholder="Password"
+            autoComplete="current-password"
+            style={{
+              border: "1px solid rgba(148,163,184,.38)",
+              borderRadius: 8,
+              background: "rgba(15,23,42,.92)",
+              color: "#f8fafc",
+              fontSize: 15,
+              fontWeight: 900,
+              padding: "12px 13px",
+              minWidth: 0
+            }}
+          />
+          <button type="submit" style={{
+            border: "1px solid #67e8f9",
+            borderRadius: 8,
+            background: "#67e8f9",
+            color: "#020617",
+            cursor: "pointer",
+            fontSize: 13,
+            fontWeight: 1000,
+            padding: "12px 14px",
+            textTransform: "uppercase"
+          }}>
+            Sign In
+          </button>
+        </div>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
+          <button type="button" onClick={() => alert("Signup requests will be added in the next step.")} style={{ border: "none", background: "transparent", color: "#bfdbfe", cursor: "pointer", fontSize: 13, fontWeight: 1000, padding: 0 }}>
+            Sign Up
+          </button>
+          <button type="button" onClick={() => alert("Forgot password recovery will be added later.")} style={{ border: "none", background: "transparent", color: "#bfdbfe", cursor: "pointer", fontSize: 13, fontWeight: 1000, padding: 0 }}>
+            Forget Password
+          </button>
+        </div>
+        {error && <div style={{ color: "#fecaca", fontSize: 13, fontWeight: 900 }}>{error}</div>}
+      </form>
+    </div>
+  );
+}
+
 export default function App() {
+  const [loggedInUsername, setLoggedInUsername] = useState("");
   const [weekOffset, setWeekOffset] = useState(0);
   const [entries, setEntries] = useState(loadData);
   const [editingDay, setEditingDay] = useState(null);
@@ -6226,6 +6358,15 @@ export default function App() {
   const statValueStyle = {
     fontSize: 24, fontWeight: 900, color: statValueColor, marginTop: 2, fontFamily: "Georgia, serif", textShadow: readableTextShadow
   };
+  const loginUser = username => {
+    const cleanUsername = username || "MASTER";
+    setLoggedInUsername(cleanUsername);
+  };
+  const logoutUser = () => {
+    setLoggedInUsername("");
+    setView("week");
+  };
+
   const miniStatValueStyle = {
     fontSize: 18, fontWeight: 900, color: statValueColor, marginTop: 2, fontFamily: "Georgia, serif", textShadow: readableTextShadow
   };
@@ -6346,6 +6487,10 @@ export default function App() {
     setIsMusicPlaying(false);
     setMusicNeedsTap(false);
   }, [activeMusicSrc]);
+
+  if (!loggedInUsername) {
+    return <LoginPage onLogin={loginUser} />;
+  }
 
   const toggleMusic = async () => {
     const audio = musicRef.current;
@@ -6705,7 +6850,7 @@ if (view === "gambling") {
           </div>
         </>
       )}
-      {view === "week" && <MusicLibrarySidebar accentColor={accentColor} />}
+      {view === "week" && <MusicLibrarySidebar accentColor={accentColor} loggedInUsername={loggedInUsername} onLogout={logoutUser} />}
       <div style={{ minHeight: "100vh", background: pageBackground, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed", fontFamily: theme.font, maxWidth: 480, margin: "0 auto", color: appTextColor, transition: "background 0.25s ease, color 0.25s ease", position: "relative", zIndex: 5 }}>
       {activeMusicSrc && <audio ref={musicRef} src={activeMusicSrc} loop playsInline onPlay={() => setIsMusicPlaying(true)} onPause={() => setIsMusicPlaying(false)} onEnded={() => setIsMusicPlaying(false)} />}
       {inAppBrowserOpen && (

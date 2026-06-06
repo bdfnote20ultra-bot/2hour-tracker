@@ -3729,6 +3729,9 @@ function pageHtml() {
       display: block;
       object-fit: contain;
     }
+    video::-webkit-media-controls-timeline {
+      pointer-events: none !important;
+    }
     .live-video {
       width: 100%;
       max-height: 72vh;
@@ -4121,8 +4124,8 @@ function pageHtml() {
       <div class="live">LIVE</div>
     </div>
     <div id="empty" class="empty" hidden>No MP4s found in the playlist yet.</div>
-    <video id="player" controls autoplay muted playsinline preload="auto"></video>
-    <video id="livePlayer" class="live-video" controls muted playsinline hidden></video>
+    <video id="player" controls controlsList="noplaybackrate nodownload noremoteplayback" disablePictureInPicture autoplay muted playsinline preload="auto"></video>
+    <video id="livePlayer" class="live-video" controls controlsList="noplaybackrate nodownload noremoteplayback" disablePictureInPicture muted playsinline hidden></video>
     <div class="now" id="now">Loading channel...</div>
     <div class="controls">
       <button id="unmuteButton" class="sound-button" type="button">Unmute</button>
@@ -4317,11 +4320,30 @@ function pageHtml() {
       }
     }
 
+    function setProgrammaticVideoTime(video, time) {
+      if (!video || !Number.isFinite(time)) return;
+      seekingLock = true;
+      try { video.currentTime = time; } catch {}
+      setTimeout(() => {
+        seekingLock = false;
+        rememberAllowedPlaybackTime(video);
+      }, 0);
+    }
+
     function blockSeekWhilePlaying(video) {
       const started = video === livePlayer ? livePlayerStarted : playerStarted;
       if (!video || !started || video.ended || seekingLock) return;
       const allowedTime = video === livePlayer ? lastAllowedLiveTime : lastAllowedPlayerTime;
-      if (Math.abs((Number(video.currentTime) || 0) - allowedTime) <= 1.5) return;
+      seekingLock = true;
+      try { video.currentTime = allowedTime; } catch {}
+      setTimeout(() => { seekingLock = false; }, 0);
+    }
+
+    function blockSeekedWhilePlaying(video) {
+      const started = video === livePlayer ? livePlayerStarted : playerStarted;
+      if (!video || !started || video.ended || seekingLock) return;
+      const allowedTime = video === livePlayer ? lastAllowedLiveTime : lastAllowedPlayerTime;
+      if (Math.abs((Number(video.currentTime) || 0) - allowedTime) <= 0.35) return;
       seekingLock = true;
       try { video.currentTime = allowedTime; } catch {}
       setTimeout(() => { seekingLock = false; }, 0);
@@ -4455,7 +4477,7 @@ function pageHtml() {
         const liveOffset = Math.max(0, Math.min(rawLiveOffset, Math.max(0, item.duration - 1.5)));
         const driftSeconds = player.currentTime - liveOffset;
         if (Math.abs(driftSeconds) > 1.75) {
-          player.currentTime = liveOffset;
+          setProgrammaticVideoTime(player, liveOffset);
           player.playbackRate = 1;
         } else {
           player.playbackRate = driftSeconds < -0.35 ? 1.08 : 1;
@@ -4741,12 +4763,14 @@ function pageHtml() {
     });
     player.addEventListener("timeupdate", () => { if (!seekingLock) rememberAllowedPlaybackTime(player); });
     player.addEventListener("seeking", () => blockSeekWhilePlaying(player));
+    player.addEventListener("seeked", () => blockSeekedWhilePlaying(player));
     livePlayer.addEventListener("playing", () => {
       livePlayerStarted = true;
       rememberAllowedPlaybackTime(livePlayer);
     });
     livePlayer.addEventListener("timeupdate", () => { if (!seekingLock) rememberAllowedPlaybackTime(livePlayer); });
     livePlayer.addEventListener("seeking", () => blockSeekWhilePlaying(livePlayer));
+    livePlayer.addEventListener("seeked", () => blockSeekedWhilePlaying(livePlayer));
     unmuteButton.addEventListener("click", unmutePlayer);
     nextButton.addEventListener("click", nextVideo);
     previousButton.addEventListener("click", previousVideo);

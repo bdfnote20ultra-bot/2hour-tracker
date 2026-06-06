@@ -2589,6 +2589,18 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     return Math.max(0, snapshotOffset + elapsedSinceSnapshot);
   }, [channel, channelId, currentItem, restartAnchor]);
 
+  const setProgrammaticVideoTime = useCallback((video, time) => {
+    if (!video || !Number.isFinite(time)) return;
+    seekingLockRef.current = true;
+    try {
+      video.currentTime = time;
+    } catch {}
+    window.setTimeout(() => {
+      seekingLockRef.current = false;
+      lastAllowedPlaybackTimeRef.current = Number(video.currentTime) || time;
+    }, 0);
+  }, []);
+
   const syncVideoToLiveOffset = useCallback((force = false) => {
     const video = videoRef.current;
     if (!video || !channel || !currentItem || !Number.isFinite(video.duration)) return;
@@ -2606,7 +2618,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     const driftSeconds = video.currentTime - liveOffset;
     if (force || Math.abs(driftSeconds) > 1.75) {
       try {
-        video.currentTime = liveOffset;
+        setProgrammaticVideoTime(video, liveOffset);
         video.playbackRate = 1;
       } catch {
         setVideoError("Video loaded, but the stream could not seek. Try Next or restart the tunnel.");
@@ -2615,7 +2627,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     }
 
     video.playbackRate = driftSeconds < -0.35 ? 1.08 : 1;
-  }, [channel, currentItem, getLiveOffsetSeconds, videoSrc]);
+  }, [channel, currentItem, getLiveOffsetSeconds, setProgrammaticVideoTime, videoSrc]);
 
   useEffect(() => {
     if (!baseUrl) return;
@@ -2950,7 +2962,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     const video = videoRef.current;
     if (!video) return;
     try {
-      video.currentTime = 0;
+      setProgrammaticVideoTime(video, 0);
       syncedVideoSrcRef.current = videoSrc;
       if (currentItem) {
         const startedAtMs = Date.now();
@@ -3043,11 +3055,17 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                 max-height: none !important;
                 object-fit: fill !important;
               }
+              .fuits-video-shell video::-webkit-media-controls-timeline,
+              .fuits-video-shell-stretch video::-webkit-media-controls-timeline {
+                pointer-events: none !important;
+              }
             `}</style>
             <video
               ref={videoRef}
               src={videoSrc}
               controls
+              controlsList="noplaybackrate nodownload noremoteplayback"
+              disablePictureInPicture
               playsInline
               muted={playerMuted}
               autoPlay={!needsLargeVideoPreload}
@@ -3117,7 +3135,15 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                 const video = event.currentTarget;
                 const allowedTime = lastAllowedPlaybackTimeRef.current;
                 if (!video || !playbackStartedRef.current || video.ended || seekingLockRef.current) return;
-                if (Math.abs((Number(video.currentTime) || 0) - allowedTime) <= 1.5) return;
+                seekingLockRef.current = true;
+                try { video.currentTime = allowedTime; } catch {}
+                window.setTimeout(() => { seekingLockRef.current = false; }, 0);
+              }}
+              onSeeked={event => {
+                const video = event.currentTarget;
+                const allowedTime = lastAllowedPlaybackTimeRef.current;
+                if (!video || !playbackStartedRef.current || video.ended || seekingLockRef.current) return;
+                if (Math.abs((Number(video.currentTime) || 0) - allowedTime) <= 0.35) return;
                 seekingLockRef.current = true;
                 try { video.currentTime = allowedTime; } catch {}
                 window.setTimeout(() => { seekingLockRef.current = false; }, 0);

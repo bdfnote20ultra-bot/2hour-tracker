@@ -2551,6 +2551,8 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
   const lastAllowedPlaybackTimeRef = useRef(0);
   const seekingLockRef = useRef(false);
   const playbackStartedRef = useRef(false);
+  const channelSwitchPendingRef = useRef(false);
+  const previousChannelIdRef = useRef(channelId);
   const [preloadedLargeVideoKey, setPreloadedLargeVideoKey] = useState("");
   const autoPreloadKeyRef = useRef("");
   const [largePreloadProgress, setLargePreloadProgress] = useState(0);
@@ -2695,6 +2697,27 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
   }, [baseUrl, loadChannel]);
 
   useEffect(() => {
+    const channelChanged = previousChannelIdRef.current !== channelId;
+    previousChannelIdRef.current = channelId;
+    if (!channelChanged) return;
+
+    channelSwitchPendingRef.current = true;
+    transitionBufferPendingRef.current = false;
+    pendingTransitionStartRef.current = true;
+    syncedVideoSrcRef.current = "";
+    anchoredPlaybackKeyRef.current = "";
+    playbackStartedRef.current = false;
+    lastAllowedPlaybackTimeRef.current = 0;
+    refreshQueuedRef.current = false;
+    autoPreloadKeyRef.current = "";
+    setRestartAnchor(null);
+    setPlaybackLocked(false);
+    setVideoLoading(true);
+    setVideoError("");
+    loadChannel().catch(() => {});
+  }, [channelId, loadChannel]);
+
+  useEffect(() => {
     const video = videoRef.current;
     if (!video || !channel || !currentItem || !videoSrc || syncedVideoSrcRef.current === videoSrc) return;
 
@@ -2724,12 +2747,23 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     video.pause();
   }, [liveAnnouncementOnline]);
 
-  const playCurrentVideo = () => {
+  const playCurrentVideo = useCallback(() => {
     const video = videoRef.current;
     if (!video || !video.paused) return;
-    const playPromise = video.play();
-    if (playPromise?.catch) playPromise.catch(() => {});
-  };
+    const attemptPlay = allowMutedFallback => {
+      if (allowMutedFallback) {
+        video.muted = true;
+        setPlayerMuted(true);
+      }
+      const playPromise = video.play();
+      if (playPromise?.catch) {
+        playPromise.catch(() => {
+          if (!allowMutedFallback) attemptPlay(true);
+        });
+      }
+    };
+    attemptPlay(false);
+  }, []);
 
   const preloadLargeVideoFromTimestamp = useCallback(async () => {
     if (!currentItem || !videoSrc || !needsLargeVideoPreload || largePreloadActive) return;
@@ -2795,7 +2829,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     return 0;
   };
 
-  const playWhenBuffered = () => {
+  const playWhenBuffered = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
     const bufferSeconds = transitionBufferPendingRef.current
@@ -2808,7 +2842,17 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
       setVideoLoading(false);
       playCurrentVideo();
     }
-  };
+  }, [playCurrentVideo, startupBufferSeconds]);
+
+  const startChannelPlayback = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || !videoSrc || liveAnnouncementOnline) return;
+    syncVideoToLiveOffset(true);
+    syncedVideoSrcRef.current = videoSrc;
+    pendingTransitionStartRef.current = false;
+    playWhenBuffered();
+    playCurrentVideo();
+  }, [liveAnnouncementOnline, playCurrentVideo, playWhenBuffered, syncVideoToLiveOffset, videoSrc]);
 
   const showBufferingIfNeeded = () => {
     const video = videoRef.current;
@@ -2825,18 +2869,37 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     setVideoError("");
     setLargePreloadProgress(0);
     setPlaybackLocked(false);
-    if (syncedVideoSrcRef.current && syncedVideoSrcRef.current !== videoSrc) {
+    playbackStartedRef.current = false;
+    lastAllowedPlaybackTimeRef.current = 0;
+    anchoredPlaybackKeyRef.current = "";
+
+    if (channelSwitchPendingRef.current) {
+      channelSwitchPendingRef.current = false;
+      transitionBufferPendingRef.current = false;
+      pendingTransitionStartRef.current = true;
+    } else if (syncedVideoSrcRef.current && syncedVideoSrcRef.current !== videoSrc) {
       transitionBufferPendingRef.current = true;
       pendingTransitionStartRef.current = true;
     }
     syncedVideoSrcRef.current = "";
-    anchoredPlaybackKeyRef.current = "";
     video.muted = playerMuted;
     video.volume = playerVolume;
     video.preload = "auto";
     video.load();
-    if (video.readyState >= 1) playWhenBuffered();
-  }, [videoSrc]);
+
+    const handleReady = () => startChannelPlayback();
+
+    if (video.readyState >= 1) handleReady();
+    else {
+      video.addEventListener("loadedmetadata", handleReady, { once: true });
+      video.addEventListener("canplay", handleReady, { once: true });
+    }
+
+    return () => {
+      video.removeEventListener("loadedmetadata", handleReady);
+      video.removeEventListener("canplay", handleReady);
+    };
+  }, [videoSrc, playerMuted, playerVolume, startChannelPlayback]);
 
   useEffect(() => {
     if (!needsLargeVideoPreload || !largeVideoKey || largePreloadActive) return;

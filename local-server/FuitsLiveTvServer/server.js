@@ -4734,8 +4734,10 @@ function pageHtml() {
       localStorage.setItem("fuitsLiveTvChannel", channelId);
       currentItemId = null;
       currentItemSrc = null;
+      playerStarted = false;
+      lastAllowedPlayerTime = 0;
       updateChannelSelect();
-      syncChannel();
+      syncChannel({ autoplay: true });
     }
 
     async function handleMainPlayerEnded() {

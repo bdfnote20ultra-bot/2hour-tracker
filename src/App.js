@@ -2196,8 +2196,41 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
         .adult-relax-room-shell:-webkit-full-screen .adult-relax-slot-empty > div {
           height: 100%;
           padding: 10px !important;
-          align-content: center;
+          display: flex !important;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
           font-size: 11px;
+        }
+        .adult-relax-slot-empty-content {
+          height: 100%;
+          min-height: 190px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+        }
+        .adult-relax-slot-label {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 8px;
+          color: #fff;
+          font-size: 10px;
+          font-weight: 1000;
+          text-align: center;
+          pointer-events: none;
+          z-index: 2;
+        }
+        .adult-relax-slot-label span {
+          border-radius: 999px;
+          padding: 4px 10px;
+          background: rgba(2,6,23,.76);
+          text-transform: uppercase;
         }
         .adult-relax-room-shell:fullscreen .adult-relax-slot-empty button,
         .adult-relax-room-shell:-webkit-full-screen .adult-relax-slot-empty button {
@@ -2301,14 +2334,16 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
                     />
                   )}
                   {!hasVideo && (
-                    <div style={{ padding: 18, display: "grid", gap: 10, color: "#cbd5e1", fontWeight: 900 }}>
-                      <div>{participant ? `Person ${slot} connecting...` : `Open spot ${slot}`}</div>
+                    <div className="adult-relax-slot-empty-content" style={{ padding: 18, gap: 10, color: "#cbd5e1", fontWeight: 900 }}>
+                      <div>{isLocal ? "YOU" : `PERSON ${slot}`}</div>
+                      {participant && <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.85 }}>Connecting...</div>}
                       {localReady && !participant && (
                         <button
                           type="button"
                           onClick={() => setStatus(`Person ${slot} should open Adult Relax Time and click WANT TO CHAT to join.`)}
                           style={{
                             width: "100%",
+                            maxWidth: 220,
                             minHeight: 76,
                             border: `1px solid ${accentColor}`,
                             borderRadius: 10,
@@ -2326,9 +2361,11 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
                       )}
                     </div>
                   )}
-                  <div style={{ position: "absolute", left: 8, bottom: 8, borderRadius: 999, padding: "4px 8px", background: "rgba(2,6,23,.76)", color: "#fff", fontSize: 10, fontWeight: 1000 }}>
-                    {isLocal ? "YOU" : `PERSON ${slot}`}
-                  </div>
+                  {hasVideo && (
+                    <div className="adult-relax-slot-label">
+                      <span>{isLocal ? "YOU" : `PERSON ${slot}`}</span>
+                    </div>
+                  )}
                 </div>
               );
             })}

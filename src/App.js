@@ -2477,6 +2477,9 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
   const transitionBufferPendingRef = useRef(false);
   const pendingTransitionStartRef = useRef(false);
   const anchoredPlaybackKeyRef = useRef("");
+  const lastAllowedPlaybackTimeRef = useRef(0);
+  const seekingLockRef = useRef(false);
+  const playbackStartedRef = useRef(false);
   const [preloadedLargeVideoKey, setPreloadedLargeVideoKey] = useState("");
   const autoPreloadKeyRef = useRef("");
   const [largePreloadProgress, setLargePreloadProgress] = useState(0);
@@ -2813,10 +2816,24 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     if (playPromise?.catch) playPromise.catch(() => {});
   };
 
-  const stretchVideoToFullscreen = useCallback(() => {
+  const stretchVideoToFullscreen = useCallback(async () => {
     const shell = videoShellRef.current;
     const video = videoRef.current;
     if (!shell) return;
+
+    const fullscreenElement =
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.msFullscreenElement;
+    if (fullscreenElement === shell) {
+      const exitFullscreen =
+        document.exitFullscreen ||
+        document.webkitExitFullscreen ||
+        document.msExitFullscreen;
+      try { await exitFullscreen?.call(document); } catch {}
+      setStretchVideoFullscreen(false);
+      return;
+    }
 
     setStretchVideoFullscreen(true);
     if (video) {
@@ -2839,13 +2856,23 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     stretchVideoToFullscreen
   }), [stretchVideoToFullscreen]);
 
-  const confirmRestartPassword = () => {
+  const confirmRestartPassword = async () => {
     const password = window.prompt("Restart password");
-    return password === FUITS_RESTART_PASSWORD;
+    if (!password) return false;
+    try {
+      const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/admin/unlock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password })
+      });
+      return response.ok;
+    } catch {
+      return password === FUITS_RESTART_PASSWORD;
+    }
   };
 
-  const restartCurrentVideo = (requirePassword = true) => {
-    if (requirePassword && !confirmRestartPassword()) {
+  const restartCurrentVideo = async (requirePassword = true) => {
+    if (requirePassword && !(await confirmRestartPassword())) {
       setVideoError("Restart blocked. Password required.");
       return;
     }
@@ -2988,6 +3015,10 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
               }}
               onPlaying={() => {
                 const video = videoRef.current;
+                if (video) {
+                  playbackStartedRef.current = true;
+                  lastAllowedPlaybackTimeRef.current = Number(video.currentTime) || 0;
+                }
                 const playbackKey = `${channelId}:${currentItem?.id || ""}:${videoSrc}`;
                 if (video && currentItem && anchoredPlaybackKeyRef.current !== playbackKey) {
                   syncVideoToLiveOffset(true);
@@ -3006,6 +3037,20 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                 if (playPromise?.catch) playPromise.catch(() => {});
               }}
               onEnded={handleVideoEnded}
+              onTimeUpdate={event => {
+                if (!seekingLockRef.current) {
+                  lastAllowedPlaybackTimeRef.current = Number(event.currentTarget.currentTime) || 0;
+                }
+              }}
+              onSeeking={event => {
+                const video = event.currentTarget;
+                const allowedTime = lastAllowedPlaybackTimeRef.current;
+                if (!video || !playbackStartedRef.current || video.ended || seekingLockRef.current) return;
+                if (Math.abs((Number(video.currentTime) || 0) - allowedTime) <= 1.5) return;
+                seekingLockRef.current = true;
+                try { video.currentTime = allowedTime; } catch {}
+                window.setTimeout(() => { seekingLockRef.current = false; }, 0);
+              }}
               onWaiting={showBufferingIfNeeded}
               onStalled={() => setVideoError("Stream stalled. The tunnel or source video is not sending data fast enough.")}
               onError={() => setVideoError("This video did not load. Try Next, Shuffle, or Retry.")}
@@ -3811,9 +3856,17 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
     }
   };
 
-  const restartFuitsChannelWithPassword = () => {
+  const restartFuitsChannelWithPassword = async () => {
     const password = window.prompt("Restart password");
-    if (password !== FUITS_RESTART_PASSWORD) {
+    if (!password) return;
+    try {
+      const response = await fetch(getFuitsLiveTvUrl("/admin/unlock"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password })
+      });
+      if (!response.ok) throw new Error("Wrong password");
+    } catch {
       window.alert("Restart blocked. Password required.");
       return;
     }
@@ -4461,12 +4514,12 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
                       onPlaybackAnchor={setFuitsPlaybackAnchor}
                     />
                     {renderFuitsOwnerControls()}
-                    <LiveChatBox
-                      title="FUITS Live TV Chat"
-                      src={fuitsLiveTvChatUrl || `${fuitsLiveTvChannelUrl}/chat-only`}
-                      height={260}
-                      minHeight={260}
-                    />
+                <LiveChatBox
+                  title="FUITS Live TV Chat"
+                  src={`${fuitsLiveTvChatUrl || `${fuitsLiveTvChannelUrl}/chat-only`}${activeLiveTvOption.id === "adultRelax" ? "?layout=adult-relax" : ""}`}
+                  height={260}
+                  minHeight={260}
+                />
                   </>
                 )}
               </>
@@ -5569,6 +5622,8 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
   const [password, setPassword] = useState("");
   const [unlocked, setUnlocked] = useState(false);
   const [error, setError] = useState("");
+  const [newAdminPassword, setNewAdminPassword] = useState("");
+  const [passwordStatus, setPasswordStatus] = useState("");
   const [videoChunkMb, setVideoChunkMb] = useState(4);
   const [videoChunkStatus, setVideoChunkStatus] = useState("Loading video stream controls...");
   const [videoRepairStatus, setVideoRepairStatus] = useState("Ready to check the FUITS videos folder.");
@@ -6218,15 +6273,46 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
     }
   };
 
-  const unlockAdmin = event => {
+  const changeAdminPassword = async () => {
+    if (!newAdminPassword.trim()) {
+      setPasswordStatus("Enter a new password first.");
+      return;
+    }
+    setPasswordStatus("Updating admin password...");
+    try {
+      const response = await fetch(`${fuitsAdminBaseUrl}/admin/password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password, newPassword: newAdminPassword.trim() })
+      });
+      if (!response.ok) {
+        setPasswordStatus("Wrong current password or server not ready.");
+        return;
+      }
+      setPassword(newAdminPassword.trim());
+      setNewAdminPassword("");
+      setPasswordStatus("Admin password updated everywhere.");
+    } catch {
+      setPasswordStatus("Could not update password yet.");
+    }
+  };
+
+  const unlockAdmin = async event => {
     event.preventDefault();
-    if (password === "FOOLIO") {
+    try {
+      const response = await fetch(`${fuitsAdminBaseUrl}/admin/unlock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password })
+      });
+      if (!response.ok) throw new Error("Wrong password");
       setOnlineUserInfo({ loading: true, devices: 0, households: 0, householdDetails: [] });
       setUnlocked(true);
       setError("");
       return;
+    } catch {
+      setError("Wrong password");
     }
-    setError("Wrong password");
   };
 
   const formatWeatherLocation = location => {
@@ -6256,14 +6342,14 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
     return `${video.relativePath || ""} ${video.fileName || ""}`.toLowerCase().includes(query);
   });
   const adminPasswordRows = [
-    { label: "Admin Page", password: "FOOLIO" },
-    { label: "Owner Ban", password: "FOOLIO" },
-    { label: "Blacklist Page", password: "FOOLIO" },
-    { label: "Playlist Management", password: "FOOLIO" },
-    { label: "Video Repair", password: "FOOLIO" },
-    { label: "Stream Controls", password: "FOOLIO" },
-    { label: "Shuffle / Next / Back", password: "FOOLIO" },
-    { label: "Restart Controls", password: "FOOLIO" },
+    { label: "Admin Page", password },
+    { label: "Owner Ban", password },
+    { label: "Blacklist Page", password },
+    { label: "Playlist Management", password },
+    { label: "Video Repair", password },
+    { label: "Stream Controls", password },
+    { label: "Shuffle / Next / Back", password },
+    { label: "Restart Controls", password },
     { label: "Owner Everyone Ban", password: "fukuu" },
     { label: "Master Site Login", password: "MASTER / FartAss!1" },
     { label: "Crypto Admin", password: "FUCKNUTZ22!" }
@@ -6502,6 +6588,30 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
             <section style={sectionStyle}>
               <h2 style={sectionTitleStyle}>ADMIN PASSWORDS</h2>
               <div style={{ marginTop: 16, display: "grid", gap: 8 }}>
+                <div style={{ border: "1px solid rgba(96,165,250,.35)", background: "rgba(2,6,23,.72)", padding: 12, display: "grid", gap: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                    <div>
+                      <div style={controlLabelStyle}>ADMIN SECURITY</div>
+                      <div style={{ color: "#f8fafc", fontSize: 18, fontWeight: 1000 }}>Change Admin Password</div>
+                    </div>
+                    <div aria-hidden="true" style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid rgba(103,232,249,.5)", display: "grid", placeItems: "center", color: "#67e8f9", fontSize: 20, fontWeight: 1000 }}>
+                      &#128273;
+                    </div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "minmax(180px,1fr) auto", gap: 10 }}>
+                    <input
+                      type="password"
+                      value={newAdminPassword}
+                      onChange={event => setNewAdminPassword(event.target.value)}
+                      placeholder="New admin password"
+                      style={adminInputStyle}
+                    />
+                    <button type="button" onClick={changeAdminPassword} style={adminButtonStyle}>
+                      Update
+                    </button>
+                  </div>
+                  {passwordStatus && <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 800 }}>{passwordStatus}</div>}
+                </div>
                 {adminPasswordRows.map(row => (
                   <div key={row.label} style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 10, display: "grid", gridTemplateColumns: "minmax(130px,1fr) minmax(72px,auto) auto", gap: 10, alignItems: "center" }}>
                     <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>{row.label}</div>

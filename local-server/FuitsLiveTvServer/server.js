@@ -642,6 +642,13 @@ function getAdminPassword() {
   return fs.readFileSync(PASSWORD_PATH, "utf8").trim();
 }
 
+function setAdminPassword(nextPassword) {
+  const cleanPassword = String(nextPassword || "").trim();
+  if (!cleanPassword) throw new Error("New password required");
+  fs.writeFileSync(PASSWORD_PATH, cleanPassword, "utf8");
+  return cleanPassword;
+}
+
 function isAdminPassword(password) {
   return password === getAdminPassword() || password === SHUFFLE_PASSWORD;
 }
@@ -3815,6 +3822,31 @@ function pageHtml() {
       color: #e2e8f0;
       overflow-wrap: anywhere;
     }
+    body.adult-relax-grid .chat:fullscreen .chat-log {
+      padding: 12px;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+      grid-auto-rows: minmax(0, 1fr);
+      align-content: stretch;
+      gap: 10px;
+      overflow: hidden;
+    }
+    body.adult-relax-grid .chat:fullscreen .chat-message {
+      min-height: 0;
+      border: 1px solid rgba(148, 163, 184, .22);
+      border-radius: 10px;
+      background: rgba(2, 6, 23, .72);
+      padding: 10px;
+      overflow: auto;
+    }
+    body.adult-relax-grid .chat:fullscreen .chat-message.empty-slot {
+      border-style: dashed;
+      color: #64748b;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      font-weight: 900;
+    }
     .chat-name {
       color: #93c5fd;
       font-weight: 900;
@@ -4180,6 +4212,11 @@ function pageHtml() {
     let ownerPassword = "";
     let liveAnnouncementOnline = false;
     let liveHls = null;
+    let lastAllowedPlayerTime = 0;
+    let lastAllowedLiveTime = 0;
+    let seekingLock = false;
+    let playerStarted = false;
+    let livePlayerStarted = false;
     let activeChannelId = new URLSearchParams(window.location.search).get("channel") || localStorage.getItem("fuitsLiveTvChannel") || "channel-a";
     let stretchVideo = localStorage.getItem("fuitsLiveTvStretch") === "1";
     let soundUnlocked = localStorage.getItem("fuitsLiveTvSoundUnlocked") === "1";
@@ -4247,6 +4284,24 @@ function pageHtml() {
 
     function playMainPlayerWhenBuffered() {
       playMainPlayerWithBrowserFallback();
+    }
+
+    function rememberAllowedPlaybackTime(video) {
+      if (video === livePlayer) {
+        lastAllowedLiveTime = Number(video.currentTime) || 0;
+      } else {
+        lastAllowedPlayerTime = Number(video.currentTime) || 0;
+      }
+    }
+
+    function blockSeekWhilePlaying(video) {
+      const started = video === livePlayer ? livePlayerStarted : playerStarted;
+      if (!video || !started || video.ended || seekingLock) return;
+      const allowedTime = video === livePlayer ? lastAllowedLiveTime : lastAllowedPlayerTime;
+      if (Math.abs((Number(video.currentTime) || 0) - allowedTime) <= 1.5) return;
+      seekingLock = true;
+      try { video.currentTime = allowedTime; } catch {}
+      setTimeout(() => { seekingLock = false; }, 0);
     }
 
     function renderChat(messages) {
@@ -4657,6 +4712,18 @@ function pageHtml() {
     player.addEventListener("canplay", playMainPlayerWithBrowserFallback);
     player.addEventListener("play", rememberSoundUnlocked);
     player.addEventListener("volumechange", rememberSoundUnlocked);
+    player.addEventListener("playing", () => {
+      playerStarted = true;
+      rememberAllowedPlaybackTime(player);
+    });
+    player.addEventListener("timeupdate", () => { if (!seekingLock) rememberAllowedPlaybackTime(player); });
+    player.addEventListener("seeking", () => blockSeekWhilePlaying(player));
+    livePlayer.addEventListener("playing", () => {
+      livePlayerStarted = true;
+      rememberAllowedPlaybackTime(livePlayer);
+    });
+    livePlayer.addEventListener("timeupdate", () => { if (!seekingLock) rememberAllowedPlaybackTime(livePlayer); });
+    livePlayer.addEventListener("seeking", () => blockSeekWhilePlaying(livePlayer));
     unmuteButton.addEventListener("click", unmutePlayer);
     nextButton.addEventListener("click", nextVideo);
     previousButton.addEventListener("click", previousVideo);
@@ -4944,6 +5011,10 @@ function chatOnlyHtml() {
     const chatSavedName = document.getElementById("chatSavedName");
     const changeNameButton = document.getElementById("changeNameButton");
     const chatFullscreenButton = document.getElementById("chatFullscreenButton");
+    const chatLayout = new URLSearchParams(window.location.search).get("layout");
+    const adultRelaxGrid = chatLayout === "adult-relax";
+    let latestChatMessages = [];
+    document.body.classList.toggle("adult-relax-grid", adultRelaxGrid);
     chatName.value = localStorage.getItem("fuitsLiveTvChatName") || "";
 
     function updateChatNameUi() {
@@ -4955,8 +5026,9 @@ function chatOnlyHtml() {
     }
 
     function renderChat(messages) {
+      latestChatMessages = Array.isArray(messages) ? messages : [];
       chatLog.innerHTML = "";
-      if (!messages.length) {
+      if (!latestChatMessages.length && (!adultRelaxGrid || document.fullscreenElement !== chatSection)) {
         const emptyMessage = document.createElement("div");
         emptyMessage.className = "chat-message";
         emptyMessage.textContent = "No messages yet.";
@@ -4964,7 +5036,7 @@ function chatOnlyHtml() {
         return;
       }
 
-      messages.forEach(message => {
+      latestChatMessages.forEach(message => {
         const row = document.createElement("div");
         row.className = "chat-message";
         const name = document.createElement("span");
@@ -4981,6 +5053,14 @@ function chatOnlyHtml() {
         }
         chatLog.appendChild(row);
       });
+      if (adultRelaxGrid && document.fullscreenElement === chatSection) {
+        for (let slot = latestChatMessages.length; slot < 8; slot += 1) {
+          const emptySlot = document.createElement("div");
+          emptySlot.className = "chat-message empty-slot";
+          emptySlot.textContent = "Open spot";
+          chatLog.appendChild(emptySlot);
+        }
+      }
       chatLog.scrollTop = chatLog.scrollHeight;
     }
 
@@ -5050,6 +5130,7 @@ function chatOnlyHtml() {
     });
     document.addEventListener("fullscreenchange", () => {
       chatFullscreenButton.textContent = document.fullscreenElement === chatSection ? "Exit" : "Full";
+      renderChat(latestChatMessages);
     });
     updateChatNameUi();
     loadChatGifs().catch(() => {});
@@ -5462,11 +5543,29 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (url.pathname === "/admin/password" && req.method === "POST") {
+    readRequestBody(req)
+      .then(body => {
+        const payload = JSON.parse(body || "{}");
+        if (payload.password !== getAdminPassword()) {
+          send(res, 401, "Unauthorized");
+          return;
+        }
+
+        setAdminPassword(payload.newPassword);
+        sendJson(res, 200, { ok: true });
+      })
+      .catch(error => {
+        send(res, 400, error.message || "Bad request");
+      });
+    return;
+  }
+
   if (url.pathname === "/admin/shuffle" && req.method === "POST") {
     readRequestBody(req)
       .then(body => {
         const payload = JSON.parse(body || "{}");
-        if (payload.password !== SHUFFLE_PASSWORD) {
+        if (!isAdminPassword(payload.password)) {
           send(res, 401, "Unauthorized");
           return;
         }
@@ -5490,7 +5589,7 @@ const server = http.createServer((req, res) => {
     readRequestBody(req)
       .then(body => {
         const payload = JSON.parse(body || "{}");
-        if (payload.password !== SHUFFLE_PASSWORD) {
+        if (!isAdminPassword(payload.password)) {
           send(res, 401, "Unauthorized");
           return;
         }
@@ -5513,7 +5612,7 @@ const server = http.createServer((req, res) => {
     readRequestBody(req)
       .then(body => {
         const payload = JSON.parse(body || "{}");
-        if (payload.password !== SHUFFLE_PASSWORD) {
+        if (!isAdminPassword(payload.password)) {
           send(res, 401, "Unauthorized");
           return;
         }
@@ -5537,7 +5636,7 @@ const server = http.createServer((req, res) => {
     readRequestBody(req)
       .then(body => {
         const payload = JSON.parse(body || "{}");
-        if (payload.password !== SHUFFLE_PASSWORD) {
+        if (!isAdminPassword(payload.password)) {
           send(res, 401, "Unauthorized");
           return;
         }

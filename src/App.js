@@ -1869,7 +1869,17 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
   const peerRefs = useRef(new Map());
   const pollingRef = useRef(null);
   const lastSeqRef = useRef(0);
-  const clientIdRef = useRef(`adult-relax-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const clientIdRef = useRef((() => {
+    if (typeof window === "undefined") {
+      return `adult-relax-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+    const storageKey = "adult-relax-client-id";
+    const stored = window.sessionStorage.getItem(storageKey);
+    if (stored) return stored;
+    const created = `adult-relax-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    window.sessionStorage.setItem(storageKey, created);
+    return created;
+  })());
   const workingSignalBaseRef = useRef("");
   const roomId = "adult-relax-time";
   const maxParticipants = 8;
@@ -2058,32 +2068,34 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
 
   const startRoom = async () => {
     setError("");
-    setStatus("Asking for camera and mic...");
+    setStatus("Joining live chat room...");
     setStarted(true);
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      localStreamRef.current = stream;
-      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-      setLocalReady(true);
-      setStatus("Camera is on. Looking for the other person...");
-
       const joinData = await requestSignal({ action: "join" });
-      const slot = joinData?.participant?.slot;
+      const slot = Number(joinData?.participant?.slot) || 0;
       lastSeqRef.current = 0;
       if (slot) setLocalSlot(slot);
       const activeParticipants = Array.isArray(joinData.participants)
         ? joinData.participants.filter(item => item.slot >= 1 && item.slot <= maxParticipants)
         : [];
       setParticipants(activeParticipants);
-      setParticipantCount(activeParticipants.length || 1);
-
-      pollingRef.current = setInterval(() => pollSignals().catch(() => {}), 1000);
-      await pollSignals();
+      setParticipantCount(activeParticipants.length || (slot ? 1 : 0));
 
       if (slot === 0) {
         setStatus("Eight people are already in the room. You can wait here for a spot.");
+        return;
       }
+
+      setStatus("Asking for camera and mic...");
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localStreamRef.current = stream;
+      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+      setLocalReady(true);
+      setStatus(slot === 1 ? "You are Person 1. Waiting for others..." : `You are Person ${slot}. Waiting for others...`);
+
+      pollingRef.current = setInterval(() => pollSignals().catch(() => {}), 1000);
+      await pollSignals();
     } catch (roomError) {
       stopRoom();
       setStarted(true);
@@ -2214,11 +2226,8 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
         }
         .adult-relax-slot-label {
           position: absolute;
-          inset: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 8px;
+          left: 8px;
+          bottom: 8px;
           color: #fff;
           font-size: 10px;
           font-weight: 1000;

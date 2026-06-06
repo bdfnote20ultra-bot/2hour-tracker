@@ -2220,7 +2220,16 @@ function getAdultRelaxRoom(roomId) {
   return room;
 }
 
-function touchAdultRelaxParticipant(room, clientId) {
+function purgeStaleAdultRelaxParticipants(room, maxAge = 45000) {
+  const now = Date.now();
+  for (const [clientId, participant] of room.participants) {
+    if (now - participant.lastSeen > maxAge) {
+      room.participants.delete(clientId);
+    }
+  }
+}
+
+function touchAdultRelaxParticipant(room, clientId, options = {}) {
   const now = Date.now();
   const safeClientId = String(clientId || "")
     .replace(/[^a-zA-Z0-9_-]/g, "")
@@ -2229,12 +2238,19 @@ function touchAdultRelaxParticipant(room, clientId) {
 
   let participant = room.participants.get(safeClientId);
   if (!participant) {
+    if (options.join) {
+      purgeStaleAdultRelaxParticipants(room, 15000);
+    }
     const usedSlots = new Set([...room.participants.values()].map(value => value.slot));
     let slot = 0;
-    for (let index = 1; index <= ADULT_RELAX_MAX_PARTICIPANTS; index += 1) {
-      if (!usedSlots.has(index)) {
-        slot = index;
-        break;
+    if (options.join && usedSlots.size === 0) {
+      slot = 1;
+    } else {
+      for (let index = 1; index <= ADULT_RELAX_MAX_PARTICIPANTS; index += 1) {
+        if (!usedSlots.has(index)) {
+          slot = index;
+          break;
+        }
       }
     }
     if (!slot) {
@@ -2270,7 +2286,10 @@ function handleAdultRelaxSignal(req, res, url) {
     .slice(0, 80);
 
   if (req.method === "GET") {
-    const participant = touchAdultRelaxParticipant(room, clientId);
+    const existing = room.participants.get(clientId);
+    const participant = existing
+      ? touchAdultRelaxParticipant(room, clientId)
+      : null;
     const since = Number(url.searchParams.get("since")) || 0;
     sendJson(res, 200, {
       ok: true,
@@ -2294,7 +2313,11 @@ function handleAdultRelaxSignal(req, res, url) {
   readRequestBody(req)
     .then(body => {
       const payload = JSON.parse(body || "{}");
-      const participant = touchAdultRelaxParticipant(room, payload.clientId || clientId);
+      const participant = touchAdultRelaxParticipant(
+        room,
+        payload.clientId || clientId,
+        { join: payload.action === "join" }
+      );
       if (!participant) throw new Error("Missing caller ID.");
 
       if (payload.action === "leave") {

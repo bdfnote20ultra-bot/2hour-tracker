@@ -2155,30 +2155,54 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
         .adult-relax-room-shell:-webkit-full-screen {
           width: 100vw !important;
           height: 100vh !important;
-          padding: 16px !important;
-          align-content: start;
-          overflow: auto;
+          padding: 12px !important;
+          box-sizing: border-box;
+          display: flex !important;
+          flex-direction: column;
+          gap: 8px;
+          overflow: hidden;
           background: #020617 !important;
         }
-        .adult-relax-room-shell:fullscreen video,
-        .adult-relax-room-shell:-webkit-full-screen video {
-          min-height: 0 !important;
-          height: 100% !important;
-          object-fit: cover !important;
+        .adult-relax-room-shell:fullscreen .adult-relax-toolbar,
+        .adult-relax-room-shell:-webkit-full-screen .adult-relax-toolbar,
+        .adult-relax-room-shell:fullscreen .adult-relax-leave-btn,
+        .adult-relax-room-shell:-webkit-full-screen .adult-relax-leave-btn {
+          flex-shrink: 0;
         }
         .adult-relax-room-shell:fullscreen .adult-relax-grid,
         .adult-relax-room-shell:-webkit-full-screen .adult-relax-grid {
-          grid-template-columns: repeat(auto-fit, minmax(min(34vw, 220px), 1fr)) !important;
+          flex: 1;
+          min-height: 0;
+          width: 100%;
+          display: grid !important;
+          grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+          grid-template-rows: repeat(2, minmax(0, 1fr)) !important;
+          gap: 8px !important;
           align-items: stretch;
         }
         .adult-relax-room-shell:fullscreen .adult-relax-slot,
         .adult-relax-room-shell:-webkit-full-screen .adult-relax-slot {
-          aspect-ratio: 1 / 1;
           min-height: 0 !important;
+          height: 100% !important;
         }
-        .adult-relax-room-shell:fullscreen .adult-relax-slot-empty,
-        .adult-relax-room-shell:-webkit-full-screen .adult-relax-slot-empty {
-          display: none !important;
+        .adult-relax-room-shell:fullscreen video,
+        .adult-relax-room-shell:-webkit-full-screen video {
+          width: 100% !important;
+          min-height: 0 !important;
+          height: 100% !important;
+          object-fit: cover !important;
+        }
+        .adult-relax-room-shell:fullscreen .adult-relax-slot-empty > div,
+        .adult-relax-room-shell:-webkit-full-screen .adult-relax-slot-empty > div {
+          height: 100%;
+          padding: 10px !important;
+          align-content: center;
+          font-size: 11px;
+        }
+        .adult-relax-room-shell:fullscreen .adult-relax-slot-empty button,
+        .adult-relax-room-shell:-webkit-full-screen .adult-relax-slot-empty button {
+          min-height: 44px !important;
+          font-size: 10px !important;
         }
       `}</style>
       {!started ? (
@@ -2204,7 +2228,7 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
         </button>
       ) : (
         <>
-          <div style={{
+          <div className="adult-relax-toolbar" style={{
             display: "flex",
             justifyContent: "space-between",
             gap: 8,
@@ -2311,6 +2335,7 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
           </div>
           <button
             type="button"
+            className="adult-relax-leave-btn"
             onClick={() => {
               sendSignal({ action: "leave" }).catch(() => {});
               stopRoom();

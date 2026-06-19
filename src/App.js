@@ -4296,6 +4296,13 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             min-height: 0 !important;
           }
         }
+        @media (min-width: 1401px) and (max-height: 1040px) {
+          iframe[title="FUITS Live TV Chat"] {
+            flex: 1 1 auto !important;
+            height: auto !important;
+            min-height: 0 !important;
+          }
+        }
         .music-library-desktop-sidebar button:hover { transform: translateY(-1px); }
         @keyframes fuits-live-pulse {
           0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(239,68,68,.62); }
@@ -8356,8 +8363,11 @@ if (view === "gambling") {
   return (
     <div style={{
       minHeight: "100vh",
+      height: "100vh",
+      maxHeight: "100vh",
       background: "#000",
-      position: "relative"
+      position: "relative",
+      overflow: "hidden"
     }}>
       <style>{`
         :root {

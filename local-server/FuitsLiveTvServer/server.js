@@ -3742,7 +3742,17 @@ function pageHtml() {
       display: block;
       object-fit: contain;
     }
-    .stretch-video {
+    video:fullscreen,
+    .live-video:fullscreen {
+      width: 100vw;
+      height: 100vh;
+      max-height: none;
+      aspect-ratio: auto;
+      border: 0;
+      border-radius: 0;
+      object-fit: contain;
+    }
+    .stretch-video:fullscreen {
       object-fit: fill;
     }
     .now {
@@ -4131,7 +4141,7 @@ function pageHtml() {
       <button id="unmuteButton" class="sound-button" type="button">Unmute</button>
       <button id="nextButton" type="button">Next</button>
       <button id="previousButton" type="button">Back</button>
-      <button id="stretchButton" type="button">Stretch</button>
+      <button id="stretchButton" type="button">Stretch Fullscreen</button>
       <button id="ownerUnlockButton" type="button">Owner</button>
       <button id="shuffleButton" type="button">Shuffle Playlist</button>
       <button id="discountsButton" type="button">Discounts</button>
@@ -4244,7 +4254,7 @@ function pageHtml() {
     let playerStarted = false;
     let livePlayerStarted = false;
     let activeChannelId = new URLSearchParams(window.location.search).get("channel") || localStorage.getItem("fuitsLiveTvChannel") || "channel-a";
-    let stretchVideo = localStorage.getItem("fuitsLiveTvStretch") === "1";
+    let stretchFullscreenTarget = null;
     let soundUnlocked = localStorage.getItem("fuitsLiveTvSoundUnlocked") === "1";
     chatName.value = localStorage.getItem("fuitsLiveTvChatName") || "";
 
@@ -4263,9 +4273,10 @@ function pageHtml() {
     }
 
     function updateStretchMode() {
-      player.classList.toggle("stretch-video", stretchVideo);
-      livePlayer.classList.toggle("stretch-video", stretchVideo);
-      stretchButton.textContent = stretchVideo ? "Normal" : "Stretch";
+      const stretchActive = document.fullscreenElement && document.fullscreenElement === stretchFullscreenTarget;
+      player.classList.toggle("stretch-video", stretchActive && stretchFullscreenTarget === player);
+      livePlayer.classList.toggle("stretch-video", stretchActive && stretchFullscreenTarget === livePlayer);
+      stretchButton.textContent = "Stretch Fullscreen";
     }
 
     function applySoundPreference() {
@@ -4512,10 +4523,24 @@ function pageHtml() {
       livePlayer.play().catch(() => {});
     }
 
-    function toggleStretchMode() {
-      stretchVideo = !stretchVideo;
-      localStorage.setItem("fuitsLiveTvStretch", stretchVideo ? "1" : "0");
+    function activeVideoPlayer() {
+      return livePlayer.hidden ? player : livePlayer;
+    }
+
+    async function toggleStretchMode() {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen().catch(() => {});
+        return;
+      }
+
+      const video = activeVideoPlayer();
+      if (!video || video.hidden || !video.requestFullscreen) return;
+      stretchFullscreenTarget = video;
       updateStretchMode();
+      await video.requestFullscreen().then(updateStretchMode).catch(() => {
+        stretchFullscreenTarget = null;
+        updateStretchMode();
+      });
     }
 
     function playLiveWithBrowserFallback() {
@@ -4814,6 +4839,10 @@ function pageHtml() {
     });
     document.addEventListener("fullscreenchange", () => {
       chatFullscreenButton.textContent = document.fullscreenElement === chatSection ? "Exit" : "Full";
+      if (document.fullscreenElement !== stretchFullscreenTarget) {
+        stretchFullscreenTarget = null;
+      }
+      updateStretchMode();
     });
     document.querySelectorAll(".donate-qr-button").forEach(button => {
       button.addEventListener("click", () => {

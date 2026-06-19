@@ -2549,6 +2549,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
   const refreshQueuedRef = useRef(false);
   const transitionBufferPendingRef = useRef(false);
   const pendingTransitionStartRef = useRef(false);
+  const stretchVideoRequestedRef = useRef(false);
   const anchoredPlaybackKeyRef = useRef("");
   const lastAllowedPlaybackTimeRef = useRef(0);
   const seekingLockRef = useRef(false);
@@ -2939,13 +2940,18 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      const shell = videoShellRef.current;
       const fullscreenElement =
         document.fullscreenElement ||
         document.webkitFullscreenElement ||
         document.msFullscreenElement;
 
-      setStretchVideoFullscreen(Boolean(shell && fullscreenElement && (fullscreenElement === shell || shell.contains(fullscreenElement))));
+      if (!fullscreenElement) {
+        stretchVideoRequestedRef.current = false;
+        setStretchVideoFullscreen(false);
+        return;
+      }
+
+      setStretchVideoFullscreen(Boolean(stretchVideoRequestedRef.current && fullscreenElement === videoRef.current));
     };
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
@@ -2986,7 +2992,6 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
   };
 
   const stretchVideoToFullscreen = useCallback(async () => {
-    const shell = videoShellRef.current;
     const video = videoRef.current;
 
     const fullscreenElement =
@@ -2999,27 +3004,37 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
         document.webkitExitFullscreen ||
         document.msExitFullscreen;
       try { await exitFullscreen?.call(document); } catch {}
+      stretchVideoRequestedRef.current = false;
       setStretchVideoFullscreen(false);
       return;
     }
 
-    if (!shell) return;
+    if (!video) return;
 
+    stretchVideoRequestedRef.current = true;
     setStretchVideoFullscreen(true);
-    if (video) {
-      video.muted = false;
-      video.volume = 1;
-      setPlayerMuted(false);
-      setPlayerVolume(1);
-      const playPromise = video.play();
-      if (playPromise?.catch) playPromise.catch(() => {});
-    }
+    video.muted = false;
+    video.volume = 1;
+    setPlayerMuted(false);
+    setPlayerVolume(1);
+    const playPromise = video.play();
+    if (playPromise?.catch) playPromise.catch(() => {});
 
     const requestFullscreen =
-      shell.requestFullscreen ||
-      shell.webkitRequestFullscreen ||
-      shell.msRequestFullscreen;
-    try { requestFullscreen?.call(shell); } catch {}
+      video.requestFullscreen ||
+      video.webkitRequestFullscreen ||
+      video.msRequestFullscreen;
+    if (!requestFullscreen) {
+      stretchVideoRequestedRef.current = false;
+      setStretchVideoFullscreen(false);
+      return;
+    }
+    try {
+      await requestFullscreen.call(video);
+    } catch {
+      stretchVideoRequestedRef.current = false;
+      setStretchVideoFullscreen(false);
+    }
   }, []);
 
   useImperativeHandle(ref, () => ({
@@ -3123,37 +3138,43 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
           ) : (
           <div
             ref={videoShellRef}
-            className={stretchVideoFullscreen ? "fuits-video-shell-stretch" : "fuits-video-shell"}
+            className="fuits-video-shell"
             style={{ position: "relative", background: "#000" }}
           >
             <style>{`
               .fuits-video-shell:fullscreen,
-              .fuits-video-shell-stretch:fullscreen,
-              .fuits-video-shell:-webkit-full-screen,
-              .fuits-video-shell-stretch:-webkit-full-screen {
+              .fuits-video-shell:-webkit-full-screen {
                 width: 100vw !important;
                 height: 100vh !important;
                 background: #000 !important;
               }
-              .fuits-video-shell-stretch:fullscreen video,
-              .fuits-video-shell-stretch:-webkit-full-screen video {
+              .fuits-video-player:fullscreen,
+              .fuits-video-player:-webkit-full-screen {
+                width: 100vw !important;
+                height: 100vh !important;
+                max-height: none !important;
+                object-fit: contain !important;
+              }
+              .fuits-video-player-stretch:fullscreen,
+              .fuits-video-player-stretch:-webkit-full-screen {
                 width: 100vw !important;
                 height: 100vh !important;
                 max-height: none !important;
                 object-fit: fill !important;
               }
               .fuits-video-shell video::-webkit-media-controls-timeline,
-              .fuits-video-shell-stretch video::-webkit-media-controls-timeline {
+              .fuits-video-player-stretch::-webkit-media-controls-timeline {
                 pointer-events: none !important;
               }
               .fuits-video-shell video::-webkit-media-controls-play-button,
-              .fuits-video-shell-stretch video::-webkit-media-controls-play-button {
+              .fuits-video-player-stretch::-webkit-media-controls-play-button {
                 display: none !important;
                 pointer-events: none !important;
               }
             `}</style>
             <video
               ref={videoRef}
+              className={stretchVideoFullscreen ? "fuits-video-player-stretch" : "fuits-video-player"}
               src={videoSrc}
               controls
               controlsList="noplaybackrate nodownload noremoteplayback"
@@ -3262,30 +3283,6 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                 objectFit: stretchVideoFullscreen ? "fill" : "contain"
               }}
             />
-            {stretchVideoFullscreen && (
-              <button
-                type="button"
-                onClick={stretchVideoToFullscreen}
-                style={{
-                  position: "absolute",
-                  top: 10,
-                  right: 10,
-                  zIndex: 8,
-                  border: "1px solid rgba(255,255,255,.28)",
-                  borderRadius: 999,
-                  padding: "8px 11px",
-                  background: "rgba(15,23,42,.86)",
-                  color: "#fff",
-                  cursor: "pointer",
-                  fontSize: 12,
-                  fontWeight: 1000,
-                  textTransform: "uppercase",
-                  boxShadow: "0 8px 18px rgba(0,0,0,.38)"
-                }}
-              >
-                Exit Fullscreen
-              </button>
-            )}
             {needsLargeVideoPreload && (
               <div style={{
                 position: "absolute",

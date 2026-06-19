@@ -2550,6 +2550,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
   const anchoredPlaybackKeyRef = useRef("");
   const lastAllowedPlaybackTimeRef = useRef(0);
   const seekingLockRef = useRef(false);
+  const programmaticSeekUntilRef = useRef(0);
   const playbackStartedRef = useRef(false);
   const channelSwitchPendingRef = useRef(false);
   const previousChannelIdRef = useRef(channelId);
@@ -2594,6 +2595,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
   const setProgrammaticVideoTime = useCallback((video, time) => {
     if (!video || !Number.isFinite(time)) return;
     seekingLockRef.current = true;
+    programmaticSeekUntilRef.current = Date.now() + 1800;
     try {
       video.currentTime = time;
     } catch {}
@@ -2764,6 +2766,16 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     };
     attemptPlay(false);
   }, []);
+
+  const keepVideoPlaying = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || liveAnnouncementOnline || video.ended || !videoSrc) return;
+    window.setTimeout(() => {
+      const currentVideo = videoRef.current;
+      if (!currentVideo || liveAnnouncementOnline || currentVideo.ended || !currentVideo.paused) return;
+      playCurrentVideo();
+    }, 120);
+  }, [liveAnnouncementOnline, playCurrentVideo, videoSrc]);
 
   const preloadLargeVideoFromTimestamp = useCallback(async () => {
     if (!currentItem || !videoSrc || !needsLargeVideoPreload || largePreloadActive) return;
@@ -3122,6 +3134,11 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
               .fuits-video-shell-stretch video::-webkit-media-controls-timeline {
                 pointer-events: none !important;
               }
+              .fuits-video-shell video::-webkit-media-controls-play-button,
+              .fuits-video-shell-stretch video::-webkit-media-controls-play-button {
+                display: none !important;
+                pointer-events: none !important;
+              }
             `}</style>
             <video
               ref={videoRef}
@@ -3142,6 +3159,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                 syncVideoToLiveOffset(true);
                 syncedVideoSrcRef.current = videoSrc;
                 pendingTransitionStartRef.current = false;
+                playCurrentVideo();
                 playWhenBuffered();
               }}
               onCanPlayThrough={() => {
@@ -3185,8 +3203,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
               onPause={() => {
                 const video = videoRef.current;
                 if (!playbackLocked || liveAnnouncementOnline || video?.ended) return;
-                const playPromise = video?.play();
-                if (playPromise?.catch) playPromise.catch(() => {});
+                keepVideoPlaying();
               }}
               onEnded={handleVideoEnded}
               onTimeUpdate={event => {
@@ -3198,6 +3215,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                 const video = event.currentTarget;
                 const allowedTime = lastAllowedPlaybackTimeRef.current;
                 if (!video || !playbackStartedRef.current || video.ended || seekingLockRef.current) return;
+                if (Date.now() < programmaticSeekUntilRef.current) return;
                 seekingLockRef.current = true;
                 try { video.currentTime = allowedTime; } catch {}
                 window.setTimeout(() => { seekingLockRef.current = false; }, 0);
@@ -3206,6 +3224,10 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                 const video = event.currentTarget;
                 const allowedTime = lastAllowedPlaybackTimeRef.current;
                 if (!video || !playbackStartedRef.current || video.ended || seekingLockRef.current) return;
+                if (Date.now() < programmaticSeekUntilRef.current) {
+                  lastAllowedPlaybackTimeRef.current = Number(video.currentTime) || allowedTime;
+                  return;
+                }
                 if (Math.abs((Number(video.currentTime) || 0) - allowedTime) <= 0.35) return;
                 seekingLockRef.current = true;
                 try { video.currentTime = allowedTime; } catch {}

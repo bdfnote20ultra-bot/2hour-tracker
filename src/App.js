@@ -4216,7 +4216,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
       right: "calc(18px * var(--flive-scale, 1))",
       top: "calc(18px * var(--flive-scale, 1))",
       bottom: "calc(18px * var(--flive-scale, 1))",
-      width: "calc(360px * var(--flive-scale, 1) * var(--flive-tv-width-scale, 1))",
+      width: "calc(460px * var(--flive-scale, 1) * var(--flive-tv-width-scale, 1))",
       zIndex: 4,
       borderRadius: "calc(20px * var(--flive-scale, 1))",
       border: "1px solid rgba(148,163,184,0.2)",

@@ -3183,20 +3183,21 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                 }
                 .fuits-video-title {
                   box-sizing: border-box !important;
-                  min-height: 40px !important;
-                  max-height: 54px !important;
-                  padding: 6px 8px 10px !important;
+                  min-height: 56px !important;
+                  max-height: 76px !important;
+                  padding: 7px 8px 10px !important;
                   color: #f8fafc !important;
-                  font-size: 9px !important;
+                  font-size: 13px !important;
                   font-weight: 1000 !important;
-                  line-height: 1.25 !important;
+                  line-height: 1.2 !important;
                   overflow-y: visible !important;
                   margin-bottom: 2px !important;
                   text-shadow: 0 1px 3px rgba(0,0,0,.9) !important;
                 }
                 iframe[title="FUITS Live TV Chat"] {
-                  height: 200px !important;
-                  min-height: 200px !important;
+                  flex: 1 1 auto !important;
+                  height: auto !important;
+                  min-height: 0 !important;
                 }
               }
             `}</style>
@@ -4273,6 +4274,26 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
           }
           .fuits-schedule-panel > :not(style) {
             zoom: var(--flive-schedule-content-scale, var(--flive-info-content-scale, var(--flive-panel-content-scale, 1)));
+          }
+        }
+        @media (min-width: 900px) and (max-width: 1400px) and (max-height: 730px) {
+          .fuits-video-title {
+            box-sizing: border-box !important;
+            min-height: 56px !important;
+            max-height: 76px !important;
+            padding: 7px 8px 10px !important;
+            color: #f8fafc !important;
+            font-size: 13px !important;
+            font-weight: 1000 !important;
+            line-height: 1.2 !important;
+            overflow-y: visible !important;
+            margin-bottom: 2px !important;
+            text-shadow: 0 1px 3px rgba(0,0,0,.9) !important;
+          }
+          iframe[title="FUITS Live TV Chat"] {
+            flex: 1 1 auto !important;
+            height: auto !important;
+            min-height: 0 !important;
           }
         }
         .music-library-desktop-sidebar button:hover { transform: translateY(-1px); }
@@ -8406,7 +8427,7 @@ if (view === "gambling") {
         @media (max-width: 1350px) and (max-height: 760px) {
           .flive-center-shell {
             height: 100vh;
-            overflow-y: auto;
+            overflow-y: hidden;
             scrollbar-width: none;
             -ms-overflow-style: none;
           }

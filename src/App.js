@@ -3178,10 +3178,12 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
               }
               @media (min-height: 700px) and (max-height: 730px) and (min-width: 1000px) {
                 .fuits-video-title {
-                  min-height: 54px !important;
-                  max-height: 84px !important;
-                  padding-bottom: 14px !important;
-                  line-height: 1.35 !important;
+                  min-height: 78px !important;
+                  max-height: 112px !important;
+                  padding: 10px 10px 20px !important;
+                  line-height: 1.45 !important;
+                  overflow-y: visible !important;
+                  margin-bottom: 8px !important;
                 }
               }
             `}</style>

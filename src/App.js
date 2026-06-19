@@ -3118,6 +3118,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
   return (
     <div style={{
       width: "100%",
+      flexShrink: 0,
       border: "1px solid rgba(148,163,184,.22)",
       borderRadius: 14,
       background: "#020617",
@@ -3176,18 +3177,18 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                 display: none !important;
                 pointer-events: none !important;
               }
-              @media (min-height: 700px) and (max-height: 730px) and (min-width: 1000px) {
+              @media (max-height: 730px) and (min-width: 900px) {
                 .fuits-video-title {
                   box-sizing: border-box !important;
-                  min-height: 108px !important;
-                  max-height: 140px !important;
-                  padding: 12px 10px 26px !important;
+                  min-height: 126px !important;
+                  max-height: none !important;
+                  padding: 14px 10px 34px !important;
                   color: #f8fafc !important;
-                  font-size: 15px !important;
+                  font-size: 16px !important;
                   font-weight: 1000 !important;
-                  line-height: 1.35 !important;
+                  line-height: 1.4 !important;
                   overflow-y: visible !important;
-                  margin-bottom: 14px !important;
+                  margin-bottom: 18px !important;
                   text-shadow: 0 1px 3px rgba(0,0,0,.9) !important;
                 }
               }
@@ -3421,14 +3422,16 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
         </div>
       )}
       <div className="fuits-video-title" style={{
-        padding: "8px 10px 10px",
-        color: "#cbd5e1",
-        fontSize: 10,
-        fontWeight: 900,
-        lineHeight: 1.25,
-        minHeight: 46,
-        maxHeight: 74,
-        overflowY: "auto",
+        boxSizing: "border-box",
+        padding: "10px 10px 18px",
+        color: "#f8fafc",
+        fontSize: 12,
+        fontWeight: 1000,
+        lineHeight: 1.35,
+        minHeight: 68,
+        maxHeight: 120,
+        overflowY: "visible",
+        marginBottom: 6,
         whiteSpace: "normal",
         overflowWrap: "anywhere",
         wordBreak: "break-word",

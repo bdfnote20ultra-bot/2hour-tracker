@@ -3178,12 +3178,17 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
               }
               @media (min-height: 700px) and (max-height: 730px) and (min-width: 1000px) {
                 .fuits-video-title {
-                  min-height: 78px !important;
-                  max-height: 112px !important;
-                  padding: 10px 10px 20px !important;
-                  line-height: 1.45 !important;
+                  box-sizing: border-box !important;
+                  min-height: 108px !important;
+                  max-height: 140px !important;
+                  padding: 12px 10px 26px !important;
+                  color: #f8fafc !important;
+                  font-size: 15px !important;
+                  font-weight: 1000 !important;
+                  line-height: 1.35 !important;
                   overflow-y: visible !important;
-                  margin-bottom: 8px !important;
+                  margin-bottom: 14px !important;
+                  text-shadow: 0 1px 3px rgba(0,0,0,.9) !important;
                 }
               }
             `}</style>

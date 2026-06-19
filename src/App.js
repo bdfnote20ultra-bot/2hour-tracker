@@ -4216,7 +4216,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
       right: "calc(18px * var(--flive-scale, 1))",
       top: "calc(18px * var(--flive-scale, 1))",
       bottom: "calc(18px * var(--flive-scale, 1))",
-      width: "calc(460px * var(--flive-scale, 1) * var(--flive-tv-width-scale, 1))",
+      width: "min(calc(460px * var(--flive-scale, 1) * var(--flive-tv-width-scale, 1)), calc((390px * var(--flive-scale, 1) * var(--flive-schedule-right-scale, var(--flive-info-right-scale, 1))) - (30px * var(--flive-scale, 1))))",
       zIndex: 4,
       borderRadius: "calc(20px * var(--flive-scale, 1))",
       border: "1px solid rgba(148,163,184,0.2)",
@@ -8336,7 +8336,7 @@ if (view === "gambling") {
           --flive-schedule-content-scale: var(--flive-info-content-scale);
         }
         @media (max-width: 1891px) {
-          :root { --flive-scale: clamp(.34, min(calc(100vw / 1892), calc(100vh / 907)), 1); }
+          :root { --flive-scale: clamp(.34, min(calc(100vw / 1892px), calc(100vh / 907px)), 1); }
         }
         @media (max-width: 1350px) and (max-height: 760px) {
           :root {
@@ -8373,7 +8373,7 @@ if (view === "gambling") {
           :root { --flive-scale: .30; --flive-panel-content-scale: .64; --flive-gaming-scale: .44; --flive-gaming-content-scale: .54; --flive-menu-text-scale: .58; --flive-menu-gap-scale: 1.30; --flive-menu-top-offset: -10px; --flive-menu-left-offset: 62px; --flive-wealth-extra-top-offset: 16px; --flive-ticker-top-scale: 2.12; --flive-center-width-scale: 1.30; --flive-center-content-scale: .58; --flive-tv-width-scale: 1.46; --flive-tv-content-scale: .64; --flive-info-right-scale: 1.46; --flive-info-width-scale: 1.16; --flive-info-content-scale: .82; --flive-weather-top-scale: 1.75; --flive-schedule-right-scale: 1.44; --flive-schedule-width-scale: 1.12; --flive-schedule-content-scale: .66; }
         }
         @media (min-width: 2100px) {
-          :root { --flive-scale: min(calc(100vw / 1892), calc(100vh / 907), 2.15); }
+          :root { --flive-scale: min(calc(100vw / 1892px), calc(100vh / 907px), 2.15); }
         }
         @media (max-width: 360px) { .flive-main-coins-ticker { display: none !important; } }
         @media (max-width: 1350px) and (max-height: 760px) {

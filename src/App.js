@@ -3176,6 +3176,14 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                 display: none !important;
                 pointer-events: none !important;
               }
+              @media (min-height: 700px) and (max-height: 730px) and (min-width: 1000px) {
+                .fuits-video-title {
+                  min-height: 54px !important;
+                  max-height: 84px !important;
+                  padding-bottom: 14px !important;
+                  line-height: 1.35 !important;
+                }
+              }
             `}</style>
             <video
               ref={videoRef}
@@ -3405,7 +3413,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
           {status}
         </div>
       )}
-      <div style={{
+      <div className="fuits-video-title" style={{
         padding: "8px 10px 10px",
         color: "#cbd5e1",
         fontSize: 10,

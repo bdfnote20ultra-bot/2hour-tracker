@@ -8363,11 +8363,8 @@ if (view === "gambling") {
   return (
     <div style={{
       minHeight: "100vh",
-      height: "100vh",
-      maxHeight: "100vh",
       background: "#000",
-      position: "relative",
-      overflow: "hidden"
+      position: "relative"
     }}>
       <style>{`
         :root {
@@ -8436,8 +8433,8 @@ if (view === "gambling") {
         @media (max-width: 360px) { .flive-main-coins-ticker { display: none !important; } }
         @media (max-width: 1350px) and (max-height: 760px) {
           .flive-center-shell {
-            height: 100vh;
-            overflow-y: hidden;
+            min-height: 100vh;
+            overflow-y: visible;
             scrollbar-width: none;
             -ms-overflow-style: none;
           }

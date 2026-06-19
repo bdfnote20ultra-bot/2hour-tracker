@@ -2500,7 +2500,8 @@ function FuitsLiveAnnouncementPlayer({ baseUrl, playerMuted, playerVolume, onVol
           onVolumeChange={onVolumeChange}
           style={{
             width: "100%",
-            minHeight: 260,
+            aspectRatio: "16 / 9",
+            height: "auto",
             maxHeight: 420,
             background: "#000",
             display: "block"
@@ -3251,7 +3252,8 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
               }}
               style={{
                 width: "100%",
-                minHeight: 260,
+                aspectRatio: "16 / 9",
+                height: "auto",
                 maxHeight: 420,
                 background: "#000",
                 display: "block",

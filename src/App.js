@@ -799,6 +799,7 @@ function PokemonSidebar() {
   const backgroundImage = SYSTEM_BACKGROUNDS[activeSystem] || SYSTEM_BACKGROUNDS.GB;
   const kickGamingChannel = normalizeKickChannel(kickGamingChannelInput) || "flivetv";
   const kickGamingEmbedUrl = `https://player.kick.com/${encodeURIComponent(kickGamingChannel)}?autoplay=true&muted=true`;
+  const kickGamingChatUrl = `https://kick.com/${encodeURIComponent(kickGamingChannel)}/chatroom`;
 
   useEffect(() => {
     try { localStorage.setItem(KICK_GAMING_CHANNEL_KEY, kickGamingChannel); } catch {}
@@ -1375,6 +1376,57 @@ function PokemonSidebar() {
               background: "#000"
             }}
           />
+          <div style={{
+            border: "1px solid rgba(83,252,24,.32)",
+            borderRadius: 14,
+            overflow: "hidden",
+            background: "rgba(2,6,23,.94)",
+            minHeight: 260,
+            display: "flex",
+            flexDirection: "column"
+          }}>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 8,
+              padding: "8px 10px",
+              background: "linear-gradient(135deg, rgba(83,252,24,.18), rgba(15,23,42,.96))",
+              borderBottom: "1px solid rgba(83,252,24,.22)"
+            }}>
+              <span style={{
+                color: "#bbf7d0",
+                fontSize: 11,
+                fontWeight: 1000,
+                letterSpacing: .8,
+                textTransform: "uppercase"
+              }}>
+                Kick Chat
+              </span>
+              <span style={{
+                color: "#94a3b8",
+                fontSize: 10,
+                fontWeight: 900,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap"
+              }}>
+                @{kickGamingChannel}
+              </span>
+            </div>
+            <iframe
+              key={kickGamingChatUrl}
+              title={`Kick chat ${kickGamingChannel}`}
+              src={kickGamingChatUrl}
+              style={{
+                width: "100%",
+                flex: "1 1 auto",
+                minHeight: 230,
+                border: "none",
+                background: "#0b0f14"
+              }}
+            />
+          </div>
         </div>
       ) : activeGamingApp === "live-gaming-youtube" ? (
         <div style={{

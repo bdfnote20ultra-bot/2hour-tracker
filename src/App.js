@@ -3139,7 +3139,12 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
           <div
             ref={videoShellRef}
             className="fuits-video-shell"
-            style={{ position: "relative", background: "#000" }}
+            style={{
+              position: "relative",
+              background: "#000",
+              height: "clamp(190px, calc(100vh - 500px), 270px)",
+              minHeight: 0
+            }}
           >
             <style>{`
               .fuits-video-shell:fullscreen,
@@ -3275,8 +3280,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
               }}
               style={{
                 width: "100%",
-                aspectRatio: "16 / 9",
-                height: "auto",
+                height: "100%",
                 maxHeight: 520,
                 background: "#000",
                 display: "block",
@@ -3402,13 +3406,13 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
         </div>
       )}
       <div style={{
-        padding: "12px 12px 14px",
+        padding: "8px 10px 10px",
         color: "#cbd5e1",
         fontSize: 10,
         fontWeight: 900,
-        lineHeight: 1.4,
-        minHeight: 76,
-        maxHeight: 112,
+        lineHeight: 1.25,
+        minHeight: 46,
+        maxHeight: 74,
         overflowY: "auto",
         whiteSpace: "normal",
         overflowWrap: "anywhere",
@@ -4568,7 +4572,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
           )}
           <div style={{
             flex: 1,
-            padding: "4px 2px 0",
+            padding: "12px 2px 0",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",

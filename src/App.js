@@ -2543,6 +2543,7 @@ const FUITS_TRANSITION_BUFFER_SECONDS = 4;
 const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 0, liveAnnouncementOnline = false, restartSignal = 0, onPlaybackAnchor }, ref) {
   const videoRef = useRef(null);
   const videoShellRef = useRef(null);
+  const loadedVideoSrcRef = useRef("");
   const syncedVideoSrcRef = useRef("");
   const refreshQueuedRef = useRef(false);
   const transitionBufferPendingRef = useRef(false);
@@ -2707,6 +2708,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     transitionBufferPendingRef.current = false;
     pendingTransitionStartRef.current = true;
     syncedVideoSrcRef.current = "";
+    loadedVideoSrcRef.current = "";
     anchoredPlaybackKeyRef.current = "";
     playbackStartedRef.current = false;
     lastAllowedPlaybackTimeRef.current = 0;
@@ -2877,6 +2879,15 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     const video = videoRef.current;
     if (!video || !videoSrc) return;
 
+    video.muted = playerMuted;
+    video.volume = playerVolume;
+
+    if (loadedVideoSrcRef.current === videoSrc) {
+      playCurrentVideo();
+      return;
+    }
+
+    loadedVideoSrcRef.current = videoSrc;
     setVideoLoading(true);
     setVideoError("");
     setLargePreloadProgress(0);
@@ -2894,8 +2905,6 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
       pendingTransitionStartRef.current = true;
     }
     syncedVideoSrcRef.current = "";
-    video.muted = playerMuted;
-    video.volume = playerVolume;
     video.preload = "auto";
     video.load();
 

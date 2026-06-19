@@ -3177,19 +3177,26 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                 display: none !important;
                 pointer-events: none !important;
               }
-              @media (max-height: 730px) and (min-width: 900px) {
+              @media (min-width: 900px) and (max-width: 1400px) and (max-height: 730px) {
+                .fuits-video-shell {
+                  height: 165px !important;
+                }
                 .fuits-video-title {
                   box-sizing: border-box !important;
-                  min-height: 126px !important;
-                  max-height: none !important;
-                  padding: 14px 10px 34px !important;
+                  min-height: 40px !important;
+                  max-height: 54px !important;
+                  padding: 6px 8px 10px !important;
                   color: #f8fafc !important;
-                  font-size: 16px !important;
+                  font-size: 9px !important;
                   font-weight: 1000 !important;
-                  line-height: 1.4 !important;
+                  line-height: 1.25 !important;
                   overflow-y: visible !important;
-                  margin-bottom: 18px !important;
+                  margin-bottom: 2px !important;
                   text-shadow: 0 1px 3px rgba(0,0,0,.9) !important;
+                }
+                iframe[title="FUITS Live TV Chat"] {
+                  height: 200px !important;
+                  min-height: 200px !important;
                 }
               }
             `}</style>
@@ -3422,16 +3429,14 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
         </div>
       )}
       <div className="fuits-video-title" style={{
-        boxSizing: "border-box",
-        padding: "10px 10px 18px",
-        color: "#f8fafc",
-        fontSize: 12,
-        fontWeight: 1000,
-        lineHeight: 1.35,
-        minHeight: 68,
-        maxHeight: 120,
-        overflowY: "visible",
-        marginBottom: 6,
+        padding: "8px 10px 10px",
+        color: "#cbd5e1",
+        fontSize: 10,
+        fontWeight: 900,
+        lineHeight: 1.25,
+        minHeight: 46,
+        maxHeight: 74,
+        overflowY: "auto",
         whiteSpace: "normal",
         overflowWrap: "anywhere",
         wordBreak: "break-word",

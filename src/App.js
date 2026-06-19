@@ -2939,12 +2939,13 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
 
   useEffect(() => {
     const handleFullscreenChange = () => {
+      const shell = videoShellRef.current;
       const fullscreenElement =
         document.fullscreenElement ||
         document.webkitFullscreenElement ||
         document.msFullscreenElement;
 
-      if (fullscreenElement !== videoShellRef.current) setStretchVideoFullscreen(false);
+      setStretchVideoFullscreen(Boolean(shell && fullscreenElement && (fullscreenElement === shell || shell.contains(fullscreenElement))));
     };
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
@@ -2987,13 +2988,12 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
   const stretchVideoToFullscreen = useCallback(async () => {
     const shell = videoShellRef.current;
     const video = videoRef.current;
-    if (!shell) return;
 
     const fullscreenElement =
       document.fullscreenElement ||
       document.webkitFullscreenElement ||
       document.msFullscreenElement;
-    if (fullscreenElement === shell) {
+    if (fullscreenElement) {
       const exitFullscreen =
         document.exitFullscreen ||
         document.webkitExitFullscreen ||
@@ -3002,6 +3002,8 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
       setStretchVideoFullscreen(false);
       return;
     }
+
+    if (!shell) return;
 
     setStretchVideoFullscreen(true);
     if (video) {
@@ -3260,6 +3262,30 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                 objectFit: stretchVideoFullscreen ? "fill" : "contain"
               }}
             />
+            {stretchVideoFullscreen && (
+              <button
+                type="button"
+                onClick={stretchVideoToFullscreen}
+                style={{
+                  position: "absolute",
+                  top: 10,
+                  right: 10,
+                  zIndex: 8,
+                  border: "1px solid rgba(255,255,255,.28)",
+                  borderRadius: 999,
+                  padding: "8px 11px",
+                  background: "rgba(15,23,42,.86)",
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontWeight: 1000,
+                  textTransform: "uppercase",
+                  boxShadow: "0 8px 18px rgba(0,0,0,.38)"
+                }}
+              >
+                Exit Fullscreen
+              </button>
+            )}
             {needsLargeVideoPreload && (
               <div style={{
                 position: "absolute",

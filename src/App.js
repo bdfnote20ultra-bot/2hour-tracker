@@ -731,13 +731,14 @@ function PokemonSidebar() {
   const gameCardRefs = useRef({});
   const gamepadKeysRef = useRef(new Set());
   const multiplayerRemoteKeysRef = useRef(new Set());
+  const n64PerformanceMode = isN64Game(gameLaunch);
 
   const isInteractiveElement = (element) => {
     if (!element || element === document.body) return false;
     return Boolean(element.closest?.("select, input, textarea, button, [contenteditable='true']"));
   };
 
-  const focusPokemonEmulator = () => {
+  const focusPokemonEmulator = ({ click = true } = {}) => {
     if (isInteractiveElement(document.activeElement)) return;
 
     const host = emulatorHostRef.current;
@@ -752,7 +753,9 @@ function PokemonSidebar() {
     try { frame?.focus?.({ preventScroll: true }); } catch {}
     try { host?.focus?.({ preventScroll: true }); } catch {}
     try { target?.focus?.({ preventScroll: true }); } catch {}
-    try { target?.click?.(); } catch {}
+    if (click) {
+      try { target?.click?.(); } catch {}
+    }
     try { window.EJS_emulator?.gameManager?.resume?.(); } catch {}
     try { window.EJS_emulator?.resume?.(); } catch {}
   };
@@ -962,6 +965,11 @@ function PokemonSidebar() {
     }
   }, [activeGameAssets.backUrl, selectedArt]);
 
+  useEffect(() => {
+    document.body.classList.toggle("fuit-n64-performance-mode", n64PerformanceMode);
+    return () => document.body.classList.remove("fuit-n64-performance-mode");
+  }, [n64PerformanceMode]);
+
   const moveCarousel = (direction) => {
     if (!carouselGames.length) return;
     const nextIndex = (activeGameIndex + direction + carouselGames.length) % carouselGames.length;
@@ -1089,10 +1097,10 @@ function PokemonSidebar() {
     script.async = true;
     script.dataset.pokemonEmulatorLoader = "true";
     document.body.appendChild(script);
-    focusPokemonEmulator();
+    focusPokemonEmulator({ click: !n64Launch });
 
-    const focusTimers = (n64Launch ? [250, 900, 2200] : [150, 400, 900, 1600, 2600]).map(delay =>
-      window.setTimeout(focusPokemonEmulator, delay)
+    const focusTimers = (n64Launch ? [250] : [150, 400, 900, 1600, 2600]).map(delay =>
+      window.setTimeout(() => focusPokemonEmulator({ click: !n64Launch }), delay)
     );
 
     return () => {
@@ -1169,13 +1177,17 @@ function PokemonSidebar() {
     };
 
     let gamepadTimer = 0;
+    let gamepadScheduleType = "timeout";
     let lastGamepadFocus = 0;
     const n64Launch = isN64Game(gameLaunch);
-    const gamepadPollDelay = n64Launch ? 32 : 0;
-    const scheduleGamepadPoll = () => {
-      if (gamepadPollDelay) {
-        gamepadTimer = window.setTimeout(pollGamepads, gamepadPollDelay);
+    const n64IdlePollDelay = 900;
+    const n64ActivePollDelay = 50;
+    const scheduleGamepadPoll = (hasPad = false) => {
+      if (n64Launch) {
+        gamepadScheduleType = "timeout";
+        gamepadTimer = window.setTimeout(pollGamepads, hasPad ? n64ActivePollDelay : n64IdlePollDelay);
       } else {
+        gamepadScheduleType = "raf";
         gamepadTimer = window.requestAnimationFrame(pollGamepads);
       }
     };
@@ -1185,12 +1197,12 @@ function PokemonSidebar() {
 
       if (!pad) {
         releaseAllKeys();
-        scheduleGamepadPoll();
+        scheduleGamepadPoll(false);
         return;
       }
 
       const now = performance.now();
-      if (now - lastGamepadFocus > (n64Launch ? 4000 : 1000)) {
+      if (!n64Launch && now - lastGamepadFocus > 1000) {
         lastGamepadFocus = now;
         focusPokemonEmulator();
       }
@@ -1205,16 +1217,23 @@ function PokemonSidebar() {
       setGameKey("up", yAxis < -0.45);
       setGameKey("down", yAxis > 0.45);
 
-      scheduleGamepadPoll();
+      scheduleGamepadPoll(true);
     };
 
-    scheduleGamepadPoll();
-    window.addEventListener("gamepadconnected", focusPokemonEmulator);
+    const handleGamepadConnected = () => {
+      if (gamepadScheduleType === "timeout") window.clearTimeout(gamepadTimer);
+      else window.cancelAnimationFrame(gamepadTimer);
+      focusPokemonEmulator({ click: !n64Launch });
+      scheduleGamepadPoll(true);
+    };
+
+    scheduleGamepadPoll(Boolean(Array.from(navigator.getGamepads?.() || []).find(Boolean)));
+    window.addEventListener("gamepadconnected", handleGamepadConnected);
 
     return () => {
-      if (gamepadPollDelay) window.clearTimeout(gamepadTimer);
+      if (gamepadScheduleType === "timeout") window.clearTimeout(gamepadTimer);
       else window.cancelAnimationFrame(gamepadTimer);
-      window.removeEventListener("gamepadconnected", focusPokemonEmulator);
+      window.removeEventListener("gamepadconnected", handleGamepadConnected);
       releaseAllKeys();
     };
   }, [gameLaunch, collapsed]);
@@ -1339,6 +1358,11 @@ function PokemonSidebar() {
     if (!gameLaunch) return;
 
     applyPokemonStretch(stretchGame);
+    if (isN64Game(gameLaunch)) {
+      const timeout = window.setTimeout(() => applyPokemonStretch(stretchGame), 900);
+      return () => window.clearTimeout(timeout);
+    }
+
     const interval = window.setInterval(() => applyPokemonStretch(stretchGame), 500);
     const timeout = window.setTimeout(() => window.clearInterval(interval), 5000);
 
@@ -1370,7 +1394,7 @@ function PokemonSidebar() {
   }, [gameFullscreen]);
 
   return (
-    <div className="pokemon-desktop-stack" style={{
+    <div className={`pokemon-desktop-stack${n64PerformanceMode ? " pokemon-n64-performance" : ""}`} style={{
       position: "fixed",
       left: "calc(18px * var(--flive-scale, 1))",
       top: "calc(4px * var(--flive-scale, 1))",
@@ -1385,21 +1409,21 @@ function PokemonSidebar() {
       overflowX: "hidden",
       overflowY: collapsed ? "hidden" : "auto",
       pointerEvents: "none",
-      transition: "width .25s ease"
+      transition: n64PerformanceMode ? "none" : "width .25s ease"
     }}>
     <aside className="pokemon-desktop-sidebar" style={{
       width: "100%",
       flex: "0 0 auto",
       borderRadius: "calc(24px * var(--flive-gaming-scale, var(--flive-scale, 1)))",
       border: "2px solid rgba(255,255,255,0.22)",
-      background: `linear-gradient(rgba(2,6,23,0.62), rgba(2,6,23,0.82)), url(${process.env.PUBLIC_URL}/${backgroundImage})`,
+      background: n64PerformanceMode ? "rgba(2,6,23,.96)" : `linear-gradient(rgba(2,6,23,0.62), rgba(2,6,23,0.82)), url(${process.env.PUBLIC_URL}/${backgroundImage})`,
       backgroundSize: "cover",
       backgroundPosition: "center",
-      boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
+      boxShadow: n64PerformanceMode ? "none" : "0 18px 60px rgba(0,0,0,0.55)",
       padding: "calc(12px * var(--flive-gaming-scale, var(--flive-scale, 1)))",
       color: "#f8fafc",
       fontFamily: "system-ui, sans-serif",
-      transition: "width .25s ease, padding .25s ease",
+      transition: n64PerformanceMode ? "none" : "width .25s ease, padding .25s ease",
       overflow: "hidden",
       pointerEvents: "auto"
     }}>
@@ -1414,6 +1438,17 @@ function PokemonSidebar() {
         .pokemon-desktop-stack { scrollbar-width: none; -ms-overflow-style: none; }
         .pokemon-desktop-stack::-webkit-scrollbar { display: none; width: 0; height: 0; }
         .pokemon-desktop-sidebar button:hover { transform: translateY(-1px); }
+        .pokemon-desktop-stack.pokemon-n64-performance,
+        .pokemon-desktop-stack.pokemon-n64-performance * {
+          transition: none !important;
+        }
+        .pokemon-desktop-stack.pokemon-n64-performance .pokemon-desktop-sidebar button:hover {
+          transform: none !important;
+        }
+        body.fuit-n64-performance-mode .flive-center-shell {
+          background-attachment: scroll !important;
+          transition: none !important;
+        }
         .game-cover-carousel { scrollbar-width: none; -ms-overflow-style: none; }
         .game-cover-carousel::-webkit-scrollbar { display: none; width: 0; height: 0; }
         .pokemon-emulator-host,

@@ -2125,10 +2125,8 @@ function PokemonSidebar() {
           gap: 10
         }}>
           <div style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 8
+            display: "grid",
+            gap: 4
           }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ color: "#c7d2fe", fontSize: 16, fontWeight: 1000 }}>RETROARCH WEB PLAYER</div>
@@ -2136,24 +2134,6 @@ function PokemonSidebar() {
                 Pick an N64 core, run it, then add your Conker ROM from your computer.
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => window.open(RETROARCH_WEB_PLAYER_URL, "_blank", "noopener,noreferrer")}
-              style={{
-                border: "1px solid rgba(199,210,254,.45)",
-                borderRadius: 10,
-                background: "rgba(30,41,59,.86)",
-                color: "#e0e7ff",
-                cursor: "pointer",
-                padding: "9px 10px",
-                fontSize: 10,
-                fontWeight: 1000,
-                textTransform: "uppercase",
-                flex: "0 0 auto"
-              }}
-            >
-              Full Tab
-            </button>
           </div>
 
           <div ref={retroarchPlayerRef} className="retroarch-player-shell" style={{

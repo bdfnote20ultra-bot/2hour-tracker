@@ -51,6 +51,44 @@ function Resolve-GameLaunchPath([string]$Path) {
   return $Path
 }
 
+function Get-CloudGamingStatus([string]$Port) {
+  try {
+    $status = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/status" -Method Get -TimeoutSec 2
+    if ($status.ok -and $status.active) { return $status }
+  } catch {
+    return $null
+  }
+
+  return $null
+}
+
+function Show-CloudGamingLiveScreen([string]$Port, $Status, [bool]$AlreadyRunning) {
+  Clear-Host
+  Write-Host "FUITS Cloud Gaming helper is LIVE" -ForegroundColor Green
+  Write-Host ""
+
+  if ($AlreadyRunning) {
+    Write-Host "A helper is already running on port $Port, so this starter is using that live helper." -ForegroundColor Yellow
+    Write-Host ""
+  }
+
+  Write-Host "Local viewer: http://127.0.0.1:$Port/room"
+  Write-Host "Browser controller: http://127.0.0.1:$Port/controller"
+
+  if ($Status -and $Status.systems -and $Status.systems.N64) {
+    Write-Host "N64 launcher: RMG at $($Status.systems.N64.emulatorPath)"
+    Write-Host "N64 ROM folder: $($Status.systems.N64.romRoot)"
+  }
+
+  Write-Host ""
+  Write-Host "Open the FUIT site, choose FUITS CLOUD GAMING, choose N64 + a game, then click Launch N64 Game."
+  Write-Host "Choose the emulator/game window from the browser capture picker."
+  Write-Host "For controller input, keep the emulator window focused on this PC."
+  Write-Host ""
+  Write-Host "Leave this window open while playing. Press Enter to return to the menu."
+  Read-Host | Out-Null
+}
+
 function Start-CloudGaming {
   Clear-Host
   Write-Host "FUITS CLOUD GAMING" -ForegroundColor Cyan
@@ -79,6 +117,12 @@ function Start-CloudGaming {
   }
 
   $node = Find-Node
+
+  $runningStatus = Get-CloudGamingStatus $port
+  if ($runningStatus) {
+    Show-CloudGamingLiveScreen $port $runningStatus $true
+    return
+  }
 
   $env:FUIT_CLOUD_SESSION_NAME = $sessionName
   $env:FUIT_CLOUD_GAME_NAME = $gameName
@@ -118,6 +162,18 @@ function Start-CloudGaming {
 
   try {
     & $node $serverFile
+    if ($LASTEXITCODE -ne 0) {
+      Write-Host ""
+      Write-Host "The helper server stopped with exit code $LASTEXITCODE." -ForegroundColor Yellow
+      $statusAfterExit = Get-CloudGamingStatus $port
+      if ($statusAfterExit) {
+        Show-CloudGamingLiveScreen $port $statusAfterExit $true
+      } else {
+        Write-Host "If this returned to the menu right away, the port may already be in use or Node printed an error above."
+        Write-Host "Press Enter to return to the menu."
+        Read-Host | Out-Null
+      }
+    }
   } finally {
     if ($relayProcess -and -not $relayProcess.HasExited) {
       Stop-Process -Id $relayProcess.Id -Force -ErrorAction SilentlyContinue

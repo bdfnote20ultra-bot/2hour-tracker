@@ -1019,7 +1019,8 @@ function PokemonSidebar() {
   }, [activeGamingApp, cleanCloudGamingHostUrl, cloudGamingSession.online, cloudGamingSystem]);
 
   const launchCloudGamingEmulator = async () => {
-    const selectedGame = cloudGamingGames.find(game => game.id === selectedCloudGamingGameId);
+    const launchGameId = selectedCloudGamingGameId || cloudGamingGames[0]?.id || "";
+    const selectedGame = cloudGamingGames.find(game => game.id === launchGameId);
     setCloudGamingActionStatus(
       selectedGame
         ? `Asking the helper to launch ${selectedGame.label} in RMG...`
@@ -1033,7 +1034,7 @@ function PokemonSidebar() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           system: cloudGamingSystem,
-          gameId: selectedCloudGamingGameId
+          gameId: launchGameId
         })
       });
       const data = await response.json().catch(() => ({}));
@@ -2435,17 +2436,17 @@ function PokemonSidebar() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(118px, 1fr))", gap: 8 }}>
             <button
               type="button"
-              disabled={!cloudGamingSession.online || !selectedCloudGamingGameId}
+              disabled={!cloudGamingSession.online || (!selectedCloudGamingGameId && !cloudGamingGames.length)}
               onClick={launchCloudGamingEmulator}
               style={{
                 border: "1px solid rgba(147,197,253,.28)",
                 borderRadius: 10,
                 padding: "10px 10px",
-                background: cloudGamingSession.online && selectedCloudGamingGameId ? "#93c5fd" : "rgba(15,23,42,.42)",
-                color: cloudGamingSession.online && selectedCloudGamingGameId ? "#0f172a" : "#64748b",
+                background: cloudGamingSession.online && (selectedCloudGamingGameId || cloudGamingGames.length) ? "#93c5fd" : "rgba(15,23,42,.42)",
+                color: cloudGamingSession.online && (selectedCloudGamingGameId || cloudGamingGames.length) ? "#0f172a" : "#64748b",
                 fontSize: 11,
                 fontWeight: 1000,
-                cursor: cloudGamingSession.online && selectedCloudGamingGameId ? "pointer" : "default"
+                cursor: cloudGamingSession.online && (selectedCloudGamingGameId || cloudGamingGames.length) ? "pointer" : "default"
               }}
             >
               Launch N64 Game

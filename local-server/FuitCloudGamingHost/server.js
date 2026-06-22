@@ -244,6 +244,7 @@ function pageShell(title, body) {
     .empty { padding: 20px; max-width: 560px; text-align: center; }
     .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     button { border: 0; border-radius: 8px; padding: 10px 12px; background: #93c5fd; color: #0f172a; font-weight: 1000; cursor: pointer; }
+    select { min-width: 210px; border: 1px solid rgba(147,197,253,.34); border-radius: 8px; padding: 9px 10px; background: rgba(15,23,42,.86); color: #dbeafe; font-weight: 900; }
     button.secondary { background: rgba(15,23,42,.86); color: #dbeafe; border: 1px solid rgba(147,197,253,.34); }
     button.warn { background: #fde68a; color: #422006; }
     button:disabled { opacity: .48; cursor: default; }
@@ -287,7 +288,8 @@ function roomPage(req) {
       </section>
       <section class="panel">
         <div class="actions">
-          <button id="launchBtn" ${status.hasLaunchPath ? "" : "disabled"}>Launch PC Emulator</button>
+          <select id="gameSelect" aria-label="N64 game"></select>
+          <button id="launchBtn" ${status.hasLaunchPath ? "" : "disabled"}>Launch N64 Game</button>
           <button id="captureBtn">Capture PC Game Window</button>
           <button class="secondary" id="controllerBtn">Open Controller</button>
           <button class="secondary" id="fullscreenBtn">Fullscreen View</button>
@@ -303,9 +305,12 @@ function roomPage(req) {
       const statusLine = document.getElementById("status");
       const captureCanvas = document.createElement("canvas");
       const captureCtx = captureCanvas.getContext("2d", { alpha: false });
+      const gameSelect = document.getElementById("gameSelect");
+      const launchBtn = document.getElementById("launchBtn");
       let captureStream = null;
       let uploadTimer = null;
       let statusTimer = null;
+      let games = [];
 
       function showViewerFrame(src) {
         if (captureStream) return;
@@ -382,9 +387,46 @@ function roomPage(req) {
         refreshFrame();
       }
 
-      document.getElementById("launchBtn").addEventListener("click", async () => {
+      async function loadGames() {
         try {
-          const response = await fetch("/api/launch", { method: "POST" });
+          const response = await fetch("/api/games?system=N64", { cache: "no-store" });
+          const data = await response.json();
+          games = Array.isArray(data.games) ? data.games : [];
+          gameSelect.innerHTML = "";
+          games.forEach(game => {
+            const option = document.createElement("option");
+            option.value = game.id;
+            option.textContent = game.label;
+            gameSelect.appendChild(option);
+          });
+          if (games.length) {
+            launchBtn.disabled = false;
+            statusLine.textContent = "Choose an N64 game, launch it, then capture the RMG window.";
+          } else {
+            const option = document.createElement("option");
+            option.value = "";
+            option.textContent = "No N64 games found";
+            gameSelect.appendChild(option);
+            launchBtn.disabled = true;
+            statusLine.textContent = "No N64 games were found in the configured ROM folder.";
+          }
+        } catch {
+          gameSelect.innerHTML = "<option value=\\"\\">Game list unavailable</option>";
+          launchBtn.disabled = true;
+          statusLine.textContent = "Could not load the N64 game list from the helper.";
+        }
+      }
+
+      launchBtn.addEventListener("click", async () => {
+        try {
+          const response = await fetch("/api/launch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              system: "N64",
+              gameId: gameSelect.value || games[0]?.id || ""
+            })
+          });
           const data = await response.json();
           statusLine.textContent = data.message || (data.ok ? "Launch requested." : "Launch failed.");
         } catch {
@@ -417,6 +459,7 @@ function roomPage(req) {
       document.getElementById("stopBtn").addEventListener("click", stopCapture);
       setInterval(refreshFrame, 180);
       refreshFrame();
+      loadGames();
     </script>
   `);
 }
@@ -581,9 +624,12 @@ function launchConfiguredGame(options = {}) {
   let launchExe = gamePath;
   let launchRom = "";
   let launchLabel = gameName;
+  const system = String(options.system || "").toUpperCase();
+  const wantsN64 = system === "N64" || (!launchExe && !options.gameId);
+  const gameId = options.gameId || (wantsN64 ? listN64Games()[0]?.id : "");
 
-  if (options.system === "N64" && options.gameId) {
-    const selectedGame = resolveN64Game(options.gameId);
+  if (wantsN64) {
+    const selectedGame = resolveN64Game(gameId);
     if (!selectedGame) throw new Error("That N64 game was not found on the host PC.");
     if (!fs.existsSync(rmgPath)) throw new Error(`RMG emulator was not found at ${rmgPath}.`);
     launchExe = rmgPath;
@@ -613,7 +659,7 @@ function launchConfiguredGame(options = {}) {
   });
   child.unref();
 
-  return { label: launchLabel, exe: launchExe, rom: launchRom };
+  return { label: launchLabel, exe: launchExe, rom: launchRom, system: launchRom ? "N64" : "" };
 }
 
 const server = http.createServer(async (req, res) => {
@@ -686,7 +732,7 @@ const server = http.createServer(async (req, res) => {
         ok: true,
         message: `Launch requested for ${launched.label}.`,
         gameName: launched.label,
-        system: body.system || "",
+        system: launched.system || body.system || "",
         rom: launched.rom || "",
         lastRequestedMs: Date.now()
       };

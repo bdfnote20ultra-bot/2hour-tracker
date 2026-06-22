@@ -4,6 +4,8 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $serverFile = Join-Path $scriptDir "server.js"
 $inputRelayFile = Join-Path $scriptDir "InputRelay.ps1"
 $defaultPort = "8175"
+$defaultRmgPath = "T:\FattysLiveTV\Tools\Emulators\RMG\RMG.exe"
+$defaultN64RomRoot = "T:\FattysLiveTV\Games\Roms\N64"
 
 function Find-Node {
   $node = Get-Command node.exe -ErrorAction SilentlyContinue
@@ -56,13 +58,15 @@ function Start-CloudGaming {
   Write-Host ""
 
   $sessionName = Read-WithDefault "Session name" "FUITS Cloud Gaming"
-  $gameName = Read-WithDefault "Game label" "PC emulator game"
+  $gameName = Read-WithDefault "Game label" "N64 Cloud Gaming"
   $port = Read-WithDefault "Helper port" $defaultPort
   $enableInputRelay = Read-WithDefault "Enable browser controller input relay? Y/N" "Y"
+  $rmgPath = Read-WithDefault "RMG emulator path" $defaultRmgPath
+  $n64RomRoot = Read-WithDefault "N64 ROM folder" $defaultN64RomRoot
 
   $gamePath = ""
-  $openGame = Read-Host "Open an emulator/game now? Y/N [Y]"
-  if ([string]::IsNullOrWhiteSpace($openGame) -or $openGame.Trim().ToUpperInvariant().StartsWith("Y")) {
+  $openGame = Read-Host "Open an emulator/game now instead of using the site launcher? Y/N [N]"
+  if (-not [string]::IsNullOrWhiteSpace($openGame) -and $openGame.Trim().ToUpperInvariant().StartsWith("Y")) {
     $gamePath = Select-GameFile
     $gamePath = Resolve-GameLaunchPath $gamePath
     if ($gamePath) {
@@ -80,13 +84,17 @@ function Start-CloudGaming {
   $env:FUIT_CLOUD_GAME_NAME = $gameName
   $env:FUIT_CLOUD_GAME_PATH = $gamePath
   $env:FUIT_CLOUD_GAMING_PORT = $port
+  $env:FUIT_CLOUD_RMG_PATH = $rmgPath
+  $env:FUIT_CLOUD_N64_ROM_ROOT = $n64RomRoot
 
   Clear-Host
   Write-Host "FUITS Cloud Gaming helper is starting..." -ForegroundColor Cyan
   Write-Host "Local viewer: http://127.0.0.1:$port/room"
   Write-Host "Browser controller: http://127.0.0.1:$port/controller"
+  Write-Host "N64 launcher: RMG at $rmgPath"
+  Write-Host "N64 ROM folder: $n64RomRoot"
   Write-Host ""
-  Write-Host "Open the FUIT site, choose FUITS CLOUD GAMING, then click Launch PC Emulator or Capture PC Game Window."
+  Write-Host "Open the FUIT site, choose FUITS CLOUD GAMING, choose N64 + a game, then click Launch N64 Game."
   Write-Host "Choose the emulator/game window from the browser capture picker."
   Write-Host "For controller input, keep the emulator window focused on this PC."
   Write-Host "Close this window or press Ctrl+C to turn cloud gaming off."
@@ -118,6 +126,8 @@ function Start-CloudGaming {
     Remove-Item Env:\FUIT_CLOUD_GAME_NAME -ErrorAction SilentlyContinue
     Remove-Item Env:\FUIT_CLOUD_GAME_PATH -ErrorAction SilentlyContinue
     Remove-Item Env:\FUIT_CLOUD_GAMING_PORT -ErrorAction SilentlyContinue
+    Remove-Item Env:\FUIT_CLOUD_RMG_PATH -ErrorAction SilentlyContinue
+    Remove-Item Env:\FUIT_CLOUD_N64_ROM_ROOT -ErrorAction SilentlyContinue
   }
 }
 

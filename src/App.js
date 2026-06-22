@@ -728,6 +728,9 @@ function PokemonSidebar() {
   });
   const [cloudGamingSession, setCloudGamingSession] = useState({ online: false, loading: true, error: "", data: null });
   const [cloudGamingActionStatus, setCloudGamingActionStatus] = useState("");
+  const [cloudGamingSystem, setCloudGamingSystem] = useState("N64");
+  const [cloudGamingGames, setCloudGamingGames] = useState([]);
+  const [selectedCloudGamingGameId, setSelectedCloudGamingGameId] = useState("");
   const [gameSearch, setGameSearch] = useState("");
   const [selectedArt, setSelectedArt] = useState("cover");
   const [zoomedCover, setZoomedCover] = useState(null);
@@ -982,13 +985,56 @@ function PokemonSidebar() {
     };
   }, [activeGamingApp, cleanCloudGamingHostUrl]);
 
+  useEffect(() => {
+    if (activeGamingApp !== "cloud-gaming" || !cloudGamingSession.online) return undefined;
+
+    let cancelled = false;
+
+    const loadCloudGamingGames = async () => {
+      try {
+        const response = await fetch(`${cleanCloudGamingHostUrl}/api/games?system=${encodeURIComponent(cloudGamingSystem)}`, {
+          cache: "no-store"
+        });
+        if (!response.ok) throw new Error("Cloud game list unavailable.");
+        const data = await response.json();
+        const gamesList = Array.isArray(data?.games) ? data.games : [];
+        if (!cancelled) {
+          setCloudGamingGames(gamesList);
+          setSelectedCloudGamingGameId(current => current || gamesList[0]?.id || "");
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setCloudGamingGames([]);
+          setSelectedCloudGamingGameId("");
+          setCloudGamingActionStatus(error?.message || "Cloud game list unavailable.");
+        }
+      }
+    };
+
+    loadCloudGamingGames();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeGamingApp, cleanCloudGamingHostUrl, cloudGamingSession.online, cloudGamingSystem]);
+
   const launchCloudGamingEmulator = async () => {
-    setCloudGamingActionStatus("Asking the helper to launch the PC emulator...");
+    const selectedGame = cloudGamingGames.find(game => game.id === selectedCloudGamingGameId);
+    setCloudGamingActionStatus(
+      selectedGame
+        ? `Asking the helper to launch ${selectedGame.label} in RMG...`
+        : "Asking the helper to launch the PC emulator..."
+    );
 
     try {
       const response = await fetch(`${cleanCloudGamingHostUrl}/api/launch`, {
         method: "POST",
-        cache: "no-store"
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system: cloudGamingSystem,
+          gameId: selectedCloudGamingGameId
+        })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data?.ok) throw new Error(data?.message || "Cloud helper could not launch the emulator.");
@@ -2213,10 +2259,61 @@ function PokemonSidebar() {
             <div style={{ fontSize: 18, color: "#bfdbfe", marginBottom: 5 }}>FUITS CLOUD GAMING</div>
             <div style={{ fontSize: 11, color: "#93c5fd", lineHeight: 1.35 }}>
               {cloudGamingSession.online
-                ? `${cloudGamingSession.data?.sessionName || "Cloud Gaming"} is linked to this PC. Launch, capture, and control the emulator from the browser.`
-                : "Start the FUITS Cloud Gaming helper, then use this panel as the browser launcher and controller hub."}
+                ? `${cloudGamingSession.data?.sessionName || "Cloud Gaming"} is linked to this PC. Choose N64, launch a game, capture RMG, then control it from the browser.`
+                : "Start the FUITS Cloud Gaming helper, then use this panel as the browser N64 launcher and controller hub."}
             </div>
           </div>
+
+          {cloudGamingSession.online && (
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "92px minmax(0, 1fr)",
+              gap: 8,
+              alignItems: "center"
+            }}>
+              <select
+                value={cloudGamingSystem}
+                onChange={event => {
+                  setCloudGamingSystem(event.target.value);
+                  setSelectedCloudGamingGameId("");
+                }}
+                style={{
+                  width: "100%",
+                  border: "1px solid rgba(147,197,253,.28)",
+                  borderRadius: 10,
+                  padding: "9px 8px",
+                  background: "rgba(15,23,42,.82)",
+                  color: "#dbeafe",
+                  fontSize: 11,
+                  fontWeight: 1000
+                }}
+              >
+                <option value="N64">N64</option>
+              </select>
+              <select
+                value={selectedCloudGamingGameId}
+                onChange={event => setSelectedCloudGamingGameId(event.target.value)}
+                style={{
+                  width: "100%",
+                  border: "1px solid rgba(147,197,253,.28)",
+                  borderRadius: 10,
+                  padding: "9px 10px",
+                  background: "rgba(15,23,42,.82)",
+                  color: "#dbeafe",
+                  fontSize: 11,
+                  fontWeight: 900
+                }}
+              >
+                {cloudGamingGames.length ? (
+                  cloudGamingGames.map(game => (
+                    <option key={game.id} value={game.id}>{game.label}</option>
+                  ))
+                ) : (
+                  <option value="">No N64 games found</option>
+                )}
+              </select>
+            </div>
+          )}
 
           <div style={{
             borderRadius: 14,
@@ -2338,20 +2435,20 @@ function PokemonSidebar() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(118px, 1fr))", gap: 8 }}>
             <button
               type="button"
-              disabled={!cloudGamingSession.online || !cloudGamingSession.data?.hasLaunchPath}
+              disabled={!cloudGamingSession.online || !selectedCloudGamingGameId}
               onClick={launchCloudGamingEmulator}
               style={{
                 border: "1px solid rgba(147,197,253,.28)",
                 borderRadius: 10,
                 padding: "10px 10px",
-                background: cloudGamingSession.online && cloudGamingSession.data?.hasLaunchPath ? "#93c5fd" : "rgba(15,23,42,.42)",
-                color: cloudGamingSession.online && cloudGamingSession.data?.hasLaunchPath ? "#0f172a" : "#64748b",
+                background: cloudGamingSession.online && selectedCloudGamingGameId ? "#93c5fd" : "rgba(15,23,42,.42)",
+                color: cloudGamingSession.online && selectedCloudGamingGameId ? "#0f172a" : "#64748b",
                 fontSize: 11,
                 fontWeight: 1000,
-                cursor: cloudGamingSession.online && cloudGamingSession.data?.hasLaunchPath ? "pointer" : "default"
+                cursor: cloudGamingSession.online && selectedCloudGamingGameId ? "pointer" : "default"
               }}
             >
-              Launch Emulator
+              Launch N64 Game
             </button>
             <button
               type="button"

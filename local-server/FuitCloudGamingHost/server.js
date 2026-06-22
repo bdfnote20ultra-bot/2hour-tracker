@@ -1,5 +1,7 @@
 const http = require("http");
 const os = require("os");
+const fs = require("fs");
+const path = require("path");
 const { spawn } = require("child_process");
 
 const PORT = Number(process.env.FUIT_CLOUD_GAMING_PORT || 8175);
@@ -7,6 +9,8 @@ const startedAtMs = Date.now();
 const sessionName = process.env.FUIT_CLOUD_SESSION_NAME || "FUIT Cloud Gaming";
 const gameName = process.env.FUIT_CLOUD_GAME_NAME || "PC emulator game";
 const gamePath = process.env.FUIT_CLOUD_GAME_PATH || "";
+const rmgPath = process.env.FUIT_CLOUD_RMG_PATH || "T:\\FattysLiveTV\\Tools\\Emulators\\RMG\\RMG.exe";
+const n64RomRoot = process.env.FUIT_CLOUD_N64_ROM_ROOT || "T:\\FattysLiveTV\\Games\\Roms\\N64";
 
 const controllers = new Map();
 let latestFrame = null;
@@ -18,7 +22,8 @@ let hostCaptureState = {
 let launchState = {
   requested: false,
   ok: false,
-  message: gamePath ? "Ready to launch from browser." : "No game path was selected in the helper.",
+  message: "Ready for N64 browser launch.",
+  gameName,
   lastRequestedMs: 0
 };
 
@@ -39,6 +44,81 @@ const allowedButtons = new Set([
   "c-left",
   "c-right"
 ]);
+
+function makeGameId(filePath) {
+  return Buffer.from(filePath, "utf8").toString("base64url");
+}
+
+function readGameId(gameId) {
+  try {
+    return Buffer.from(String(gameId || ""), "base64url").toString("utf8");
+  } catch {
+    return "";
+  }
+}
+
+function listN64Games() {
+  const extensions = new Set([".n64", ".z64", ".v64"]);
+  const games = [];
+
+  function walk(dir) {
+    let entries = [];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    entries.forEach(entry => {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(fullPath);
+        return;
+      }
+
+      const ext = path.extname(entry.name).toLowerCase();
+      if (!extensions.has(ext)) return;
+
+      const label = path.basename(entry.name, ext)
+        .replace(/\s*\([^)]*\)\s*/g, " ")
+        .replace(/\s+/g, " ")
+        .trim() || path.basename(entry.name, ext);
+
+      games.push({
+        id: makeGameId(fullPath),
+        system: "N64",
+        label,
+        fileName: entry.name,
+        emulator: "RMG"
+      });
+    });
+  }
+
+  walk(n64RomRoot);
+  return games.sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function resolveN64Game(gameId) {
+  const decodedPath = readGameId(gameId);
+  if (!decodedPath) return null;
+
+  const resolvedRoot = path.resolve(n64RomRoot).toLowerCase();
+  const resolvedGame = path.resolve(decodedPath);
+  const resolvedGameLower = resolvedGame.toLowerCase();
+  const ext = path.extname(resolvedGame).toLowerCase();
+
+  if (![".n64", ".z64", ".v64"].includes(ext)) return null;
+  if (!resolvedGameLower.startsWith(resolvedRoot + path.sep.toLowerCase()) && resolvedGameLower !== resolvedRoot) return null;
+  if (!fs.existsSync(resolvedGame)) return null;
+
+  return {
+    path: resolvedGame,
+    label: path.basename(resolvedGame, ext)
+      .replace(/\s*\([^)]*\)\s*/g, " ")
+      .replace(/\s+/g, " ")
+      .trim() || path.basename(resolvedGame, ext)
+  };
+}
 
 function send(res, status, body, type = "text/plain; charset=utf-8") {
   res.writeHead(status, {
@@ -118,7 +198,15 @@ function statusPayload(req) {
     sessionName,
     gameName,
     gamePath,
-    hasLaunchPath: Boolean(gamePath),
+    hasLaunchPath: Boolean(gamePath || fs.existsSync(rmgPath)),
+    systems: {
+      N64: {
+        enabled: fs.existsSync(rmgPath) && fs.existsSync(n64RomRoot),
+        emulator: "RMG",
+        emulatorPath: rmgPath,
+        romRoot: n64RomRoot
+      }
+    },
     hasFrame: Boolean(latestFrame),
     latestFrameMs,
     hostCaptureState,
@@ -489,8 +577,21 @@ function readBody(req) {
   });
 }
 
-function launchConfiguredGame() {
-  if (!gamePath) {
+function launchConfiguredGame(options = {}) {
+  let launchExe = gamePath;
+  let launchRom = "";
+  let launchLabel = gameName;
+
+  if (options.system === "N64" && options.gameId) {
+    const selectedGame = resolveN64Game(options.gameId);
+    if (!selectedGame) throw new Error("That N64 game was not found on the host PC.");
+    if (!fs.existsSync(rmgPath)) throw new Error(`RMG emulator was not found at ${rmgPath}.`);
+    launchExe = rmgPath;
+    launchRom = selectedGame.path;
+    launchLabel = selectedGame.label;
+  }
+
+  if (!launchExe) {
     throw new Error("No emulator/game path was selected when the helper started.");
   }
 
@@ -499,17 +600,20 @@ function launchConfiguredGame() {
     "-ExecutionPolicy",
     "Bypass",
     "-Command",
-    "Start-Process -LiteralPath $env:FUIT_CLOUD_GAME_PATH_TO_OPEN"
+    "$argsList = @(); if ($env:FUIT_CLOUD_ROM_TO_OPEN) { $argsList += $env:FUIT_CLOUD_ROM_TO_OPEN }; Start-Process -LiteralPath $env:FUIT_CLOUD_GAME_PATH_TO_OPEN -ArgumentList $argsList"
   ], {
     detached: true,
     stdio: "ignore",
     windowsHide: true,
     env: {
       ...process.env,
-      FUIT_CLOUD_GAME_PATH_TO_OPEN: gamePath
+      FUIT_CLOUD_GAME_PATH_TO_OPEN: launchExe,
+      FUIT_CLOUD_ROM_TO_OPEN: launchRom
     }
   });
   child.unref();
+
+  return { label: launchLabel, exe: launchExe, rom: launchRom };
 }
 
 const server = http.createServer(async (req, res) => {
@@ -535,6 +639,22 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === "GET" && url.pathname === "/api/games") {
+    const system = String(url.searchParams.get("system") || "N64").toUpperCase();
+    if (system !== "N64") {
+      sendJson(res, 400, { ok: false, error: "Only N64 cloud games are configured right now." });
+      return;
+    }
+
+    sendJson(res, 200, {
+      ok: true,
+      system: "N64",
+      emulator: "RMG",
+      games: listN64Games()
+    });
+    return;
+  }
+
   if (req.method === "GET" && url.pathname === "/input-state") {
     sendJson(res, 200, aggregateInput());
     return;
@@ -556,14 +676,21 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === "POST" && url.pathname === "/api/launch") {
     try {
-      launchConfiguredGame();
+      const body = JSON.parse(await readBody(req) || "{}");
+      const launched = launchConfiguredGame({
+        system: String(body.system || "").toUpperCase(),
+        gameId: body.gameId
+      });
       launchState = {
         requested: true,
         ok: true,
-        message: `Launch requested for ${gameName}.`,
+        message: `Launch requested for ${launched.label}.`,
+        gameName: launched.label,
+        system: body.system || "",
+        rom: launched.rom || "",
         lastRequestedMs: Date.now()
       };
-      sendJson(res, 200, { ok: true, message: launchState.message });
+      sendJson(res, 200, { ok: true, message: launchState.message, launched });
     } catch (error) {
       launchState = {
         requested: true,

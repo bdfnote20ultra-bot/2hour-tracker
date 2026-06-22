@@ -728,6 +728,7 @@ function PokemonSidebar() {
   const [gameFullscreen, setGameFullscreen] = useState(false);
   const emulatorFrameRef = useRef(null);
   const emulatorHostRef = useRef(null);
+  const retroarchPlayerRef = useRef(null);
   const gameCarouselRef = useRef(null);
   const gameCardRefs = useRef({});
   const gamepadKeysRef = useRef(new Set());
@@ -814,6 +815,29 @@ function PokemonSidebar() {
         exitFullscreen?.call(document);
       }
     } catch {}
+  };
+
+  const toggleRetroarchFullscreen = () => {
+    const player = retroarchPlayerRef.current;
+    const fullscreenElement =
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.msFullscreenElement;
+
+    if (fullscreenElement) {
+      const exitFullscreen =
+        document.exitFullscreen ||
+        document.webkitExitFullscreen ||
+        document.msExitFullscreen;
+      try { exitFullscreen?.call(document); } catch {}
+      return;
+    }
+
+    const requestFullscreen =
+      player?.requestFullscreen ||
+      player?.webkitRequestFullscreen ||
+      player?.msRequestFullscreen;
+    try { requestFullscreen?.call(player); } catch {}
   };
 
   const systemGames = games.filter(game => game.system === activeSystem);
@@ -1528,6 +1552,21 @@ function PokemonSidebar() {
           transform-origin: center center !important;
           image-rendering: pixelated;
         }
+        .retroarch-player-shell:fullscreen,
+        .retroarch-player-shell:-webkit-full-screen {
+          width: 100vw !important;
+          height: 100vh !important;
+          min-height: 100vh !important;
+          border-radius: 0 !important;
+          border: none !important;
+          background: #020617 !important;
+        }
+        .retroarch-player-shell:fullscreen iframe,
+        .retroarch-player-shell:-webkit-full-screen iframe {
+          width: 100vw !important;
+          height: 100vh !important;
+          min-height: 100vh !important;
+        }
       `}</style>
       <div style={{ position: "sticky", top: 0, zIndex: 6, marginBottom: 8 }}>
         <button
@@ -2117,7 +2156,7 @@ function PokemonSidebar() {
             </button>
           </div>
 
-          <div style={{
+          <div ref={retroarchPlayerRef} className="retroarch-player-shell" style={{
             border: "1px solid rgba(199,210,254,.24)",
             borderRadius: 12,
             overflow: "hidden",
@@ -2139,6 +2178,24 @@ function PokemonSidebar() {
               }}
             />
           </div>
+
+          <button
+            type="button"
+            onClick={toggleRetroarchFullscreen}
+            style={{
+              border: "none",
+              borderRadius: 10,
+              padding: "11px 12px",
+              background: "#818cf8",
+              color: "#111827",
+              cursor: "pointer",
+              fontSize: 11,
+              fontWeight: 1000,
+              textTransform: "uppercase"
+            }}
+          >
+            Fullscreen Player
+          </button>
 
           <div style={{
             display: "grid",

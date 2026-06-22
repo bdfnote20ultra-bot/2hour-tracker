@@ -727,6 +727,7 @@ function PokemonSidebar() {
     try { return localStorage.getItem(FUIT_CLOUD_GAMING_HOST_URL_KEY) || FUIT_CLOUD_GAMING_DEFAULT_HOST_URL; } catch { return FUIT_CLOUD_GAMING_DEFAULT_HOST_URL; }
   });
   const [cloudGamingSession, setCloudGamingSession] = useState({ online: false, loading: true, error: "", data: null });
+  const [cloudGamingActionStatus, setCloudGamingActionStatus] = useState("");
   const [gameSearch, setGameSearch] = useState("");
   const [selectedArt, setSelectedArt] = useState("cover");
   const [zoomedCover, setZoomedCover] = useState(null);
@@ -869,6 +870,7 @@ function PokemonSidebar() {
   const multiplayerControllerUrl = multiplayerRoom.data?.controllerUrl || `${cleanMultiplayerHostUrl}/controller`;
   const cleanCloudGamingHostUrl = (cloudGamingHostUrl || FUIT_CLOUD_GAMING_DEFAULT_HOST_URL).trim().replace(/\/+$/, "") || FUIT_CLOUD_GAMING_DEFAULT_HOST_URL;
   const cloudGamingViewerUrl = cloudGamingSession.data?.viewerUrl || `${cleanCloudGamingHostUrl}/room`;
+  const cloudGamingControllerUrl = cloudGamingSession.data?.controllerUrl || `${cleanCloudGamingHostUrl}/controller`;
 
   useEffect(() => {
     try { localStorage.setItem(KICK_GAMING_CHANNEL_KEY, kickGamingChannel); } catch {}
@@ -979,6 +981,22 @@ function PokemonSidebar() {
       if (timeoutId) window.clearTimeout(timeoutId);
     };
   }, [activeGamingApp, cleanCloudGamingHostUrl]);
+
+  const launchCloudGamingEmulator = async () => {
+    setCloudGamingActionStatus("Asking the helper to launch the PC emulator...");
+
+    try {
+      const response = await fetch(`${cleanCloudGamingHostUrl}/api/launch`, {
+        method: "POST",
+        cache: "no-store"
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.ok) throw new Error(data?.message || "Cloud helper could not launch the emulator.");
+      setCloudGamingActionStatus(data.message || "Launch requested. Focus the emulator window before using browser controls.");
+    } catch (error) {
+      setCloudGamingActionStatus(error?.message || "Cloud helper launch request failed.");
+    }
+  };
 
   useEffect(() => {
     const carousel = gameCarouselRef.current;
@@ -2195,8 +2213,8 @@ function PokemonSidebar() {
             <div style={{ fontSize: 18, color: "#bfdbfe", marginBottom: 5 }}>FUITS CLOUD GAMING</div>
             <div style={{ fontSize: 11, color: "#93c5fd", lineHeight: 1.35 }}>
               {cloudGamingSession.online
-                ? `${cloudGamingSession.data?.sessionName || "Cloud Gaming"} is linked to this PC.`
-                : "Start the FUITS Cloud Gaming helper, open your emulator/game, then capture the game window here."}
+                ? `${cloudGamingSession.data?.sessionName || "Cloud Gaming"} is linked to this PC. Launch, capture, and control the emulator from the browser.`
+                : "Start the FUITS Cloud Gaming helper, then use this panel as the browser launcher and controller hub."}
             </div>
           </div>
 
@@ -2233,7 +2251,7 @@ function PokemonSidebar() {
           {cloudGamingSession.online && (
             <div style={{
               display: "grid",
-              gridTemplateColumns: "1fr 1fr",
+              gridTemplateColumns: "repeat(auto-fit, minmax(118px, 1fr))",
               gap: 8,
               color: "#dbeafe",
               fontSize: 11
@@ -2256,6 +2274,30 @@ function PokemonSidebar() {
                 <div style={{ color: "#93c5fd", marginBottom: 3 }}>PC Host</div>
                 <div style={{ color: "#fff" }}>{cloudGamingSession.data?.host || "This PC"}</div>
               </div>
+              <div style={{
+                border: "1px solid rgba(147,197,253,.22)",
+                borderRadius: 10,
+                padding: 9,
+                background: "rgba(30,64,175,.34)"
+              }}>
+                <div style={{ color: "#93c5fd", marginBottom: 3 }}>Controllers</div>
+                <div style={{ color: "#fff" }}>{cloudGamingSession.data?.controllers?.length || 0} connected</div>
+              </div>
+            </div>
+          )}
+
+          {cloudGamingSession.online && cloudGamingActionStatus && (
+            <div style={{
+              border: "1px solid rgba(147,197,253,.22)",
+              borderRadius: 10,
+              padding: "8px 9px",
+              background: "rgba(15,23,42,.62)",
+              color: "#bfdbfe",
+              fontSize: 10,
+              fontWeight: 950,
+              lineHeight: 1.35
+            }}>
+              {cloudGamingActionStatus}
             </div>
           )}
 
@@ -2293,23 +2335,59 @@ function PokemonSidebar() {
             </button>
           </div>
 
-          <button
-            type="button"
-            disabled={!cloudGamingSession.online}
-            onClick={() => window.open(cloudGamingViewerUrl, "_blank", "noopener,noreferrer")}
-            style={{
-              border: "1px solid rgba(147,197,253,.28)",
-              borderRadius: 10,
-              padding: "10px 10px",
-              background: cloudGamingSession.online ? "rgba(15,23,42,.82)" : "rgba(15,23,42,.42)",
-              color: cloudGamingSession.online ? "#dbeafe" : "#64748b",
-              fontSize: 11,
-              fontWeight: 1000,
-              cursor: cloudGamingSession.online ? "pointer" : "default"
-            }}
-          >
-            Open Cloud View
-          </button>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(118px, 1fr))", gap: 8 }}>
+            <button
+              type="button"
+              disabled={!cloudGamingSession.online || !cloudGamingSession.data?.hasLaunchPath}
+              onClick={launchCloudGamingEmulator}
+              style={{
+                border: "1px solid rgba(147,197,253,.28)",
+                borderRadius: 10,
+                padding: "10px 10px",
+                background: cloudGamingSession.online && cloudGamingSession.data?.hasLaunchPath ? "#93c5fd" : "rgba(15,23,42,.42)",
+                color: cloudGamingSession.online && cloudGamingSession.data?.hasLaunchPath ? "#0f172a" : "#64748b",
+                fontSize: 11,
+                fontWeight: 1000,
+                cursor: cloudGamingSession.online && cloudGamingSession.data?.hasLaunchPath ? "pointer" : "default"
+              }}
+            >
+              Launch Emulator
+            </button>
+            <button
+              type="button"
+              disabled={!cloudGamingSession.online}
+              onClick={() => window.open(cloudGamingControllerUrl, "_blank", "noopener,noreferrer")}
+              style={{
+                border: "1px solid rgba(147,197,253,.28)",
+                borderRadius: 10,
+                padding: "10px 10px",
+                background: cloudGamingSession.online ? "rgba(15,23,42,.82)" : "rgba(15,23,42,.42)",
+                color: cloudGamingSession.online ? "#dbeafe" : "#64748b",
+                fontSize: 11,
+                fontWeight: 1000,
+                cursor: cloudGamingSession.online ? "pointer" : "default"
+              }}
+            >
+              Open Controller
+            </button>
+            <button
+              type="button"
+              disabled={!cloudGamingSession.online}
+              onClick={() => window.open(cloudGamingViewerUrl, "_blank", "noopener,noreferrer")}
+              style={{
+                border: "1px solid rgba(147,197,253,.28)",
+                borderRadius: 10,
+                padding: "10px 10px",
+                background: cloudGamingSession.online ? "rgba(15,23,42,.82)" : "rgba(15,23,42,.42)",
+                color: cloudGamingSession.online ? "#dbeafe" : "#64748b",
+                fontSize: 11,
+                fontWeight: 1000,
+                cursor: cloudGamingSession.online ? "pointer" : "default"
+              }}
+            >
+              Open Cloud View
+            </button>
+          </div>
         </div>
       ) : activeGamingApp === "retroarch" ? (
         <div style={{

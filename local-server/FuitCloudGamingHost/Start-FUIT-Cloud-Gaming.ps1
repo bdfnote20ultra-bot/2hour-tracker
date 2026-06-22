@@ -2,6 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $serverFile = Join-Path $scriptDir "server.js"
+$inputRelayFile = Join-Path $scriptDir "InputRelay.ps1"
 $defaultPort = "8175"
 
 function Find-Node {
@@ -57,6 +58,7 @@ function Start-CloudGaming {
   $sessionName = Read-WithDefault "Session name" "FUITS Cloud Gaming"
   $gameName = Read-WithDefault "Game label" "PC emulator game"
   $port = Read-WithDefault "Helper port" $defaultPort
+  $enableInputRelay = Read-WithDefault "Enable browser controller input relay? Y/N" "Y"
 
   $gamePath = ""
   $openGame = Read-Host "Open an emulator/game now? Y/N [Y]"
@@ -82,15 +84,36 @@ function Start-CloudGaming {
   Clear-Host
   Write-Host "FUITS Cloud Gaming helper is starting..." -ForegroundColor Cyan
   Write-Host "Local viewer: http://127.0.0.1:$port/room"
+  Write-Host "Browser controller: http://127.0.0.1:$port/controller"
   Write-Host ""
-  Write-Host "Open the FUIT site, choose FUITS CLOUD GAMING, then click Capture PC Game Window."
+  Write-Host "Open the FUIT site, choose FUITS CLOUD GAMING, then click Launch PC Emulator or Capture PC Game Window."
   Write-Host "Choose the emulator/game window from the browser capture picker."
+  Write-Host "For controller input, keep the emulator window focused on this PC."
   Write-Host "Close this window or press Ctrl+C to turn cloud gaming off."
   Write-Host ""
+
+  $relayProcess = $null
+  if ($enableInputRelay.Trim().ToUpperInvariant().StartsWith("Y")) {
+    if (Test-Path -LiteralPath $inputRelayFile) {
+      $relayProcess = Start-Process -FilePath "powershell.exe" -ArgumentList @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $inputRelayFile,
+        "-Port", $port
+      ) -WindowStyle Hidden -PassThru
+      Write-Host "Browser controller input relay is running." -ForegroundColor Cyan
+    } else {
+      Write-Host "Input relay script was not found, so browser controller input is off." -ForegroundColor Yellow
+    }
+    Write-Host ""
+  }
 
   try {
     & $node $serverFile
   } finally {
+    if ($relayProcess -and -not $relayProcess.HasExited) {
+      Stop-Process -Id $relayProcess.Id -Force -ErrorAction SilentlyContinue
+    }
     Remove-Item Env:\FUIT_CLOUD_SESSION_NAME -ErrorAction SilentlyContinue
     Remove-Item Env:\FUIT_CLOUD_GAME_NAME -ErrorAction SilentlyContinue
     Remove-Item Env:\FUIT_CLOUD_GAME_PATH -ErrorAction SilentlyContinue

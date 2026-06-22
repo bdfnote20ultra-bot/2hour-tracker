@@ -66,6 +66,7 @@ const GAME_SYSTEMS = {
   GB: { folder: "GB", core: "gb", extensions: [".gb"] },
   GBC: { folder: "GBC", core: "gb", extensions: [".gbc"] },
   GBA: { folder: "GBA", core: "gba", extensions: [".gba"] },
+  N64: { folder: "N64", core: "n64", extensions: [".n64", ".z64", ".v64"] },
   PS1: { folder: "PS1", core: "psx", extensions: [".cue", ".chd", ".pbp", ".m3u"] }
 };
 
@@ -5560,7 +5561,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  const gameMatch = url.pathname.match(/^\/games\/(GB|GBC|GBA|PS1)\/(.+)$/);
+  const gameMatch = url.pathname.match(/^\/games\/(GB|GBC|GBA|N64|PS1)\/(.+)$/);
   if (gameMatch && (req.method === "GET" || req.method === "HEAD")) {
     serveGameFile(req, res, gameMatch[1], gameMatch[2]);
     return;

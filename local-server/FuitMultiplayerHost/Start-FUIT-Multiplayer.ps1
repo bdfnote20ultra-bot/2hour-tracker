@@ -42,12 +42,15 @@ function Start-MultiplayerRoom {
   Write-Host ""
 
   $roomName = Read-WithDefault "Room name" "FUIT Multiplayer Room"
-  $gameName = Read-WithDefault "Game label" "Any game you choose"
+  $gameName = Read-WithDefault "Room game label" "Any game you choose"
   $port = Read-WithDefault "Helper port" $defaultPort
 
   $gamePath = ""
-  $openGame = Read-Host "Choose and open a game/app now? Y/N [Y]"
-  if ([string]::IsNullOrWhiteSpace($openGame) -or $openGame.Trim().ToUpperInvariant().StartsWith("Y")) {
+  Write-Host ""
+  Write-Host "Browser emulator games are picked on the FUIT site, not from this helper." -ForegroundColor Yellow
+  Write-Host "This next prompt is only for opening an outside PC game/app if you want one." -ForegroundColor Yellow
+  $openGame = Read-Host "Open an outside game/app now? Y/N [N]"
+  if (-not [string]::IsNullOrWhiteSpace($openGame) -and $openGame.Trim().ToUpperInvariant().StartsWith("Y")) {
     $gamePath = Select-GameFile
     if ($gamePath) {
       if ($gameName -eq "Any game you choose") {

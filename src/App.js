@@ -368,13 +368,15 @@ const SYSTEM_BACKGROUNDS = {
   GB: "sidequest-gb.png",
   GBC: "sidequest-gbc.png",
   GBA: "sidequest-gba.png",
+  N64: "sidequest-gba.png",
   PS1: "sidequest-gba.png",
 };
-const GAME_SYSTEMS = ["GB", "GBC", "GBA", "PS1"];
+const GAME_SYSTEMS = ["GB", "GBC", "GBA", "N64", "PS1"];
 const POKEMON_SYSTEM_ASPECTS = {
   GB: 160 / 144,
   GBC: 160 / 144,
   GBA: 240 / 160,
+  N64: 4 / 3,
   PS1: 4 / 3
 };
 const POKEMON_STRETCH_DEFAULT_OPTIONS = {
@@ -1724,6 +1726,60 @@ function PokemonSidebar() {
             </div>
 
             <div style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(78px, .35fr) minmax(0, 1fr)",
+              gap: 8,
+              alignItems: "center"
+            }}>
+              <select
+                value={activeSystem}
+                onChange={event => handleSystemChange(event.target.value)}
+                aria-label="Choose multiplayer browser game system"
+                disabled={Boolean(gameLaunch)}
+                style={{
+                  width: "100%",
+                  minWidth: 0,
+                  border: "1px solid rgba(187,247,208,.24)",
+                  borderRadius: 10,
+                  padding: "9px 8px",
+                  background: "rgba(15,23,42,.82)",
+                  color: "#dcfce7",
+                  fontSize: 11,
+                  fontWeight: 900,
+                  cursor: gameLaunch ? "default" : "pointer"
+                }}
+              >
+                {GAME_SYSTEMS.map(system => (
+                  <option key={system} value={system}>{system}</option>
+                ))}
+              </select>
+              <select
+                value={activeGame?.file || ""}
+                onChange={event => handleGameChange(event.target.value)}
+                aria-label="Choose multiplayer browser game"
+                disabled={Boolean(gameLaunch)}
+                style={{
+                  width: "100%",
+                  minWidth: 0,
+                  border: "1px solid rgba(187,247,208,.24)",
+                  borderRadius: 10,
+                  padding: "9px 8px",
+                  background: "rgba(15,23,42,.82)",
+                  color: "#dcfce7",
+                  fontSize: 11,
+                  fontWeight: 900,
+                  cursor: gameLaunch ? "default" : "pointer"
+                }}
+              >
+                {systemGames.length === 0 ? (
+                  <option value="">No games found</option>
+                ) : systemGames.map(game => (
+                  <option key={`${game.system}-${game.file}`} value={game.file}>{game.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{
               borderRadius: 14,
               overflow: "hidden",
               background: "#020617",
@@ -1777,7 +1833,7 @@ function PokemonSidebar() {
                   cursor: "pointer"
                 }}
               >
-                Host Selected Browser Game
+                Host Browser Game: {activeGame.label}
               </button>
             )}
 
@@ -1814,7 +1870,7 @@ function PokemonSidebar() {
                   padding: 9,
                   background: "rgba(6,78,59,.44)"
                 }}>
-                  <div style={{ color: "#86efac", marginBottom: 3 }}>Game</div>
+                  <div style={{ color: "#86efac", marginBottom: 3 }}>Room Label</div>
                   <div style={{ color: "#fff", lineHeight: 1.25 }}>{multiplayerRoom.data?.gameName || "Any game you choose"}</div>
                 </div>
                 <div style={{

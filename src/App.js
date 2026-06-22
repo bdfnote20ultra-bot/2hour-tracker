@@ -385,6 +385,8 @@ const POKEMON_STRETCH_DEFAULT_OPTIONS = {
   video_scale_integer: "false",
   video_aspect_ratio_auto: "false"
 };
+
+const isN64Game = game => game?.system === "N64" || game?.core === "n64";
 const POKEMON_FULLSCREEN_ASPECT = 16 / 9;
 
 function pokemonAssetPath(game, fileName) {
@@ -517,7 +519,9 @@ function resetPokemonEmulator(playerElement) {
     "EJS_color",
     "EJS_defaultControls",
     "EJS_defaultOptions",
-    "EJS_disableLocalStorage"
+    "EJS_disableLocalStorage",
+    "EJS_threads",
+    "EJS_controlScheme"
   ].forEach(key => {
     try { delete window[key]; } catch {}
   });
@@ -1019,8 +1023,18 @@ function PokemonSidebar() {
     window.EJS_startOnLoaded = true;
     window.EJS_backgroundColor = "#111827";
     window.EJS_color = "#38bdf8";
-    window.EJS_defaultOptions = stretchGame ? POKEMON_STRETCH_DEFAULT_OPTIONS : {};
+    const n64Launch = isN64Game(gameLaunch);
+    window.EJS_defaultOptions = {
+      ...(stretchGame ? POKEMON_STRETCH_DEFAULT_OPTIONS : {}),
+      ...(n64Launch ? {
+        video_scale_integer: "false",
+        video_smooth: "false"
+      } : {})
+    };
     window.EJS_disableLocalStorage = stretchGame;
+    if (n64Launch && typeof window.SharedArrayBuffer === "function") {
+      window.EJS_threads = true;
+    }
     window.EJS_defaultControls = {
       0: {
         0: { value: "x", value2: "BUTTON_2" },
@@ -1077,7 +1091,7 @@ function PokemonSidebar() {
     document.body.appendChild(script);
     focusPokemonEmulator();
 
-    const focusTimers = [150, 400, 900, 1600, 2600].map(delay =>
+    const focusTimers = (n64Launch ? [250, 900, 2200] : [150, 400, 900, 1600, 2600]).map(delay =>
       window.setTimeout(focusPokemonEmulator, delay)
     );
 
@@ -1154,20 +1168,29 @@ function PokemonSidebar() {
       Array.from(gamepadKeysRef.current).forEach(keyName => setGameKey(keyName, false));
     };
 
-    let raf = 0;
+    let gamepadTimer = 0;
     let lastGamepadFocus = 0;
+    const n64Launch = isN64Game(gameLaunch);
+    const gamepadPollDelay = n64Launch ? 32 : 0;
+    const scheduleGamepadPoll = () => {
+      if (gamepadPollDelay) {
+        gamepadTimer = window.setTimeout(pollGamepads, gamepadPollDelay);
+      } else {
+        gamepadTimer = window.requestAnimationFrame(pollGamepads);
+      }
+    };
     const pollGamepads = () => {
       const pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : [];
       const pad = pads[0];
 
       if (!pad) {
         releaseAllKeys();
-        raf = window.requestAnimationFrame(pollGamepads);
+        scheduleGamepadPoll();
         return;
       }
 
       const now = performance.now();
-      if (now - lastGamepadFocus > 1000) {
+      if (now - lastGamepadFocus > (n64Launch ? 4000 : 1000)) {
         lastGamepadFocus = now;
         focusPokemonEmulator();
       }
@@ -1182,14 +1205,15 @@ function PokemonSidebar() {
       setGameKey("up", yAxis < -0.45);
       setGameKey("down", yAxis > 0.45);
 
-      raf = window.requestAnimationFrame(pollGamepads);
+      scheduleGamepadPoll();
     };
 
-    raf = window.requestAnimationFrame(pollGamepads);
+    scheduleGamepadPoll();
     window.addEventListener("gamepadconnected", focusPokemonEmulator);
 
     return () => {
-      window.cancelAnimationFrame(raf);
+      if (gamepadPollDelay) window.clearTimeout(gamepadTimer);
+      else window.cancelAnimationFrame(gamepadTimer);
       window.removeEventListener("gamepadconnected", focusPokemonEmulator);
       releaseAllKeys();
     };
@@ -1199,6 +1223,7 @@ function PokemonSidebar() {
     if (activeGamingApp !== "multiplayer" || !gameLaunch || !multiplayerRoom.online || collapsed) return undefined;
 
     let cancelled = false;
+    const n64Launch = isN64Game(gameLaunch);
     const sendHostFrame = async () => {
       if (cancelled) return;
 
@@ -1213,7 +1238,7 @@ function PokemonSidebar() {
       const canvas = emulatorHostRef.current?.querySelector("canvas");
       if (canvas && canvas.width && canvas.height) {
         try {
-          const image = canvas.toDataURL("image/jpeg", 0.62);
+          const image = canvas.toDataURL("image/jpeg", n64Launch ? 0.45 : 0.62);
           await fetch(`${cleanMultiplayerHostUrl}/api/frame`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -1223,7 +1248,7 @@ function PokemonSidebar() {
       }
     };
 
-    const interval = window.setInterval(sendHostFrame, 140);
+    const interval = window.setInterval(sendHostFrame, n64Launch ? 280 : 140);
     sendHostFrame();
 
     return () => {
@@ -1283,6 +1308,7 @@ function PokemonSidebar() {
     };
 
     let cancelled = false;
+    const n64Launch = isN64Game(gameLaunch);
     const pollRemoteControllers = async () => {
       if (cancelled) return;
 
@@ -1299,7 +1325,7 @@ function PokemonSidebar() {
       }
     };
 
-    const interval = window.setInterval(pollRemoteControllers, 80);
+    const interval = window.setInterval(pollRemoteControllers, n64Launch ? 120 : 80);
     pollRemoteControllers();
 
     return () => {

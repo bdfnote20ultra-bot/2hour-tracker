@@ -116,9 +116,7 @@ const RATES_KEY = "hoursTrackerRates_v1";
 const MONTHLY_TRACKER_KEY = "hoursTrackerMonthlyTrackerMonths_v1";
 const KICK_GAMING_CHANNEL_KEY = "fuitLiveGamingKickChannel_v1";
 const YOUTUBE_GAMING_CHANNEL_URL = "https://www.youtube.com/@xflivetv";
-const YOUTUBE_GAMING_CHANNEL_ID = "UCN9z3roQzvw6-1ll0tpEBHA";
-const YOUTUBE_GAMING_UPLOADS_PLAYLIST = `UU${YOUTUBE_GAMING_CHANNEL_ID.slice(2)}`;
-const YOUTUBE_GAMING_EMBED_URL = `https://www.youtube.com/embed/videoseries?list=${YOUTUBE_GAMING_UPLOADS_PLAYLIST}`;
+const YOUTUBE_GAMING_VIDEOS_URL = "https://www.youtube.com/@xflivetv/videos";
 const SIGNUP_REQUESTS_KEY = "fuitsSignupRequests_v1";
 const APPROVED_USERS_KEY = "fuitsApprovedUsers_v1";
 const BANNED_USERS_KEY = "fuitsBannedUsers_v1";
@@ -1442,21 +1440,75 @@ function PokemonSidebar() {
               Open
             </button>
           </div>
-          <iframe
-            key={YOUTUBE_GAMING_EMBED_URL}
-            title="FUIT Live Gaming YouTube"
-            src={YOUTUBE_GAMING_EMBED_URL}
-            allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-            allowFullScreen
-            style={{
-              width: "100%",
-              aspectRatio: "16 / 9",
-              minHeight: 218,
-              border: "1px solid rgba(248,113,113,.32)",
-              borderRadius: 14,
-              background: "#000"
-            }}
-          />
+          <div style={{
+            width: "100%",
+            minHeight: 218,
+            border: "1px solid rgba(248,113,113,.32)",
+            borderRadius: 14,
+            background: "radial-gradient(circle at 50% 0%, rgba(248,113,113,.24), rgba(2,6,23,.94) 54%)",
+            display: "grid",
+            placeItems: "center",
+            padding: 18,
+            textAlign: "center"
+          }}>
+            <div style={{ display: "grid", gap: 12, width: "100%", maxWidth: 260 }}>
+              <div style={{
+                width: 64,
+                height: 45,
+                borderRadius: 12,
+                background: "#ef4444",
+                color: "#fff",
+                display: "grid",
+                placeItems: "center",
+                margin: "0 auto",
+                fontSize: 14,
+                fontWeight: 1000,
+                lineHeight: 1
+              }}>
+                PLAY
+              </div>
+              <div>
+                <div style={{ color: "#fff", fontSize: 18, fontWeight: 1000, textTransform: "uppercase" }}>FLIVETV</div>
+                <div style={{ color: "#fecaca", fontSize: 12, fontWeight: 900, lineHeight: 1.35, marginTop: 5 }}>
+                  Open the channel to view available videos and live content.
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <button
+                  onClick={() => window.open(YOUTUBE_GAMING_CHANNEL_URL, "_blank", "noopener,noreferrer")}
+                  style={{
+                    border: "1px solid rgba(248,113,113,.52)",
+                    borderRadius: 10,
+                    background: "rgba(248,113,113,.2)",
+                    color: "#fee2e2",
+                    cursor: "pointer",
+                    padding: "10px 8px",
+                    fontSize: 11,
+                    fontWeight: 1000,
+                    textTransform: "uppercase"
+                  }}
+                >
+                  Channel
+                </button>
+                <button
+                  onClick={() => window.open(YOUTUBE_GAMING_VIDEOS_URL, "_blank", "noopener,noreferrer")}
+                  style={{
+                    border: "1px solid rgba(56,189,248,.42)",
+                    borderRadius: 10,
+                    background: "rgba(56,189,248,.16)",
+                    color: "#e0f2fe",
+                    cursor: "pointer",
+                    padding: "10px 8px",
+                    fontSize: 11,
+                    fontWeight: 1000,
+                    textTransform: "uppercase"
+                  }}
+                >
+                  Videos
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       ) : activeGamingApp === "multiplayer" ? (
         <div style={{

@@ -691,25 +691,15 @@ function launchConfiguredGame(options = {}) {
     throw new Error("No emulator/game path was selected when the helper started.");
   }
 
-  const child = spawn("powershell.exe", [
-    "-NoProfile",
-    "-ExecutionPolicy",
-    "Bypass",
-    "-Command",
-    "$argsList = @(); if ($env:FUIT_CLOUD_ROM_TO_OPEN) { $argsList += $env:FUIT_CLOUD_ROM_TO_OPEN }; Start-Process -LiteralPath $env:FUIT_CLOUD_GAME_PATH_TO_OPEN -ArgumentList $argsList"
-  ], {
+  const child = spawn(launchExe, launchRom ? [launchRom] : [], {
+    cwd: path.dirname(launchExe),
     detached: true,
     stdio: "ignore",
-    windowsHide: true,
-    env: {
-      ...process.env,
-      FUIT_CLOUD_GAME_PATH_TO_OPEN: launchExe,
-      FUIT_CLOUD_ROM_TO_OPEN: launchRom
-    }
+    windowsHide: false
   });
   child.unref();
 
-  return { label: launchLabel, exe: launchExe, rom: launchRom, system: launchRom ? "N64" : "" };
+  return { label: launchLabel, exe: launchExe, rom: launchRom, system: launchRom ? "N64" : "", pid: child.pid || 0 };
 }
 
 const server = http.createServer(async (req, res) => {

@@ -117,6 +117,8 @@ const MONTHLY_TRACKER_KEY = "hoursTrackerMonthlyTrackerMonths_v1";
 const KICK_GAMING_CHANNEL_KEY = "fuitLiveGamingKickChannel_v1";
 const YOUTUBE_GAMING_CHANNEL_URL = "https://www.youtube.com/@xflivetv";
 const YOUTUBE_GAMING_VIDEOS_URL = "https://www.youtube.com/@xflivetv/videos";
+const FUIT_MULTIPLAYER_HOST_URL_KEY = "fuitMultiplayerHostUrl_v1";
+const FUIT_MULTIPLAYER_DEFAULT_HOST_URL = "http://127.0.0.1:8174";
 const SIGNUP_REQUESTS_KEY = "fuitsSignupRequests_v1";
 const APPROVED_USERS_KEY = "fuitsApprovedUsers_v1";
 const BANNED_USERS_KEY = "fuitsBannedUsers_v1";
@@ -702,6 +704,13 @@ function PokemonSidebar() {
   const [kickGamingChannelInput, setKickGamingChannelInput] = useState(() => {
     try { return localStorage.getItem(KICK_GAMING_CHANNEL_KEY) || "flivetv"; } catch { return "flivetv"; }
   });
+  const [multiplayerHostUrl, setMultiplayerHostUrl] = useState(() => {
+    try { return localStorage.getItem(FUIT_MULTIPLAYER_HOST_URL_KEY) || FUIT_MULTIPLAYER_DEFAULT_HOST_URL; } catch { return FUIT_MULTIPLAYER_DEFAULT_HOST_URL; }
+  });
+  const [multiplayerHostInput, setMultiplayerHostInput] = useState(() => {
+    try { return localStorage.getItem(FUIT_MULTIPLAYER_HOST_URL_KEY) || FUIT_MULTIPLAYER_DEFAULT_HOST_URL; } catch { return FUIT_MULTIPLAYER_DEFAULT_HOST_URL; }
+  });
+  const [multiplayerRoom, setMultiplayerRoom] = useState({ online: false, loading: true, error: "", data: null });
   const [gameSearch, setGameSearch] = useState("");
   const [selectedArt, setSelectedArt] = useState("cover");
   const [zoomedCover, setZoomedCover] = useState(null);
@@ -715,6 +724,7 @@ function PokemonSidebar() {
   const gameCarouselRef = useRef(null);
   const gameCardRefs = useRef({});
   const gamepadKeysRef = useRef(new Set());
+  const multiplayerRemoteKeysRef = useRef(new Set());
 
   const focusPokemonEmulator = () => {
     const host = emulatorHostRef.current;
@@ -802,10 +812,66 @@ function PokemonSidebar() {
   const kickGamingChannel = normalizeKickChannel(kickGamingChannelInput) || "flivetv";
   const kickGamingEmbedUrl = `https://player.kick.com/${encodeURIComponent(kickGamingChannel)}?autoplay=true&muted=true`;
   const kickGamingChatUrl = `https://kick.com/popout/${encodeURIComponent(kickGamingChannel)}/chat`;
+  const cleanMultiplayerHostUrl = (multiplayerHostUrl || FUIT_MULTIPLAYER_DEFAULT_HOST_URL).trim().replace(/\/+$/, "") || FUIT_MULTIPLAYER_DEFAULT_HOST_URL;
+  const multiplayerViewerUrl = multiplayerRoom.data?.viewerUrl || `${cleanMultiplayerHostUrl}/room`;
+  const multiplayerControllerUrl = multiplayerRoom.data?.controllerUrl || `${cleanMultiplayerHostUrl}/controller`;
 
   useEffect(() => {
     try { localStorage.setItem(KICK_GAMING_CHANNEL_KEY, kickGamingChannel); } catch {}
   }, [kickGamingChannel]);
+
+  useEffect(() => {
+    try { localStorage.setItem(FUIT_MULTIPLAYER_HOST_URL_KEY, cleanMultiplayerHostUrl); } catch {}
+  }, [cleanMultiplayerHostUrl]);
+
+  useEffect(() => {
+    if (activeGamingApp !== "multiplayer") return undefined;
+
+    let cancelled = false;
+    let timeoutId = null;
+
+    const loadMultiplayerRoom = async () => {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 1800);
+
+      try {
+        const response = await fetch(`${cleanMultiplayerHostUrl}/status`, {
+          cache: "no-store",
+          signal: controller.signal
+        });
+        if (!response.ok) throw new Error("Helper not ready.");
+        const data = await response.json();
+        if (!cancelled) {
+          setMultiplayerRoom({
+            online: Boolean(data?.active),
+            loading: false,
+            error: "",
+            data
+          });
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setMultiplayerRoom({
+            online: false,
+            loading: false,
+            error: "Start the separate FUIT Multiplayer helper to turn this room on.",
+            data: null
+          });
+        }
+      } finally {
+        window.clearTimeout(timeout);
+        if (!cancelled) timeoutId = window.setTimeout(loadMultiplayerRoom, 5000);
+      }
+    };
+
+    setMultiplayerRoom(current => ({ ...current, loading: true }));
+    loadMultiplayerRoom();
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) window.clearTimeout(timeoutId);
+    };
+  }, [activeGamingApp, cleanMultiplayerHostUrl]);
 
   useEffect(() => {
     const carousel = gameCarouselRef.current;
@@ -979,7 +1045,18 @@ function PokemonSidebar() {
         28: { value: "space" },
         29: { value: "subtract" }
       },
-      1: {},
+      1: {
+        0: { value: "u", value2: "BUTTON_2" },
+        1: { value: "o", value2: "BUTTON_4" },
+        2: { value: "b", value2: "SELECT" },
+        3: { value: "n", value2: "START" },
+        4: { value: "w", value2: "DPAD_UP" },
+        5: { value: "c", value2: "DPAD_DOWN" },
+        6: { value: "d", value2: "DPAD_LEFT" },
+        7: { value: "m", value2: "DPAD_RIGHT" },
+        8: { value: "y", value2: "BUTTON_1" },
+        9: { value: "p", value2: "BUTTON_3" }
+      },
       2: {},
       3: {}
     };
@@ -999,7 +1076,7 @@ function PokemonSidebar() {
       focusTimers.forEach(timer => window.clearTimeout(timer));
       resetPokemonEmulator(emulatorHostRef.current);
     };
-  }, [gameLaunch?.core, gameLaunch?.discUrls?.join("|"), gameLaunch?.file, gameLaunch?.gameUrl, gameLaunch?.label, selectedDiscIndex, collapsed, stretchGame]);
+  }, [activeGamingApp, gameLaunch?.core, gameLaunch?.discUrls?.join("|"), gameLaunch?.file, gameLaunch?.gameUrl, gameLaunch?.label, selectedDiscIndex, collapsed, stretchGame]);
 
   useEffect(() => {
     if (!gameLaunch || collapsed) return;
@@ -1108,6 +1185,120 @@ function PokemonSidebar() {
       releaseAllKeys();
     };
   }, [gameLaunch, collapsed]);
+
+  useEffect(() => {
+    if (activeGamingApp !== "multiplayer" || !gameLaunch || !multiplayerRoom.online || collapsed) return undefined;
+
+    let cancelled = false;
+    const sendHostFrame = async () => {
+      if (cancelled) return;
+
+      try {
+        await fetch(`${cleanMultiplayerHostUrl}/api/host`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ gameName: gameLaunch.label })
+        });
+      } catch {}
+
+      const canvas = emulatorHostRef.current?.querySelector("canvas");
+      if (canvas && canvas.width && canvas.height) {
+        try {
+          const image = canvas.toDataURL("image/jpeg", 0.62);
+          await fetch(`${cleanMultiplayerHostUrl}/api/frame`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image })
+          });
+        } catch {}
+      }
+    };
+
+    const interval = window.setInterval(sendHostFrame, 140);
+    sendHostFrame();
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [activeGamingApp, cleanMultiplayerHostUrl, gameLaunch, multiplayerRoom.online, collapsed]);
+
+  useEffect(() => {
+    if (activeGamingApp !== "multiplayer" || !gameLaunch || !multiplayerRoom.online || collapsed) return undefined;
+
+    const keyMap = {
+      up: { key: "w", code: "KeyW", keyCode: 87 },
+      down: { key: "c", code: "KeyC", keyCode: 67 },
+      left: { key: "d", code: "KeyD", keyCode: 68 },
+      right: { key: "m", code: "KeyM", keyCode: 77 },
+      a: { key: "y", code: "KeyY", keyCode: 89 },
+      b: { key: "u", code: "KeyU", keyCode: 85 },
+      x: { key: "p", code: "KeyP", keyCode: 80 },
+      y: { key: "o", code: "KeyO", keyCode: 79 },
+      select: { key: "b", code: "KeyB", keyCode: 66 },
+      start: { key: "n", code: "KeyN", keyCode: 78 }
+    };
+
+    const dispatchRemoteKey = (keyName, type) => {
+      const mapped = keyMap[keyName];
+      if (!mapped) return;
+
+      const canvas = emulatorHostRef.current?.querySelector("canvas");
+      const targets = [canvas || document.activeElement || document.body, document, window];
+      targets.forEach(target => {
+        const event = new KeyboardEvent(type, {
+          key: mapped.key,
+          code: mapped.code,
+          bubbles: true,
+          cancelable: true
+        });
+        Object.defineProperty(event, "keyCode", { get: () => mapped.keyCode });
+        Object.defineProperty(event, "which", { get: () => mapped.keyCode });
+        target.dispatchEvent(event);
+      });
+    };
+
+    const setRemoteKey = (keyName, pressed) => {
+      const activeKeys = multiplayerRemoteKeysRef.current;
+      if (pressed && !activeKeys.has(keyName)) {
+        activeKeys.add(keyName);
+        dispatchRemoteKey(keyName, "keydown");
+      } else if (!pressed && activeKeys.has(keyName)) {
+        activeKeys.delete(keyName);
+        dispatchRemoteKey(keyName, "keyup");
+      }
+    };
+
+    const releaseRemoteKeys = () => {
+      Array.from(multiplayerRemoteKeysRef.current).forEach(keyName => setRemoteKey(keyName, false));
+    };
+
+    let cancelled = false;
+    const pollRemoteControllers = async () => {
+      if (cancelled) return;
+
+      try {
+        const response = await fetch(`${cleanMultiplayerHostUrl}/status`, { cache: "no-store" });
+        if (!response.ok) throw new Error("No multiplayer helper.");
+        const data = await response.json();
+        const controller = Array.isArray(data?.controllers) ? data.controllers[0] : null;
+        const buttons = new Set(Array.isArray(controller?.buttons) ? controller.buttons : []);
+
+        Object.keys(keyMap).forEach(keyName => setRemoteKey(keyName, buttons.has(keyName)));
+      } catch {
+        releaseRemoteKeys();
+      }
+    };
+
+    const interval = window.setInterval(pollRemoteControllers, 80);
+    pollRemoteControllers();
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      releaseRemoteKeys();
+    };
+  }, [activeGamingApp, cleanMultiplayerHostUrl, gameLaunch, multiplayerRoom.online, collapsed]);
 
   useEffect(() => {
     if (!gameLaunch) return;
@@ -1518,16 +1709,196 @@ function PokemonSidebar() {
           background: "linear-gradient(180deg, rgba(20,83,45,.92), rgba(15,23,42,.96))",
           border: "2px solid rgba(34,197,94,.42)",
           boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)",
-          display: "grid",
-          placeItems: "center",
           padding: 18,
           color: "#dcfce7",
-          textAlign: "center",
           fontWeight: 1000
         }}>
-          <div>
-            <div style={{ fontSize: 18, color: "#bbf7d0", marginBottom: 8 }}>FUIT MULTIPLAYER</div>
-            <div style={{ fontSize: 12, color: "#86efac", lineHeight: 1.35 }}>Multiplayer lobby coming online here.</div>
+          <div style={{ display: "grid", gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 18, color: "#bbf7d0", marginBottom: 5 }}>FUIT MULTIPLAYER</div>
+              <div style={{ fontSize: 12, color: "#86efac", lineHeight: 1.35 }}>
+                {multiplayerRoom.online
+                  ? `${multiplayerRoom.data?.roomName || "Multiplayer room"} is live.`
+                  : "Start the separate FUIT Multiplayer helper when you want this room online."}
+              </div>
+            </div>
+
+            <div style={{
+              borderRadius: 14,
+              overflow: "hidden",
+              background: "#020617",
+              border: "2px solid rgba(187,247,208,.22)",
+              aspectRatio: "16 / 9",
+              minHeight: 170,
+              display: "grid",
+              placeItems: "center"
+            }}>
+              {activeGame && gameLaunch ? (
+                <div
+                  ref={emulatorHostRef}
+                  className={`pokemon-emulator-host${stretchGame ? " pokemon-emulator-stretch" : ""}`}
+                  tabIndex={0}
+                  style={{ width: "100%", height: "100%" }}
+                />
+              ) : multiplayerRoom.online ? (
+                <iframe
+                  title="FUIT Multiplayer Room"
+                  src={multiplayerViewerUrl}
+                  style={{ width: "100%", height: "100%", border: "none", background: "#020617" }}
+                  allow="autoplay; fullscreen; gamepad; clipboard-read; clipboard-write"
+                />
+              ) : (
+                <div style={{ textAlign: "center", padding: 18 }}>
+                  <div style={{ color: "#bbf7d0", fontSize: 14, marginBottom: 8 }}>
+                    {multiplayerRoom.loading ? "Checking for helper..." : "Multiplayer room offline"}
+                  </div>
+                  <div style={{ color: "#86efac", fontSize: 11, lineHeight: 1.45 }}>
+                    Double-click Start-FUIT-Multiplayer.bat, press 1, then this box will switch on.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {activeGame && !gameLaunch && (
+              <button
+                type="button"
+                onClick={() => {
+                  resetPokemonEmulator(emulatorHostRef.current);
+                  setGameLaunch(activeGame);
+                }}
+                style={{
+                  border: "none",
+                  borderRadius: 10,
+                  padding: "11px 12px",
+                  background: "#22c55e",
+                  color: "#052e16",
+                  fontSize: 12,
+                  fontWeight: 1000,
+                  cursor: "pointer"
+                }}
+              >
+                Host Selected Browser Game
+              </button>
+            )}
+
+            {activeGame && gameLaunch && (
+              <button
+                type="button"
+                onClick={stopRunningGame}
+                style={{
+                  border: "1px solid rgba(248,113,113,.45)",
+                  borderRadius: 10,
+                  padding: "10px 12px",
+                  background: "rgba(127,29,29,.72)",
+                  color: "#fecaca",
+                  fontSize: 11,
+                  fontWeight: 1000,
+                  cursor: "pointer"
+                }}
+              >
+                Stop Hosted Game
+              </button>
+            )}
+
+            {multiplayerRoom.online && (
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 8,
+                color: "#d1fae5",
+                fontSize: 11
+              }}>
+                <div style={{
+                  border: "1px solid rgba(187,247,208,.20)",
+                  borderRadius: 10,
+                  padding: 9,
+                  background: "rgba(6,78,59,.44)"
+                }}>
+                  <div style={{ color: "#86efac", marginBottom: 3 }}>Game</div>
+                  <div style={{ color: "#fff", lineHeight: 1.25 }}>{multiplayerRoom.data?.gameName || "Any game you choose"}</div>
+                </div>
+                <div style={{
+                  border: "1px solid rgba(187,247,208,.20)",
+                  borderRadius: 10,
+                  padding: 9,
+                  background: "rgba(6,78,59,.44)"
+                }}>
+                  <div style={{ color: "#86efac", marginBottom: 3 }}>Controllers</div>
+                  <div style={{ color: "#fff" }}>{multiplayerRoom.data?.controllers?.length || 0} connected</div>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, alignItems: "center" }}>
+              <input
+                value={multiplayerHostInput}
+                onChange={event => setMultiplayerHostInput(event.target.value)}
+                placeholder={FUIT_MULTIPLAYER_DEFAULT_HOST_URL}
+                style={{
+                  width: "100%",
+                  border: "1px solid rgba(187,247,208,.24)",
+                  borderRadius: 10,
+                  padding: "9px 10px",
+                  background: "rgba(15,23,42,.82)",
+                  color: "#dcfce7",
+                  fontSize: 11,
+                  fontWeight: 900
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setMultiplayerHostUrl((multiplayerHostInput || FUIT_MULTIPLAYER_DEFAULT_HOST_URL).trim() || FUIT_MULTIPLAYER_DEFAULT_HOST_URL)}
+                style={{
+                  border: "none",
+                  borderRadius: 10,
+                  padding: "10px 12px",
+                  background: "#22c55e",
+                  color: "#052e16",
+                  fontSize: 11,
+                  fontWeight: 1000,
+                  cursor: "pointer"
+                }}
+              >
+                Refresh
+              </button>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <button
+                type="button"
+                disabled={!multiplayerRoom.online}
+                onClick={() => window.open(multiplayerControllerUrl, "_blank", "noopener,noreferrer")}
+                style={{
+                  border: "none",
+                  borderRadius: 10,
+                  padding: "10px 10px",
+                  background: multiplayerRoom.online ? "#bbf7d0" : "rgba(148,163,184,.34)",
+                  color: multiplayerRoom.online ? "#052e16" : "#94a3b8",
+                  fontSize: 11,
+                  fontWeight: 1000,
+                  cursor: multiplayerRoom.online ? "pointer" : "default"
+                }}
+              >
+                Add Controller
+              </button>
+              <button
+                type="button"
+                disabled={!multiplayerRoom.online}
+                onClick={() => window.open(multiplayerViewerUrl, "_blank", "noopener,noreferrer")}
+                style={{
+                  border: "1px solid rgba(187,247,208,.24)",
+                  borderRadius: 10,
+                  padding: "10px 10px",
+                  background: multiplayerRoom.online ? "rgba(15,23,42,.82)" : "rgba(15,23,42,.42)",
+                  color: multiplayerRoom.online ? "#dcfce7" : "#64748b",
+                  fontSize: 11,
+                  fontWeight: 1000,
+                  cursor: multiplayerRoom.online ? "pointer" : "default"
+                }}
+              >
+                Open Room
+              </button>
+            </div>
           </div>
         </div>
       ) : activeGamingApp === "free-games" ? (

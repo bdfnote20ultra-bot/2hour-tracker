@@ -11,10 +11,14 @@ const gameName = process.env.FUIT_CLOUD_GAME_NAME || "PC emulator game";
 const gamePath = process.env.FUIT_CLOUD_GAME_PATH || "";
 const rmgPath = process.env.FUIT_CLOUD_RMG_PATH || "T:\\FattysLiveTV\\Tools\\Emulators\\RMG\\RMG.exe";
 const n64RomRoot = process.env.FUIT_CLOUD_N64_ROM_ROOT || "T:\\FattysLiveTV\\Games\\Roms\\N64";
+const streamMaxWidth = Number(process.env.FUIT_CLOUD_STREAM_MAX_WIDTH || 960);
+const streamJpegQuality = Math.min(0.86, Math.max(0.35, Number(process.env.FUIT_CLOUD_STREAM_JPEG_QUALITY || 0.52)));
+const streamFrameIntervalMs = Math.max(50, Number(process.env.FUIT_CLOUD_STREAM_FRAME_MS || 75));
 
 const controllers = new Map();
 let latestFrame = null;
 let latestFrameMs = 0;
+let latestFrameSequence = 0;
 let hostCaptureState = {
   connected: false,
   lastSeenMs: 0
@@ -259,9 +263,16 @@ function statusPayload(req) {
     },
     hasFrame: Boolean(latestFrame),
     latestFrameMs,
+    latestFrameSequence,
+    stream: {
+      maxWidth: streamMaxWidth,
+      jpegQuality: streamJpegQuality,
+      frameIntervalMs: streamFrameIntervalMs
+    },
     hostCaptureState,
     launchState,
     viewerUrl: `${origin}/room`,
+    embedViewerUrl: `${origin}/room?embed=1`,
     controllerUrl: `${origin}/controller`,
     hostUrl: `${origin}/room?host=1`,
     inputStateUrl: `${origin}/input-state`,
@@ -284,12 +295,15 @@ function pageShell(title, body) {
     html, body { width: 100%; height: 100%; margin: 0; background: #020617; color: #dbeafe; font-family: system-ui, -apple-system, Segoe UI, sans-serif; }
     body { display: grid; place-items: stretch; }
     main { width: 100%; min-height: 100%; display: grid; grid-template-rows: auto minmax(260px, 1fr) auto; gap: 12px; padding: 14px; }
+    main.embed { min-height: 100vh; grid-template-rows: minmax(0, 1fr); gap: 0; padding: 0; background: #000; }
+    main.embed .top, main.embed .controls-panel { display: none; }
     .panel { border: 1px solid rgba(147,197,253,.26); background: linear-gradient(180deg, rgba(30,64,175,.72), rgba(15,23,42,.96)); border-radius: 8px; padding: 14px; box-shadow: inset 0 0 24px rgba(0,0,0,.38); }
     .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .title { font-size: 18px; font-weight: 1000; color: #bfdbfe; }
     .sub { color: #93c5fd; font-size: 12px; font-weight: 850; line-height: 1.4; }
     .stage { min-height: 260px; padding: 0; overflow: hidden; display: grid; place-items: center; background: #000; position: relative; }
-    video, img.stream { width: 100%; height: 100%; min-height: 300px; object-fit: contain; background: #000; }
+    main.embed .stage { min-height: 100vh; border: 0; border-radius: 0; }
+    video, img.stream { width: 100%; height: 100%; min-height: 0; object-fit: contain; background: #000; }
     video { display: none; }
     .empty { padding: 20px; max-width: 560px; text-align: center; }
     .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -319,8 +333,10 @@ function pageShell(title, body) {
 
 function roomPage(req) {
   const status = statusPayload(req);
+  const roomUrl = new URL(req.url, `http://127.0.0.1:${PORT}`);
+  const isEmbed = roomUrl.searchParams.get("embed") === "1";
   return pageShell("FUITS Cloud Gaming", `
-    <main>
+    <main class="${isEmbed ? "embed" : ""}">
       <section class="panel top">
         <div>
           <div class="title">${escapeHtml(status.sessionName)}</div>
@@ -336,7 +352,7 @@ function roomPage(req) {
           <div class="sub">Launch or focus the emulator on this PC, click Capture PC Game Window, then choose the emulator window.</div>
         </div>
       </section>
-      <section class="panel">
+      <section class="panel controls-panel">
         <div class="actions">
           <select id="gameSelect" aria-label="N64 game"></select>
           <button id="launchBtn" ${status.hasLaunchPath ? "" : "disabled"}>Launch N64 Game</button>
@@ -360,11 +376,15 @@ function roomPage(req) {
       let captureStream = null;
       let uploadTimer = null;
       let statusTimer = null;
+      let uploadAnimationFrame = 0;
+      let uploadInFlight = false;
+      let lastUploadStartedAt = 0;
+      let frameRefreshTimer = 0;
+      let frameLoadInFlight = false;
       let games = [];
 
-      function showViewerFrame(src) {
+      function showViewerFrame() {
         if (captureStream) return;
-        img.src = src;
         img.style.display = "block";
         video.style.display = "none";
         empty.style.display = "none";
@@ -377,12 +397,33 @@ function roomPage(req) {
         empty.style.display = "block";
       }
 
-      async function refreshFrame() {
-        const next = "/frame.jpg?t=" + Date.now();
-        const probe = new Image();
-        probe.onload = () => showViewerFrame(next);
-        probe.onerror = showEmpty;
-        probe.src = next;
+      function scheduleFrameRefresh(delay = ${JSON.stringify(streamFrameIntervalMs)}) {
+        if (frameRefreshTimer) return;
+        frameRefreshTimer = window.setTimeout(() => {
+          frameRefreshTimer = 0;
+          refreshFrame();
+        }, delay);
+      }
+
+      function refreshFrame() {
+        if (captureStream) return;
+        if (frameLoadInFlight) {
+          scheduleFrameRefresh();
+          return;
+        }
+
+        frameLoadInFlight = true;
+        img.onload = () => {
+          frameLoadInFlight = false;
+          showViewerFrame();
+          scheduleFrameRefresh();
+        };
+        img.onerror = () => {
+          frameLoadInFlight = false;
+          showEmpty();
+          scheduleFrameRefresh(240);
+        };
+        img.src = "/frame.jpg?t=" + Date.now();
       }
 
       async function postHostStatus() {
@@ -397,19 +438,34 @@ function roomPage(req) {
 
       async function uploadFrame() {
         if (!captureStream || !video.videoWidth || !video.videoHeight) return;
-        const maxWidth = 1280;
+        const now = performance.now();
+        if (uploadInFlight || now - lastUploadStartedAt < ${JSON.stringify(streamFrameIntervalMs)}) return;
+        uploadInFlight = true;
+        lastUploadStartedAt = now;
+
+        const maxWidth = ${JSON.stringify(streamMaxWidth)};
         const scale = Math.min(1, maxWidth / video.videoWidth);
         captureCanvas.width = Math.max(2, Math.round(video.videoWidth * scale));
         captureCanvas.height = Math.max(2, Math.round(video.videoHeight * scale));
         captureCtx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
-        const image = captureCanvas.toDataURL("image/jpeg", 0.68);
         try {
+          const frameBlob = await new Promise(resolve => captureCanvas.toBlob(resolve, "image/jpeg", ${JSON.stringify(streamJpegQuality)}));
+          if (!frameBlob) return;
           await fetch("/api/frame", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ image })
+            cache: "no-store",
+            headers: { "Content-Type": frameBlob.type || "image/jpeg" },
+            body: frameBlob
           });
-        } catch {}
+        } catch {} finally {
+          uploadInFlight = false;
+        }
+      }
+
+      function uploadLoop() {
+        if (!captureStream) return;
+        uploadFrame();
+        uploadAnimationFrame = window.requestAnimationFrame(uploadLoop);
       }
 
       function setCaptured(stream) {
@@ -420,7 +476,7 @@ function roomPage(req) {
         empty.style.display = "none";
         statusLine.textContent = "Capturing and sharing the PC emulator window. Keep the emulator focused for controller input.";
         stream.getVideoTracks()[0]?.addEventListener("ended", stopCapture);
-        uploadTimer = window.setInterval(uploadFrame, 90);
+        uploadLoop();
         statusTimer = window.setInterval(postHostStatus, 2000);
         postHostStatus();
       }
@@ -430,8 +486,11 @@ function roomPage(req) {
         captureStream = null;
         video.srcObject = null;
         if (uploadTimer) window.clearInterval(uploadTimer);
+        if (uploadAnimationFrame) window.cancelAnimationFrame(uploadAnimationFrame);
         if (statusTimer) window.clearInterval(statusTimer);
         uploadTimer = null;
+        uploadAnimationFrame = 0;
+        uploadInFlight = false;
         statusTimer = null;
         statusLine.textContent = "Capture stopped.";
         refreshFrame();
@@ -507,7 +566,6 @@ function roomPage(req) {
       });
 
       document.getElementById("stopBtn").addEventListener("click", stopCapture);
-      setInterval(refreshFrame, 180);
       refreshFrame();
       loadGames();
     </script>
@@ -670,6 +728,24 @@ function readBody(req) {
   });
 }
 
+function readBodyBuffer(req, maxBytes = 1024 * 1024 * 6) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let total = 0;
+    req.on("data", chunk => {
+      total += chunk.length;
+      if (total > maxBytes) {
+        req.destroy();
+        reject(new Error("Frame payload is too large."));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
+  });
+}
+
 function disableRmgPauseOnFocusLoss(launchExe) {
   const configPath = path.join(path.dirname(launchExe), "Config", "mupen64plus.cfg");
   if (!fs.existsSync(configPath)) return;
@@ -774,7 +850,11 @@ const server = http.createServer(async (req, res) => {
       "Content-Type": latestFrame.type,
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Private-Network": "true",
-      "Cache-Control": "no-store"
+      "Cache-Control": "no-store, max-age=0",
+      "Pragma": "no-cache",
+      "X-FUIT-Frame-Ms": String(latestFrameMs),
+      "X-FUIT-Frame-Seq": String(latestFrameSequence),
+      "Content-Length": String(latestFrame.buffer.length)
     });
     res.end(latestFrame.buffer);
     return;
@@ -856,14 +936,22 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === "POST" && url.pathname === "/api/frame") {
     try {
-      const body = JSON.parse(await readBody(req) || "{}");
-      const match = String(body.image || "").match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/);
-      if (!match) throw new Error("Expected a data URL image frame.");
-      latestFrame = {
-        type: match[1],
-        buffer: Buffer.from(match[2], "base64")
-      };
+      const contentType = String(req.headers["content-type"] || "").split(";")[0].trim().toLowerCase();
+      if (["image/jpeg", "image/png", "image/webp"].includes(contentType)) {
+        const buffer = await readBodyBuffer(req);
+        if (!buffer.length) throw new Error("Empty frame payload.");
+        latestFrame = { type: contentType, buffer };
+      } else {
+        const body = JSON.parse(await readBody(req) || "{}");
+        const match = String(body.image || "").match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/);
+        if (!match) throw new Error("Expected an image frame.");
+        latestFrame = {
+          type: match[1],
+          buffer: Buffer.from(match[2], "base64")
+        };
+      }
       latestFrameMs = Date.now();
+      latestFrameSequence += 1;
       sendJson(res, 200, { ok: true });
     } catch (error) {
       sendJson(res, 400, { ok: false, error: error.message || "Bad frame payload." });

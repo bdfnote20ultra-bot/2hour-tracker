@@ -873,6 +873,7 @@ function PokemonSidebar() {
   const multiplayerControllerUrl = multiplayerRoom.data?.controllerUrl || `${cleanMultiplayerHostUrl}/controller`;
   const cleanCloudGamingHostUrl = (cloudGamingHostUrl || FUIT_CLOUD_GAMING_DEFAULT_HOST_URL).trim().replace(/\/+$/, "") || FUIT_CLOUD_GAMING_DEFAULT_HOST_URL;
   const cloudGamingViewerUrl = cloudGamingSession.data?.viewerUrl || `${cleanCloudGamingHostUrl}/room`;
+  const cloudGamingEmbedUrl = cloudGamingSession.data?.embedViewerUrl || `${cleanCloudGamingHostUrl}/room?embed=1`;
   const cloudGamingControllerUrl = cloudGamingSession.data?.controllerUrl || `${cleanCloudGamingHostUrl}/controller`;
 
   useEffect(() => {
@@ -2349,8 +2350,8 @@ function PokemonSidebar() {
             {cloudGamingSession.online ? (
               <iframe
                 title="FUITS Cloud Gaming"
-                src={cloudGamingViewerUrl}
-                style={{ width: "100%", height: "100%", minHeight: 360, border: "none", background: "#020617" }}
+                src={cloudGamingEmbedUrl}
+                style={{ width: "100%", height: "100%", border: "none", background: "#020617", display: "block" }}
                 allow="autoplay; fullscreen; gamepad; display-capture; clipboard-read; clipboard-write"
                 allowFullScreen
               />

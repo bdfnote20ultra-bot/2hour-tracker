@@ -120,6 +120,8 @@ const YOUTUBE_GAMING_VIDEOS_URL = "https://www.youtube.com/@xflivetv/videos";
 const RETROARCH_WEB_PLAYER_URL = "https://web.libretro.com/";
 const FUIT_MULTIPLAYER_HOST_URL_KEY = "fuitMultiplayerHostUrl_v1";
 const FUIT_MULTIPLAYER_DEFAULT_HOST_URL = "http://127.0.0.1:8174";
+const FUIT_CLOUD_GAMING_HOST_URL_KEY = "fuitCloudGamingHostUrl_v1";
+const FUIT_CLOUD_GAMING_DEFAULT_HOST_URL = "http://127.0.0.1:8175";
 const SIGNUP_REQUESTS_KEY = "fuitsSignupRequests_v1";
 const APPROVED_USERS_KEY = "fuitsApprovedUsers_v1";
 const BANNED_USERS_KEY = "fuitsBannedUsers_v1";
@@ -718,6 +720,13 @@ function PokemonSidebar() {
     try { return localStorage.getItem(FUIT_MULTIPLAYER_HOST_URL_KEY) || FUIT_MULTIPLAYER_DEFAULT_HOST_URL; } catch { return FUIT_MULTIPLAYER_DEFAULT_HOST_URL; }
   });
   const [multiplayerRoom, setMultiplayerRoom] = useState({ online: false, loading: true, error: "", data: null });
+  const [cloudGamingHostUrl, setCloudGamingHostUrl] = useState(() => {
+    try { return localStorage.getItem(FUIT_CLOUD_GAMING_HOST_URL_KEY) || FUIT_CLOUD_GAMING_DEFAULT_HOST_URL; } catch { return FUIT_CLOUD_GAMING_DEFAULT_HOST_URL; }
+  });
+  const [cloudGamingHostInput, setCloudGamingHostInput] = useState(() => {
+    try { return localStorage.getItem(FUIT_CLOUD_GAMING_HOST_URL_KEY) || FUIT_CLOUD_GAMING_DEFAULT_HOST_URL; } catch { return FUIT_CLOUD_GAMING_DEFAULT_HOST_URL; }
+  });
+  const [cloudGamingSession, setCloudGamingSession] = useState({ online: false, loading: true, error: "", data: null });
   const [gameSearch, setGameSearch] = useState("");
   const [selectedArt, setSelectedArt] = useState("cover");
   const [zoomedCover, setZoomedCover] = useState(null);
@@ -858,6 +867,8 @@ function PokemonSidebar() {
   const cleanMultiplayerHostUrl = (multiplayerHostUrl || FUIT_MULTIPLAYER_DEFAULT_HOST_URL).trim().replace(/\/+$/, "") || FUIT_MULTIPLAYER_DEFAULT_HOST_URL;
   const multiplayerViewerUrl = multiplayerRoom.data?.viewerUrl || `${cleanMultiplayerHostUrl}/room`;
   const multiplayerControllerUrl = multiplayerRoom.data?.controllerUrl || `${cleanMultiplayerHostUrl}/controller`;
+  const cleanCloudGamingHostUrl = (cloudGamingHostUrl || FUIT_CLOUD_GAMING_DEFAULT_HOST_URL).trim().replace(/\/+$/, "") || FUIT_CLOUD_GAMING_DEFAULT_HOST_URL;
+  const cloudGamingViewerUrl = cloudGamingSession.data?.viewerUrl || `${cleanCloudGamingHostUrl}/room`;
 
   useEffect(() => {
     try { localStorage.setItem(KICK_GAMING_CHANNEL_KEY, kickGamingChannel); } catch {}
@@ -866,6 +877,10 @@ function PokemonSidebar() {
   useEffect(() => {
     try { localStorage.setItem(FUIT_MULTIPLAYER_HOST_URL_KEY, cleanMultiplayerHostUrl); } catch {}
   }, [cleanMultiplayerHostUrl]);
+
+  useEffect(() => {
+    try { localStorage.setItem(FUIT_CLOUD_GAMING_HOST_URL_KEY, cleanCloudGamingHostUrl); } catch {}
+  }, [cleanCloudGamingHostUrl]);
 
   useEffect(() => {
     if (activeGamingApp !== "multiplayer") return undefined;
@@ -915,6 +930,55 @@ function PokemonSidebar() {
       if (timeoutId) window.clearTimeout(timeoutId);
     };
   }, [activeGamingApp, cleanMultiplayerHostUrl]);
+
+  useEffect(() => {
+    if (activeGamingApp !== "cloud-gaming") return undefined;
+
+    let cancelled = false;
+    let timeoutId = null;
+
+    const loadCloudGamingSession = async () => {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 1800);
+
+      try {
+        const response = await fetch(`${cleanCloudGamingHostUrl}/status`, {
+          cache: "no-store",
+          signal: controller.signal
+        });
+        if (!response.ok) throw new Error("Helper not ready.");
+        const data = await response.json();
+        if (!cancelled) {
+          setCloudGamingSession({
+            online: Boolean(data?.active),
+            loading: false,
+            error: "",
+            data
+          });
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setCloudGamingSession({
+            online: false,
+            loading: false,
+            error: "Start the FUITS Cloud Gaming helper on this PC.",
+            data: null
+          });
+        }
+      } finally {
+        window.clearTimeout(timeout);
+        if (!cancelled) timeoutId = window.setTimeout(loadCloudGamingSession, 5000);
+      }
+    };
+
+    setCloudGamingSession(current => ({ ...current, loading: true }));
+    loadCloudGamingSession();
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) window.clearTimeout(timeoutId);
+    };
+  }, [activeGamingApp, cleanCloudGamingHostUrl]);
 
   useEffect(() => {
     const carousel = gameCarouselRef.current;
@@ -1599,6 +1663,8 @@ function PokemonSidebar() {
                   ? "FUIT LIVE GAMING YOUTUBE"
                 : activeGamingApp === "multiplayer"
                   ? "FUIT MULTIPLAYER"
+                  : activeGamingApp === "cloud-gaming"
+                    ? "FUITS CLOUD GAMING"
                   : activeGamingApp === "retroarch"
                     ? "RETROARCH WEB PLAYER"
                   : activeGamingApp === "free-games"
@@ -1623,6 +1689,7 @@ function PokemonSidebar() {
             {[
               { value: "gaming-center", label: "FUIT GAMING CENTER" },
               { value: "multiplayer", label: "FUIT MULTIPLAYER" },
+              { value: "cloud-gaming", label: "FUITS CLOUD GAMING" },
               { value: "retroarch", label: "RETROARCH WEB PLAYER" },
               { value: "free-games", label: "FREE GAMES" },
               { value: "live-gaming", label: "FUIT LIVE GAMING" },
@@ -2109,6 +2176,140 @@ function PokemonSidebar() {
               </button>
             </div>
           </div>
+        </div>
+      ) : activeGamingApp === "cloud-gaming" ? (
+        <div style={{
+          width: "100%",
+          minHeight: 245,
+          borderRadius: 22,
+          background: "linear-gradient(180deg, rgba(30,64,175,.94), rgba(15,23,42,.96))",
+          border: "2px solid rgba(96,165,250,.42)",
+          boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)",
+          padding: 14,
+          color: "#dbeafe",
+          fontWeight: 1000,
+          display: "grid",
+          gap: 10
+        }}>
+          <div>
+            <div style={{ fontSize: 18, color: "#bfdbfe", marginBottom: 5 }}>FUITS CLOUD GAMING</div>
+            <div style={{ fontSize: 11, color: "#93c5fd", lineHeight: 1.35 }}>
+              {cloudGamingSession.online
+                ? `${cloudGamingSession.data?.sessionName || "Cloud Gaming"} is linked to this PC.`
+                : "Start the FUITS Cloud Gaming helper, open your emulator/game, then capture the game window here."}
+            </div>
+          </div>
+
+          <div style={{
+            borderRadius: 14,
+            overflow: "hidden",
+            background: "#020617",
+            border: "2px solid rgba(147,197,253,.22)",
+            aspectRatio: "16 / 10",
+            minHeight: 260,
+            display: "grid",
+            placeItems: "center"
+          }}>
+            {cloudGamingSession.online ? (
+              <iframe
+                title="FUITS Cloud Gaming"
+                src={cloudGamingViewerUrl}
+                style={{ width: "100%", height: "100%", minHeight: 360, border: "none", background: "#020617" }}
+                allow="autoplay; fullscreen; gamepad; display-capture; clipboard-read; clipboard-write"
+                allowFullScreen
+              />
+            ) : (
+              <div style={{ textAlign: "center", padding: 18 }}>
+                <div style={{ color: "#bfdbfe", fontSize: 14, marginBottom: 8 }}>
+                  {cloudGamingSession.loading ? "Checking for cloud helper..." : "Cloud helper offline"}
+                </div>
+                <div style={{ color: "#93c5fd", fontSize: 11, lineHeight: 1.45 }}>
+                  Run Start-FUIT-Cloud-Gaming.ps1 on this PC, then refresh this panel.
+                </div>
+              </div>
+            )}
+          </div>
+
+          {cloudGamingSession.online && (
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 8,
+              color: "#dbeafe",
+              fontSize: 11
+            }}>
+              <div style={{
+                border: "1px solid rgba(147,197,253,.22)",
+                borderRadius: 10,
+                padding: 9,
+                background: "rgba(30,64,175,.34)"
+              }}>
+                <div style={{ color: "#93c5fd", marginBottom: 3 }}>Game</div>
+                <div style={{ color: "#fff", lineHeight: 1.25 }}>{cloudGamingSession.data?.gameName || "PC emulator game"}</div>
+              </div>
+              <div style={{
+                border: "1px solid rgba(147,197,253,.22)",
+                borderRadius: 10,
+                padding: 9,
+                background: "rgba(30,64,175,.34)"
+              }}>
+                <div style={{ color: "#93c5fd", marginBottom: 3 }}>PC Host</div>
+                <div style={{ color: "#fff" }}>{cloudGamingSession.data?.host || "This PC"}</div>
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, alignItems: "center" }}>
+            <input
+              value={cloudGamingHostInput}
+              onChange={event => setCloudGamingHostInput(event.target.value)}
+              placeholder={FUIT_CLOUD_GAMING_DEFAULT_HOST_URL}
+              style={{
+                width: "100%",
+                border: "1px solid rgba(147,197,253,.28)",
+                borderRadius: 10,
+                padding: "9px 10px",
+                background: "rgba(15,23,42,.82)",
+                color: "#dbeafe",
+                fontSize: 11,
+                fontWeight: 900
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setCloudGamingHostUrl((cloudGamingHostInput || FUIT_CLOUD_GAMING_DEFAULT_HOST_URL).trim() || FUIT_CLOUD_GAMING_DEFAULT_HOST_URL)}
+              style={{
+                border: "none",
+                borderRadius: 10,
+                padding: "10px 12px",
+                background: "#93c5fd",
+                color: "#0f172a",
+                fontSize: 11,
+                fontWeight: 1000,
+                cursor: "pointer"
+              }}
+            >
+              Refresh
+            </button>
+          </div>
+
+          <button
+            type="button"
+            disabled={!cloudGamingSession.online}
+            onClick={() => window.open(cloudGamingViewerUrl, "_blank", "noopener,noreferrer")}
+            style={{
+              border: "1px solid rgba(147,197,253,.28)",
+              borderRadius: 10,
+              padding: "10px 10px",
+              background: cloudGamingSession.online ? "rgba(15,23,42,.82)" : "rgba(15,23,42,.42)",
+              color: cloudGamingSession.online ? "#dbeafe" : "#64748b",
+              fontSize: 11,
+              fontWeight: 1000,
+              cursor: cloudGamingSession.online ? "pointer" : "default"
+            }}
+          >
+            Open Cloud View
+          </button>
         </div>
       ) : activeGamingApp === "retroarch" ? (
         <div style={{

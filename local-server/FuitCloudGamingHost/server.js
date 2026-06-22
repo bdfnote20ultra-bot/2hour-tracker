@@ -670,6 +670,21 @@ function readBody(req) {
   });
 }
 
+function disableRmgPauseOnFocusLoss(launchExe) {
+  const configPath = path.join(path.dirname(launchExe), "Config", "mupen64plus.cfg");
+  if (!fs.existsSync(configPath)) return;
+
+  const config = fs.readFileSync(configPath, "utf8");
+  const nextConfig = config.replace(
+    /^PauseEmulationOnFocusLoss\s*=\s*True$/m,
+    "PauseEmulationOnFocusLoss = False"
+  );
+
+  if (nextConfig !== config) {
+    fs.writeFileSync(configPath, nextConfig, "utf8");
+  }
+}
+
 function launchConfiguredGame(options = {}) {
   let launchExe = gamePath;
   let launchRom = "";
@@ -689,6 +704,10 @@ function launchConfiguredGame(options = {}) {
 
   if (!launchExe) {
     throw new Error("No emulator/game path was selected when the helper started.");
+  }
+
+  if (launchExe.toLowerCase() === rmgPath.toLowerCase()) {
+    disableRmgPauseOnFocusLoss(launchExe);
   }
 
   const child = spawn(launchExe, launchRom ? [launchRom] : [], {

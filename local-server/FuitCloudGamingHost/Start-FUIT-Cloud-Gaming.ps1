@@ -35,6 +35,19 @@ function Select-GameFile {
   return ""
 }
 
+function Resolve-GameLaunchPath([string]$Path) {
+  if ([string]::IsNullOrWhiteSpace($Path)) { return $Path }
+
+  $fileName = [System.IO.Path]::GetFileName($Path)
+  $knownRmg = "T:\FattysLiveTV\Tools\Emulators\RMG\RMG.exe"
+
+  if ($fileName -ieq "RMG.exe" -and (Test-Path -LiteralPath $knownRmg)) {
+    return $knownRmg
+  }
+
+  return $Path
+}
+
 function Start-CloudGaming {
   Clear-Host
   Write-Host "FUITS CLOUD GAMING" -ForegroundColor Cyan
@@ -49,6 +62,7 @@ function Start-CloudGaming {
   $openGame = Read-Host "Open an emulator/game now? Y/N [Y]"
   if ([string]::IsNullOrWhiteSpace($openGame) -or $openGame.Trim().ToUpperInvariant().StartsWith("Y")) {
     $gamePath = Select-GameFile
+    $gamePath = Resolve-GameLaunchPath $gamePath
     if ($gamePath) {
       if ($gameName -eq "PC emulator game") {
         $gameName = [System.IO.Path]::GetFileNameWithoutExtension($gamePath)

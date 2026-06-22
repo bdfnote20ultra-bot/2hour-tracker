@@ -16,6 +16,8 @@ const streamJpegQuality = Math.min(0.86, Math.max(0.35, Number(process.env.FUIT_
 const streamFrameIntervalMs = Math.max(50, Number(process.env.FUIT_CLOUD_STREAM_FRAME_MS || 75));
 
 const controllers = new Map();
+const mjpegClients = new Set();
+const MJPEG_BOUNDARY = "fuitcloudframe";
 let latestFrame = null;
 let latestFrameMs = 0;
 let latestFrameSequence = 0;
@@ -138,6 +140,31 @@ function send(res, status, body, type = "text/plain; charset=utf-8") {
 
 function sendJson(res, status, value) {
   send(res, status, JSON.stringify(value, null, 2), "application/json; charset=utf-8");
+}
+
+function writeMjpegFrame(res, frame) {
+  try {
+    res.write(`--${MJPEG_BOUNDARY}\r\n`);
+    res.write(`Content-Type: ${frame.type}\r\n`);
+    res.write(`Content-Length: ${frame.buffer.length}\r\n`);
+    res.write(`X-FUIT-Frame-Ms: ${latestFrameMs}\r\n`);
+    res.write(`X-FUIT-Frame-Seq: ${latestFrameSequence}\r\n\r\n`);
+    res.write(frame.buffer);
+    res.write("\r\n");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function broadcastMjpegFrame() {
+  if (!latestFrame) return;
+  for (const client of Array.from(mjpegClients)) {
+    if (!writeMjpegFrame(client, latestFrame)) {
+      mjpegClients.delete(client);
+      try { client.end(); } catch {}
+    }
+  }
 }
 
 function sendLaunchPage(res, status, value) {
@@ -271,7 +298,7 @@ function statusPayload(req) {
     },
     hostCaptureState,
     launchState,
-    viewerUrl: `${origin}/room`,
+    viewerUrl: `${origin}/room?viewer=1`,
     embedViewerUrl: `${origin}/room?embed=1`,
     controllerUrl: `${origin}/controller`,
     hostUrl: `${origin}/room?host=1`,
@@ -296,7 +323,7 @@ function pageShell(title, body) {
     body { display: grid; place-items: stretch; }
     main { width: 100%; min-height: 100%; display: grid; grid-template-rows: auto minmax(260px, 1fr) auto; gap: 12px; padding: 14px; }
     main.embed { min-height: 100vh; grid-template-rows: minmax(0, 1fr); gap: 0; padding: 0; background: #000; }
-    main.embed .top, main.embed .controls-panel { display: none; }
+    main.embed .top, main.embed .controls-panel, main.viewer .controls-panel { display: none; }
     .panel { border: 1px solid rgba(147,197,253,.26); background: linear-gradient(180deg, rgba(30,64,175,.72), rgba(15,23,42,.96)); border-radius: 8px; padding: 14px; box-shadow: inset 0 0 24px rgba(0,0,0,.38); }
     .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .title { font-size: 18px; font-weight: 1000; color: #bfdbfe; }
@@ -335,8 +362,10 @@ function roomPage(req) {
   const status = statusPayload(req);
   const roomUrl = new URL(req.url, `http://127.0.0.1:${PORT}`);
   const isEmbed = roomUrl.searchParams.get("embed") === "1";
+  const isHost = roomUrl.searchParams.get("host") === "1";
+  const mainClass = [isEmbed ? "embed" : "", isHost ? "host" : "viewer"].filter(Boolean).join(" ");
   return pageShell("FUITS Cloud Gaming", `
-    <main class="${isEmbed ? "embed" : ""}">
+    <main class="${mainClass}">
       <section class="panel top">
         <div>
           <div class="title">${escapeHtml(status.sessionName)}</div>
@@ -349,7 +378,7 @@ function roomPage(req) {
         <img id="frame" class="stream" alt="FUITS Cloud Gaming stream" style="display: none;" />
         <div id="empty" class="empty">
           <div class="title" style="margin-bottom: 8px;">Waiting for PC emulator stream</div>
-          <div class="sub">${isEmbed ? "Use Open Cloud View below this box, click Capture PC Game Window, then choose the RMG window." : "Launch or focus the emulator on this PC, click Capture PC Game Window, then choose the emulator window."}</div>
+          <div class="sub">${isHost ? "Launch or focus the emulator on this PC, click Capture PC Game Window, then choose the RMG window." : "The host PC must start capture from the Host Capture page before viewers can see the game."}</div>
         </div>
       </section>
       <section class="panel controls-panel">
@@ -373,6 +402,7 @@ function roomPage(req) {
       const captureCtx = captureCanvas.getContext("2d", { alpha: false });
       const gameSelect = document.getElementById("gameSelect");
       const launchBtn = document.getElementById("launchBtn");
+      const isHostPage = ${JSON.stringify(isHost)};
       let captureStream = null;
       let uploadTimer = null;
       let statusTimer = null;
@@ -406,6 +436,7 @@ function roomPage(req) {
       }
 
       function refreshFrame() {
+        if (!isHostPage) return;
         if (captureStream) return;
         if (frameLoadInFlight) {
           scheduleFrameRefresh();
@@ -427,6 +458,7 @@ function roomPage(req) {
       }
 
       async function postHostStatus() {
+        if (!isHostPage) return;
         try {
           await fetch("/api/host", {
             method: "POST",
@@ -437,6 +469,7 @@ function roomPage(req) {
       }
 
       async function uploadFrame() {
+        if (!isHostPage) return;
         if (!captureStream || !video.videoWidth || !video.videoHeight) return;
         const now = performance.now();
         if (uploadInFlight || now - lastUploadStartedAt < ${JSON.stringify(streamFrameIntervalMs)}) return;
@@ -463,6 +496,7 @@ function roomPage(req) {
       }
 
       function uploadLoop() {
+        if (!isHostPage) return;
         if (!captureStream) return;
         uploadFrame();
         uploadAnimationFrame = window.requestAnimationFrame(uploadLoop);
@@ -497,6 +531,7 @@ function roomPage(req) {
       }
 
       async function loadGames() {
+        if (!isHostPage) return;
         try {
           const response = await fetch("/api/games?system=N64", { cache: "no-store" });
           const data = await response.json();
@@ -526,7 +561,7 @@ function roomPage(req) {
         }
       }
 
-      launchBtn.addEventListener("click", async () => {
+      launchBtn?.addEventListener("click", async () => {
         try {
           const response = await fetch("/api/launch", {
             method: "POST",
@@ -543,7 +578,7 @@ function roomPage(req) {
         }
       });
 
-      document.getElementById("captureBtn").addEventListener("click", async () => {
+      document.getElementById("captureBtn")?.addEventListener("click", async () => {
         try {
           const stream = await navigator.mediaDevices.getDisplayMedia({
             video: { frameRate: 60 },
@@ -555,18 +590,25 @@ function roomPage(req) {
         }
       });
 
-      document.getElementById("controllerBtn").addEventListener("click", () => {
+      document.getElementById("controllerBtn")?.addEventListener("click", () => {
         window.open("/controller", "_blank", "noopener,noreferrer");
       });
 
-      document.getElementById("fullscreenBtn").addEventListener("click", () => {
+      document.getElementById("fullscreenBtn")?.addEventListener("click", () => {
         const target = captureStream ? video : (img.style.display === "none" ? document.documentElement : img);
         const requestFullscreen = target.requestFullscreen || target.webkitRequestFullscreen || target.msRequestFullscreen;
         requestFullscreen?.call(target);
       });
 
-      document.getElementById("stopBtn").addEventListener("click", stopCapture);
-      refreshFrame();
+      document.getElementById("stopBtn")?.addEventListener("click", stopCapture);
+      if (isHostPage) {
+        refreshFrame();
+      } else {
+        img.src = "/stream.mjpg?t=" + Date.now();
+        img.style.display = "block";
+        video.style.display = "none";
+        empty.style.display = "none";
+      }
       loadGames();
     </script>
   `);
@@ -860,6 +902,25 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === "GET" && url.pathname === "/stream.mjpg") {
+    res.writeHead(200, {
+      "Content-Type": `multipart/x-mixed-replace; boundary=${MJPEG_BOUNDARY}`,
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Private-Network": "true",
+      "Cache-Control": "no-store, max-age=0, no-transform",
+      "Pragma": "no-cache",
+      "Connection": "keep-alive",
+      "X-Accel-Buffering": "no"
+    });
+    mjpegClients.add(res);
+    if (latestFrame) writeMjpegFrame(res, latestFrame);
+    req.on("close", () => {
+      mjpegClients.delete(res);
+      try { res.end(); } catch {}
+    });
+    return;
+  }
+
   if (req.method === "GET" && url.pathname === "/api/launch") {
     try {
       const launched = launchConfiguredGame({
@@ -952,6 +1013,7 @@ const server = http.createServer(async (req, res) => {
       }
       latestFrameMs = Date.now();
       latestFrameSequence += 1;
+      broadcastMjpegFrame();
       sendJson(res, 200, { ok: true });
     } catch (error) {
       sendJson(res, 400, { ok: false, error: error.message || "Bad frame payload." });

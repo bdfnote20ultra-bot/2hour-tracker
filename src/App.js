@@ -874,6 +874,7 @@ function PokemonSidebar() {
   const cleanCloudGamingHostUrl = (cloudGamingHostUrl || FUIT_CLOUD_GAMING_DEFAULT_HOST_URL).trim().replace(/\/+$/, "") || FUIT_CLOUD_GAMING_DEFAULT_HOST_URL;
   const cloudGamingViewerUrl = cloudGamingSession.data?.viewerUrl || `${cleanCloudGamingHostUrl}/room`;
   const cloudGamingEmbedUrl = cloudGamingSession.data?.embedViewerUrl || `${cleanCloudGamingHostUrl}/room?embed=1`;
+  const cloudGamingHostCaptureUrl = cloudGamingSession.data?.hostUrl || `${cleanCloudGamingHostUrl}/room?host=1`;
   const cloudGamingControllerUrl = cloudGamingSession.data?.controllerUrl || `${cleanCloudGamingHostUrl}/controller`;
 
   useEffect(() => {
@@ -2488,6 +2489,23 @@ function PokemonSidebar() {
               }}
             >
               Open Controller
+            </button>
+            <button
+              type="button"
+              disabled={!cleanCloudGamingHostUrl}
+              onClick={() => window.open(cloudGamingHostCaptureUrl, "_blank", "noopener,noreferrer")}
+              style={{
+                border: "1px solid rgba(147,197,253,.28)",
+                borderRadius: 10,
+                padding: "10px 10px",
+                background: cleanCloudGamingHostUrl ? "rgba(15,23,42,.82)" : "rgba(15,23,42,.42)",
+                color: cleanCloudGamingHostUrl ? "#dbeafe" : "#64748b",
+                fontSize: 11,
+                fontWeight: 1000,
+                cursor: cleanCloudGamingHostUrl ? "pointer" : "default"
+              }}
+            >
+              Host Capture
             </button>
             <button
               type="button"

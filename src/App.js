@@ -966,7 +966,7 @@ function PokemonSidebar() {
           setCloudGamingSession({
             online: false,
             loading: false,
-            error: "Start the FUITS Cloud Gaming helper on this PC.",
+            error: "Chrome blocked the direct helper check. Launch can still open the local helper.",
             data: null
           });
         }
@@ -1018,9 +1018,28 @@ function PokemonSidebar() {
     };
   }, [activeGamingApp, cleanCloudGamingHostUrl, cloudGamingSession.online, cloudGamingSystem]);
 
+  const getCloudGamingLaunchUrl = (gameId = selectedCloudGamingGameId || cloudGamingGames[0]?.id || "") => {
+    const params = new URLSearchParams({ system: cloudGamingSystem });
+    if (gameId) params.set("gameId", gameId);
+    return `${cleanCloudGamingHostUrl}/api/launch?${params.toString()}`;
+  };
+
   const launchCloudGamingEmulator = async () => {
     const launchGameId = selectedCloudGamingGameId || cloudGamingGames[0]?.id || "";
     const selectedGame = cloudGamingGames.find(game => game.id === launchGameId);
+    const launchUrl = getCloudGamingLaunchUrl(launchGameId);
+    const usesLocalHelper = /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?/i.test(cleanCloudGamingHostUrl);
+
+    if (usesLocalHelper) {
+      window.open(launchUrl, "_blank", "noopener,noreferrer");
+      setCloudGamingActionStatus(
+        selectedGame
+          ? `Launch requested for ${selectedGame.label}.`
+          : "Launch requested through the local helper."
+      );
+      return;
+    }
+
     setCloudGamingActionStatus(
       selectedGame
         ? `Asking the helper to launch ${selectedGame.label} in RMG...`
@@ -1041,6 +1060,7 @@ function PokemonSidebar() {
       if (!response.ok || !data?.ok) throw new Error(data?.message || "Cloud helper could not launch the emulator.");
       setCloudGamingActionStatus(data.message || "Launch requested. Focus the emulator window before using browser controls.");
     } catch (error) {
+      window.open(launchUrl, "_blank", "noopener,noreferrer");
       setCloudGamingActionStatus(error?.message || "Cloud helper launch request failed.");
     }
   };
@@ -2340,7 +2360,7 @@ function PokemonSidebar() {
                   {cloudGamingSession.loading ? "Checking for cloud helper..." : "Cloud helper offline"}
                 </div>
                 <div style={{ color: "#93c5fd", fontSize: 11, lineHeight: 1.45 }}>
-                  Run Start-FUIT-Cloud-Gaming.ps1 on this PC, then refresh this panel.
+                  {cloudGamingSession.error || "Run Start-FUIT-Cloud-Gaming.ps1 on this PC, then refresh this panel."}
                 </div>
               </div>
             )}
@@ -2436,51 +2456,51 @@ function PokemonSidebar() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(118px, 1fr))", gap: 8 }}>
             <button
               type="button"
-              disabled={!cloudGamingSession.online || (!selectedCloudGamingGameId && !cloudGamingGames.length)}
+              disabled={!cleanCloudGamingHostUrl}
               onClick={launchCloudGamingEmulator}
               style={{
                 border: "1px solid rgba(147,197,253,.28)",
                 borderRadius: 10,
                 padding: "10px 10px",
-                background: cloudGamingSession.online && (selectedCloudGamingGameId || cloudGamingGames.length) ? "#93c5fd" : "rgba(15,23,42,.42)",
-                color: cloudGamingSession.online && (selectedCloudGamingGameId || cloudGamingGames.length) ? "#0f172a" : "#64748b",
+                background: cleanCloudGamingHostUrl ? "#93c5fd" : "rgba(15,23,42,.42)",
+                color: cleanCloudGamingHostUrl ? "#0f172a" : "#64748b",
                 fontSize: 11,
                 fontWeight: 1000,
-                cursor: cloudGamingSession.online && (selectedCloudGamingGameId || cloudGamingGames.length) ? "pointer" : "default"
+                cursor: cleanCloudGamingHostUrl ? "pointer" : "default"
               }}
             >
               Launch N64 Game
             </button>
             <button
               type="button"
-              disabled={!cloudGamingSession.online}
+              disabled={!cleanCloudGamingHostUrl}
               onClick={() => window.open(cloudGamingControllerUrl, "_blank", "noopener,noreferrer")}
               style={{
                 border: "1px solid rgba(147,197,253,.28)",
                 borderRadius: 10,
                 padding: "10px 10px",
-                background: cloudGamingSession.online ? "rgba(15,23,42,.82)" : "rgba(15,23,42,.42)",
-                color: cloudGamingSession.online ? "#dbeafe" : "#64748b",
+                background: cleanCloudGamingHostUrl ? "rgba(15,23,42,.82)" : "rgba(15,23,42,.42)",
+                color: cleanCloudGamingHostUrl ? "#dbeafe" : "#64748b",
                 fontSize: 11,
                 fontWeight: 1000,
-                cursor: cloudGamingSession.online ? "pointer" : "default"
+                cursor: cleanCloudGamingHostUrl ? "pointer" : "default"
               }}
             >
               Open Controller
             </button>
             <button
               type="button"
-              disabled={!cloudGamingSession.online}
+              disabled={!cleanCloudGamingHostUrl}
               onClick={() => window.open(cloudGamingViewerUrl, "_blank", "noopener,noreferrer")}
               style={{
                 border: "1px solid rgba(147,197,253,.28)",
                 borderRadius: 10,
                 padding: "10px 10px",
-                background: cloudGamingSession.online ? "rgba(15,23,42,.82)" : "rgba(15,23,42,.42)",
-                color: cloudGamingSession.online ? "#dbeafe" : "#64748b",
+                background: cleanCloudGamingHostUrl ? "rgba(15,23,42,.82)" : "rgba(15,23,42,.42)",
+                color: cleanCloudGamingHostUrl ? "#dbeafe" : "#64748b",
                 fontSize: 11,
                 fontWeight: 1000,
-                cursor: cloudGamingSession.online ? "pointer" : "default"
+                cursor: cleanCloudGamingHostUrl ? "pointer" : "default"
               }}
             >
               Open Cloud View

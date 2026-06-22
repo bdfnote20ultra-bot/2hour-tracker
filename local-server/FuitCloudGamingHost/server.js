@@ -136,6 +136,55 @@ function sendJson(res, status, value) {
   send(res, status, JSON.stringify(value, null, 2), "application/json; charset=utf-8");
 }
 
+function sendLaunchPage(res, status, value) {
+  const title = value.ok ? "Launch Requested" : "Launch Failed";
+  const message = value.message || title;
+  send(res, status, `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(title)}</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #020617;
+      color: #dbeafe;
+      font-family: Arial, sans-serif;
+      font-weight: 900;
+      text-align: center;
+    }
+    main {
+      max-width: 520px;
+      padding: 24px;
+    }
+    h1 {
+      margin: 0 0 10px;
+      color: ${value.ok ? "#86efac" : "#fca5a5"};
+      font-size: 24px;
+    }
+    p {
+      margin: 0;
+      line-height: 1.45;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>${escapeHtml(title)}</h1>
+    <p>${escapeHtml(message)}</p>
+  </main>
+  <script>
+    setTimeout(() => {
+      try { window.close(); } catch {}
+    }, 900);
+  </script>
+</body>
+</html>`, "text/html; charset=utf-8");
+}
+
 function publicOrigin(req) {
   const host = req.headers.host || `127.0.0.1:${PORT}`;
   const forwardedProto = req.headers["x-forwarded-proto"];
@@ -719,6 +768,37 @@ const server = http.createServer(async (req, res) => {
       "Cache-Control": "no-store"
     });
     res.end(latestFrame.buffer);
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/launch") {
+    try {
+      const launched = launchConfiguredGame({
+        system: String(url.searchParams.get("system") || "").toUpperCase(),
+        gameId: url.searchParams.get("gameId") || ""
+      });
+      launchState = {
+        requested: true,
+        ok: true,
+        message: `Launch requested for ${launched.label}.`,
+        gameName: launched.label,
+        system: launched.system || String(url.searchParams.get("system") || "").toUpperCase(),
+        rom: launched.rom || "",
+        lastRequestedMs: Date.now()
+      };
+      sendLaunchPage(res, 200, { ok: true, message: launchState.message });
+    } catch (error) {
+      launchState = {
+        requested: true,
+        ok: false,
+        message: error.message || "Launch failed.",
+        gameName: "",
+        system: String(url.searchParams.get("system") || "").toUpperCase(),
+        rom: "",
+        lastRequestedMs: Date.now()
+      };
+      sendLaunchPage(res, 500, { ok: false, message: launchState.message });
+    }
     return;
   }
 

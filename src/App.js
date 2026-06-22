@@ -117,6 +117,7 @@ const MONTHLY_TRACKER_KEY = "hoursTrackerMonthlyTrackerMonths_v1";
 const KICK_GAMING_CHANNEL_KEY = "fuitLiveGamingKickChannel_v1";
 const YOUTUBE_GAMING_CHANNEL_URL = "https://www.youtube.com/@xflivetv";
 const YOUTUBE_GAMING_VIDEOS_URL = "https://www.youtube.com/@xflivetv/videos";
+const RETROARCH_WEB_PLAYER_URL = "https://web.libretro.com/";
 const FUIT_MULTIPLAYER_HOST_URL_KEY = "fuitMultiplayerHostUrl_v1";
 const FUIT_MULTIPLAYER_DEFAULT_HOST_URL = "http://127.0.0.1:8174";
 const SIGNUP_REQUESTS_KEY = "fuitsSignupRequests_v1";
@@ -1559,6 +1560,8 @@ function PokemonSidebar() {
                   ? "FUIT LIVE GAMING YOUTUBE"
                 : activeGamingApp === "multiplayer"
                   ? "FUIT MULTIPLAYER"
+                  : activeGamingApp === "retroarch"
+                    ? "RETROARCH WEB PLAYER"
                   : activeGamingApp === "free-games"
                     ? "FREE GAMES"
                   : "FUIT GAMING CENTER"}
@@ -1581,6 +1584,7 @@ function PokemonSidebar() {
             {[
               { value: "gaming-center", label: "FUIT GAMING CENTER" },
               { value: "multiplayer", label: "FUIT MULTIPLAYER" },
+              { value: "retroarch", label: "RETROARCH WEB PLAYER" },
               { value: "free-games", label: "FREE GAMES" },
               { value: "live-gaming", label: "FUIT LIVE GAMING" },
               { value: "live-gaming-youtube", label: "FUIT LIVE GAMING YOUTUBE" }
@@ -2064,6 +2068,91 @@ function PokemonSidebar() {
               >
                 Open Room
               </button>
+            </div>
+          </div>
+        </div>
+      ) : activeGamingApp === "retroarch" ? (
+        <div style={{
+          width: "100%",
+          minHeight: 245,
+          borderRadius: 22,
+          background: "linear-gradient(180deg, rgba(67,56,202,.94), rgba(15,23,42,.96))",
+          border: "2px solid rgba(129,140,248,.42)",
+          boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)",
+          padding: 12,
+          color: "#e0e7ff",
+          fontWeight: 1000,
+          display: "grid",
+          gap: 10
+        }}>
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8
+          }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: "#c7d2fe", fontSize: 16, fontWeight: 1000 }}>RETROARCH WEB PLAYER</div>
+              <div style={{ color: "#a5b4fc", fontSize: 10, fontWeight: 900, lineHeight: 1.35, marginTop: 3 }}>
+                Pick an N64 core, run it, then add your Conker ROM from your computer.
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => window.open(RETROARCH_WEB_PLAYER_URL, "_blank", "noopener,noreferrer")}
+              style={{
+                border: "1px solid rgba(199,210,254,.45)",
+                borderRadius: 10,
+                background: "rgba(30,41,59,.86)",
+                color: "#e0e7ff",
+                cursor: "pointer",
+                padding: "9px 10px",
+                fontSize: 10,
+                fontWeight: 1000,
+                textTransform: "uppercase",
+                flex: "0 0 auto"
+              }}
+            >
+              Full Tab
+            </button>
+          </div>
+
+          <div style={{
+            border: "1px solid rgba(199,210,254,.24)",
+            borderRadius: 12,
+            overflow: "hidden",
+            background: "#020617",
+            minHeight: 360
+          }}>
+            <iframe
+              key={RETROARCH_WEB_PLAYER_URL}
+              title="RetroArch Web Player"
+              src={RETROARCH_WEB_PLAYER_URL}
+              allow="autoplay; fullscreen; gamepad; clipboard-read; clipboard-write"
+              allowFullScreen
+              style={{
+                width: "100%",
+                height: 420,
+                minHeight: 360,
+                border: "none",
+                background: "#020617"
+              }}
+            />
+          </div>
+
+          <div style={{
+            display: "grid",
+            gap: 6,
+            fontSize: 10,
+            lineHeight: 1.35,
+            color: "#c7d2fe",
+            fontWeight: 900
+          }}>
+            <div style={{ padding: 8, borderRadius: 10, background: "rgba(15,23,42,.62)", border: "1px solid rgba(199,210,254,.18)" }}>
+              Try Chrome or Edge first. If the embedded player feels cramped, use Full Tab.
+            </div>
+            <div style={{ padding: 8, borderRadius: 10, background: "rgba(15,23,42,.62)", border: "1px solid rgba(199,210,254,.18)" }}>
+              This is separate from FUIT Multiplayer for now, so your existing multiplayer plan stays intact.
             </div>
           </div>
         </div>

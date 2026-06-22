@@ -773,19 +773,21 @@ function PokemonSidebar() {
     setGameLaunch(null);
   };
 
-  const applyPokemonStretch = (shouldStretch) => {
+  const applyPokemonStretch = (shouldStretch, { resize = true } = {}) => {
     const host = emulatorHostRef.current;
     if (!host) return;
-
-    try {
-      window.EJS_emulator?.resize?.();
-      window.EJS_emulator?.gameManager?.resize?.();
-    } catch {}
 
     const systemAspect = POKEMON_SYSTEM_ASPECTS[activeGame?.system];
     const scaleX = shouldStretch && systemAspect ? POKEMON_FULLSCREEN_ASPECT / systemAspect : 1;
     host.style.setProperty("--pokemon-stretch-scale-x", String(scaleX));
     host.classList.toggle("pokemon-emulator-stretch", shouldStretch);
+
+    if (resize) {
+      try {
+        window.EJS_emulator?.resize?.();
+        window.EJS_emulator?.gameManager?.resize?.();
+      } catch {}
+    }
   };
 
   const toggleGameFullscreen = () => {
@@ -1382,12 +1384,13 @@ function PokemonSidebar() {
   useEffect(() => {
     if (!gameLaunch) return;
 
-    applyPokemonStretch(stretchGame);
     if (isN64Game(gameLaunch)) {
-      const timeout = window.setTimeout(() => applyPokemonStretch(stretchGame), 900);
+      applyPokemonStretch(stretchGame, { resize: false });
+      const timeout = window.setTimeout(() => applyPokemonStretch(stretchGame), 650);
       return () => window.clearTimeout(timeout);
     }
 
+    applyPokemonStretch(stretchGame);
     const interval = window.setInterval(() => applyPokemonStretch(stretchGame), 500);
     const timeout = window.setTimeout(() => window.clearInterval(interval), 5000);
 
@@ -1495,6 +1498,12 @@ function PokemonSidebar() {
           width: 100vw !important;
           height: 100vh !important;
         }
+        .pokemon-desktop-stack.pokemon-n64-performance .pokemon-emulator-host canvas,
+        .pokemon-desktop-stack.pokemon-n64-performance .pokemon-emulator-host .ejs_canvas {
+          backface-visibility: hidden;
+          transform: translateZ(0);
+          will-change: transform;
+        }
         .pokemon-emulator-host.pokemon-emulator-stretch {
           overflow: hidden !important;
         }
@@ -1506,7 +1515,7 @@ function PokemonSidebar() {
           height: 100% !important;
         }
         .pokemon-emulator-host.pokemon-emulator-stretch .ejs_canvas {
-          transform: scaleX(var(--pokemon-stretch-scale-x, 1)) !important;
+          transform: translateZ(0) scaleX(var(--pokemon-stretch-scale-x, 1)) !important;
           transform-origin: center center !important;
           image-rendering: pixelated;
         }

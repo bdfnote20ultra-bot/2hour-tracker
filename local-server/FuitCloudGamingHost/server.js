@@ -14,16 +14,20 @@ const n64RomRoot = process.env.FUIT_CLOUD_N64_ROM_ROOT || "T:\\FattysLiveTV\\Gam
 const streamMaxWidth = Number(process.env.FUIT_CLOUD_STREAM_MAX_WIDTH || 960);
 const streamJpegQuality = Math.min(0.86, Math.max(0.35, Number(process.env.FUIT_CLOUD_STREAM_JPEG_QUALITY || 0.52)));
 const streamFrameIntervalMs = Math.max(50, Number(process.env.FUIT_CLOUD_STREAM_FRAME_MS || 75));
+const autoCaptureScript = process.env.FUIT_CLOUD_AUTO_CAPTURE_SCRIPT || path.join(__dirname, "AutoCapture.ps1");
 
 const controllers = new Map();
 const mjpegClients = new Set();
 const MJPEG_BOUNDARY = "fuitcloudframe";
+let autoCaptureProcess = null;
 let latestFrame = null;
 let latestFrameMs = 0;
 let latestFrameSequence = 0;
 let hostCaptureState = {
   connected: false,
-  lastSeenMs: 0
+  lastSeenMs: 0,
+  status: "idle",
+  mode: "auto"
 };
 let launchState = {
   requested: false,
@@ -237,7 +241,7 @@ function pruneControllers() {
     if (now - controller.lastSeenMs > 10000) controllers.delete(id);
   }
   if (hostCaptureState.connected && now - hostCaptureState.lastSeenMs > 6000) {
-    hostCaptureState = { ...hostCaptureState, connected: false };
+    hostCaptureState = { ...hostCaptureState, connected: false, status: "waiting" };
   }
 }
 
@@ -378,7 +382,7 @@ function roomPage(req) {
         <img id="frame" class="stream" alt="FUITS Cloud Gaming stream" style="display: none;" />
         <div id="empty" class="empty">
           <div class="title" style="margin-bottom: 8px;">Waiting for PC emulator stream</div>
-          <div class="sub">${isHost ? "Launch or focus the emulator on this PC, click Capture PC Game Window, then choose the RMG window." : "The host PC must start capture from the Host Capture page before viewers can see the game."}</div>
+          <div class="sub">${isHost ? "Launch or focus the emulator on this PC, then use capture only as a manual fallback." : "Launch an N64 game from the FUIT site. The host helper starts streaming automatically once RMG opens."}</div>
         </div>
       </section>
       <section class="panel controls-panel">
@@ -803,6 +807,93 @@ function disableRmgPauseOnFocusLoss(launchExe) {
   }
 }
 
+function stopAutoCapture() {
+  if (!autoCaptureProcess) return;
+  try {
+    autoCaptureProcess.kill();
+  } catch {}
+  autoCaptureProcess = null;
+}
+
+function startAutoCapture(launched) {
+  stopAutoCapture();
+
+  if (!fs.existsSync(autoCaptureScript)) {
+    hostCaptureState = {
+      ...hostCaptureState,
+      connected: false,
+      status: "auto capture script missing",
+      mode: "auto",
+      lastSeenMs: 0
+    };
+    return;
+  }
+
+  const targetProcessName = path.basename(launched.exe || rmgPath, path.extname(launched.exe || rmgPath)) || "RMG";
+  const args = [
+    "-NoProfile",
+    "-ExecutionPolicy", "Bypass",
+    "-File", autoCaptureScript,
+    "-Port", String(PORT),
+    "-ProcessId", String(launched.pid || 0),
+    "-ProcessName", targetProcessName,
+    "-MaxWidth", String(streamMaxWidth),
+    "-IntervalMs", String(streamFrameIntervalMs),
+    "-JpegQuality", String(Math.round(streamJpegQuality * 100))
+  ];
+
+  try {
+    autoCaptureProcess = spawn("powershell.exe", args, {
+      cwd: __dirname,
+      detached: false,
+      stdio: "ignore",
+      windowsHide: true
+    });
+    const capturePid = autoCaptureProcess.pid || 0;
+    hostCaptureState = {
+      connected: false,
+      lastSeenMs: 0,
+      status: "starting",
+      mode: "auto",
+      processId: capturePid,
+      targetProcessId: launched.pid || 0,
+      targetProcessName,
+      lastStartedMs: Date.now()
+    };
+    autoCaptureProcess.on("exit", (code, signal) => {
+      if (!autoCaptureProcess || autoCaptureProcess.pid !== capturePid) return;
+      autoCaptureProcess = null;
+      hostCaptureState = {
+        ...hostCaptureState,
+        connected: false,
+        status: "stopped",
+        lastExitCode: code,
+        lastExitSignal: signal || "",
+        lastSeenMs: Date.now()
+      };
+    });
+    autoCaptureProcess.on("error", error => {
+      if (!autoCaptureProcess || autoCaptureProcess.pid !== capturePid) return;
+      autoCaptureProcess = null;
+      hostCaptureState = {
+        ...hostCaptureState,
+        connected: false,
+        status: error.message || "auto capture failed to start",
+        lastSeenMs: 0
+      };
+    });
+  } catch (error) {
+    autoCaptureProcess = null;
+    hostCaptureState = {
+      ...hostCaptureState,
+      connected: false,
+      status: error.message || "auto capture failed to start",
+      mode: "auto",
+      lastSeenMs: 0
+    };
+  }
+}
+
 function launchConfiguredGame(options = {}) {
   let launchExe = gamePath;
   let launchRom = "";
@@ -927,10 +1018,11 @@ const server = http.createServer(async (req, res) => {
         system: String(url.searchParams.get("system") || "").toUpperCase(),
         gameId: url.searchParams.get("gameId") || ""
       });
+      startAutoCapture(launched);
       launchState = {
         requested: true,
         ok: true,
-        message: `Launch requested for ${launched.label}.`,
+        message: `Launch requested for ${launched.label}. Stream capture is starting automatically.`,
         gameName: launched.label,
         system: launched.system || String(url.searchParams.get("system") || "").toUpperCase(),
         rom: launched.rom || "",
@@ -959,10 +1051,11 @@ const server = http.createServer(async (req, res) => {
         system: String(body.system || "").toUpperCase(),
         gameId: body.gameId
       });
+      startAutoCapture(launched);
       launchState = {
         requested: true,
         ok: true,
-        message: `Launch requested for ${launched.label}.`,
+        message: `Launch requested for ${launched.label}. Stream capture is starting automatically.`,
         gameName: launched.label,
         system: launched.system || body.system || "",
         rom: launched.rom || "",
@@ -985,8 +1078,10 @@ const server = http.createServer(async (req, res) => {
     try {
       JSON.parse(await readBody(req) || "{}");
       hostCaptureState = {
+        ...hostCaptureState,
         connected: true,
-        lastSeenMs: Date.now()
+        lastSeenMs: Date.now(),
+        status: "streaming"
       };
       sendJson(res, 200, { ok: true });
     } catch (error) {
@@ -1052,4 +1147,14 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`Launch path: ${gamePath || "(none selected)"}`);
   console.log(`Viewer: http://127.0.0.1:${PORT}/room`);
   console.log(`Controller: http://127.0.0.1:${PORT}/controller`);
+});
+
+process.on("exit", stopAutoCapture);
+process.on("SIGINT", () => {
+  stopAutoCapture();
+  process.exit(0);
+});
+process.on("SIGTERM", () => {
+  stopAutoCapture();
+  process.exit(0);
 });

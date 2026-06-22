@@ -7,6 +7,7 @@ $ErrorActionPreference = "Stop"
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $serverFile = Join-Path $scriptDir "server.js"
 $inputRelayFile = Join-Path $scriptDir "InputRelay.ps1"
+$autoCaptureFile = Join-Path $scriptDir "AutoCapture.ps1"
 $cleanupWatchdogFile = Join-Path $scriptDir "CleanupWatchdog.ps1"
 $defaultPort = "8175"
 $defaultRmgPath = "T:\FattysLiveTV\Tools\Emulators\RMG\RMG.exe"
@@ -85,6 +86,11 @@ function Stop-FuitCloudGamingProcesses {
       Where-Object { $_.CommandLine -like "*FuitCloudGamingHost*InputRelay.ps1*" }
   } catch {}
 
+  try {
+    $targets += Get-CimInstance Win32_Process -Filter "Name = 'powershell.exe'" |
+      Where-Object { $_.CommandLine -like "*FuitCloudGamingHost*AutoCapture.ps1*" }
+  } catch {}
+
   foreach ($processId in $ExtraProcessIds) {
     if ($processId -and $processId -ne $currentProcessId) {
       $targets += [pscustomobject]@{ ProcessId = $processId }
@@ -135,7 +141,7 @@ function Show-CloudGamingLiveScreen([string]$Port, $Status, [bool]$AlreadyRunnin
 
   Write-Host ""
   Write-Host "Open the FUIT site, choose FUITS CLOUD GAMING, choose N64 + a game, then click Launch N64 Game."
-  Write-Host "Choose the emulator/game window from the browser capture picker."
+  Write-Host "The stream starts automatically after RMG opens."
   Write-Host "For controller input, keep the emulator window focused on this PC."
   Write-Host ""
   Write-Host "Leave this window open while playing. Press Enter to stop cloud gaming and return to the menu."
@@ -184,6 +190,7 @@ function Start-CloudGaming {
   $env:FUIT_CLOUD_GAMING_PORT = $port
   $env:FUIT_CLOUD_RMG_PATH = $rmgPath
   $env:FUIT_CLOUD_N64_ROM_ROOT = $n64RomRoot
+  $env:FUIT_CLOUD_AUTO_CAPTURE_SCRIPT = $autoCaptureFile
 
   Clear-Host
   Write-Host "FUITS Cloud Gaming helper is starting..." -ForegroundColor Cyan
@@ -193,7 +200,7 @@ function Start-CloudGaming {
   Write-Host "N64 ROM folder: $n64RomRoot"
   Write-Host ""
   Write-Host "Open the FUIT site, choose FUITS CLOUD GAMING, choose N64 + a game, then click Launch N64 Game."
-  Write-Host "Choose the emulator/game window from the browser capture picker."
+  Write-Host "The stream starts automatically after RMG opens."
   Write-Host "For controller input, keep the emulator window focused on this PC."
   Write-Host "Close this window or press Ctrl+C to turn cloud gaming off."
   Write-Host ""
@@ -238,6 +245,7 @@ function Start-CloudGaming {
     Remove-Item Env:\FUIT_CLOUD_GAMING_PORT -ErrorAction SilentlyContinue
     Remove-Item Env:\FUIT_CLOUD_RMG_PATH -ErrorAction SilentlyContinue
     Remove-Item Env:\FUIT_CLOUD_N64_ROM_ROOT -ErrorAction SilentlyContinue
+    Remove-Item Env:\FUIT_CLOUD_AUTO_CAPTURE_SCRIPT -ErrorAction SilentlyContinue
   }
 }
 

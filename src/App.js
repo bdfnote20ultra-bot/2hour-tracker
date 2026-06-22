@@ -1107,7 +1107,7 @@ function PokemonSidebar() {
       focusTimers.forEach(timer => window.clearTimeout(timer));
       resetPokemonEmulator(emulatorHostRef.current);
     };
-  }, [activeGamingApp, gameLaunch?.core, gameLaunch?.discUrls?.join("|"), gameLaunch?.file, gameLaunch?.gameUrl, gameLaunch?.label, selectedDiscIndex, collapsed, stretchGame]);
+  }, [activeGamingApp, gameLaunch?.core, gameLaunch?.discUrls?.join("|"), gameLaunch?.file, gameLaunch?.gameUrl, gameLaunch?.label, selectedDiscIndex, collapsed]);
 
   useEffect(() => {
     if (!gameLaunch || collapsed) return;

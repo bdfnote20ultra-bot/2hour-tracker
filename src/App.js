@@ -115,6 +115,10 @@ const PROJECTS_KEY = "hoursTrackerProjects_v2";
 const RATES_KEY = "hoursTrackerRates_v1";
 const MONTHLY_TRACKER_KEY = "hoursTrackerMonthlyTrackerMonths_v1";
 const KICK_GAMING_CHANNEL_KEY = "fuitLiveGamingKickChannel_v1";
+const YOUTUBE_GAMING_CHANNEL_URL = "https://www.youtube.com/@xflivetv";
+const YOUTUBE_GAMING_CHANNEL_ID = "UCN9z3roQzvw6-1ll0tpEBHA";
+const YOUTUBE_GAMING_UPLOADS_PLAYLIST = `UU${YOUTUBE_GAMING_CHANNEL_ID.slice(2)}`;
+const YOUTUBE_GAMING_EMBED_URL = `https://www.youtube.com/embed/videoseries?list=${YOUTUBE_GAMING_UPLOADS_PLAYLIST}`;
 const SIGNUP_REQUESTS_KEY = "fuitsSignupRequests_v1";
 const APPROVED_USERS_KEY = "fuitsApprovedUsers_v1";
 const BANNED_USERS_KEY = "fuitsBannedUsers_v1";
@@ -1392,13 +1396,68 @@ function PokemonSidebar() {
       ) : activeGamingApp === "live-gaming-youtube" ? (
         <div style={{
           width: "100%",
-          aspectRatio: "4 / 3",
           minHeight: 245,
           borderRadius: 22,
-          background: "#020617",
+          background: "linear-gradient(180deg, rgba(127,29,29,.94), rgba(15,23,42,.96))",
           border: "2px solid rgba(56,189,248,.28)",
-          boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)"
-        }} />
+          boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)",
+          overflow: "hidden",
+          padding: 10,
+          display: "grid",
+          gap: 10
+        }}>
+          <div style={{
+            display: "flex",
+            gap: 8,
+            alignItems: "center",
+            justifyContent: "space-between"
+          }}>
+            <div style={{
+              minWidth: 0,
+              color: "#fee2e2",
+              fontSize: 12,
+              fontWeight: 1000,
+              textTransform: "uppercase",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap"
+            }}>
+              youtube.com/@xflivetv
+            </div>
+            <button
+              onClick={() => window.open(YOUTUBE_GAMING_CHANNEL_URL, "_blank", "noopener,noreferrer")}
+              style={{
+                border: "1px solid rgba(248,113,113,.45)",
+                borderRadius: 10,
+                background: "rgba(248,113,113,.18)",
+                color: "#fee2e2",
+                cursor: "pointer",
+                padding: "9px 10px",
+                fontSize: 11,
+                fontWeight: 1000,
+                textTransform: "uppercase",
+                flex: "0 0 auto"
+              }}
+            >
+              Open
+            </button>
+          </div>
+          <iframe
+            key={YOUTUBE_GAMING_EMBED_URL}
+            title="FUIT Live Gaming YouTube"
+            src={YOUTUBE_GAMING_EMBED_URL}
+            allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+            allowFullScreen
+            style={{
+              width: "100%",
+              aspectRatio: "16 / 9",
+              minHeight: 218,
+              border: "1px solid rgba(248,113,113,.32)",
+              borderRadius: 14,
+              background: "#000"
+            }}
+          />
+        </div>
       ) : activeGamingApp === "multiplayer" ? (
         <div style={{
           width: "100%",

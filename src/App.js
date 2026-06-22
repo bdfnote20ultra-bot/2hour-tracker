@@ -1119,7 +1119,17 @@ function PokemonSidebar() {
       s: { key: "s", code: "KeyS", keyCode: 83 },
       q: { key: "q", code: "KeyQ", keyCode: 81 },
       e: { key: "e", code: "KeyE", keyCode: 69 },
+      f: { key: "f", code: "KeyF", keyCode: 70 },
+      g: { key: "g", code: "KeyG", keyCode: 71 },
+      h: { key: "h", code: "KeyH", keyCode: 72 },
+      t: { key: "t", code: "KeyT", keyCode: 84 },
+      i: { key: "i", code: "KeyI", keyCode: 73 },
+      j: { key: "j", code: "KeyJ", keyCode: 74 },
+      k: { key: "k", code: "KeyK", keyCode: 75 },
+      l: { key: "l", code: "KeyL", keyCode: 76 },
+      r: { key: "r", code: "KeyR", keyCode: 82 },
       v: { key: "v", code: "KeyV", keyCode: 86 },
+      tab: { key: "Tab", code: "Tab", keyCode: 9 },
       enter: { key: "Enter", code: "Enter", keyCode: 13 },
       up: { key: "ArrowUp", code: "ArrowUp", keyCode: 38 },
       down: { key: "ArrowDown", code: "ArrowDown", keyCode: 40 },
@@ -1134,6 +1144,8 @@ function PokemonSidebar() {
       3: "s",
       4: "q",
       5: "e",
+      6: "tab",
+      7: "r",
       8: "v",
       9: "enter",
       12: "up",
@@ -1212,10 +1224,23 @@ function PokemonSidebar() {
 
       const xAxis = pad.axes[0] || 0;
       const yAxis = pad.axes[1] || 0;
-      setGameKey("left", xAxis < -0.45);
-      setGameKey("right", xAxis > 0.45);
-      setGameKey("up", yAxis < -0.45);
-      setGameKey("down", yAxis > 0.45);
+      if (n64Launch) {
+        setGameKey("f", xAxis < -0.35);
+        setGameKey("h", xAxis > 0.35);
+        setGameKey("t", yAxis < -0.35);
+        setGameKey("g", yAxis > 0.35);
+        const rightXAxis = pad.axes[2] || 0;
+        const rightYAxis = pad.axes[3] || 0;
+        setGameKey("j", rightXAxis < -0.45);
+        setGameKey("l", rightXAxis > 0.45);
+        setGameKey("i", rightYAxis < -0.45);
+        setGameKey("k", rightYAxis > 0.45);
+      } else {
+        setGameKey("left", xAxis < -0.45);
+        setGameKey("right", xAxis > 0.45);
+        setGameKey("up", yAxis < -0.45);
+        setGameKey("down", yAxis > 0.45);
+      }
 
       scheduleGamepadPoll(true);
     };

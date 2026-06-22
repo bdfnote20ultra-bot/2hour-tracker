@@ -44,19 +44,10 @@ public static class FuitCloudCaptureWin32 {
   public static extern bool IsWindowVisible(IntPtr hWnd);
 
   [DllImport("user32.dll")]
-  public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
+  public static extern bool PrintWindow(IntPtr hwnd, IntPtr hdcBlt, uint nFlags);
 
-  [DllImport("user32.dll")]
-  public static extern bool SetForegroundWindow(IntPtr hWnd);
-
-  [DllImport("user32.dll")]
-  public static extern bool BringWindowToTop(IntPtr hWnd);
-
-  [DllImport("user32.dll")]
-  public static extern IntPtr GetForegroundWindow();
-
-  [DllImport("user32.dll")]
-  public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+  [DllImport("gdi32.dll")]
+  public static extern bool DeleteObject(IntPtr hObject);
 }
 "@
 }
@@ -96,25 +87,6 @@ function Get-WindowBounds($Process) {
     Width = $width
     Height = $height
   }
-}
-
-function Focus-TargetWindow($Process) {
-  if (-not $Process -or $Process.MainWindowHandle -eq 0) { return }
-  $handle = [IntPtr]$Process.MainWindowHandle
-  if ([FuitCloudCaptureWin32]::GetForegroundWindow() -eq $handle) { return }
-
-  $topMost = [IntPtr](-1)
-  $notTopMost = [IntPtr](-2)
-  $swpNoSize = 0x0001
-  $swpNoMove = 0x0002
-  $swpShowWindow = 0x0040
-  $swpFlags = [uint32]($swpNoSize -bor $swpNoMove -bor $swpShowWindow)
-
-  [FuitCloudCaptureWin32]::ShowWindowAsync($handle, 9) | Out-Null
-  [FuitCloudCaptureWin32]::SetWindowPos($handle, $topMost, 0, 0, 0, 0, $swpFlags) | Out-Null
-  [FuitCloudCaptureWin32]::SetWindowPos($handle, $notTopMost, 0, 0, 0, 0, $swpFlags) | Out-Null
-  [FuitCloudCaptureWin32]::BringWindowToTop($handle) | Out-Null
-  [FuitCloudCaptureWin32]::SetForegroundWindow($handle) | Out-Null
 }
 
 function Get-JpegCodec {
@@ -163,13 +135,51 @@ function Send-FrameBytes([byte[]]$Bytes) {
   }
 }
 
+function Copy-WindowBitmap($Process, $Bounds) {
+  if (-not $Process -or $Process.MainWindowHandle -eq 0 -or -not $Bounds) { return $null }
+
+  $bitmap = New-Object System.Drawing.Bitmap($Bounds.Width, $Bounds.Height)
+  $graphics = $null
+  $hdc = [IntPtr]::Zero
+  try {
+    $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+    $hdc = $graphics.GetHdc()
+    $renderFullContent = 2
+    if ([FuitCloudCaptureWin32]::PrintWindow([IntPtr]$Process.MainWindowHandle, $hdc, $renderFullContent)) {
+      return $bitmap
+    }
+  } catch {
+  } finally {
+    if ($graphics -and $hdc -ne [IntPtr]::Zero) { $graphics.ReleaseHdc($hdc) }
+    if ($graphics) { $graphics.Dispose() }
+  }
+
+  $bitmap.Dispose()
+  return $null
+}
+
+function Copy-ScreenBitmap($Bounds) {
+  if (-not $Bounds) { return $null }
+
+  $bitmap = New-Object System.Drawing.Bitmap($Bounds.Width, $Bounds.Height)
+  $graphics = $null
+  try {
+    $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+    $graphics.CopyFromScreen($Bounds.Left, $Bounds.Top, 0, 0, $bitmap.Size)
+    return $bitmap
+  } catch {
+    $bitmap.Dispose()
+    return $null
+  } finally {
+    if ($graphics) { $graphics.Dispose() }
+  }
+}
+
 $lastHostStatus = [DateTime]::MinValue
 
 while ($true) {
   $started = Get-Date
   $process = Get-TargetProcess
-  Focus-TargetWindow $process
-  Start-Sleep -Milliseconds 80
   $bounds = Get-WindowBounds $process
 
   if ($bounds) {
@@ -179,9 +189,13 @@ while ($true) {
     $scaledGraphics = $null
 
     try {
-      $sourceBitmap = New-Object System.Drawing.Bitmap($bounds.Width, $bounds.Height)
-      $graphics = [System.Drawing.Graphics]::FromImage($sourceBitmap)
-      $graphics.CopyFromScreen($bounds.Left, $bounds.Top, 0, 0, $sourceBitmap.Size)
+      $sourceBitmap = Copy-WindowBitmap $process $bounds
+      if (-not $sourceBitmap) {
+        $sourceBitmap = Copy-ScreenBitmap $bounds
+      }
+      if (-not $sourceBitmap) {
+        throw "Could not capture the target window."
+      }
 
       $scale = [Math]::Min(1.0, $MaxWidth / [double]$bounds.Width)
       $scaledWidth = [Math]::Max(2, [int][Math]::Round($bounds.Width * $scale))

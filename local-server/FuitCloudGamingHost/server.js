@@ -11,9 +11,9 @@ const gameName = process.env.FUIT_CLOUD_GAME_NAME || "PC emulator game";
 const gamePath = process.env.FUIT_CLOUD_GAME_PATH || "";
 const rmgPath = process.env.FUIT_CLOUD_RMG_PATH || "T:\\FattysLiveTV\\Tools\\Emulators\\RMG\\RMG.exe";
 const n64RomRoot = process.env.FUIT_CLOUD_N64_ROM_ROOT || "T:\\FattysLiveTV\\Games\\Roms\\N64";
-const streamMaxWidth = Number(process.env.FUIT_CLOUD_STREAM_MAX_WIDTH || 960);
-const streamJpegQuality = Math.min(0.86, Math.max(0.35, Number(process.env.FUIT_CLOUD_STREAM_JPEG_QUALITY || 0.52)));
-const streamFrameIntervalMs = Math.max(50, Number(process.env.FUIT_CLOUD_STREAM_FRAME_MS || 75));
+const streamMaxWidth = Number(process.env.FUIT_CLOUD_STREAM_MAX_WIDTH || 854);
+const streamJpegQuality = Math.min(0.86, Math.max(0.35, Number(process.env.FUIT_CLOUD_STREAM_JPEG_QUALITY || 0.45)));
+const streamFrameIntervalMs = Math.max(50, Number(process.env.FUIT_CLOUD_STREAM_FRAME_MS || 125));
 const autoCaptureScript = process.env.FUIT_CLOUD_AUTO_CAPTURE_SCRIPT || path.join(__dirname, "AutoCapture.ps1");
 
 const controllers = new Map();

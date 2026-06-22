@@ -349,7 +349,7 @@ function roomPage(req) {
         <img id="frame" class="stream" alt="FUITS Cloud Gaming stream" style="display: none;" />
         <div id="empty" class="empty">
           <div class="title" style="margin-bottom: 8px;">Waiting for PC emulator stream</div>
-          <div class="sub">Launch or focus the emulator on this PC, click Capture PC Game Window, then choose the emulator window.</div>
+          <div class="sub">${isEmbed ? "Use Open Cloud View below this box, click Capture PC Game Window, then choose the RMG window." : "Launch or focus the emulator on this PC, click Capture PC Game Window, then choose the emulator window."}</div>
         </div>
       </section>
       <section class="panel controls-panel">

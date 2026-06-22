@@ -1,8 +1,13 @@
+param(
+  [switch]$CleanupOnly
+)
+
 $ErrorActionPreference = "Stop"
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $serverFile = Join-Path $scriptDir "server.js"
 $inputRelayFile = Join-Path $scriptDir "InputRelay.ps1"
+$cleanupWatchdogFile = Join-Path $scriptDir "CleanupWatchdog.ps1"
 $defaultPort = "8175"
 $defaultRmgPath = "T:\FattysLiveTV\Tools\Emulators\RMG\RMG.exe"
 $defaultN64RomRoot = "T:\FattysLiveTV\Games\Roms\N64"
@@ -62,6 +67,54 @@ function Get-CloudGamingStatus([string]$Port) {
   return $null
 }
 
+function Stop-FuitCloudGamingProcesses {
+  param(
+    [int[]]$ExtraProcessIds = @()
+  )
+
+  $currentProcessId = $PID
+  $targets = @()
+
+  try {
+    $targets += Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" |
+      Where-Object { $_.CommandLine -like "*FuitCloudGamingHost*server.js*" }
+  } catch {}
+
+  try {
+    $targets += Get-CimInstance Win32_Process -Filter "Name = 'powershell.exe'" |
+      Where-Object { $_.CommandLine -like "*FuitCloudGamingHost*InputRelay.ps1*" }
+  } catch {}
+
+  foreach ($processId in $ExtraProcessIds) {
+    if ($processId -and $processId -ne $currentProcessId) {
+      $targets += [pscustomobject]@{ ProcessId = $processId }
+    }
+  }
+
+  foreach ($target in ($targets | Where-Object { $_.ProcessId -and $_.ProcessId -ne $currentProcessId } | Sort-Object ProcessId -Unique)) {
+    Stop-Process -Id $target.ProcessId -Force -ErrorAction SilentlyContinue
+  }
+}
+
+function Start-CleanupWatchdog {
+  if (-not (Test-Path -LiteralPath $cleanupWatchdogFile)) { return }
+
+  Start-Process -FilePath "powershell.exe" -ArgumentList @(
+    "-NoProfile",
+    "-ExecutionPolicy", "Bypass",
+    "-File", $cleanupWatchdogFile,
+    "-ParentProcessId", $PID,
+    "-DelaySeconds", "2"
+  ) -WindowStyle Hidden | Out-Null
+}
+
+if ($CleanupOnly) {
+  Stop-FuitCloudGamingProcesses
+  exit 0
+}
+
+Start-CleanupWatchdog
+
 function Show-CloudGamingLiveScreen([string]$Port, $Status, [bool]$AlreadyRunning) {
   Clear-Host
   Write-Host "FUITS Cloud Gaming helper is LIVE" -ForegroundColor Green
@@ -85,8 +138,9 @@ function Show-CloudGamingLiveScreen([string]$Port, $Status, [bool]$AlreadyRunnin
   Write-Host "Choose the emulator/game window from the browser capture picker."
   Write-Host "For controller input, keep the emulator window focused on this PC."
   Write-Host ""
-  Write-Host "Leave this window open while playing. Press Enter to return to the menu."
+  Write-Host "Leave this window open while playing. Press Enter to stop cloud gaming and return to the menu."
   Read-Host | Out-Null
+  Stop-FuitCloudGamingProcesses
 }
 
 function Start-CloudGaming {
@@ -175,9 +229,9 @@ function Start-CloudGaming {
       }
     }
   } finally {
-    if ($relayProcess -and -not $relayProcess.HasExited) {
-      Stop-Process -Id $relayProcess.Id -Force -ErrorAction SilentlyContinue
-    }
+    $extraProcessIds = @()
+    if ($relayProcess) { $extraProcessIds += $relayProcess.Id }
+    Stop-FuitCloudGamingProcesses -ExtraProcessIds $extraProcessIds
     Remove-Item Env:\FUIT_CLOUD_SESSION_NAME -ErrorAction SilentlyContinue
     Remove-Item Env:\FUIT_CLOUD_GAME_NAME -ErrorAction SilentlyContinue
     Remove-Item Env:\FUIT_CLOUD_GAME_PATH -ErrorAction SilentlyContinue
@@ -187,21 +241,28 @@ function Start-CloudGaming {
   }
 }
 
-while ($true) {
-  Clear-Host
-  Write-Host "FUITS CLOUD GAMING HELPER" -ForegroundColor Cyan
-  Write-Host ""
-  Write-Host "1. Start Cloud Gaming"
-  Write-Host "2. Exit"
-  Write-Host ""
+try {
+  while ($true) {
+    Clear-Host
+    Write-Host "FUITS CLOUD GAMING HELPER" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "1. Start Cloud Gaming"
+    Write-Host "2. Exit"
+    Write-Host ""
 
-  $choice = Read-Host "Choose an option"
-  switch ($choice) {
-    "1" { Start-CloudGaming }
-    "2" { exit 0 }
-    default {
-      Write-Host "Choose 1 or 2."
-      Start-Sleep -Seconds 1
+    $choice = Read-Host "Choose an option"
+    switch ($choice) {
+      "1" { Start-CloudGaming }
+      "2" {
+        Stop-FuitCloudGamingProcesses
+        exit 0
+      }
+      default {
+        Write-Host "Choose 1 or 2."
+        Start-Sleep -Seconds 1
+      }
     }
   }
+} finally {
+  Stop-FuitCloudGamingProcesses
 }

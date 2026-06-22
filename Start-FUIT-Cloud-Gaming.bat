@@ -16,6 +16,7 @@ if not exist "%FUIT_CLOUD_GAMING_SCRIPT%" (
 
 cd /d "%FUIT_CLOUD_GAMING_HOME%"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%FUIT_CLOUD_GAMING_SCRIPT%"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%FUIT_CLOUD_GAMING_SCRIPT%" -CleanupOnly
 if errorlevel 1 (
   echo.
   echo FUITS Cloud Gaming helper stopped with an error.

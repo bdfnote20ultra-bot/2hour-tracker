@@ -728,7 +728,14 @@ function PokemonSidebar() {
   const gamepadKeysRef = useRef(new Set());
   const multiplayerRemoteKeysRef = useRef(new Set());
 
+  const isInteractiveElement = (element) => {
+    if (!element || element === document.body) return false;
+    return Boolean(element.closest?.("select, input, textarea, button, [contenteditable='true']"));
+  };
+
   const focusPokemonEmulator = () => {
+    if (isInteractiveElement(document.activeElement)) return;
+
     const host = emulatorHostRef.current;
     const frame = emulatorFrameRef.current;
     const target =

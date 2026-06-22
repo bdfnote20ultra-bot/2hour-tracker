@@ -42,6 +42,21 @@ public static class FuitCloudCaptureWin32 {
 
   [DllImport("user32.dll")]
   public static extern bool IsWindowVisible(IntPtr hWnd);
+
+  [DllImport("user32.dll")]
+  public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
+
+  [DllImport("user32.dll")]
+  public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+  [DllImport("user32.dll")]
+  public static extern bool BringWindowToTop(IntPtr hWnd);
+
+  [DllImport("user32.dll")]
+  public static extern IntPtr GetForegroundWindow();
+
+  [DllImport("user32.dll")]
+  public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
 }
 "@
 }
@@ -83,6 +98,25 @@ function Get-WindowBounds($Process) {
   }
 }
 
+function Focus-TargetWindow($Process) {
+  if (-not $Process -or $Process.MainWindowHandle -eq 0) { return }
+  $handle = [IntPtr]$Process.MainWindowHandle
+  if ([FuitCloudCaptureWin32]::GetForegroundWindow() -eq $handle) { return }
+
+  $topMost = [IntPtr](-1)
+  $notTopMost = [IntPtr](-2)
+  $swpNoSize = 0x0001
+  $swpNoMove = 0x0002
+  $swpShowWindow = 0x0040
+  $swpFlags = [uint32]($swpNoSize -bor $swpNoMove -bor $swpShowWindow)
+
+  [FuitCloudCaptureWin32]::ShowWindowAsync($handle, 9) | Out-Null
+  [FuitCloudCaptureWin32]::SetWindowPos($handle, $topMost, 0, 0, 0, 0, $swpFlags) | Out-Null
+  [FuitCloudCaptureWin32]::SetWindowPos($handle, $notTopMost, 0, 0, 0, 0, $swpFlags) | Out-Null
+  [FuitCloudCaptureWin32]::BringWindowToTop($handle) | Out-Null
+  [FuitCloudCaptureWin32]::SetForegroundWindow($handle) | Out-Null
+}
+
 function Get-JpegCodec {
   [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() |
     Where-Object { $_.MimeType -eq "image/jpeg" } |
@@ -110,11 +144,32 @@ function Send-HostStatus {
   } catch {}
 }
 
+function Send-FrameBytes([byte[]]$Bytes) {
+  $request = [System.Net.WebRequest]::Create("$HelperUrl/api/frame")
+  $request.Method = "POST"
+  $request.ContentType = "image/jpeg"
+  $request.ContentLength = $Bytes.Length
+  $request.Timeout = 2000
+
+  $requestStream = $null
+  $response = $null
+  try {
+    $requestStream = $request.GetRequestStream()
+    $requestStream.Write($Bytes, 0, $Bytes.Length)
+    $response = $request.GetResponse()
+  } finally {
+    if ($requestStream) { $requestStream.Dispose() }
+    if ($response) { $response.Dispose() }
+  }
+}
+
 $lastHostStatus = [DateTime]::MinValue
 
 while ($true) {
   $started = Get-Date
   $process = Get-TargetProcess
+  Focus-TargetWindow $process
+  Start-Sleep -Milliseconds 80
   $bounds = Get-WindowBounds $process
 
   if ($bounds) {
@@ -142,7 +197,7 @@ while ($true) {
         $bytes = Convert-BitmapToJpegBytes $sourceBitmap
       }
 
-      Invoke-WebRequest -Uri "$HelperUrl/api/frame" -Method Post -ContentType "image/jpeg" -Body $bytes -UseBasicParsing -TimeoutSec 2 | Out-Null
+      Send-FrameBytes $bytes
 
       if (((Get-Date) - $lastHostStatus).TotalSeconds -ge 2) {
         Send-HostStatus

@@ -379,7 +379,7 @@ function roomPage(req) {
       </section>
       <section class="panel stage">
         <video id="hostVideo" autoplay muted playsinline></video>
-        <img id="frame" class="stream" alt="FUITS Cloud Gaming stream" style="display: none;" />
+        <img id="frame" class="stream" alt="" style="display: none;" />
         <div id="empty" class="empty">
           <div class="title" style="margin-bottom: 8px;">Waiting for PC emulator stream</div>
           <div class="sub">${isHost ? "Launch or focus the emulator on this PC, then use capture only as a manual fallback." : "Launch an N64 game from the FUIT site. The host helper starts streaming automatically once RMG opens."}</div>
@@ -407,6 +407,7 @@ function roomPage(req) {
       const gameSelect = document.getElementById("gameSelect");
       const launchBtn = document.getElementById("launchBtn");
       const isHostPage = ${JSON.stringify(isHost)};
+      const isEmbedPage = ${JSON.stringify(isEmbed)};
       let captureStream = null;
       let uploadTimer = null;
       let statusTimer = null;
@@ -415,6 +416,8 @@ function roomPage(req) {
       let lastUploadStartedAt = 0;
       let frameRefreshTimer = 0;
       let frameLoadInFlight = false;
+      let viewerFallbackStarted = false;
+      let mjpegFallbackTimer = 0;
       let games = [];
 
       function showViewerFrame() {
@@ -440,8 +443,8 @@ function roomPage(req) {
       }
 
       function refreshFrame() {
-        if (!isHostPage) return;
         if (captureStream) return;
+        if (!isHostPage && !viewerFallbackStarted) return;
         if (frameLoadInFlight) {
           scheduleFrameRefresh();
           return;
@@ -459,6 +462,32 @@ function roomPage(req) {
           scheduleFrameRefresh(240);
         };
         img.src = "/frame.jpg?t=" + Date.now();
+      }
+
+      function startViewerFallback() {
+        if (viewerFallbackStarted) return;
+        viewerFallbackStarted = true;
+        if (mjpegFallbackTimer) window.clearTimeout(mjpegFallbackTimer);
+        mjpegFallbackTimer = 0;
+        img.removeAttribute("src");
+        showEmpty();
+        refreshFrame();
+      }
+
+      function startMjpegViewer() {
+        let mjpegLoaded = false;
+        showEmpty();
+        img.onload = () => {
+          mjpegLoaded = true;
+          if (mjpegFallbackTimer) window.clearTimeout(mjpegFallbackTimer);
+          mjpegFallbackTimer = 0;
+          showViewerFrame();
+        };
+        img.onerror = startViewerFallback;
+        mjpegFallbackTimer = window.setTimeout(() => {
+          if (!mjpegLoaded) startViewerFallback();
+        }, 1600);
+        img.src = "/stream.mjpg?t=" + Date.now();
       }
 
       async function postHostStatus() {
@@ -607,11 +636,10 @@ function roomPage(req) {
       document.getElementById("stopBtn")?.addEventListener("click", stopCapture);
       if (isHostPage) {
         refreshFrame();
+      } else if (isEmbedPage) {
+        startViewerFallback();
       } else {
-        img.src = "/stream.mjpg?t=" + Date.now();
-        img.style.display = "block";
-        video.style.display = "none";
-        empty.style.display = "none";
+        startMjpegViewer();
       }
       loadGames();
     </script>
@@ -1147,6 +1175,7 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`Launch path: ${gamePath || "(none selected)"}`);
   console.log(`Viewer: http://127.0.0.1:${PORT}/room`);
   console.log(`Controller: http://127.0.0.1:${PORT}/controller`);
+  startAutoCapture({ label: "RMG", exe: rmgPath, rom: "", system: "N64", pid: 0 });
 });
 
 process.on("exit", stopAutoCapture);

@@ -1155,6 +1155,15 @@ function PokemonSidebar() {
       14: "left",
       15: "right"
     };
+    const buttonEntries = Object.entries(buttonToKey);
+    const getFirstGamepad = () => {
+      const pads = navigator.getGamepads?.();
+      if (!pads) return null;
+      for (let index = 0; index < pads.length; index += 1) {
+        if (pads[index]) return pads[index];
+      }
+      return null;
+    };
 
     const dispatchGameKey = (keyName, type) => {
       const mapped = keyMap[keyName];
@@ -1206,8 +1215,7 @@ function PokemonSidebar() {
       }
     };
     const pollGamepads = () => {
-      const pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : [];
-      const pad = pads[0];
+      const pad = getFirstGamepad();
 
       if (!pad) {
         releaseAllKeys();
@@ -1220,7 +1228,7 @@ function PokemonSidebar() {
         lastGamepadFocus = now;
         focusPokemonEmulator();
       }
-      Object.entries(buttonToKey).forEach(([index, keyName]) => {
+      buttonEntries.forEach(([index, keyName]) => {
         setGameKey(keyName, Boolean(pad.buttons[Number(index)]?.pressed));
       });
 
@@ -1254,7 +1262,7 @@ function PokemonSidebar() {
       scheduleGamepadPoll(true);
     };
 
-    scheduleGamepadPoll(Boolean(Array.from(navigator.getGamepads?.() || []).find(Boolean)));
+    scheduleGamepadPoll(Boolean(getFirstGamepad()));
     window.addEventListener("gamepadconnected", handleGamepadConnected);
 
     return () => {

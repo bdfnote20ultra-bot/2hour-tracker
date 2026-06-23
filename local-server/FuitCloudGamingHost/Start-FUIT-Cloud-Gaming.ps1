@@ -11,7 +11,11 @@ $autoCaptureFile = Join-Path $scriptDir "AutoCapture.ps1"
 $graphicsCaptureFile = Join-Path $scriptDir "GraphicsCapture.py"
 $graphicsCapturePydeps = Join-Path $scriptDir "pydeps"
 $cleanupWatchdogFile = Join-Path $scriptDir "CleanupWatchdog.ps1"
+$mediaMtxDir = Join-Path (Split-Path -Parent $scriptDir) "MediaMTX"
+$mediaMtxFile = Join-Path $mediaMtxDir "mediamtx.exe"
 $defaultPort = "8175"
+$defaultObsWebRtcPort = "8889"
+$defaultObsWebRtcPath = "fuits"
 $defaultRmgPath = "T:\FattysLiveTV\Tools\Emulators\RMG\RMG.exe"
 $defaultN64RomRoot = "T:\FattysLiveTV\Games\Roms\N64"
 
@@ -98,6 +102,11 @@ function Stop-FuitCloudGamingProcesses {
       Where-Object { $_.CommandLine -like "*FuitCloudGamingHost*GraphicsCapture.py*" }
   } catch {}
 
+  try {
+    $targets += Get-CimInstance Win32_Process -Filter "Name = 'mediamtx.exe'" |
+      Where-Object { $_.CommandLine -like "*FattysLiveTV*Tools*MediaMTX*mediamtx.exe*" }
+  } catch {}
+
   foreach ($processId in $ExtraProcessIds) {
     if ($processId -and $processId -ne $currentProcessId) {
       $targets += [pscustomobject]@{ ProcessId = $processId }
@@ -107,6 +116,44 @@ function Stop-FuitCloudGamingProcesses {
   foreach ($target in ($targets | Where-Object { $_.ProcessId -and $_.ProcessId -ne $currentProcessId } | Sort-Object ProcessId -Unique)) {
     Stop-Process -Id $target.ProcessId -Force -ErrorAction SilentlyContinue
   }
+}
+
+function Get-LocalWebRtcHosts {
+  $hosts = @("127.0.0.1")
+  try {
+    $hosts += Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+      Where-Object {
+        $_.IPAddress -and
+        $_.IPAddress -notlike "169.254.*" -and
+        $_.IPAddress -ne "127.0.0.1"
+      } |
+      Select-Object -ExpandProperty IPAddress
+  } catch {}
+  return ($hosts | Sort-Object -Unique)
+}
+
+function Start-LocalMediaMtx([string]$ObsWebRtcPort) {
+  if (-not (Test-Path -LiteralPath $mediaMtxFile)) {
+    Write-Host "MediaMTX was not found at $mediaMtxFile, so OBS/WebRTC playback is not available yet." -ForegroundColor Yellow
+    return $null
+  }
+
+  try {
+    $existing = Get-CimInstance Win32_Process -Filter "Name = 'mediamtx.exe'" |
+      Where-Object { $_.CommandLine -like "*FattysLiveTV*Tools*MediaMTX*mediamtx.exe*" } |
+      Select-Object -First 1
+    if ($existing) {
+      Write-Host "MediaMTX is already running for OBS/WebRTC." -ForegroundColor Cyan
+      return $null
+    }
+  } catch {}
+
+  $env:MTX_WEBRTCADDRESS = ":$ObsWebRtcPort"
+  $env:MTX_WEBRTCADDITIONALHOSTS = (Get-LocalWebRtcHosts) -join ","
+
+  $process = Start-Process -FilePath $mediaMtxFile -WorkingDirectory $mediaMtxDir -WindowStyle Hidden -PassThru
+  Write-Host "MediaMTX OBS/WebRTC server is running on port $ObsWebRtcPort." -ForegroundColor Cyan
+  return $process
 }
 
 function Start-CleanupWatchdog {
@@ -166,6 +213,9 @@ function Start-CloudGaming {
   $gameName = Read-WithDefault "Game label" "N64 Cloud Gaming"
   $port = Read-WithDefault "Helper port" $defaultPort
   $enableInputRelay = Read-WithDefault "Enable browser controller input relay? Y/N" "Y"
+  $captureBackend = Read-WithDefault "Video backend: obs-webrtc, graphics, powershell, or ffmpeg" "obs-webrtc"
+  $obsWebRtcPort = Read-WithDefault "OBS/WebRTC server port" $defaultObsWebRtcPort
+  $obsWebRtcPath = Read-WithDefault "OBS/WebRTC stream name" $defaultObsWebRtcPath
   $rmgPath = Read-WithDefault "RMG emulator path" $defaultRmgPath
   $n64RomRoot = Read-WithDefault "N64 ROM folder" $defaultN64RomRoot
 
@@ -200,11 +250,19 @@ function Start-CloudGaming {
   $env:FUIT_CLOUD_AUTO_CAPTURE_SCRIPT = $autoCaptureFile
   $env:FUIT_CLOUD_GRAPHICS_CAPTURE_SCRIPT = $graphicsCaptureFile
   $env:FUIT_CLOUD_GRAPHICS_CAPTURE_PYDEPS = $graphicsCapturePydeps
+  $env:FUIT_CLOUD_CAPTURE_BACKEND = $captureBackend
+  $env:FUIT_CLOUD_OBS_WEBRTC_PORT = $obsWebRtcPort
+  $env:FUIT_CLOUD_OBS_WEBRTC_PATH = $obsWebRtcPath
 
   Clear-Host
   Write-Host "FUITS Cloud Gaming helper is starting..." -ForegroundColor Cyan
   Write-Host "Local viewer: http://127.0.0.1:$port/room"
   Write-Host "Browser controller: http://127.0.0.1:$port/controller"
+  if ($captureBackend.Trim().ToLowerInvariant() -in @("obs", "obs-webrtc", "webrtc")) {
+    Write-Host "OBS RTMP server: rtmp://127.0.0.1:1935"
+    Write-Host "OBS stream key: $obsWebRtcPath"
+    Write-Host "Browser WebRTC view: http://127.0.0.1:$obsWebRtcPort/$obsWebRtcPath/"
+  }
   Write-Host "N64 launcher: RMG at $rmgPath"
   Write-Host "N64 ROM folder: $n64RomRoot"
   Write-Host ""
@@ -215,6 +273,12 @@ function Start-CloudGaming {
   Write-Host ""
 
   $relayProcess = $null
+  $mediaMtxProcess = $null
+  if ($captureBackend.Trim().ToLowerInvariant() -in @("obs", "obs-webrtc", "webrtc")) {
+    $mediaMtxProcess = Start-LocalMediaMtx $obsWebRtcPort
+    Write-Host ""
+  }
+
   if ($enableInputRelay.Trim().ToUpperInvariant().StartsWith("Y")) {
     if (Test-Path -LiteralPath $inputRelayFile) {
       $relayProcess = Start-Process -FilePath "powershell.exe" -ArgumentList @(
@@ -247,6 +311,7 @@ function Start-CloudGaming {
   } finally {
     $extraProcessIds = @()
     if ($relayProcess) { $extraProcessIds += $relayProcess.Id }
+    if ($mediaMtxProcess) { $extraProcessIds += $mediaMtxProcess.Id }
     Stop-FuitCloudGamingProcesses -ExtraProcessIds $extraProcessIds
     Remove-Item Env:\FUIT_CLOUD_SESSION_NAME -ErrorAction SilentlyContinue
     Remove-Item Env:\FUIT_CLOUD_GAME_NAME -ErrorAction SilentlyContinue
@@ -257,6 +322,11 @@ function Start-CloudGaming {
     Remove-Item Env:\FUIT_CLOUD_AUTO_CAPTURE_SCRIPT -ErrorAction SilentlyContinue
     Remove-Item Env:\FUIT_CLOUD_GRAPHICS_CAPTURE_SCRIPT -ErrorAction SilentlyContinue
     Remove-Item Env:\FUIT_CLOUD_GRAPHICS_CAPTURE_PYDEPS -ErrorAction SilentlyContinue
+    Remove-Item Env:\FUIT_CLOUD_CAPTURE_BACKEND -ErrorAction SilentlyContinue
+    Remove-Item Env:\FUIT_CLOUD_OBS_WEBRTC_PORT -ErrorAction SilentlyContinue
+    Remove-Item Env:\FUIT_CLOUD_OBS_WEBRTC_PATH -ErrorAction SilentlyContinue
+    Remove-Item Env:\MTX_WEBRTCADDRESS -ErrorAction SilentlyContinue
+    Remove-Item Env:\MTX_WEBRTCADDITIONALHOSTS -ErrorAction SilentlyContinue
   }
 }
 
@@ -265,7 +335,7 @@ try {
     Clear-Host
     Write-Host "FUITS CLOUD GAMING HELPER" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "1. Start Cloud Gaming"
+    Write-Host "1. Start Browser Cloud Gaming"
     Write-Host "2. Exit"
     Write-Host ""
 

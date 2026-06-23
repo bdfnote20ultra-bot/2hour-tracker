@@ -2,7 +2,7 @@ const http = require("http");
 const os = require("os");
 const fs = require("fs");
 const path = require("path");
-const { spawn } = require("child_process");
+const { spawn, spawnSync } = require("child_process");
 
 const PORT = Number(process.env.FUIT_CLOUD_GAMING_PORT || 8175);
 const startedAtMs = Date.now();
@@ -13,20 +13,34 @@ const rmgPath = process.env.FUIT_CLOUD_RMG_PATH || "T:\\FattysLiveTV\\Tools\\Emu
 const n64RomRoot = process.env.FUIT_CLOUD_N64_ROM_ROOT || "T:\\FattysLiveTV\\Games\\Roms\\N64";
 const streamMaxWidth = Number(process.env.FUIT_CLOUD_STREAM_MAX_WIDTH || 384);
 const streamJpegQuality = Math.min(0.86, Math.max(0.35, Number(process.env.FUIT_CLOUD_STREAM_JPEG_QUALITY || 0.35)));
-const streamFrameIntervalMs = Math.max(33, Number(process.env.FUIT_CLOUD_STREAM_FRAME_MS || 40));
+const streamFrameIntervalMs = Math.max(33, Number(process.env.FUIT_CLOUD_STREAM_FRAME_MS || 34));
 const autoCaptureScript = process.env.FUIT_CLOUD_AUTO_CAPTURE_SCRIPT || path.join(__dirname, "AutoCapture.ps1");
 const graphicsCaptureScript = process.env.FUIT_CLOUD_GRAPHICS_CAPTURE_SCRIPT || path.join(__dirname, "GraphicsCapture.py");
 const graphicsCapturePydeps = process.env.FUIT_CLOUD_GRAPHICS_CAPTURE_PYDEPS || path.join(__dirname, "pydeps");
 const graphicsCapturePython = process.env.FUIT_CLOUD_PYTHON || "python";
+const ffmpegPath = process.env.FUIT_CLOUD_FFMPEG || "C:\\Program Files\\Jellyfin\\Server\\ffmpeg.exe";
+const videoEncoder = process.env.FUIT_CLOUD_VIDEO_ENCODER || "h264_qsv";
+const videoBitrate = process.env.FUIT_CLOUD_VIDEO_BITRATE || "2600k";
 const captureBackend = String(process.env.FUIT_CLOUD_CAPTURE_BACKEND || "graphics").toLowerCase();
-const helperPriorityClass = normalizeWindowsPriority(process.env.FUIT_CLOUD_HELPER_PRIORITY || "Normal", "Normal");
-const capturePriorityClass = normalizeWindowsPriority(process.env.FUIT_CLOUD_CAPTURE_PRIORITY || "Normal", "Normal");
+const obsWebRtcEnabled = ["obs", "obs-webrtc", "webrtc"].includes(captureBackend);
+const obsWebRtcPath = (process.env.FUIT_CLOUD_OBS_WEBRTC_PATH || "fuits").replace(/^\/+|\/+$/g, "") || "fuits";
+const obsWebRtcPort = Number(process.env.FUIT_CLOUD_OBS_WEBRTC_PORT || 8889);
+const obsWhipUrlOverride = process.env.FUIT_CLOUD_OBS_WHIP_URL || "";
+const obsWhepUrlOverride = process.env.FUIT_CLOUD_OBS_WHEP_URL || "";
+const obsFallbackEnabled = String(process.env.FUIT_CLOUD_OBS_FALLBACK || "off").toLowerCase() !== "off";
+const hlsDir = process.env.FUIT_CLOUD_HLS_DIR || path.join(os.tmpdir(), `fuit-cloud-hls-${PORT}`);
+const helperPriorityClass = normalizeWindowsPriority(process.env.FUIT_CLOUD_HELPER_PRIORITY || "BelowNormal", "BelowNormal");
+const capturePriorityClass = normalizeWindowsPriority(process.env.FUIT_CLOUD_CAPTURE_PRIORITY || "BelowNormal", "BelowNormal");
 const emulatorPriorityClass = normalizeWindowsPriority(process.env.FUIT_CLOUD_EMULATOR_PRIORITY || "High", "High");
+const ffmpegStreamingEnabled = captureBackend === "ffmpeg" || captureBackend === "video";
 
 const controllers = new Map();
 const mjpegClients = new Set();
 const MJPEG_BOUNDARY = "fuitcloudframe";
 let autoCaptureProcess = null;
+let hlsProcess = null;
+let hlsStopTimer = null;
+let hlsLastClientMs = 0;
 let latestFrame = null;
 let latestFrameMs = 0;
 let latestFrameSequence = 0;
@@ -109,6 +123,299 @@ function setWindowsProcessPriority({ pid = 0, processName = "", priority = "Norm
     });
     priorityProcess.unref();
   } catch {}
+}
+
+function getRmgWindowTitle() {
+  if (os.platform() !== "win32") return "";
+
+  try {
+    const result = spawnSync("powershell.exe", [
+      "-NoProfile",
+      "-Command",
+      "(Get-Process -Name RMG -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle } | Select-Object -First 1 -ExpandProperty MainWindowTitle)"
+    ], {
+      cwd: __dirname,
+      encoding: "utf8",
+      timeout: 2500,
+      windowsHide: true
+    });
+    return String(result.stdout || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+function encoderArgs() {
+  const encoder = String(videoEncoder || "h264_nvenc").toLowerCase();
+  const baseArgs = [
+    "-c:v", encoder,
+    "-b:v", videoBitrate,
+    "-maxrate", videoBitrate,
+    "-bufsize", "900k",
+    "-g", "30",
+    "-bf", "0",
+    "-pix_fmt", "yuv420p"
+  ];
+
+  if (encoder === "h264_nvenc") {
+    return [...baseArgs, "-preset", "p1", "-tune", "ull"];
+  }
+  if (encoder === "h264_qsv") {
+    return [...baseArgs, "-preset", "veryfast", "-async_depth", "1", "-look_ahead", "0", "-low_delay_brc", "1"];
+  }
+  if (encoder === "h264_amf") {
+    return [...baseArgs, "-quality", "speed", "-usage", "ultralowlatency"];
+  }
+  return [...baseArgs, "-preset", "veryfast"];
+}
+
+function resetHlsDir() {
+  try {
+    fs.rmSync(hlsDir, { recursive: true, force: true });
+    fs.mkdirSync(hlsDir, { recursive: true });
+  } catch {}
+}
+
+function stopHlsStream() {
+  if (hlsStopTimer) {
+    clearTimeout(hlsStopTimer);
+    hlsStopTimer = null;
+  }
+  if (!hlsProcess) return;
+  try {
+    hlsProcess.kill("SIGTERM");
+  } catch {}
+  hlsProcess = null;
+}
+
+function touchHlsStream() {
+  hlsLastClientMs = Date.now();
+  if (hlsStopTimer) clearTimeout(hlsStopTimer);
+  hlsStopTimer = setTimeout(() => {
+    if (Date.now() - hlsLastClientMs >= 15000) {
+      stopHlsStream();
+      hostCaptureState = {
+        ...hostCaptureState,
+        connected: false,
+        status: "waiting",
+        lastSeenMs: Date.now()
+      };
+    }
+  }, 16000);
+}
+
+function startHlsStream() {
+  if (!ffmpegStreamingEnabled) return;
+  if (hlsProcess && !hlsProcess.killed) return;
+  if (!fs.existsSync(ffmpegPath)) return;
+
+  resetHlsDir();
+  const windowTitle = getRmgWindowTitle();
+  const inputTarget = windowTitle ? `title=${windowTitle}` : "desktop";
+  const playlistPath = path.join(hlsDir, "stream.m3u8");
+  const segmentPath = path.join(hlsDir, "segment-%05d.ts");
+  const args = [
+    "-hide_banner",
+    "-loglevel", "warning",
+    "-f", "gdigrab",
+    "-draw_mouse", "0",
+    "-framerate", String(Math.max(15, Math.min(60, Math.round(1000 / streamFrameIntervalMs)))),
+    "-i", inputTarget,
+    "-an",
+    ...encoderArgs(),
+    "-f", "hls",
+    "-hls_time", "1",
+    "-hls_list_size", "10",
+    "-hls_delete_threshold", "10",
+    "-hls_flags", "delete_segments+omit_endlist",
+    "-hls_base_url", "/hls/",
+    "-hls_segment_filename", segmentPath,
+    playlistPath
+  ];
+
+  let ffmpegError = "";
+  const processRef = spawn(ffmpegPath, args, {
+    cwd: path.dirname(ffmpegPath),
+    detached: false,
+    stdio: ["ignore", "ignore", "pipe"],
+    windowsHide: true
+  });
+  hlsProcess = processRef;
+  setWindowsProcessPriority({ pid: processRef.pid || 0, priority: capturePriorityClass });
+
+  hostCaptureState = {
+    connected: true,
+    lastSeenMs: Date.now(),
+    status: "streaming",
+    mode: "video",
+    backend: "ffmpeg-hls-h264",
+    encoder: videoEncoder,
+    target: windowTitle || "desktop"
+  };
+
+  processRef.stderr.on("data", chunk => {
+    ffmpegError = (ffmpegError + chunk.toString("utf8")).slice(-4000);
+  });
+
+  processRef.on("exit", (code, signal) => {
+    if (!hlsProcess || hlsProcess.pid !== processRef.pid) return;
+    hlsProcess = null;
+    hostCaptureState = {
+      ...hostCaptureState,
+      connected: false,
+      status: code === 0 ? "stopped" : "ffmpeg hls stopped",
+      lastExitCode: code,
+      lastExitSignal: signal || "",
+      lastError: ffmpegError.trim(),
+      lastSeenMs: Date.now()
+    };
+  });
+
+  processRef.on("error", error => {
+    if (hlsProcess && hlsProcess.pid !== processRef.pid) return;
+    hlsProcess = null;
+    hostCaptureState = {
+      ...hostCaptureState,
+      connected: false,
+      status: error.message || "ffmpeg hls failed",
+      lastSeenMs: Date.now()
+    };
+  });
+}
+
+function waitForFile(filePath, timeoutMs = 2500) {
+  const startedAt = Date.now();
+  return new Promise(resolve => {
+    const check = () => {
+      if (fs.existsSync(filePath)) {
+        resolve(true);
+        return;
+      }
+      if (Date.now() - startedAt >= timeoutMs) {
+        resolve(false);
+        return;
+      }
+      setTimeout(check, 100);
+    };
+    check();
+  });
+}
+
+function startFfmpegStream(res) {
+  if (!ffmpegStreamingEnabled) {
+    send(res, 409, "FFmpeg streaming is disabled while the graphics capture backend is active.");
+    return;
+  }
+
+  if (!fs.existsSync(ffmpegPath)) {
+    send(res, 503, `FFmpeg was not found at ${ffmpegPath}`);
+    return;
+  }
+
+  const windowTitle = getRmgWindowTitle();
+  const inputTarget = windowTitle ? `title=${windowTitle}` : "desktop";
+  const args = [
+    "-hide_banner",
+    "-loglevel", "warning",
+    "-f", "gdigrab",
+    "-draw_mouse", "0",
+    "-framerate", String(Math.max(15, Math.min(60, Math.round(1000 / streamFrameIntervalMs)))),
+    "-i", inputTarget,
+    "-an",
+    ...encoderArgs(),
+    "-movflags", "frag_keyframe+empty_moov+default_base_moof",
+    "-frag_duration", "250000",
+    "-f", "mp4",
+    "pipe:1"
+  ];
+
+  let headersSent = false;
+  const ffmpeg = spawn(ffmpegPath, args, {
+    cwd: path.dirname(ffmpegPath),
+    detached: false,
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true
+  });
+  setWindowsProcessPriority({ pid: ffmpeg.pid || 0, priority: capturePriorityClass });
+
+  const startedAt = Date.now();
+  hostCaptureState = {
+    connected: true,
+    lastSeenMs: startedAt,
+    status: "streaming",
+    mode: "video",
+    backend: "ffmpeg-h264",
+    encoder: videoEncoder,
+    target: windowTitle || "desktop"
+  };
+
+  function ensureHeaders() {
+    if (headersSent || res.headersSent) return;
+    headersSent = true;
+    res.writeHead(200, {
+      "Content-Type": "video/mp4",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Private-Network": "true",
+      "Cache-Control": "no-store, max-age=0, no-transform",
+      "Pragma": "no-cache",
+      "Connection": "keep-alive",
+      "X-FUIT-Video-Backend": "ffmpeg-h264",
+      "X-FUIT-Video-Encoder": videoEncoder,
+      "X-FUIT-Video-Target": windowTitle || "desktop"
+    });
+  }
+
+  ffmpeg.stdout.on("data", chunk => {
+    ensureHeaders();
+    hostCaptureState.lastSeenMs = Date.now();
+    if (!res.write(chunk)) {
+      ffmpeg.stdout.pause();
+    }
+  });
+
+  res.on("drain", () => ffmpeg.stdout.resume());
+
+  let ffmpegError = "";
+  ffmpeg.stderr.on("data", chunk => {
+    ffmpegError = (ffmpegError + chunk.toString("utf8")).slice(-4000);
+  });
+
+  ffmpeg.on("exit", (code, signal) => {
+    hostCaptureState = {
+      ...hostCaptureState,
+      connected: false,
+      status: code === 0 ? "stopped" : "ffmpeg stopped",
+      lastExitCode: code,
+      lastExitSignal: signal || "",
+      lastError: ffmpegError.trim(),
+      lastSeenMs: Date.now()
+    };
+    if (!headersSent && !res.headersSent) {
+      sendJson(res, 500, {
+        ok: false,
+        error: "FFmpeg stream failed to start.",
+        detail: ffmpegError.trim()
+      });
+      return;
+    }
+    try { res.end(); } catch {}
+  });
+
+  ffmpeg.on("error", error => {
+    hostCaptureState = {
+      ...hostCaptureState,
+      connected: false,
+      status: error.message || "ffmpeg failed",
+      lastSeenMs: Date.now()
+    };
+    if (!headersSent && !res.headersSent) {
+      sendJson(res, 500, { ok: false, error: error.message || "FFmpeg failed." });
+    }
+  });
+
+  res.on("close", () => {
+    try { ffmpeg.kill("SIGTERM"); } catch {}
+  });
 }
 
 function makeGameId(filePath) {
@@ -331,6 +638,7 @@ function aggregateInput() {
 
 function statusPayload(req) {
   const origin = publicOrigin(req);
+  const obsWebRtc = obsWebRtcPayload(req);
   const controllersList = activeControllers();
   return {
     ok: true,
@@ -352,6 +660,10 @@ function statusPayload(req) {
     latestFrameMs,
     latestFrameSequence,
     stream: {
+      backend: captureBackend,
+      ffmpegStreamingEnabled,
+      obsWebRtc,
+      videoEncoder,
       maxWidth: streamMaxWidth,
       jpegQuality: streamJpegQuality,
       frameIntervalMs: streamFrameIntervalMs
@@ -372,6 +684,24 @@ function statusPayload(req) {
     startedAt: new Date(startedAtMs).toISOString(),
     uptimeSeconds: Math.floor((Date.now() - startedAtMs) / 1000),
     host: os.hostname()
+  };
+}
+
+function obsWebRtcPayload(req) {
+  const hostHeader = String(req?.headers?.host || `127.0.0.1:${PORT}`);
+  const hostName = hostHeader.split(":")[0] || "127.0.0.1";
+  const scheme = String(req?.headers?.["x-forwarded-proto"] || "http").split(",")[0].trim() || "http";
+  const baseUrl = `${scheme}://${hostName}:${obsWebRtcPort}/${obsWebRtcPath}`;
+  return {
+    enabled: obsWebRtcEnabled,
+    fallbackEnabled: obsFallbackEnabled,
+    path: obsWebRtcPath,
+    port: obsWebRtcPort,
+    rtmpServer: "rtmp://127.0.0.1:1935",
+    rtmpStreamKey: obsWebRtcPath,
+    rtmpUrl: `rtmp://127.0.0.1:1935/${obsWebRtcPath}`,
+    whipUrl: obsWhipUrlOverride || `http://127.0.0.1:${obsWebRtcPort}/${obsWebRtcPath}/whip`,
+    whepUrl: obsWhepUrlOverride || `${baseUrl}/whep`
   };
 }
 
@@ -469,6 +799,8 @@ function roomPage(req) {
       const launchBtn = document.getElementById("launchBtn");
       const isHostPage = ${JSON.stringify(isHost)};
       const isEmbedPage = ${JSON.stringify(isEmbed)};
+      const streamBackend = ${JSON.stringify(captureBackend)};
+      const obsWebRtc = ${JSON.stringify(status.stream.obsWebRtc)};
       let captureStream = null;
       let uploadTimer = null;
       let statusTimer = null;
@@ -485,6 +817,13 @@ function roomPage(req) {
         if (captureStream) return;
         img.style.display = "block";
         video.style.display = "none";
+        empty.style.display = "none";
+      }
+
+      function showViewerVideo() {
+        if (captureStream) return;
+        video.style.display = "block";
+        img.style.display = "none";
         empty.style.display = "none";
       }
 
@@ -549,6 +888,148 @@ function roomPage(req) {
           if (!mjpegLoaded) startViewerFallback();
         }, 1600);
         img.src = "/stream.mjpg?t=" + Date.now();
+      }
+
+      function startVideoViewer() {
+        showEmpty();
+        video.srcObject = null;
+        video.muted = true;
+        video.autoplay = true;
+        video.playsInline = true;
+        video.onloadeddata = showViewerVideo;
+        video.onplaying = showViewerVideo;
+        video.onerror = () => {
+          video.removeAttribute("src");
+          video.load();
+          startMjpegViewer();
+        };
+        const hlsUrl = "/stream.m3u8?t=" + Date.now();
+        if (video.canPlayType("application/vnd.apple.mpegurl")) {
+          video.src = hlsUrl;
+          video.play?.().catch(() => {});
+          return;
+        }
+
+        const startWithHlsJs = () => {
+          if (!window.Hls || !window.Hls.isSupported()) {
+            startMjpegViewer();
+            return;
+          }
+          const hls = new window.Hls({
+            liveSyncDurationCount: 2,
+            maxBufferLength: 6,
+            lowLatencyMode: true
+          });
+          hls.on(window.Hls.Events.ERROR, (_event, data) => {
+            if (!data?.fatal) return;
+            hls.destroy();
+            startMjpegViewer();
+          });
+          hls.attachMedia(video);
+          hls.on(window.Hls.Events.MEDIA_ATTACHED, () => {
+            hls.loadSource(hlsUrl);
+            video.play?.().catch(() => {});
+          });
+        };
+
+        if (window.Hls) {
+          startWithHlsJs();
+          return;
+        }
+
+        const script = document.createElement("script");
+        script.src = "https://cdn.jsdelivr.net/npm/hls.js@latest";
+        script.async = true;
+        script.onload = startWithHlsJs;
+        script.onerror = startMjpegViewer;
+        document.head.appendChild(script);
+      }
+
+      function waitForIceGatheringComplete(peerConnection) {
+        if (peerConnection.iceGatheringState === "complete") return Promise.resolve();
+        return new Promise(resolve => {
+          const timeout = window.setTimeout(resolve, 1800);
+          peerConnection.addEventListener("icegatheringstatechange", () => {
+            if (peerConnection.iceGatheringState === "complete") {
+              window.clearTimeout(timeout);
+              resolve();
+            }
+          });
+        });
+      }
+
+      async function startObsWebRtcViewer() {
+        if (!obsWebRtc?.enabled || !obsWebRtc?.whepUrl) {
+          startMjpegViewer();
+          return;
+        }
+
+        showEmpty();
+        const peerConnection = new RTCPeerConnection();
+        const remoteStream = new MediaStream();
+        let settled = false;
+        const fallbackTimer = window.setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          try { peerConnection.close(); } catch {}
+          if (obsWebRtc?.fallbackEnabled) {
+            startMjpegViewer();
+          } else {
+            showEmpty();
+            statusLine.textContent = "Waiting for OBS to start streaming to MediaMTX.";
+          }
+        }, 4500);
+
+        peerConnection.addEventListener("track", event => {
+          event.streams?.[0]?.getTracks()?.forEach(track => remoteStream.addTrack(track));
+          event.track && remoteStream.addTrack(event.track);
+          video.srcObject = remoteStream;
+          video.muted = true;
+          video.autoplay = true;
+          video.playsInline = true;
+          video.play?.().catch(() => {});
+          settled = true;
+          window.clearTimeout(fallbackTimer);
+          showViewerVideo();
+        });
+
+        try {
+          peerConnection.addTransceiver("video", { direction: "recvonly" });
+          peerConnection.addTransceiver("audio", { direction: "recvonly" });
+          const offer = await peerConnection.createOffer();
+          await peerConnection.setLocalDescription(offer);
+          await waitForIceGatheringComplete(peerConnection);
+
+          const controller = new AbortController();
+          const timeout = window.setTimeout(() => controller.abort(), 2600);
+          const response = await fetch(obsWebRtc.whepUrl, {
+            method: "POST",
+            mode: "cors",
+            cache: "no-store",
+            headers: {
+              "Content-Type": "application/sdp",
+              "Accept": "application/sdp"
+            },
+            body: peerConnection.localDescription.sdp,
+            signal: controller.signal
+          });
+          window.clearTimeout(timeout);
+          if (!response.ok) throw new Error("OBS WebRTC stream is not ready.");
+          const answer = await response.text();
+          await peerConnection.setRemoteDescription({ type: "answer", sdp: answer });
+        } catch {
+          if (!settled) {
+            settled = true;
+            window.clearTimeout(fallbackTimer);
+            try { peerConnection.close(); } catch {}
+            if (obsWebRtc?.fallbackEnabled) {
+              startMjpegViewer();
+            } else {
+              showEmpty();
+              statusLine.textContent = "Waiting for OBS to start streaming to MediaMTX.";
+            }
+          }
+        }
       }
 
       async function postHostStatus() {
@@ -697,6 +1178,10 @@ function roomPage(req) {
       document.getElementById("stopBtn")?.addEventListener("click", stopCapture);
       if (isHostPage) {
         refreshFrame();
+      } else if (streamBackend === "obs-webrtc" || streamBackend === "webrtc" || streamBackend === "obs") {
+        startObsWebRtcViewer();
+      } else if (streamBackend === "ffmpeg") {
+        startVideoViewer();
       } else {
         startMjpegViewer();
       }
@@ -1049,11 +1534,50 @@ function startGraphicsAutoCapture(launched) {
   }
 }
 
+function startFfmpegAutoCapture(launched) {
+  const targetProcessName = path.basename(launched.exe || rmgPath, path.extname(launched.exe || rmgPath)) || "RMG";
+  hostCaptureState = {
+    connected: false,
+    lastSeenMs: Date.now(),
+    status: "ready",
+    mode: "video",
+    backend: "ffmpeg-h264",
+    encoder: videoEncoder,
+    targetProcessId: launched.pid || 0,
+    targetProcessName,
+    launched
+  };
+}
+
 function startAutoCapture(launched) {
+  stopHlsStream();
   stopAutoCapture();
+
+  if (captureBackend === "ffmpeg" || captureBackend === "video") {
+    startFfmpegAutoCapture(launched);
+    return;
+  }
 
   if (captureBackend === "powershell") {
     startPowerShellAutoCapture(launched);
+    return;
+  }
+
+  if (obsWebRtcEnabled) {
+    if (obsFallbackEnabled) {
+      startGraphicsAutoCapture(launched);
+      return;
+    }
+    hostCaptureState = {
+      connected: false,
+      lastSeenMs: Date.now(),
+      status: "waiting for OBS WebRTC publish",
+      mode: "obs-webrtc",
+      backend: "obs-webrtc",
+      targetProcessId: launched.pid || 0,
+      targetProcessName: path.basename(launched.exe || rmgPath, path.extname(launched.exe || rmgPath)) || "RMG",
+      launched
+    };
     return;
   }
 
@@ -1159,6 +1683,72 @@ const server = http.createServer(async (req, res) => {
       "Content-Length": String(latestFrame.buffer.length)
     });
     res.end(latestFrame.buffer);
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/stream.m3u8") {
+    if (!ffmpegStreamingEnabled) {
+      sendJson(res, 409, {
+        ok: false,
+        error: "FFmpeg/HLS streaming is disabled while the graphics capture backend is active.",
+        backend: captureBackend
+      });
+      return;
+    }
+
+    const playlistPath = path.join(hlsDir, "stream.m3u8");
+    touchHlsStream();
+    startHlsStream();
+    if (!await waitForFile(playlistPath, 30000)) {
+      sendJson(res, 503, {
+        ok: false,
+        error: "H.264 stream is still starting.",
+        detail: hostCaptureState.lastError || ""
+      });
+      return;
+    }
+    res.writeHead(200, {
+      "Content-Type": "application/vnd.apple.mpegurl",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Private-Network": "true",
+      "Cache-Control": "no-store, max-age=0, no-transform",
+      "Pragma": "no-cache"
+    });
+    res.end(fs.readFileSync(playlistPath));
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname.startsWith("/hls/")) {
+    if (!ffmpegStreamingEnabled) {
+      send(res, 404, "Not found");
+      return;
+    }
+
+    touchHlsStream();
+    const fileName = path.basename(url.pathname);
+    if (!/^segment-\d+\.ts$/.test(fileName)) {
+      send(res, 404, "Not found");
+      return;
+    }
+    const segmentPath = path.join(hlsDir, fileName);
+    if (!fs.existsSync(segmentPath)) {
+      send(res, 404, "Segment not found.");
+      return;
+    }
+    res.writeHead(200, {
+      "Content-Type": "video/mp2t",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Private-Network": "true",
+      "Cache-Control": "no-store, max-age=0, no-transform",
+      "Pragma": "no-cache",
+      "Content-Length": String(fs.statSync(segmentPath).size)
+    });
+    fs.createReadStream(segmentPath).pipe(res);
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/stream.mp4") {
+    startFfmpegStream(res);
     return;
   }
 
@@ -1324,12 +1914,17 @@ server.listen(PORT, "0.0.0.0", () => {
   startAutoCapture({ label: "RMG", exe: rmgPath, rom: "", system: "N64", pid: 0 });
 });
 
-process.on("exit", stopAutoCapture);
+process.on("exit", () => {
+  stopHlsStream();
+  stopAutoCapture();
+});
 process.on("SIGINT", () => {
+  stopHlsStream();
   stopAutoCapture();
   process.exit(0);
 });
 process.on("SIGTERM", () => {
+  stopHlsStream();
   stopAutoCapture();
   process.exit(0);
 });

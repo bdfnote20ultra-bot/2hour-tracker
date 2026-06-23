@@ -170,7 +170,7 @@ def parse_args():
     parser.add_argument("--process-id", type=int, default=0)
     parser.add_argument("--process-name", default="RMG")
     parser.add_argument("--max-width", type=int, default=384)
-    parser.add_argument("--interval-ms", type=int, default=40)
+    parser.add_argument("--interval-ms", type=int, default=34)
     parser.add_argument("--jpeg-quality", type=int, default=35)
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--output", default="")

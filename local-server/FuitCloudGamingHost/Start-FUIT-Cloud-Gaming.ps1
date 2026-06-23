@@ -8,6 +8,8 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $serverFile = Join-Path $scriptDir "server.js"
 $inputRelayFile = Join-Path $scriptDir "InputRelay.ps1"
 $autoCaptureFile = Join-Path $scriptDir "AutoCapture.ps1"
+$graphicsCaptureFile = Join-Path $scriptDir "GraphicsCapture.py"
+$graphicsCapturePydeps = Join-Path $scriptDir "pydeps"
 $cleanupWatchdogFile = Join-Path $scriptDir "CleanupWatchdog.ps1"
 $defaultPort = "8175"
 $defaultRmgPath = "T:\FattysLiveTV\Tools\Emulators\RMG\RMG.exe"
@@ -89,6 +91,11 @@ function Stop-FuitCloudGamingProcesses {
   try {
     $targets += Get-CimInstance Win32_Process -Filter "Name = 'powershell.exe'" |
       Where-Object { $_.CommandLine -like "*FuitCloudGamingHost*AutoCapture.ps1*" }
+  } catch {}
+
+  try {
+    $targets += Get-CimInstance Win32_Process -Filter "Name = 'python.exe'" |
+      Where-Object { $_.CommandLine -like "*FuitCloudGamingHost*GraphicsCapture.py*" }
   } catch {}
 
   foreach ($processId in $ExtraProcessIds) {
@@ -191,6 +198,8 @@ function Start-CloudGaming {
   $env:FUIT_CLOUD_RMG_PATH = $rmgPath
   $env:FUIT_CLOUD_N64_ROM_ROOT = $n64RomRoot
   $env:FUIT_CLOUD_AUTO_CAPTURE_SCRIPT = $autoCaptureFile
+  $env:FUIT_CLOUD_GRAPHICS_CAPTURE_SCRIPT = $graphicsCaptureFile
+  $env:FUIT_CLOUD_GRAPHICS_CAPTURE_PYDEPS = $graphicsCapturePydeps
 
   Clear-Host
   Write-Host "FUITS Cloud Gaming helper is starting..." -ForegroundColor Cyan
@@ -246,6 +255,8 @@ function Start-CloudGaming {
     Remove-Item Env:\FUIT_CLOUD_RMG_PATH -ErrorAction SilentlyContinue
     Remove-Item Env:\FUIT_CLOUD_N64_ROM_ROOT -ErrorAction SilentlyContinue
     Remove-Item Env:\FUIT_CLOUD_AUTO_CAPTURE_SCRIPT -ErrorAction SilentlyContinue
+    Remove-Item Env:\FUIT_CLOUD_GRAPHICS_CAPTURE_SCRIPT -ErrorAction SilentlyContinue
+    Remove-Item Env:\FUIT_CLOUD_GRAPHICS_CAPTURE_PYDEPS -ErrorAction SilentlyContinue
   }
 }
 

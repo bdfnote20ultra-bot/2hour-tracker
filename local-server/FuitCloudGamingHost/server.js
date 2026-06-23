@@ -11,10 +11,14 @@ const gameName = process.env.FUIT_CLOUD_GAME_NAME || "PC emulator game";
 const gamePath = process.env.FUIT_CLOUD_GAME_PATH || "";
 const rmgPath = process.env.FUIT_CLOUD_RMG_PATH || "T:\\FattysLiveTV\\Tools\\Emulators\\RMG\\RMG.exe";
 const n64RomRoot = process.env.FUIT_CLOUD_N64_ROM_ROOT || "T:\\FattysLiveTV\\Games\\Roms\\N64";
-const streamMaxWidth = Number(process.env.FUIT_CLOUD_STREAM_MAX_WIDTH || 854);
-const streamJpegQuality = Math.min(0.86, Math.max(0.35, Number(process.env.FUIT_CLOUD_STREAM_JPEG_QUALITY || 0.45)));
-const streamFrameIntervalMs = Math.max(50, Number(process.env.FUIT_CLOUD_STREAM_FRAME_MS || 125));
+const streamMaxWidth = Number(process.env.FUIT_CLOUD_STREAM_MAX_WIDTH || 512);
+const streamJpegQuality = Math.min(0.86, Math.max(0.35, Number(process.env.FUIT_CLOUD_STREAM_JPEG_QUALITY || 0.4)));
+const streamFrameIntervalMs = Math.max(33, Number(process.env.FUIT_CLOUD_STREAM_FRAME_MS || 50));
 const autoCaptureScript = process.env.FUIT_CLOUD_AUTO_CAPTURE_SCRIPT || path.join(__dirname, "AutoCapture.ps1");
+const graphicsCaptureScript = process.env.FUIT_CLOUD_GRAPHICS_CAPTURE_SCRIPT || path.join(__dirname, "GraphicsCapture.py");
+const graphicsCapturePydeps = process.env.FUIT_CLOUD_GRAPHICS_CAPTURE_PYDEPS || path.join(__dirname, "pydeps");
+const graphicsCapturePython = process.env.FUIT_CLOUD_PYTHON || "python";
+const captureBackend = String(process.env.FUIT_CLOUD_CAPTURE_BACKEND || "graphics").toLowerCase();
 
 const controllers = new Map();
 const mjpegClients = new Set();
@@ -636,8 +640,6 @@ function roomPage(req) {
       document.getElementById("stopBtn")?.addEventListener("click", stopCapture);
       if (isHostPage) {
         refreshFrame();
-      } else if (isEmbedPage) {
-        startViewerFallback();
       } else {
         startMjpegViewer();
       }
@@ -843,17 +845,76 @@ function stopAutoCapture() {
   autoCaptureProcess = null;
 }
 
-function startAutoCapture(launched) {
-  stopAutoCapture();
+function setAutoCaptureFailed(status) {
+  autoCaptureProcess = null;
+  hostCaptureState = {
+    ...hostCaptureState,
+    connected: false,
+    status,
+    mode: "auto",
+    lastSeenMs: 0
+  };
+}
 
-  if (!fs.existsSync(autoCaptureScript)) {
+function trackAutoCaptureProcess(processRef, capturePid, state) {
+  autoCaptureProcess = processRef;
+  const startedAt = Date.now();
+  const { launched, ...publicState } = state;
+  hostCaptureState = {
+    connected: false,
+    lastSeenMs: 0,
+    status: "starting",
+    mode: "auto",
+    processId: capturePid,
+    lastStartedMs: startedAt,
+    ...publicState
+  };
+
+  processRef.on("exit", (code, signal) => {
+    if (!autoCaptureProcess || autoCaptureProcess.pid !== capturePid) return;
+    const wasConnected = hostCaptureState.connected;
+    const backend = hostCaptureState.backend || state.backend || "";
+    autoCaptureProcess = null;
+
+    if (backend === "graphics-capture" && !wasConnected && Date.now() - startedAt < 5000 && launched) {
+      startPowerShellAutoCapture(launched, "graphics capture failed; using powershell fallback");
+      return;
+    }
+
     hostCaptureState = {
       ...hostCaptureState,
       connected: false,
-      status: "auto capture script missing",
-      mode: "auto",
+      status: "stopped",
+      backend,
+      lastExitCode: code,
+      lastExitSignal: signal || "",
+      lastSeenMs: Date.now()
+    };
+  });
+
+  processRef.on("error", error => {
+    if (!autoCaptureProcess || autoCaptureProcess.pid !== capturePid) return;
+    const backend = hostCaptureState.backend || state.backend || "";
+    autoCaptureProcess = null;
+
+    if (backend === "graphics-capture" && launched) {
+      startPowerShellAutoCapture(launched, error.message || "graphics capture failed; using powershell fallback");
+      return;
+    }
+
+    hostCaptureState = {
+      ...hostCaptureState,
+      connected: false,
+      status: error.message || "auto capture failed to start",
+      backend,
       lastSeenMs: 0
     };
+  });
+}
+
+function startPowerShellAutoCapture(launched, status = "starting") {
+  if (!fs.existsSync(autoCaptureScript)) {
+    setAutoCaptureFailed("auto capture script missing");
     return;
   }
 
@@ -871,55 +932,73 @@ function startAutoCapture(launched) {
   ];
 
   try {
-    autoCaptureProcess = spawn("powershell.exe", args, {
+    const processRef = spawn("powershell.exe", args, {
       cwd: __dirname,
       detached: false,
       stdio: "ignore",
       windowsHide: true
     });
-    const capturePid = autoCaptureProcess.pid || 0;
-    hostCaptureState = {
-      connected: false,
-      lastSeenMs: 0,
-      status: "starting",
-      mode: "auto",
-      processId: capturePid,
+    trackAutoCaptureProcess(processRef, processRef.pid || 0, {
+      status,
+      backend: "powershell",
       targetProcessId: launched.pid || 0,
       targetProcessName,
-      lastStartedMs: Date.now()
-    };
-    autoCaptureProcess.on("exit", (code, signal) => {
-      if (!autoCaptureProcess || autoCaptureProcess.pid !== capturePid) return;
-      autoCaptureProcess = null;
-      hostCaptureState = {
-        ...hostCaptureState,
-        connected: false,
-        status: "stopped",
-        lastExitCode: code,
-        lastExitSignal: signal || "",
-        lastSeenMs: Date.now()
-      };
-    });
-    autoCaptureProcess.on("error", error => {
-      if (!autoCaptureProcess || autoCaptureProcess.pid !== capturePid) return;
-      autoCaptureProcess = null;
-      hostCaptureState = {
-        ...hostCaptureState,
-        connected: false,
-        status: error.message || "auto capture failed to start",
-        lastSeenMs: 0
-      };
+      launched
     });
   } catch (error) {
-    autoCaptureProcess = null;
-    hostCaptureState = {
-      ...hostCaptureState,
-      connected: false,
-      status: error.message || "auto capture failed to start",
-      mode: "auto",
-      lastSeenMs: 0
-    };
+    setAutoCaptureFailed(error.message || "auto capture failed to start");
   }
+}
+
+function startGraphicsAutoCapture(launched) {
+  if (!fs.existsSync(graphicsCaptureScript)) {
+    startPowerShellAutoCapture(launched, "graphics capture script missing; using powershell fallback");
+    return;
+  }
+
+  const targetProcessName = path.basename(launched.exe || rmgPath, path.extname(launched.exe || rmgPath)) || "RMG";
+  const args = [
+    graphicsCaptureScript,
+    "--port", String(PORT),
+    "--process-id", String(launched.pid || 0),
+    "--process-name", targetProcessName,
+    "--max-width", String(streamMaxWidth),
+    "--interval-ms", String(streamFrameIntervalMs),
+    "--jpeg-quality", String(Math.round(streamJpegQuality * 100))
+  ];
+  const env = {
+    ...process.env,
+    PYTHONPATH: [graphicsCapturePydeps, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter)
+  };
+
+  try {
+    const processRef = spawn(graphicsCapturePython, args, {
+      cwd: __dirname,
+      detached: false,
+      stdio: "ignore",
+      windowsHide: true,
+      env
+    });
+    trackAutoCaptureProcess(processRef, processRef.pid || 0, {
+      backend: "graphics-capture",
+      targetProcessId: launched.pid || 0,
+      targetProcessName,
+      launched
+    });
+  } catch (error) {
+    startPowerShellAutoCapture(launched, error.message || "graphics capture failed; using powershell fallback");
+  }
+}
+
+function startAutoCapture(launched) {
+  stopAutoCapture();
+
+  if (captureBackend === "powershell") {
+    startPowerShellAutoCapture(launched);
+    return;
+  }
+
+  startGraphicsAutoCapture(launched);
 }
 
 function launchConfiguredGame(options = {}) {

@@ -19,6 +19,9 @@ const graphicsCaptureScript = process.env.FUIT_CLOUD_GRAPHICS_CAPTURE_SCRIPT || 
 const graphicsCapturePydeps = process.env.FUIT_CLOUD_GRAPHICS_CAPTURE_PYDEPS || path.join(__dirname, "pydeps");
 const graphicsCapturePython = process.env.FUIT_CLOUD_PYTHON || "python";
 const captureBackend = String(process.env.FUIT_CLOUD_CAPTURE_BACKEND || "graphics").toLowerCase();
+const helperPriorityClass = normalizeWindowsPriority(process.env.FUIT_CLOUD_HELPER_PRIORITY || "Normal", "Normal");
+const capturePriorityClass = normalizeWindowsPriority(process.env.FUIT_CLOUD_CAPTURE_PRIORITY || "Normal", "Normal");
+const emulatorPriorityClass = normalizeWindowsPriority(process.env.FUIT_CLOUD_EMULATOR_PRIORITY || "High", "High");
 
 const controllers = new Map();
 const mjpegClients = new Set();
@@ -58,6 +61,55 @@ const allowedButtons = new Set([
   "c-left",
   "c-right"
 ]);
+
+function normalizeWindowsPriority(value, fallback) {
+  const priorities = new Map([
+    ["idle", "Idle"],
+    ["belownormal", "BelowNormal"],
+    ["below-normal", "BelowNormal"],
+    ["normal", "Normal"],
+    ["abovenormal", "AboveNormal"],
+    ["above-normal", "AboveNormal"],
+    ["high", "High"]
+  ]);
+  return priorities.get(String(value || "").trim().toLowerCase()) || fallback;
+}
+
+function psQuote(value) {
+  return String(value || "").replace(/'/g, "''");
+}
+
+function setWindowsProcessPriority({ pid = 0, processName = "", priority = "Normal" } = {}) {
+  if (os.platform() !== "win32") return;
+
+  const safePriority = normalizeWindowsPriority(priority, "Normal");
+  const safePid = Number(pid || 0);
+  const safeProcessName = psQuote(processName);
+  const script = [
+    "$ErrorActionPreference = 'SilentlyContinue'",
+    `$priority = '${safePriority}'`,
+    "$matched = $false",
+    safePid > 0 ? `$proc = Get-Process -Id ${safePid} -ErrorAction SilentlyContinue` : "$proc = $null",
+    "if ($proc) { $proc.PriorityClass = $priority; $matched = $true }",
+    safeProcessName
+      ? `if (-not $matched) { Get-Process -Name '${safeProcessName}' -ErrorAction SilentlyContinue | ForEach-Object { $_.PriorityClass = $priority } }`
+      : ""
+  ].filter(Boolean).join("; ");
+
+  try {
+    const priorityProcess = spawn("powershell.exe", [
+      "-NoProfile",
+      "-ExecutionPolicy", "Bypass",
+      "-Command", script
+    ], {
+      cwd: __dirname,
+      detached: false,
+      stdio: "ignore",
+      windowsHide: true
+    });
+    priorityProcess.unref();
+  } catch {}
+}
 
 function makeGameId(filePath) {
   return Buffer.from(filePath, "utf8").toString("base64url");
@@ -303,6 +355,11 @@ function statusPayload(req) {
       maxWidth: streamMaxWidth,
       jpegQuality: streamJpegQuality,
       frameIntervalMs: streamFrameIntervalMs
+    },
+    priorities: {
+      helper: helperPriorityClass,
+      capture: capturePriorityClass,
+      emulator: emulatorPriorityClass
     },
     hostCaptureState,
     launchState,
@@ -938,6 +995,7 @@ function startPowerShellAutoCapture(launched, status = "starting") {
       stdio: "ignore",
       windowsHide: true
     });
+    setWindowsProcessPriority({ pid: processRef.pid || 0, priority: capturePriorityClass });
     trackAutoCaptureProcess(processRef, processRef.pid || 0, {
       status,
       backend: "powershell",
@@ -979,6 +1037,7 @@ function startGraphicsAutoCapture(launched) {
       windowsHide: true,
       env
     });
+    setWindowsProcessPriority({ pid: processRef.pid || 0, priority: capturePriorityClass });
     trackAutoCaptureProcess(processRef, processRef.pid || 0, {
       backend: "graphics-capture",
       targetProcessId: launched.pid || 0,
@@ -1033,6 +1092,9 @@ function launchConfiguredGame(options = {}) {
     windowsHide: false
   });
   child.unref();
+
+  const targetProcessName = path.basename(launchExe, path.extname(launchExe));
+  setWindowsProcessPriority({ pid: child.pid || 0, processName: targetProcessName, priority: emulatorPriorityClass });
 
   return { label: launchLabel, exe: launchExe, rom: launchRom, system: launchRom ? "N64" : "", pid: child.pid || 0 };
 }
@@ -1248,6 +1310,11 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, "0.0.0.0", () => {
+  setWindowsProcessPriority({ pid: process.pid, priority: helperPriorityClass });
+  setWindowsProcessPriority({
+    processName: path.basename(rmgPath, path.extname(rmgPath)),
+    priority: emulatorPriorityClass
+  });
   console.log(`FUIT Cloud Gaming helper running at http://127.0.0.1:${PORT}`);
   console.log(`Session: ${sessionName}`);
   console.log(`Game: ${gameName}`);

@@ -1,8 +1,10 @@
 import argparse
 import ctypes
+import http.client
 import os
 import sys
 import time
+import urllib.parse
 import urllib.request
 from ctypes import wintypes
 
@@ -16,22 +18,53 @@ kernel32 = ctypes.windll.kernel32
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 
 
-def post_bytes(url, content_type, payload, timeout=2.0):
-    request = urllib.request.Request(
-        url,
-        data=payload,
-        method="POST",
-        headers={"Content-Type": content_type},
-    )
-    with urllib.request.urlopen(request, timeout=timeout):
-        return True
+class HelperPoster:
+    def __init__(self, helper_url):
+        parsed = urllib.parse.urlparse(helper_url)
+        self.host = parsed.hostname or "127.0.0.1"
+        self.port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        self.timeout = 2.0
+        self.connection = None
 
+    def close(self):
+        if self.connection:
+            try:
+                self.connection.close()
+            except Exception:
+                pass
+        self.connection = None
 
-def post_host_status(helper_url):
-    try:
-        post_bytes(f"{helper_url}/api/host", "application/json", b"{}", timeout=1.0)
-    except Exception:
-        pass
+    def post(self, path, content_type, payload, timeout=None):
+        if self.connection is None:
+            self.connection = http.client.HTTPConnection(self.host, self.port, timeout=timeout or self.timeout)
+
+        try:
+            self.connection.request(
+                "POST",
+                path,
+                body=payload,
+                headers={
+                    "Content-Type": content_type,
+                    "Content-Length": str(len(payload)),
+                    "Connection": "keep-alive",
+                },
+            )
+            response = self.connection.getresponse()
+            response.read()
+            if response.status >= 400:
+                raise RuntimeError(f"Helper returned HTTP {response.status}.")
+        except Exception:
+            self.close()
+            raise
+
+    def post_frame(self, payload):
+        self.post("/api/frame", "image/jpeg", payload)
+
+    def post_host_status(self):
+        try:
+            self.post("/api/host", "application/json", b"{}", timeout=1.0)
+        except Exception:
+            pass
 
 
 def get_window_text(hwnd):
@@ -121,7 +154,7 @@ def encode_frame(frame, max_width, jpeg_quality):
     if frame.width > max_width:
         scale = max_width / float(frame.width)
         target_size = (max(2, int(round(frame.width * scale))), max(2, int(round(frame.height * scale))))
-        buffer = cv2.resize(buffer, target_size, interpolation=cv2.INTER_AREA)
+        buffer = cv2.resize(buffer, target_size, interpolation=cv2.INTER_LINEAR)
 
     bgr = buffer[:, :, :3]
     ok, encoded = cv2.imencode(".jpg", bgr, [int(cv2.IMWRITE_JPEG_QUALITY), int(jpeg_quality)])
@@ -136,9 +169,9 @@ def parse_args():
     parser.add_argument("--helper-url", default="")
     parser.add_argument("--process-id", type=int, default=0)
     parser.add_argument("--process-name", default="RMG")
-    parser.add_argument("--max-width", type=int, default=512)
-    parser.add_argument("--interval-ms", type=int, default=50)
-    parser.add_argument("--jpeg-quality", type=int, default=40)
+    parser.add_argument("--max-width", type=int, default=448)
+    parser.add_argument("--interval-ms", type=int, default=40)
+    parser.add_argument("--jpeg-quality", type=int, default=35)
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--output", default="")
     return parser.parse_args()
@@ -155,8 +188,10 @@ def main():
     if not hwnd:
         raise RuntimeError(f"Could not find a visible {args.process_name} window.")
 
-    last_frame_at = 0.0
+    next_frame_at = 0.0
     last_status_at = 0.0
+    poster = HelperPoster(helper_url)
+    interval_seconds = interval_ms / 1000.0
 
     capture = WindowsCapture(
         cursor_capture=False,
@@ -167,22 +202,25 @@ def main():
 
     @capture.event
     def on_frame_arrived(frame: Frame, capture_control: InternalCaptureControl):
-        nonlocal last_frame_at, last_status_at
-
-        now = time.monotonic()
-        if (now - last_frame_at) * 1000.0 < interval_ms:
-            return
-        last_frame_at = now
+        nonlocal next_frame_at, last_status_at
 
         try:
+            now = time.monotonic()
+            if next_frame_at and now + 0.003 < next_frame_at:
+                return
+            if not next_frame_at or now - next_frame_at > 1.0:
+                next_frame_at = now
+            while next_frame_at <= now:
+                next_frame_at += interval_seconds
+
             jpeg = encode_frame(frame, max_width, jpeg_quality)
             if args.output:
                 with open(args.output, "wb") as output_file:
                     output_file.write(jpeg)
             if not args.once:
-                post_bytes(f"{helper_url}/api/frame", "image/jpeg", jpeg, timeout=2.0)
+                poster.post_frame(jpeg)
                 if now - last_status_at >= 2.0:
-                    post_host_status(helper_url)
+                    poster.post_host_status()
                     last_status_at = now
         except Exception:
             pass

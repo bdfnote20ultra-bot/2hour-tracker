@@ -7,12 +7,29 @@ const roomName = process.env.FUIT_ROOM_NAME || "FUIT Multiplayer Room";
 const gameName = process.env.FUIT_GAME_NAME || "Any game you choose";
 const gamePath = process.env.FUIT_GAME_PATH || "";
 const streamUrl = process.env.FUIT_STREAM_URL || "";
+const selectedGame = (() => {
+  try {
+    const parsed = JSON.parse(process.env.FUIT_SELECTED_GAME || "null");
+    if (!parsed || typeof parsed !== "object") return null;
+    return {
+      label: String(parsed.label || gameName).slice(0, 180),
+      system: String(parsed.system || "").slice(0, 20),
+      core: String(parsed.core || "").slice(0, 20),
+      file: String(parsed.file || "").slice(0, 260),
+      relativePath: String(parsed.relativePath || "").slice(0, 520),
+      gameUrl: String(parsed.gameUrl || "").slice(0, 520),
+      discUrls: Array.isArray(parsed.discUrls) ? parsed.discUrls.map(url => String(url).slice(0, 520)).slice(0, 8) : []
+    };
+  } catch {
+    return null;
+  }
+})();
 const controllers = new Map();
 let latestFrame = null;
 let latestFrameMs = 0;
 let hostState = {
   connected: false,
-  gameName,
+  gameName: selectedGame?.label || gameName,
   lastSeenMs: 0
 };
 
@@ -54,8 +71,9 @@ function statusPayload(req) {
     ok: true,
     active: true,
     roomName,
-    gameName,
+    gameName: selectedGame?.label || gameName,
     gamePath,
+    selectedGame,
     streamUrl,
     hasFrame: Boolean(latestFrame),
     latestFrameMs,

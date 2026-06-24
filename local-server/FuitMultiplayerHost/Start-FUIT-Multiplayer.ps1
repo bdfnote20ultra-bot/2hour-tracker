@@ -3,6 +3,14 @@ $ErrorActionPreference = "Stop"
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $serverFile = Join-Path $scriptDir "server.js"
 $defaultPort = "8174"
+$romsRoot = "T:\FattysLiveTV\Games\Roms"
+$gameSystems = @(
+  @{ System = "GB"; Core = "gb"; Folder = "GB"; Extensions = @(".gb") },
+  @{ System = "GBC"; Core = "gb"; Folder = "GBC"; Extensions = @(".gbc") },
+  @{ System = "GBA"; Core = "gba"; Folder = "GBA"; Extensions = @(".gba") },
+  @{ System = "N64"; Core = "n64"; Folder = "N64"; Extensions = @(".n64", ".z64", ".v64") },
+  @{ System = "PS1"; Core = "psx"; Folder = "PS1"; Extensions = @(".cue", ".chd", ".pbp", ".m3u") }
+)
 
 function Find-Node {
   $node = Get-Command node.exe -ErrorAction SilentlyContinue
@@ -20,19 +28,101 @@ function Read-WithDefault([string]$Prompt, [string]$DefaultValue) {
   return $value.Trim()
 }
 
-function Select-GameFile {
-  Add-Type -AssemblyName System.Windows.Forms
+function ConvertTo-GameUrlPath([string]$System, [string]$RelativePath) {
+  $parts = $RelativePath -split '[\\/]+' | Where-Object { $_ }
+  $encoded = ($parts | ForEach-Object { [System.Uri]::EscapeDataString($_) }) -join "/"
+  return "/games/$System/$encoded"
+}
 
-  $dialog = New-Object System.Windows.Forms.OpenFileDialog
-  $dialog.Title = "Choose a game, emulator, shortcut, or app to start"
-  $dialog.Filter = "Games and apps (*.exe;*.lnk;*.bat;*.cmd;*.ps1;*.rom;*.nes;*.sfc;*.smc;*.gb;*.gbc;*.gba;*.n64;*.z64;*.v64;*.iso;*.cue)|*.exe;*.lnk;*.bat;*.cmd;*.ps1;*.rom;*.nes;*.sfc;*.smc;*.gb;*.gbc;*.gba;*.n64;*.z64;*.v64;*.iso;*.cue|All files (*.*)|*.*"
-  $dialog.Multiselect = $false
+function Get-RelativePath([string]$BaseDir, [string]$FullPath) {
+  $base = [System.IO.Path]::GetFullPath($BaseDir).TrimEnd('\') + '\'
+  $full = [System.IO.Path]::GetFullPath($FullPath)
+  return $full.Substring($base.Length)
+}
 
-  if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-    return $dialog.FileName
+function Get-AvailableBrowserGames {
+  if (-not (Test-Path -LiteralPath $romsRoot)) {
+    throw "ROM folder was not found: $romsRoot"
   }
 
-  return ""
+  $games = New-Object System.Collections.Generic.List[object]
+
+  foreach ($config in $gameSystems) {
+    $system = $config.System
+    $systemDir = Join-Path $romsRoot $config.Folder
+    if (-not (Test-Path -LiteralPath $systemDir)) { continue }
+
+    $files = @(Get-ChildItem -LiteralPath $systemDir -Recurse -File -ErrorAction SilentlyContinue)
+    $foldersWithM3u = @{}
+    foreach ($file in $files) {
+      if ($file.Extension.ToLowerInvariant() -eq ".m3u") {
+        $foldersWithM3u[$file.DirectoryName] = $true
+      }
+    }
+
+    foreach ($file in $files) {
+      $extension = $file.Extension.ToLowerInvariant()
+      if ($config.Extensions -notcontains $extension) { continue }
+      if ($system -eq "PS1" -and $extension -ne ".m3u" -and $foldersWithM3u.ContainsKey($file.DirectoryName)) { continue }
+
+      $relativePath = Get-RelativePath $systemDir $file.FullName
+      $label = [System.IO.Path]::GetFileNameWithoutExtension($file.Name)
+      $discUrls = @()
+      if ($system -eq "PS1" -and $extension -eq ".m3u") {
+        $playlistDir = $file.DirectoryName
+        $discUrls = @(Get-Content -LiteralPath $file.FullName -ErrorAction SilentlyContinue |
+          ForEach-Object { $_.Trim() } |
+          Where-Object { $_ -and -not $_.StartsWith("#") } |
+          ForEach-Object {
+            $discPath = [System.IO.Path]::GetFullPath((Join-Path $playlistDir $_))
+            if ($discPath.StartsWith([System.IO.Path]::GetFullPath($systemDir)) -and (Test-Path -LiteralPath $discPath)) {
+              ConvertTo-GameUrlPath $system (Get-RelativePath $systemDir $discPath)
+            }
+          } |
+          Where-Object { $_ })
+      }
+
+      $games.Add([PSCustomObject]@{
+        label = $label
+        system = $system
+        core = $config.Core
+        file = $file.Name
+        fullPath = $file.FullName
+        relativePath = $relativePath
+        gameUrl = ConvertTo-GameUrlPath $system $relativePath
+        discUrls = $discUrls
+      }) | Out-Null
+    }
+  }
+
+  return @($games | Sort-Object system, label)
+}
+
+function Select-BrowserGame {
+  $games = @(Get-AvailableBrowserGames)
+  if (-not $games.Count) {
+    throw "No browser emulator ROMs were found under $romsRoot"
+  }
+
+  Write-Host ""
+  Write-Host "What game would you like to play?" -ForegroundColor Green
+  Write-Host "Only games currently found in $romsRoot are shown." -ForegroundColor Yellow
+  Write-Host ""
+
+  for ($i = 0; $i -lt $games.Count; $i++) {
+    $game = $games[$i]
+    Write-Host ("{0}. [{1}] {2}" -f ($i + 1), $game.system, $game.label)
+  }
+
+  while ($true) {
+    Write-Host ""
+    $choice = Read-Host "Press a game number"
+    $number = 0
+    if ([int]::TryParse($choice, [ref]$number) -and $number -ge 1 -and $number -le $games.Count) {
+      return $games[$number - 1]
+    }
+    Write-Host "Choose a number from 1 to $($games.Count)." -ForegroundColor Yellow
+  }
 }
 
 function Start-MultiplayerRoom {
@@ -42,40 +132,25 @@ function Start-MultiplayerRoom {
   Write-Host ""
 
   $roomName = Read-WithDefault "Room name" "FUIT Multiplayer Room"
-  $gameName = Read-WithDefault "Room game label" "Any game you choose"
   $port = Read-WithDefault "Helper port" $defaultPort
 
-  $gamePath = ""
-  Write-Host ""
-  Write-Host "Browser emulator games are picked on the FUIT site, not from this helper." -ForegroundColor Yellow
-  Write-Host "This next prompt is only for opening an outside PC game/app if you want one." -ForegroundColor Yellow
-  $openGame = Read-Host "Open an outside game/app now? Y/N [N]"
-  if (-not [string]::IsNullOrWhiteSpace($openGame) -and $openGame.Trim().ToUpperInvariant().StartsWith("Y")) {
-    $gamePath = Select-GameFile
-    if ($gamePath) {
-      if ($gameName -eq "Any game you choose") {
-        $gameName = [System.IO.Path]::GetFileNameWithoutExtension($gamePath)
-      }
-      Write-Host "Opening $gamePath"
-      Start-Process -FilePath $gamePath | Out-Null
-    }
-  }
-
-  Write-Host ""
-  Write-Host "Optional: paste a browser-viewable stream URL for the FUIT box." -ForegroundColor Yellow
-  Write-Host "Leave blank for now if you have not set up the stream yet."
-  $streamUrl = Read-Host "Stream URL"
+  $selectedGame = Select-BrowserGame
+  $gameName = $selectedGame.label
+  $gamePath = $selectedGame.fullPath
+  $streamUrl = ""
 
   $node = Find-Node
 
   $env:FUIT_ROOM_NAME = $roomName
   $env:FUIT_GAME_NAME = $gameName
   $env:FUIT_GAME_PATH = $gamePath
+  $env:FUIT_SELECTED_GAME = ($selectedGame | Select-Object label, system, core, file, relativePath, gameUrl, discUrls | ConvertTo-Json -Compress)
   $env:FUIT_STREAM_URL = $streamUrl
   $env:FUIT_MULTIPLAYER_PORT = $port
 
   Clear-Host
   Write-Host "FUIT Multiplayer helper is starting..." -ForegroundColor Green
+  Write-Host "Selected game: $gameName" -ForegroundColor Green
   Write-Host "Local room: http://127.0.0.1:$port/room"
   Write-Host "Controller: http://127.0.0.1:$port/controller"
   Write-Host ""
@@ -91,6 +166,7 @@ function Start-MultiplayerRoom {
     Remove-Item Env:\FUIT_ROOM_NAME -ErrorAction SilentlyContinue
     Remove-Item Env:\FUIT_GAME_NAME -ErrorAction SilentlyContinue
     Remove-Item Env:\FUIT_GAME_PATH -ErrorAction SilentlyContinue
+    Remove-Item Env:\FUIT_SELECTED_GAME -ErrorAction SilentlyContinue
     Remove-Item Env:\FUIT_STREAM_URL -ErrorAction SilentlyContinue
     Remove-Item Env:\FUIT_MULTIPLAYER_PORT -ErrorAction SilentlyContinue
   }

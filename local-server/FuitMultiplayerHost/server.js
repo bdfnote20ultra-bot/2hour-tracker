@@ -132,30 +132,14 @@ function pageShell(title, body, extraHead = "") {
 }
 
 function roomPage(req) {
-  const status = statusPayload(req);
   const stream = streamUrl.trim();
   const isHttpStream = /^https?:\/\//i.test(stream);
   return pageShell("FUIT Multiplayer Room", `
-    <main class="wrap">
-      <section class="panel top">
-        <div>
-          <div class="title">${escapeHtml(status.roomName)}</div>
-          <div class="sub">${escapeHtml(status.gameName)} - ${status.controllers.length} controller${status.controllers.length === 1 ? "" : "s"} connected</div>
-        </div>
-        <button onclick="location.reload()">Refresh</button>
-      </section>
-      <section class="panel stream">
-        ${isHttpStream ? `<iframe src="${escapeHtml(stream)}" allow="autoplay; fullscreen; gamepad"></iframe>` : `
-          <div style="max-width: 560px; padding: 24px; text-align: center;">
-            <img id="frame" alt="FUIT host game stream" style="display: none; width: 100%; max-height: 70vh; object-fit: contain; image-rendering: auto;" />
-            <div id="empty">
-              <div class="title" style="margin-bottom: 8px;">Waiting for host browser</div>
-              <div class="sub">Start a browser emulator game in the FUIT Multiplayer box. This room will show that same game view when frames arrive.</div>
-              ${stream ? `<p class="muted">Saved stream value: ${escapeHtml(stream)}</p>` : ""}
-            </div>
-          </div>
-        `}
-      </section>
+    <main class="display-only-room">
+      ${isHttpStream ? `<iframe class="display-frame" src="${escapeHtml(stream)}" allow="autoplay; fullscreen; gamepad"></iframe>` : `
+        <img id="frame" alt="FUIT host game stream" />
+        <div id="empty" aria-hidden="true"></div>
+      `}
       ${isHttpStream ? "" : `<script>
         const img = document.getElementById("frame");
         const empty = document.getElementById("empty");
@@ -191,6 +175,33 @@ function roomPage(req) {
         refreshFrame();
       </script>`}
     </main>
+  `, `
+    <style>
+      html, body { background: #000 !important; overflow: hidden; }
+      body { display: block !important; }
+      .display-only-room {
+        width: 100vw;
+        height: 100vh;
+        margin: 0;
+        background: #000;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+      }
+      .display-frame,
+      #frame,
+      #empty {
+        width: 100%;
+        height: 100%;
+        border: 0;
+        background: #000;
+      }
+      #frame {
+        display: none;
+        object-fit: contain;
+        image-rendering: auto;
+      }
+    </style>
   `);
 }
 
@@ -216,9 +227,11 @@ function controllerPage() {
       </section>
     </main>
     <script>
+      const params = new URLSearchParams(location.search);
+      const urlControllerId = params.get("id");
       const idKey = "fuitControllerId";
-      const controllerId = localStorage.getItem(idKey) || crypto.randomUUID();
-      localStorage.setItem(idKey, controllerId);
+      const controllerId = urlControllerId || sessionStorage.getItem(idKey) || crypto.randomUUID();
+      sessionStorage.setItem(idKey, controllerId);
       const pressed = new Set();
       const status = document.getElementById("status");
       const keyMap = { KeyW: "up", KeyA: "left", KeyS: "down", KeyD: "right", KeyJ: "a", KeyK: "b", KeyU: "x", KeyI: "y", Enter: "start", ShiftRight: "select", ShiftLeft: "select" };
@@ -388,6 +401,54 @@ const server = http.createServer(async (req, res) => {
 
   send(res, 404, "Not found");
 });
+
+let shuttingDown = false;
+function shutdown(exitCode = 0) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  try {
+    server.close(() => process.exit(exitCode));
+  } catch {
+    process.exit(exitCode);
+  }
+  setTimeout(() => process.exit(exitCode), 1500).unref();
+}
+
+server.on("error", error => {
+  if (error?.code === "EADDRINUSE") {
+    console.error(`FUIT Multiplayer helper could not start because port ${PORT} is already in use.`);
+  } else {
+    console.error(error);
+  }
+  shutdown(1);
+});
+
+process.on("SIGINT", () => shutdown(0));
+process.on("SIGTERM", () => shutdown(0));
+process.on("uncaughtException", error => {
+  console.error(error);
+  shutdown(1);
+});
+process.on("unhandledRejection", error => {
+  console.error(error);
+  shutdown(1);
+});
+
+if (!process.stdin.destroyed) {
+  process.stdin.on("end", () => shutdown(0));
+  process.stdin.on("error", () => shutdown(0));
+}
+
+const parentPid = Number(process.env.FUIT_HELPER_PARENT_PID || 0);
+if (parentPid > 0 && parentPid !== process.pid) {
+  setInterval(() => {
+    try {
+      process.kill(parentPid, 0);
+    } catch {
+      shutdown(0);
+    }
+  }, 2000).unref();
+}
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`FUIT Multiplayer helper running at http://127.0.0.1:${PORT}`);

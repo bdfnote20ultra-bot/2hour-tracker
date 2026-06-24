@@ -120,6 +120,12 @@ const YOUTUBE_GAMING_VIDEOS_URL = "https://www.youtube.com/@xflivetv/videos";
 const RETROARCH_WEB_PLAYER_URL = "https://web.libretro.com/";
 const FUIT_MULTIPLAYER_HOST_URL_KEY = "fuitMultiplayerHostUrl_v1";
 const FUIT_MULTIPLAYER_DEFAULT_HOST_URL = "http://127.0.0.1:8174";
+const FUIT_MULTIPLAYER_DISCOVERY_URLS = Array.from(
+  new Set([
+    FUIT_MULTIPLAYER_DEFAULT_HOST_URL,
+    ...Array.from({ length: 11 }, (_, index) => `http://127.0.0.1:${8174 + index}`)
+  ])
+);
 const SIGNUP_REQUESTS_KEY = "fuitsSignupRequests_v1";
 const APPROVED_USERS_KEY = "fuitsApprovedUsers_v1";
 const BANNED_USERS_KEY = "fuitsBannedUsers_v1";
@@ -885,6 +891,19 @@ function PokemonSidebar() {
   const cleanMultiplayerHostUrl = (multiplayerHostUrl || FUIT_MULTIPLAYER_DEFAULT_HOST_URL).trim().replace(/\/+$/, "") || FUIT_MULTIPLAYER_DEFAULT_HOST_URL;
   const multiplayerViewerUrl = multiplayerRoom.data?.viewerUrl || `${cleanMultiplayerHostUrl}/room`;
   const multiplayerControllerUrl = multiplayerRoom.data?.controllerUrl || `${cleanMultiplayerHostUrl}/controller`;
+  const makeMultiplayerControllerUrl = () => {
+    const controllerId = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    try {
+      const url = new URL(multiplayerControllerUrl, window.location.href);
+      url.searchParams.set("id", controllerId);
+      return url.toString();
+    } catch {
+      return `${multiplayerControllerUrl}${multiplayerControllerUrl.includes("?") ? "&" : "?"}id=${encodeURIComponent(controllerId)}`;
+    }
+  };
+  const openMultiplayerController = () => {
+    window.open(makeMultiplayerControllerUrl(), "_blank", "noopener,noreferrer");
+  };
   const getPokemonFrameSourceRect = (canvas) => {
     const width = Math.max(1, canvas?.width || 0);
     const height = Math.max(1, canvas?.height || 0);
@@ -1044,23 +1063,54 @@ function PokemonSidebar() {
     let cancelled = false;
     let timeoutId = null;
 
-    const loadMultiplayerRoom = async () => {
+    const loadHelperStatus = async (baseUrl) => {
       const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), 1800);
+      const timeout = window.setTimeout(() => controller.abort(), 1100);
 
       try {
-        const response = await fetch(`${cleanMultiplayerHostUrl}/status`, {
+        const response = await fetch(`${baseUrl}/status`, {
           cache: "no-store",
           signal: controller.signal
         });
         if (!response.ok) throw new Error("Helper not ready.");
         const data = await response.json();
+        if (!data?.active) throw new Error("Helper inactive.");
+        return { baseUrl, data };
+      } catch (error) {
+        return null;
+      } finally {
+        window.clearTimeout(timeout);
+      }
+    };
+
+    const loadMultiplayerRoom = async () => {
+      const candidates = Array.from(new Set([
+        cleanMultiplayerHostUrl,
+        ...FUIT_MULTIPLAYER_DISCOVERY_URLS
+      ].map(url => (url || "").trim().replace(/\/+$/, "")).filter(Boolean)));
+
+      try {
+        const results = await Promise.all(candidates.map(loadHelperStatus));
+        const helper = results
+          .filter(Boolean)
+          .sort((left, right) => {
+            const leftStarted = Date.parse(left.data?.startedAt || "") || 0;
+            const rightStarted = Date.parse(right.data?.startedAt || "") || 0;
+            return rightStarted - leftStarted;
+          })[0];
+
+        if (!helper) throw new Error("No multiplayer helper.");
+
         if (!cancelled) {
+          if (helper.baseUrl !== cleanMultiplayerHostUrl) {
+            setMultiplayerHostUrl(helper.baseUrl);
+            setMultiplayerHostInput(helper.baseUrl);
+          }
           setMultiplayerRoom({
-            online: Boolean(data?.active),
+            online: true,
             loading: false,
             error: "",
-            data
+            data: helper.data
           });
         }
       } catch (error) {
@@ -1073,7 +1123,6 @@ function PokemonSidebar() {
           });
         }
       } finally {
-        window.clearTimeout(timeout);
         if (!cancelled) timeoutId = window.setTimeout(loadMultiplayerRoom, 5000);
       }
     };
@@ -1088,22 +1137,27 @@ function PokemonSidebar() {
   }, [activeGamingApp, cleanMultiplayerHostUrl]);
 
   useEffect(() => {
-    if (activeGamingApp !== "multiplayer" || !multiplayerSelectedGame) return;
+    if (activeGamingApp !== "multiplayer" || !multiplayerRoom.online || !multiplayerSelectedGame) return;
     const alreadySelected = activeGame &&
       activeGame.system === multiplayerSelectedGame.system &&
       activeGame.file === multiplayerSelectedGame.file;
-    if (alreadySelected) return;
     const launchedSelected = gameLaunch &&
       gameLaunch.system === multiplayerSelectedGame.system &&
       gameLaunch.file === multiplayerSelectedGame.file;
 
     if (gameLaunch && !launchedSelected) stopRunningGame();
-    setActiveSystem(multiplayerSelectedGame.system);
-    setActiveGame(multiplayerSelectedGame);
-    setSelectedArt("cover");
-    setSelectedDiscIndex(0);
+    if (!alreadySelected) {
+      setActiveSystem(multiplayerSelectedGame.system);
+      setActiveGame(multiplayerSelectedGame);
+      setSelectedArt("cover");
+      setSelectedDiscIndex(0);
+    }
+    if (!launchedSelected && (multiplayerSelectedGame.gameUrl || multiplayerSelectedGame.discUrls?.length)) {
+      startBrowserGame(multiplayerSelectedGame);
+    }
   }, [
     activeGamingApp,
+    multiplayerRoom.online,
     multiplayerSelectedGame?.system,
     multiplayerSelectedGame?.file,
     multiplayerSelectedGame?.label,
@@ -1614,8 +1668,10 @@ function PokemonSidebar() {
         const response = await fetch(`${cleanMultiplayerHostUrl}/status`, { cache: "no-store" });
         if (!response.ok) throw new Error("No multiplayer helper.");
         const data = await response.json();
-        const controller = Array.isArray(data?.controllers) ? data.controllers[0] : null;
-        const buttons = new Set(Array.isArray(controller?.buttons) ? controller.buttons : []);
+        const controllers = Array.isArray(data?.controllers) ? data.controllers : [];
+        const buttons = new Set(controllers.flatMap(controller =>
+          Array.isArray(controller?.buttons) ? controller.buttons : []
+        ));
 
         Object.keys(keyMap).forEach(keyName => setRemoteKey(keyName, buttons.has(keyName)));
       } catch {
@@ -2279,7 +2335,7 @@ function PokemonSidebar() {
               <button
                 type="button"
                 disabled={!multiplayerRoom.online}
-                onClick={() => window.open(multiplayerControllerUrl, "_blank", "noopener,noreferrer")}
+                onClick={openMultiplayerController}
                 style={{
                   border: "none",
                   borderRadius: 10,

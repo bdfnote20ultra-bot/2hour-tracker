@@ -22,6 +22,48 @@ function Find-Node {
   throw "Node.js was not found on PATH. Install Node.js or start this from a terminal where node works."
 }
 
+function Get-ListenerProcessIds([string]$Port) {
+  $ids = New-Object System.Collections.Generic.List[int]
+  $escapedPort = [regex]::Escape($Port)
+  $lines = @(netstat.exe -ano -p tcp 2>$null)
+  foreach ($line in $lines) {
+    if ($line -match "^\s*TCP\s+\S+:$escapedPort\s+\S+\s+LISTENING\s+(\d+)\s*$") {
+      $ids.Add([int]$matches[1]) | Out-Null
+    }
+  }
+  return @($ids | Select-Object -Unique)
+}
+
+function Test-IsFuitHelperProcess([int]$ProcessId) {
+  try {
+    $process = Get-CimInstance Win32_Process -Filter "ProcessId = $ProcessId" -ErrorAction Stop
+  } catch {
+    return $false
+  }
+
+  if (-not $process) { return $false }
+  $commandLine = [string]$process.CommandLine
+  return $commandLine.IndexOf("FuitMultiplayerHost", [StringComparison]::OrdinalIgnoreCase) -ge 0 -and
+    $commandLine.IndexOf("server.js", [StringComparison]::OrdinalIgnoreCase) -ge 0
+}
+
+function Stop-FuitHelperListeners([string]$Port) {
+  $helperPids = @(Get-ListenerProcessIds $Port | Where-Object { Test-IsFuitHelperProcess $_ })
+  foreach ($helperPid in $helperPids) {
+    if ($helperPid -eq $PID) { continue }
+    Write-Host "Stopping previous FUIT Multiplayer helper on port $Port (PID $helperPid)..." -ForegroundColor Yellow
+    Stop-Process -Id $helperPid -Force -ErrorAction SilentlyContinue
+  }
+  if ($helperPids.Count) { Start-Sleep -Seconds 1 }
+}
+
+function Assert-PortAvailable([string]$Port) {
+  $listenerPids = @(Get-ListenerProcessIds $Port)
+  if ($listenerPids.Count) {
+    throw "Port $Port is still in use by PID(s): $($listenerPids -join ', '). Choose another helper port or close that program."
+  }
+}
+
 function Read-WithDefault([string]$Prompt, [string]$DefaultValue) {
   $value = Read-Host "$Prompt [$DefaultValue]"
   if ([string]::IsNullOrWhiteSpace($value)) { return $DefaultValue }
@@ -140,6 +182,8 @@ function Start-MultiplayerRoom {
   $streamUrl = ""
 
   $node = Find-Node
+  Stop-FuitHelperListeners $port
+  Assert-PortAvailable $port
 
   $env:FUIT_ROOM_NAME = $roomName
   $env:FUIT_GAME_NAME = $gameName
@@ -147,6 +191,7 @@ function Start-MultiplayerRoom {
   $env:FUIT_SELECTED_GAME = ($selectedGame | Select-Object label, system, core, file, relativePath, gameUrl, discUrls | ConvertTo-Json -Compress)
   $env:FUIT_STREAM_URL = $streamUrl
   $env:FUIT_MULTIPLAYER_PORT = $port
+  $env:FUIT_HELPER_PARENT_PID = [string]$PID
 
   Clear-Host
   Write-Host "FUIT Multiplayer helper is starting..." -ForegroundColor Green
@@ -160,15 +205,25 @@ function Start-MultiplayerRoom {
   Write-Host "Close this window or press Ctrl+C to turn the room off."
   Write-Host ""
 
+  $serverProcess = $null
   try {
-    & $node $serverFile
+    $serverProcess = Start-Process -FilePath $node -ArgumentList @($serverFile) -WorkingDirectory $scriptDir -NoNewWindow -PassThru
+    Wait-Process -Id $serverProcess.Id
+    $serverProcess.Refresh()
+    if ($serverProcess.ExitCode -ne 0) {
+      throw "FUIT Multiplayer helper stopped with exit code $($serverProcess.ExitCode)."
+    }
   } finally {
+    if ($serverProcess -and -not $serverProcess.HasExited) {
+      Stop-Process -Id $serverProcess.Id -Force -ErrorAction SilentlyContinue
+    }
     Remove-Item Env:\FUIT_ROOM_NAME -ErrorAction SilentlyContinue
     Remove-Item Env:\FUIT_GAME_NAME -ErrorAction SilentlyContinue
     Remove-Item Env:\FUIT_GAME_PATH -ErrorAction SilentlyContinue
     Remove-Item Env:\FUIT_SELECTED_GAME -ErrorAction SilentlyContinue
     Remove-Item Env:\FUIT_STREAM_URL -ErrorAction SilentlyContinue
     Remove-Item Env:\FUIT_MULTIPLAYER_PORT -ErrorAction SilentlyContinue
+    Remove-Item Env:\FUIT_HELPER_PARENT_PID -ErrorAction SilentlyContinue
   }
 }
 
@@ -182,7 +237,16 @@ while ($true) {
 
   $choice = Read-Host "Choose an option"
   switch ($choice) {
-    "1" { Start-MultiplayerRoom }
+    "1" {
+      try {
+        Start-MultiplayerRoom
+      } catch {
+        Write-Host ""
+        Write-Host ($_.Exception.Message) -ForegroundColor Red
+        Write-Host ""
+        Read-Host "Press Enter to return to the menu" | Out-Null
+      }
+    }
     "2" { exit 0 }
     default {
       Write-Host "Choose 1 or 2."

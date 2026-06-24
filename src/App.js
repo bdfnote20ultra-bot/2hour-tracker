@@ -124,28 +124,6 @@ const SIGNUP_REQUESTS_KEY = "fuitsSignupRequests_v1";
 const APPROVED_USERS_KEY = "fuitsApprovedUsers_v1";
 const BANNED_USERS_KEY = "fuitsBannedUsers_v1";
 
-if (typeof window !== "undefined" && !window.__fuitsBrowserNoiseFilterInstalled) {
-  window.__fuitsBrowserNoiseFilterInstalled = true;
-  const isBenignBrowserNoise = value => {
-    const message = String(value?.message || value || "");
-    return message.includes("ResizeObserver loop completed with undelivered notifications") ||
-      message.includes("Wake Lock permission request denied") ||
-      (message.includes("NotAllowedError") && message.includes("Wake Lock"));
-  };
-
-  window.addEventListener("error", event => {
-    if (!isBenignBrowserNoise(event.message || event.error)) return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-  }, true);
-
-  window.addEventListener("unhandledrejection", event => {
-    if (!isBenignBrowserNoise(event.reason)) return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-  }, true);
-}
-
 function loadData() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
 }
@@ -807,6 +785,21 @@ function PokemonSidebar() {
     setGameLaunch({ ...game, launchId: Date.now() });
   };
 
+  const constrainPokemonEmulatorLayout = () => {
+    const host = emulatorHostRef.current;
+    if (!host) return;
+
+    host.querySelectorAll(".ejs_parent, .ejs_game, .ejs_canvas_parent, .ejs_canvas, canvas").forEach(element => {
+      element.style.maxWidth = "100%";
+      element.style.maxHeight = "100%";
+      element.style.minWidth = "0";
+      element.style.minHeight = "0";
+      if (element !== host.querySelector("canvas")) {
+        element.style.overflow = "hidden";
+      }
+    });
+  };
+
   const applyPokemonStretch = (shouldStretch, { resize = true } = {}) => {
     const host = emulatorHostRef.current;
     if (!host) return;
@@ -815,12 +808,14 @@ function PokemonSidebar() {
     const scaleX = shouldStretch && systemAspect ? POKEMON_FULLSCREEN_ASPECT / systemAspect : 1;
     host.style.setProperty("--pokemon-stretch-scale-x", String(scaleX));
     host.classList.toggle("pokemon-emulator-stretch", shouldStretch);
+    constrainPokemonEmulatorLayout();
 
     if (resize) {
       try {
         window.EJS_emulator?.resize?.();
         window.EJS_emulator?.gameManager?.resize?.();
       } catch {}
+      constrainPokemonEmulatorLayout();
     }
   };
 
@@ -890,6 +885,124 @@ function PokemonSidebar() {
   const cleanMultiplayerHostUrl = (multiplayerHostUrl || FUIT_MULTIPLAYER_DEFAULT_HOST_URL).trim().replace(/\/+$/, "") || FUIT_MULTIPLAYER_DEFAULT_HOST_URL;
   const multiplayerViewerUrl = multiplayerRoom.data?.viewerUrl || `${cleanMultiplayerHostUrl}/room`;
   const multiplayerControllerUrl = multiplayerRoom.data?.controllerUrl || `${cleanMultiplayerHostUrl}/controller`;
+  const getPokemonFrameSourceRect = (canvas) => {
+    const width = Math.max(1, canvas?.width || 0);
+    const height = Math.max(1, canvas?.height || 0);
+    const systemAspect = POKEMON_SYSTEM_ASPECTS[gameLaunch?.system || activeGame?.system] || width / height || 4 / 3;
+    let sourceWidth = width;
+    let sourceHeight = height;
+
+    if (height > Math.max(width * 4, 720)) {
+      sourceHeight = Math.max(1, Math.min(height, Math.round(sourceWidth / systemAspect)));
+    }
+    if (width > Math.max(height * 4, 1280)) {
+      sourceWidth = Math.max(1, Math.min(width, Math.round(sourceHeight * systemAspect)));
+    }
+
+    return { x: 0, y: 0, width: sourceWidth, height: sourceHeight };
+  };
+  const getCanvasFrameState = (canvas) => {
+    if (!canvas?.width || !canvas?.height) return "empty";
+    const source = getPokemonFrameSourceRect(canvas);
+    const samplePoints = [
+      [0.5, 0.5],
+      [0.5, 0.2],
+      [0.5, 0.8],
+      [0.2, 0.5],
+      [0.8, 0.5],
+      [0.25, 0.25],
+      [0.75, 0.25],
+      [0.25, 0.75],
+      [0.75, 0.75]
+    ];
+    const isActivePixel = (pixel) => pixel[3] > 0 && pixel[0] + pixel[1] + pixel[2] > 30;
+
+    try {
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      if (context) {
+        let activePixels = 0;
+        for (const [xRatio, yRatio] of samplePoints) {
+          const x = Math.min(canvas.width - 1, Math.max(0, source.x + Math.floor(source.width * xRatio)));
+          const y = Math.min(canvas.height - 1, Math.max(0, source.y + Math.floor(source.height * yRatio)));
+          if (isActivePixel(context.getImageData(x, y, 1, 1).data)) activePixels += 1;
+        }
+        return activePixels >= 2 ? "active" : "blank";
+      }
+    } catch {}
+
+    try {
+      const gl = canvas.getContext("webgl2") || canvas.getContext("webgl");
+      if (!gl) return "unknown";
+      let activePixels = 0;
+      for (const [xRatio, yRatio] of samplePoints) {
+        const x = Math.min(canvas.width - 1, Math.max(0, source.x + Math.floor(source.width * xRatio)));
+        const y = Math.min(canvas.height - 1, Math.max(0, source.y + Math.floor(source.height * yRatio)));
+        const pixel = new Uint8Array(4);
+        gl.readPixels(x, canvas.height - y - 1, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+        if (isActivePixel(pixel)) activePixels += 1;
+      }
+      return activePixels >= 2 ? "active" : "blank";
+    } catch {
+      return "unknown";
+    }
+  };
+  const isUsableFrameImage = (image) =>
+    /^data:image\/(?:jpeg|png|webp);base64,/i.test(image || "") && image.length > 512;
+  const canvasToDataUrl = (canvas, quality) => new Promise((resolve) => {
+    if (canvas.toBlob) {
+      try {
+        canvas.toBlob(blob => {
+          if (!blob || blob.size < 128) {
+            resolve("");
+            return;
+          }
+
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(String(reader.result || ""));
+          reader.onerror = () => resolve("");
+          reader.readAsDataURL(blob);
+        }, "image/jpeg", quality);
+        return;
+      } catch {}
+    }
+
+    try {
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    } catch {
+      resolve("");
+    }
+  });
+  const makeMultiplayerFrameImage = async (canvas, quality) => {
+    const maxWidth = 480;
+    const maxHeight = 360;
+    const source = getPokemonFrameSourceRect(canvas);
+    const scale = Math.min(1, maxWidth / source.width, maxHeight / source.height);
+    const frameCanvas = document.createElement("canvas");
+    frameCanvas.width = Math.max(1, Math.round(source.width * scale));
+    frameCanvas.height = Math.max(1, Math.round(source.height * scale));
+    const context = frameCanvas.getContext("2d");
+    if (context) {
+      try {
+        context.imageSmoothingEnabled = false;
+        context.drawImage(
+          canvas,
+          source.x,
+          source.y,
+          source.width,
+          source.height,
+          0,
+          0,
+          frameCanvas.width,
+          frameCanvas.height
+        );
+        if (getCanvasFrameState(frameCanvas) === "blank") return "";
+        const downscaled = await canvasToDataUrl(frameCanvas, quality);
+        if (isUsableFrameImage(downscaled)) return downscaled;
+      } catch {}
+    }
+
+    return canvasToDataUrl(canvas, quality);
+  };
   const makeFuitsGameUrl = (value) => {
     const text = String(value || "");
     if (!text) return "";
@@ -1387,6 +1500,8 @@ function PokemonSidebar() {
 
     let cancelled = false;
     let sendingHostFrame = false;
+    const relayStartedAt = Date.now();
+    let hasSentActiveFrame = false;
     const n64Launch = isN64Game(gameLaunch);
     const postToMultiplayerHelper = async (path, body, timeoutMs = 900) => {
       const controller = new AbortController();
@@ -1413,10 +1528,16 @@ function PokemonSidebar() {
         } catch {}
 
         const canvas = emulatorHostRef.current?.querySelector("canvas");
-        if (canvas && canvas.width && canvas.height) {
+        if (canvas?.width && canvas?.height) {
           try {
-            const image = canvas.toDataURL("image/jpeg", n64Launch ? 0.45 : 0.62);
-            await postToMultiplayerHelper("/api/frame", { image }, n64Launch ? 1200 : 900);
+            const frameState = getCanvasFrameState(canvas);
+            if (frameState === "blank") return;
+            if (frameState === "unknown" && !hasSentActiveFrame && Date.now() - relayStartedAt < 12000) return;
+            const image = await makeMultiplayerFrameImage(canvas, n64Launch ? 0.32 : 0.42);
+            if (isUsableFrameImage(image)) {
+              hasSentActiveFrame = frameState === "active" || hasSentActiveFrame;
+              await postToMultiplayerHelper("/api/frame", { image }, n64Launch ? 5000 : 3500);
+            }
           } catch {}
         }
       } finally {
@@ -1424,11 +1545,12 @@ function PokemonSidebar() {
       }
     };
 
-    const interval = window.setInterval(sendHostFrame, n64Launch ? 500 : 250);
-    sendHostFrame();
+    const firstFrameTimer = window.setTimeout(sendHostFrame, 1200);
+    const interval = window.setInterval(sendHostFrame, n64Launch ? 1800 : 1200);
 
     return () => {
       cancelled = true;
+      window.clearTimeout(firstFrameTimer);
       window.clearInterval(interval);
     };
   }, [activeGamingApp, cleanMultiplayerHostUrl, gameLaunch, multiplayerRoom.online, collapsed]);
@@ -1514,19 +1636,17 @@ function PokemonSidebar() {
   useEffect(() => {
     if (!gameLaunch) return;
 
-    if (isN64Game(gameLaunch)) {
-      applyPokemonStretch(stretchGame, { resize: false });
-      const timeout = window.setTimeout(() => applyPokemonStretch(stretchGame), 650);
-      return () => window.clearTimeout(timeout);
-    }
-
-    applyPokemonStretch(stretchGame);
-    const interval = window.setInterval(() => applyPokemonStretch(stretchGame), 500);
-    const timeout = window.setTimeout(() => window.clearInterval(interval), 5000);
+    applyPokemonStretch(stretchGame, { resize: false });
+    const settleDelay = isN64Game(gameLaunch) ? 650 : 450;
+    const settleTimeout = window.setTimeout(() => applyPokemonStretch(stretchGame), settleDelay);
+    const finalClampTimeout = window.setTimeout(
+      () => applyPokemonStretch(stretchGame, { resize: false }),
+      settleDelay + 600
+    );
 
     return () => {
-      window.clearInterval(interval);
-      window.clearTimeout(timeout);
+      window.clearTimeout(settleTimeout);
+      window.clearTimeout(finalClampTimeout);
     };
   }, [gameLaunch, stretchGame]);
 
@@ -1609,10 +1729,35 @@ function PokemonSidebar() {
         }
         .game-cover-carousel { scrollbar-width: none; -ms-overflow-style: none; }
         .game-cover-carousel::-webkit-scrollbar { display: none; width: 0; height: 0; }
-        .pokemon-emulator-host,
-        .pokemon-emulator-host > div {
+        .pokemon-emulator-host {
+          position: relative;
           width: 100% !important;
           height: 100% !important;
+          max-width: 100% !important;
+          max-height: 100% !important;
+          min-width: 0 !important;
+          min-height: 0 !important;
+          overflow: hidden !important;
+          contain: layout paint;
+        }
+        .pokemon-emulator-host > div,
+        .pokemon-emulator-host .ejs_parent,
+        .pokemon-emulator-host .ejs_game,
+        .pokemon-emulator-host .ejs_canvas_parent {
+          width: 100% !important;
+          height: 100% !important;
+          max-width: 100% !important;
+          max-height: 100% !important;
+          min-width: 0 !important;
+          min-height: 0 !important;
+          overflow: hidden !important;
+        }
+        .pokemon-emulator-host canvas,
+        .pokemon-emulator-host .ejs_canvas {
+          display: block !important;
+          max-width: 100% !important;
+          max-height: 100% !important;
+          object-fit: contain;
         }
         .pokemon-emulator-frame:fullscreen,
         .pokemon-emulator-frame:-webkit-full-screen {
@@ -1643,6 +1788,8 @@ function PokemonSidebar() {
         .pokemon-emulator-host.pokemon-emulator-stretch .ejs_canvas {
           width: 100% !important;
           height: 100% !important;
+          max-width: 100% !important;
+          max-height: 100% !important;
         }
         .pokemon-emulator-host.pokemon-emulator-stretch .ejs_canvas {
           transform: translateZ(0) scaleX(var(--pokemon-stretch-scale-x, 1)) !important;

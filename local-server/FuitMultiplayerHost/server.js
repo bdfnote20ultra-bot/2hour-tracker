@@ -27,6 +27,7 @@ const selectedGame = (() => {
 const controllers = new Map();
 let latestFrame = null;
 let latestFrameMs = 0;
+let latestFrameEtag = "0";
 let hostState = {
   connected: false,
   gameName: selectedGame?.label || gameName,
@@ -158,21 +159,35 @@ function roomPage(req) {
       ${isHttpStream ? "" : `<script>
         const img = document.getElementById("frame");
         const empty = document.getElementById("empty");
+        let lastFrameMs = 0;
+        let refreshing = false;
         async function refreshFrame() {
-          const next = "/frame.jpg?t=" + Date.now();
-          const probe = new Image();
-          probe.onload = () => {
-            img.src = next;
-            img.style.display = "block";
-            empty.style.display = "none";
-          };
-          probe.onerror = () => {
+          if (refreshing) return;
+          refreshing = true;
+          try {
+            const status = await fetch("/status?t=" + Date.now(), { cache: "no-store" }).then(response => response.json());
+            if (!status.hasFrame || status.latestFrameMs === lastFrameMs) return;
+            lastFrameMs = status.latestFrameMs;
+            const next = "/frame.jpg?ts=" + status.latestFrameMs;
+            const probe = new Image();
+            probe.onload = () => {
+              img.src = next;
+              img.style.display = "block";
+              empty.style.display = "none";
+            };
+            probe.onerror = () => {
+              img.style.display = "none";
+              empty.style.display = "block";
+            };
+            probe.src = next;
+          } catch {
             img.style.display = "none";
             empty.style.display = "block";
-          };
-          probe.src = next;
+          } finally {
+            refreshing = false;
+          }
         }
-        setInterval(refreshFrame, 120);
+        setInterval(refreshFrame, 750);
         refreshFrame();
       </script>`}
     </main>
@@ -256,12 +271,29 @@ function controllerPage() {
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let body = "";
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+    const fail = (error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    };
+
+    req.setTimeout(4000, () => fail(new Error("Request body timed out.")));
     req.on("data", chunk => {
       body += chunk;
-      if (body.length > 1024 * 1024 * 5) req.destroy();
+      if (body.length > 1024 * 1024 * 2) fail(new Error("Request body too large."));
     });
-    req.on("end", () => resolve(body));
-    req.on("error", reject);
+    req.on("end", () => finish(body));
+    req.on("aborted", () => fail(new Error("Request aborted.")));
+    req.on("close", () => {
+      if (!req.complete) fail(new Error("Request closed before the body finished."));
+    });
+    req.on("error", fail);
   });
 }
 
@@ -296,6 +328,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, {
       "Content-Type": latestFrame.type,
       "Access-Control-Allow-Origin": "*",
+      "ETag": latestFrameEtag,
       "Cache-Control": "no-store"
     });
     res.end(latestFrame.buffer);
@@ -327,6 +360,7 @@ const server = http.createServer(async (req, res) => {
         buffer: Buffer.from(match[2], "base64")
       };
       latestFrameMs = Date.now();
+      latestFrameEtag = `"${latestFrameMs}-${latestFrame.buffer.length}"`;
       sendJson(res, 200, { ok: true });
     } catch (error) {
       sendJson(res, 400, { ok: false, error: error.message || "Bad frame payload." });
@@ -362,3 +396,7 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`Stream URL: ${streamUrl || "(none yet)"}`);
   console.log("Keep this window open while the multiplayer room is on.");
 });
+
+server.requestTimeout = 5000;
+server.headersTimeout = 6000;
+server.keepAliveTimeout = 1000;

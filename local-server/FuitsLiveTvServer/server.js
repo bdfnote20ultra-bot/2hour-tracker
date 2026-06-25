@@ -2187,6 +2187,7 @@ function send(res, statusCode, body, contentType = "text/plain; charset=utf-8") 
   res.writeHead(statusCode, {
     "Content-Type": contentType,
     "Access-Control-Allow-Origin": "*",
+    "Cross-Origin-Resource-Policy": "cross-origin",
     "Cache-Control": "no-store"
   });
   res.end(body);
@@ -2506,6 +2507,7 @@ function serveMediaFile(req, res, file, contentType) {
         "Content-Length": chunkSize,
         "Content-Type": contentType,
         "Access-Control-Allow-Origin": "*",
+        "Cross-Origin-Resource-Policy": "cross-origin",
         "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
         "CDN-Cache-Control": "no-store",
         "Cloudflare-CDN-Cache-Control": "no-store",
@@ -2522,6 +2524,7 @@ function serveMediaFile(req, res, file, contentType) {
       "Content-Length": stat.size,
       "Accept-Ranges": "bytes",
       "Access-Control-Allow-Origin": "*",
+      "Cross-Origin-Resource-Policy": "cross-origin",
       "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
       "CDN-Cache-Control": "no-store",
       "Cloudflare-CDN-Cache-Control": "no-store",
@@ -2553,6 +2556,7 @@ function serveMediaFile(req, res, file, contentType) {
       "Content-Range": `bytes */${stat.size}`,
       "Accept-Ranges": "bytes",
       "Access-Control-Allow-Origin": "*",
+      "Cross-Origin-Resource-Policy": "cross-origin",
       "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
       "CDN-Cache-Control": "no-store",
       "Cloudflare-CDN-Cache-Control": "no-store",
@@ -2574,6 +2578,7 @@ function serveMediaFile(req, res, file, contentType) {
     "Content-Length": chunkSize,
     "Content-Type": contentType,
     "Access-Control-Allow-Origin": "*",
+    "Cross-Origin-Resource-Policy": "cross-origin",
     "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
     "CDN-Cache-Control": "no-store",
     "Cloudflare-CDN-Cache-Control": "no-store",

@@ -52,6 +52,7 @@ function send(res, status, body, type = "text/plain; charset=utf-8") {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
+    "Cross-Origin-Resource-Policy": "cross-origin",
     "Cache-Control": "no-store"
   });
   res.end(body);
@@ -1305,6 +1306,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, {
       "Content-Type": "text/event-stream; charset=utf-8",
       "Access-Control-Allow-Origin": "*",
+      "Cross-Origin-Resource-Policy": "cross-origin",
       "Cache-Control": "no-store, no-transform",
       "Connection": "keep-alive",
       "X-Accel-Buffering": "no"
@@ -1350,6 +1352,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, {
       "Content-Type": latestFrame.type,
       "Access-Control-Allow-Origin": "*",
+      "Cross-Origin-Resource-Policy": "cross-origin",
       "ETag": latestFrameEtag,
       "Cache-Control": "no-store"
     });

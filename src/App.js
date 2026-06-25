@@ -711,23 +711,28 @@ function GamingCenterSecondPanel() {
   );
 }
 
-function PokemonSidebar() {
+function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
   const fuitsLiveTvChannelUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
+  const getInitialMultiplayerHostUrl = () => {
+    if (standaloneMultiplayer) {
+      try {
+        const hostUrl = new URLSearchParams(window.location.search).get("host");
+        if (hostUrl) return hostUrl;
+      } catch {}
+    }
+    try { return localStorage.getItem(FUIT_MULTIPLAYER_HOST_URL_KEY) || FUIT_MULTIPLAYER_DEFAULT_HOST_URL; } catch { return FUIT_MULTIPLAYER_DEFAULT_HOST_URL; }
+  };
   const [games, setGames] = useState(POKEMON_ROMS);
   const [activeSystem, setActiveSystem] = useState("GB");
   const [activeGame, setActiveGame] = useState(() => POKEMON_ROMS.find(game => game.system === "GB") || POKEMON_ROMS[0] || null);
   const [collapsed, setCollapsed] = useState(false);
-  const [activeGamingApp, setActiveGamingApp] = useState("gaming-center");
+  const [activeGamingApp, setActiveGamingApp] = useState(() => standaloneMultiplayer ? "multiplayer" : "gaming-center");
   const [gamingMenuOpen, setGamingMenuOpen] = useState(false);
   const [kickGamingChannelInput, setKickGamingChannelInput] = useState(() => {
     try { return localStorage.getItem(KICK_GAMING_CHANNEL_KEY) || "flivetv"; } catch { return "flivetv"; }
   });
-  const [multiplayerHostUrl, setMultiplayerHostUrl] = useState(() => {
-    try { return localStorage.getItem(FUIT_MULTIPLAYER_HOST_URL_KEY) || FUIT_MULTIPLAYER_DEFAULT_HOST_URL; } catch { return FUIT_MULTIPLAYER_DEFAULT_HOST_URL; }
-  });
-  const [multiplayerHostInput, setMultiplayerHostInput] = useState(() => {
-    try { return localStorage.getItem(FUIT_MULTIPLAYER_HOST_URL_KEY) || FUIT_MULTIPLAYER_DEFAULT_HOST_URL; } catch { return FUIT_MULTIPLAYER_DEFAULT_HOST_URL; }
-  });
+  const [multiplayerHostUrl, setMultiplayerHostUrl] = useState(getInitialMultiplayerHostUrl);
+  const [multiplayerHostInput, setMultiplayerHostInput] = useState(getInitialMultiplayerHostUrl);
   const [multiplayerRoom, setMultiplayerRoom] = useState({ online: false, loading: true, error: "", data: null });
   const [gameSearch, setGameSearch] = useState("");
   const [selectedArt, setSelectedArt] = useState("cover");
@@ -1131,6 +1136,18 @@ function PokemonSidebar() {
       window.focus?.();
     } catch {}
   };
+  const addMultiplayerControllerOnThisPage = () => {
+    claimMultiplayerControllerOnFrontPage(makeMultiplayerControllerId(), window);
+  };
+  const openMultiplayerEmulatorPage = () => {
+    try {
+      const url = new URL("/multiplayer-emulator", window.location.href);
+      url.searchParams.set("host", cleanMultiplayerHostUrl);
+      window.open(url.toString(), "_blank", "noopener,noreferrer");
+    } catch {
+      window.open(`/multiplayer-emulator?host=${encodeURIComponent(cleanMultiplayerHostUrl)}`, "_blank", "noopener,noreferrer");
+    }
+  };
   const isStoppedMultiplayerHelper = useCallback((baseUrl, data) => {
     const stopped = stoppedMultiplayerHelperRef.current;
     if (!stopped.baseUrl || stopped.baseUrl !== baseUrl) return false;
@@ -1322,7 +1339,7 @@ function PokemonSidebar() {
   }, [cleanMultiplayerHostUrl]);
 
   useEffect(() => {
-    if (activeGamingApp !== "multiplayer" || !multiplayerRoom.online || collapsed) {
+    if (activeGamingApp !== "multiplayer" || !multiplayerRoom.online || (!standaloneMultiplayer && collapsed)) {
       multiplayerControllerRelayClaimsRef.current.clear();
       return undefined;
     }
@@ -1524,7 +1541,8 @@ function PokemonSidebar() {
     getMultiplayerFrontControllerPadLabel,
     multiplayerRoom.data?.controllerUrl,
     multiplayerRoom.data?.viewerUrl,
-    multiplayerRoom.online
+    multiplayerRoom.online,
+    standaloneMultiplayer
   ]);
 
   useEffect(() => {
@@ -2438,12 +2456,14 @@ function PokemonSidebar() {
   }, [gameFullscreen]);
 
   return (
-    <div className={`pokemon-desktop-stack${n64PerformanceMode ? " pokemon-n64-performance" : ""}`} style={{
-      position: "fixed",
-      left: "calc(18px * var(--flive-scale, 1))",
-      top: "calc(4px * var(--flive-scale, 1))",
-      bottom: "calc(8px * var(--flive-scale, 1))",
-      width: collapsed ? "calc(72px * var(--flive-gaming-scale, var(--flive-scale, 1)))" : "calc(390px * var(--flive-gaming-scale, var(--flive-scale, 1)))",
+    <div className={`pokemon-desktop-stack${n64PerformanceMode ? " pokemon-n64-performance" : ""}${standaloneMultiplayer ? " pokemon-standalone-multiplayer" : ""}`} style={{
+      position: standaloneMultiplayer ? "relative" : "fixed",
+      left: standaloneMultiplayer ? "auto" : "calc(18px * var(--flive-scale, 1))",
+      top: standaloneMultiplayer ? "auto" : "calc(4px * var(--flive-scale, 1))",
+      bottom: standaloneMultiplayer ? "auto" : "calc(8px * var(--flive-scale, 1))",
+      width: standaloneMultiplayer ? "min(100vw, 1280px)" : (collapsed ? "calc(72px * var(--flive-gaming-scale, var(--flive-scale, 1)))" : "calc(390px * var(--flive-gaming-scale, var(--flive-scale, 1)))"),
+      minHeight: standaloneMultiplayer ? "100vh" : undefined,
+      margin: standaloneMultiplayer ? "0 auto" : undefined,
       zIndex: 4,
       display: "flex",
       flexDirection: "column",
@@ -2451,14 +2471,14 @@ function PokemonSidebar() {
       paddingBottom: 0,
       boxSizing: "border-box",
       overflowX: "hidden",
-      overflowY: collapsed ? "hidden" : "auto",
-      pointerEvents: "none",
+      overflowY: standaloneMultiplayer ? "auto" : (collapsed ? "hidden" : "auto"),
+      pointerEvents: standaloneMultiplayer ? "auto" : "none",
       transition: n64PerformanceMode ? "none" : "width .25s ease"
     }}>
     <aside className="pokemon-desktop-sidebar" style={{
       width: "100%",
       flex: "0 0 auto",
-      borderRadius: "calc(24px * var(--flive-gaming-scale, var(--flive-scale, 1)))",
+      borderRadius: standaloneMultiplayer ? 0 : "calc(24px * var(--flive-gaming-scale, var(--flive-scale, 1)))",
       border: "2px solid rgba(255,255,255,0.22)",
       background: n64PerformanceMode ? "rgba(2,6,23,.96)" : `linear-gradient(rgba(2,6,23,0.62), rgba(2,6,23,0.82)), url(${process.env.PUBLIC_URL}/${backgroundImage})`,
       backgroundSize: "cover",
@@ -2472,8 +2492,17 @@ function PokemonSidebar() {
       pointerEvents: "auto"
     }}>
       <style>{`
+        .pokemon-standalone-multiplayer {
+          background: #020617;
+        }
+        .pokemon-standalone-multiplayer .pokemon-desktop-sidebar {
+          min-height: 100vh;
+          box-sizing: border-box;
+        }
         @media (max-width: 360px) { .pokemon-desktop-stack { display: none !important; } }
+        @media (max-width: 360px) { .pokemon-standalone-multiplayer { display: flex !important; } }
         @media (max-width: 360px) { .pokemon-desktop-sidebar { display: none !important; } }
+        @media (max-width: 360px) { .pokemon-standalone-multiplayer .pokemon-desktop-sidebar { display: block !important; } }
         @media (max-width: 1350px) and (max-height: 760px) {
           .pokemon-desktop-sidebar > :not(style) {
             zoom: var(--flive-gaming-content-scale, var(--flive-panel-content-scale, 1));
@@ -2622,7 +2651,7 @@ function PokemonSidebar() {
           </span>
           {!collapsed && <span style={{ fontSize: 12, fontWeight: 1000 }}>{gamingMenuOpen ? "^" : "v"}</span>}
         </button>
-        {gamingMenuOpen && !collapsed && (
+        {gamingMenuOpen && !collapsed && !standaloneMultiplayer && (
           <div style={{
             position: "absolute",
             top: "calc(100% + 8px)",
@@ -2885,7 +2914,9 @@ function PokemonSidebar() {
         }}>
           <div style={{ display: "grid", gap: 12 }}>
             <div>
-              <div style={{ fontSize: 18, color: "#bbf7d0", marginBottom: 5 }}>FUIT MULTIPLAYER</div>
+              <div style={{ fontSize: standaloneMultiplayer ? 22 : 18, color: "#bbf7d0", marginBottom: 5 }}>
+                {standaloneMultiplayer ? "FUIT MULTIPLAYER EMULATOR" : "FUIT MULTIPLAYER"}
+              </div>
               <div style={{ fontSize: 12, color: "#86efac", lineHeight: 1.35 }}>
                 {multiplayerRoom.online
                   ? `${multiplayerRoom.data?.roomName || "Multiplayer room"} is live.`
@@ -2914,8 +2945,8 @@ function PokemonSidebar() {
               overflow: "hidden",
               background: "#020617",
               border: "2px solid rgba(187,247,208,.22)",
-              aspectRatio: "16 / 9",
-              minHeight: 170,
+              aspectRatio: standaloneMultiplayer ? "4 / 3" : "16 / 9",
+              minHeight: standaloneMultiplayer ? "min(72vh, 720px)" : 170,
               display: "grid",
               placeItems: "center"
             }}>
@@ -3047,6 +3078,44 @@ function PokemonSidebar() {
             </div>
 
             <div style={{ display: "grid", gap: 8 }}>
+              {!standaloneMultiplayer && (
+                <button
+                  type="button"
+                  disabled={!multiplayerRoom.online}
+                  onClick={openMultiplayerEmulatorPage}
+                  style={{
+                    border: "1px solid rgba(187,247,208,.24)",
+                    borderRadius: 10,
+                    padding: "10px 10px",
+                    background: multiplayerRoom.online ? "rgba(15,23,42,.82)" : "rgba(15,23,42,.42)",
+                    color: multiplayerRoom.online ? "#dcfce7" : "#64748b",
+                    fontSize: 11,
+                    fontWeight: 1000,
+                    cursor: multiplayerRoom.online ? "pointer" : "default"
+                  }}
+                >
+                  Open Emulator
+                </button>
+              )}
+              {standaloneMultiplayer && (
+                <button
+                  type="button"
+                  disabled={!multiplayerRoom.online}
+                  onClick={addMultiplayerControllerOnThisPage}
+                  style={{
+                    border: "none",
+                    borderRadius: 10,
+                    padding: "10px 10px",
+                    background: multiplayerRoom.online ? "#22c55e" : "rgba(148,163,184,.34)",
+                    color: multiplayerRoom.online ? "#052e16" : "#94a3b8",
+                    fontSize: 11,
+                    fontWeight: 1000,
+                    cursor: multiplayerRoom.online ? "pointer" : "default"
+                  }}
+                >
+                  Add This PC Controller
+                </button>
+              )}
               <button
                 type="button"
                 disabled={!multiplayerRoom.online}
@@ -9544,6 +9613,9 @@ function LoginPage({ onLogin, approvedUsers, bannedUsers = [], onSignupRequest }
 }
 
 export default function App() {
+  const standaloneMultiplayerPage = (() => {
+    try { return window.location.pathname === "/multiplayer-emulator"; } catch { return false; }
+  })();
   const [loggedInUsername, setLoggedInUsername] = useState(() => {
     try { return localStorage.getItem("fuitsLoggedInUsername") || ""; } catch { return ""; }
   });
@@ -9839,6 +9911,14 @@ export default function App() {
     setIsMusicPlaying(false);
     setMusicNeedsTap(false);
   }, [activeMusicSrc]);
+
+  if (standaloneMultiplayerPage) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#020617" }}>
+        <PokemonSidebar standaloneMultiplayer />
+      </div>
+    );
+  }
 
   if (!loggedInUsername) {
     return <LoginPage onLogin={loginUser} approvedUsers={approvedUsers} bannedUsers={bannedUsers} onSignupRequest={submitSignupRequest} />;

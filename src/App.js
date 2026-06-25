@@ -1893,110 +1893,107 @@ function PokemonSidebar() {
 
     if (!(multiplayerRemoteKeysRef.current instanceof Map)) multiplayerRemoteKeysRef.current = new Map();
 
-    const playerKeyMaps = [
-      {
-        up: { key: "ArrowUp", code: "ArrowUp", keyCode: 38 },
-        down: { key: "ArrowDown", code: "ArrowDown", keyCode: 40 },
-        left: { key: "ArrowLeft", code: "ArrowLeft", keyCode: 37 },
-        right: { key: "ArrowRight", code: "ArrowRight", keyCode: 39 },
-        a: { key: "z", code: "KeyZ", keyCode: 90 },
-        b: { key: "x", code: "KeyX", keyCode: 88 },
-        x: { key: "a", code: "KeyA", keyCode: 65 },
-        y: { key: "s", code: "KeyS", keyCode: 83 },
-        l: { key: "q", code: "KeyQ", keyCode: 81 },
-        r: { key: "e", code: "KeyE", keyCode: 69 },
-        select: { key: "v", code: "KeyV", keyCode: 86 },
-        start: { key: "Enter", code: "Enter", keyCode: 13 },
-        analogLeft: { key: "f", code: "KeyF", keyCode: 70 },
-        analogRight: { key: "h", code: "KeyH", keyCode: 72 },
-        analogUp: { key: "t", code: "KeyT", keyCode: 84 },
-        analogDown: { key: "g", code: "KeyG", keyCode: 71 },
-        cLeft: { key: "j", code: "KeyJ", keyCode: 74 },
-        cRight: { key: "l", code: "KeyL", keyCode: 76 },
-        cUp: { key: "i", code: "KeyI", keyCode: 73 },
-        cDown: { key: "k", code: "KeyK", keyCode: 75 }
-      },
-      {
-        up: { key: "w", code: "KeyW", keyCode: 87 },
-        down: { key: "c", code: "KeyC", keyCode: 67 },
-        left: { key: "d", code: "KeyD", keyCode: 68 },
-        right: { key: "m", code: "KeyM", keyCode: 77 },
-        a: { key: "y", code: "KeyY", keyCode: 89 },
-        b: { key: "u", code: "KeyU", keyCode: 85 },
-        x: { key: "p", code: "KeyP", keyCode: 80 },
-        y: { key: "o", code: "KeyO", keyCode: 79 },
-        select: { key: "b", code: "KeyB", keyCode: 66 },
-        start: { key: "n", code: "KeyN", keyCode: 78 }
-      }
-    ];
-
-    const dispatchRemoteKey = (mapped, type) => {
-      if (!mapped) return;
-      const canvas = emulatorHostRef.current?.querySelector("canvas");
-      const targets = [canvas || document.activeElement || document.body, document, window];
-      targets.forEach(target => {
-        const event = new KeyboardEvent(type, {
-          key: mapped.key,
-          code: mapped.code,
-          bubbles: true,
-          cancelable: true
-        });
-        Object.defineProperty(event, "keyCode", { get: () => mapped.keyCode });
-        Object.defineProperty(event, "which", { get: () => mapped.keyCode });
-        target.dispatchEvent(event);
-      });
+    const playerCount = 4;
+    const digitalInputs = {
+      b: 0,
+      y: 1,
+      select: 2,
+      start: 3,
+      up: 4,
+      down: 5,
+      left: 6,
+      right: 7,
+      a: 8,
+      x: 9,
+      l: 10,
+      r: 11
+    };
+    const analogInputs = {
+      right: 16,
+      left: 17,
+      down: 18,
+      up: 19,
+      cRight: 20,
+      cLeft: 21,
+      cDown: 22,
+      cUp: 23
     };
 
-    const setRemoteKey = (keyId, mapped, pressed) => {
-      const activeKeys = multiplayerRemoteKeysRef.current;
-      if (pressed && !activeKeys.has(keyId)) {
-        activeKeys.set(keyId, mapped);
-        dispatchRemoteKey(mapped, "keydown");
-      } else if (!pressed && activeKeys.has(keyId)) {
-        const activeMapped = activeKeys.get(keyId) || mapped;
-        activeKeys.delete(keyId);
-        dispatchRemoteKey(activeMapped, "keyup");
+    const simulateRemoteInput = (input, value) => {
+      const manager = window.EJS_emulator?.gameManager;
+      if (typeof manager?.simulateInput !== "function") return false;
+      try {
+        manager.simulateInput(input.player, input.index, value);
+        return true;
+      } catch {
+        return false;
       }
+    };
+
+    const setRemoteInput = (keyId, input, value) => {
+      const activeInputs = multiplayerRemoteKeysRef.current;
+      const current = activeInputs.get(keyId);
+      if (value) {
+        if (current?.value === value) return;
+        if (!simulateRemoteInput(input, value)) return;
+        activeInputs.set(keyId, { ...input, value });
+        return;
+      }
+
+      if (!current) return;
+      simulateRemoteInput(current, 0);
+      activeInputs.delete(keyId);
     };
 
     const releaseRemoteKeys = () => {
-      Array.from(multiplayerRemoteKeysRef.current.entries()).forEach(([keyId, mapped]) => setRemoteKey(keyId, mapped, false));
+      Array.from(multiplayerRemoteKeysRef.current.entries()).forEach(([keyId, input]) => setRemoteInput(keyId, input, 0));
     };
 
-    const addPressedKey = (pressedKeys, controllerIndex, keyName, mapped) => {
-      if (!mapped) return;
-      pressedKeys.set(`${controllerIndex}:${keyName}`, mapped);
+    const addPressedInput = (pressedInputs, controllerIndex, name, index, value = 1) => {
+      if (index === undefined || !value) return;
+      pressedInputs.set(`${controllerIndex}:${name}`, { player: controllerIndex, index, value });
     };
 
-    const addControllerKeys = (pressedKeys, controller, controllerIndex, n64Launch) => {
-      const keyMap = playerKeyMaps[controllerIndex];
-      if (!keyMap) return;
+    const addAxisInput = (pressedInputs, controllerIndex, name, negativeIndex, positiveIndex, value, threshold, analog = false) => {
+      const amount = Number(value || 0);
+      if (amount < -threshold) {
+        addPressedInput(
+          pressedInputs,
+          controllerIndex,
+          `${name}Negative`,
+          negativeIndex,
+          analog ? Math.round(Math.min(1, Math.abs(amount)) * 0x7fff) : 1
+        );
+      } else if (amount > threshold) {
+        addPressedInput(
+          pressedInputs,
+          controllerIndex,
+          `${name}Positive`,
+          positiveIndex,
+          analog ? Math.round(Math.min(1, Math.abs(amount)) * 0x7fff) : 1
+        );
+      }
+    };
+
+    const addControllerInputs = (pressedInputs, controller, controllerIndex, n64Launch) => {
+      if (controllerIndex >= playerCount) return;
 
       const buttons = new Set(Array.isArray(controller?.buttons) ? controller.buttons : []);
-      Object.entries(keyMap).forEach(([keyName, mapped]) => {
-        if (buttons.has(keyName)) addPressedKey(pressedKeys, controllerIndex, keyName, mapped);
+      Object.entries(digitalInputs).forEach(([buttonName, inputIndex]) => {
+        if (buttons.has(buttonName)) addPressedInput(pressedInputs, controllerIndex, buttonName, inputIndex);
       });
 
       const axes = Array.isArray(controller?.axes) ? controller.axes : [];
       const leftX = Number(axes[0] || 0);
       const leftY = Number(axes[1] || 0);
-      if (n64Launch && controllerIndex === 0) {
-        addPressedKey(pressedKeys, controllerIndex, "analogLeft", leftX < -0.35 ? keyMap.analogLeft : null);
-        addPressedKey(pressedKeys, controllerIndex, "analogRight", leftX > 0.35 ? keyMap.analogRight : null);
-        addPressedKey(pressedKeys, controllerIndex, "analogUp", leftY < -0.35 ? keyMap.analogUp : null);
-        addPressedKey(pressedKeys, controllerIndex, "analogDown", leftY > 0.35 ? keyMap.analogDown : null);
-
-        const rightX = Number(axes[2] || 0);
-        const rightY = Number(axes[3] || 0);
-        addPressedKey(pressedKeys, controllerIndex, "cLeft", rightX < -0.45 ? keyMap.cLeft : null);
-        addPressedKey(pressedKeys, controllerIndex, "cRight", rightX > 0.45 ? keyMap.cRight : null);
-        addPressedKey(pressedKeys, controllerIndex, "cUp", rightY < -0.45 ? keyMap.cUp : null);
-        addPressedKey(pressedKeys, controllerIndex, "cDown", rightY > 0.45 ? keyMap.cDown : null);
+      if (n64Launch) {
+        addAxisInput(pressedInputs, controllerIndex, "stickX", analogInputs.left, analogInputs.right, leftX, 0.35, true);
+        addAxisInput(pressedInputs, controllerIndex, "stickY", analogInputs.up, analogInputs.down, leftY, 0.35, true);
+        addAxisInput(pressedInputs, controllerIndex, "cX", analogInputs.cLeft, analogInputs.cRight, Number(axes[2] || 0), 0.45, true);
+        addAxisInput(pressedInputs, controllerIndex, "cY", analogInputs.cUp, analogInputs.cDown, Number(axes[3] || 0), 0.45, true);
       } else {
-        addPressedKey(pressedKeys, controllerIndex, "left", leftX < -0.45 ? keyMap.left : null);
-        addPressedKey(pressedKeys, controllerIndex, "right", leftX > 0.45 ? keyMap.right : null);
-        addPressedKey(pressedKeys, controllerIndex, "up", leftY < -0.45 ? keyMap.up : null);
-        addPressedKey(pressedKeys, controllerIndex, "down", leftY > 0.45 ? keyMap.down : null);
+        addAxisInput(pressedInputs, controllerIndex, "dpadX", digitalInputs.left, digitalInputs.right, leftX, 0.45);
+        addAxisInput(pressedInputs, controllerIndex, "dpadY", digitalInputs.up, digitalInputs.down, leftY, 0.45);
       }
     };
 
@@ -2010,14 +2007,14 @@ function PokemonSidebar() {
         if (!response.ok) throw new Error("No multiplayer helper.");
         const data = await response.json();
         const controllers = Array.isArray(data?.controllers) ? data.controllers : [];
-        const pressedKeys = new Map();
+        const pressedInputs = new Map();
         controllers
-          .slice(0, playerKeyMaps.length)
-          .forEach((controller, controllerIndex) => addControllerKeys(pressedKeys, controller, controllerIndex, n64Launch));
+          .slice(0, playerCount)
+          .forEach((controller, controllerIndex) => addControllerInputs(pressedInputs, controller, controllerIndex, n64Launch));
 
-        pressedKeys.forEach((mapped, keyId) => setRemoteKey(keyId, mapped, true));
+        pressedInputs.forEach((input, keyId) => setRemoteInput(keyId, input, input.value));
         Array.from(multiplayerRemoteKeysRef.current.entries()).forEach(([keyId, mapped]) => {
-          if (!pressedKeys.has(keyId)) setRemoteKey(keyId, mapped, false);
+          if (!pressedInputs.has(keyId)) setRemoteInput(keyId, mapped, 0);
         });
       } catch {
         releaseRemoteKeys();

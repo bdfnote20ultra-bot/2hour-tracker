@@ -3046,7 +3046,7 @@ function PokemonSidebar() {
               </button>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div style={{ display: "grid", gap: 8 }}>
               <button
                 type="button"
                 disabled={!multiplayerRoom.online}
@@ -3063,23 +3063,6 @@ function PokemonSidebar() {
                 }}
               >
                 Add Controller
-              </button>
-              <button
-                type="button"
-                disabled={!multiplayerRoom.online}
-                onClick={() => window.open(multiplayerViewerUrl, "_blank", "noopener,noreferrer")}
-                style={{
-                  border: "1px solid rgba(187,247,208,.24)",
-                  borderRadius: 10,
-                  padding: "10px 10px",
-                  background: multiplayerRoom.online ? "rgba(15,23,42,.82)" : "rgba(15,23,42,.42)",
-                  color: multiplayerRoom.online ? "#dcfce7" : "#64748b",
-                  fontSize: 11,
-                  fontWeight: 1000,
-                  cursor: multiplayerRoom.online ? "pointer" : "default"
-                }}
-              >
-                Open Room
               </button>
             </div>
           </div>

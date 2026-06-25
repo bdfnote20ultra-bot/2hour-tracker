@@ -739,6 +739,7 @@ function PokemonSidebar() {
   const gameCardRefs = useRef({});
   const gamepadKeysRef = useRef(new Set());
   const multiplayerRemoteKeysRef = useRef(new Set());
+  const emulatorMenuOpenAllowedUntilRef = useRef(0);
   const n64PerformanceMode = isN64Game(gameLaunch);
 
   const isInteractiveElement = (element) => {
@@ -746,7 +747,7 @@ function PokemonSidebar() {
     return Boolean(element.closest?.("select, input, textarea, button, [contenteditable='true']"));
   };
 
-  const focusPokemonEmulator = ({ click = true } = {}) => {
+  const focusPokemonEmulator = ({ click = false } = {}) => {
     if (isInteractiveElement(document.activeElement)) return;
 
     const host = emulatorHostRef.current;
@@ -766,6 +767,62 @@ function PokemonSidebar() {
     }
     try { window.EJS_emulator?.gameManager?.resume?.(); } catch {}
     try { window.EJS_emulator?.resume?.(); } catch {}
+  };
+
+  const getEventClientPoint = (event) => {
+    const point = event?.touches?.[0] || event?.changedTouches?.[0] || event;
+    if (typeof point?.clientX !== "number" || typeof point?.clientY !== "number") return null;
+    return { x: point.clientX, y: point.clientY };
+  };
+
+  const isPokemonEmulatorMenuGesture = (event) => {
+    const host = emulatorHostRef.current;
+    if (!host) return false;
+
+    const target = event?.target;
+    const path = typeof event?.composedPath === "function" ? event.composedPath() : [];
+    const menuTarget = path.concat(target || []).some(element => {
+      if (!element || typeof element.closest !== "function") return false;
+      return Boolean(element.closest(".ejs_menu_button, .ejs_menu_bar, .ejs_control_bar, [class*='menu']"));
+    });
+    if (menuTarget) return true;
+
+    const point = getEventClientPoint(event);
+    if (!point) return false;
+
+    const rect = host.getBoundingClientRect();
+    const hamburgerWidth = Math.min(74, Math.max(34, rect.width * 0.28));
+    const hamburgerHeight = Math.min(74, Math.max(34, rect.height * 0.28));
+    return (
+      point.x >= rect.right - hamburgerWidth &&
+      point.x <= rect.right &&
+      point.y >= rect.top &&
+      point.y <= rect.top + hamburgerHeight
+    );
+  };
+
+  const closePokemonEmulatorMenu = () => {
+    try { window.EJS_emulator?.menu?.close?.(); } catch {}
+    try { window.EJS_emulator?.closePopup?.(); } catch {}
+  };
+
+  const patchPokemonEmulatorMenu = () => {
+    const menu = window.EJS_emulator?.menu;
+    if (!menu || typeof menu.open !== "function") return false;
+    if (menu.__fuitHamburgerOnlyOpen) return true;
+
+    const originalOpen = menu.open.bind(menu);
+    menu.open = (...args) => {
+      const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+      if (now > emulatorMenuOpenAllowedUntilRef.current) {
+        window.setTimeout(closePokemonEmulatorMenu, 0);
+        return undefined;
+      }
+      emulatorMenuOpenAllowedUntilRef.current = 0;
+      return originalOpen(...args);
+    };
+    menu.__fuitHamburgerOnlyOpen = true;
+    return true;
   };
 
   const stopRunningGame = () => {
@@ -1370,22 +1427,73 @@ function PokemonSidebar() {
       3: {}
     };
 
+    const previousEjsReady = window.EJS_ready;
+    window.EJS_ready = (...args) => {
+      try { previousEjsReady?.(...args); } catch {}
+      patchPokemonEmulatorMenu();
+      closePokemonEmulatorMenu();
+    };
+
     const script = document.createElement("script");
     script.src = `https://cdn.emulatorjs.org/stable/data/loader.js?v=${Date.now()}`;
     script.async = true;
     script.dataset.pokemonEmulatorLoader = "true";
     document.body.appendChild(script);
-    focusPokemonEmulator({ click: !n64Launch });
+    emulatorMenuOpenAllowedUntilRef.current = 0;
+    let menuGuardPatched = false;
+    const menuGuard = () => {
+      if (menuGuardPatched) return;
+      if (!patchPokemonEmulatorMenu()) return;
+      menuGuardPatched = true;
+      closePokemonEmulatorMenu();
+      window.clearInterval(menuGuardInterval);
+    };
+    const menuGuardInterval = window.setInterval(menuGuard, 80);
+    const menuGuardStopTimer = window.setTimeout(() => window.clearInterval(menuGuardInterval), 30000);
+    menuGuard();
+    focusPokemonEmulator();
 
     const focusTimers = (n64Launch ? [250] : [150, 400, 900, 1600, 2600]).map(delay =>
-      window.setTimeout(() => focusPokemonEmulator({ click: !n64Launch }), delay)
+      window.setTimeout(() => focusPokemonEmulator(), delay)
     );
 
     return () => {
+      if (previousEjsReady) window.EJS_ready = previousEjsReady;
+      else {
+        try { delete window.EJS_ready; } catch {}
+      }
+      window.clearInterval(menuGuardInterval);
+      window.clearTimeout(menuGuardStopTimer);
       focusTimers.forEach(timer => window.clearTimeout(timer));
       resetPokemonEmulator(emulatorHostRef.current);
     };
   }, [activeGamingApp, gameLaunch?.core, gameLaunch?.discUrls?.join("|"), gameLaunch?.file, gameLaunch?.gameUrl, gameLaunch?.label, gameLaunch?.launchId, selectedDiscIndex, collapsed]);
+
+  useEffect(() => {
+    if (!gameLaunch || collapsed || !emulatorHostRef.current) return undefined;
+
+    const host = emulatorHostRef.current;
+    const handleMenuGesture = (event) => {
+      if (isPokemonEmulatorMenuGesture(event)) {
+        const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+        emulatorMenuOpenAllowedUntilRef.current = now + 900;
+        return;
+      }
+
+      emulatorMenuOpenAllowedUntilRef.current = 0;
+      window.setTimeout(closePokemonEmulatorMenu, 0);
+    };
+
+    host.addEventListener("pointerdown", handleMenuGesture, true);
+    host.addEventListener("mousedown", handleMenuGesture, true);
+    host.addEventListener("touchstart", handleMenuGesture, true);
+
+    return () => {
+      host.removeEventListener("pointerdown", handleMenuGesture, true);
+      host.removeEventListener("mousedown", handleMenuGesture, true);
+      host.removeEventListener("touchstart", handleMenuGesture, true);
+    };
+  }, [gameLaunch, collapsed]);
 
   useEffect(() => {
     if (!gameLaunch || collapsed) return;
@@ -1534,7 +1642,7 @@ function PokemonSidebar() {
     const handleGamepadConnected = () => {
       if (gamepadScheduleType === "timeout") window.clearTimeout(gamepadTimer);
       else window.cancelAnimationFrame(gamepadTimer);
-      focusPokemonEmulator({ click: !n64Launch });
+      focusPokemonEmulator();
       scheduleGamepadPoll(true);
     };
 

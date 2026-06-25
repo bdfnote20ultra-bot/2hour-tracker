@@ -25,6 +25,9 @@ const selectedGame = (() => {
   }
 })();
 const controllers = new Map();
+const controllerClaims = new Map();
+const CONTROLLER_STALE_MS = 10000;
+const CONTROLLER_CLAIM_STALE_MS = 5000;
 let latestFrame = null;
 let latestFrameMs = 0;
 let latestFrameEtag = "0";
@@ -58,10 +61,27 @@ function publicOrigin(req) {
 function pruneControllers() {
   const now = Date.now();
   for (const [id, controller] of controllers.entries()) {
-    if (now - controller.lastSeenMs > 10000) controllers.delete(id);
+    if (now - controller.lastSeenMs > CONTROLLER_STALE_MS) controllers.delete(id);
+  }
+  for (const [physicalId, claim] of controllerClaims.entries()) {
+    if (now - claim.lastSeenMs > CONTROLLER_CLAIM_STALE_MS || !controllers.has(claim.id)) {
+      controllerClaims.delete(physicalId);
+    }
   }
   if (hostState.connected && now - hostState.lastSeenMs > 5000) {
     hostState = { ...hostState, connected: false };
+  }
+}
+
+function normalizeControllerClaimId(value) {
+  return String(value || "").trim().replace(/\s+/g, " ").slice(0, 260);
+}
+
+function releaseControllerClaims(id, keepPhysicalId = "") {
+  for (const [physicalId, claim] of controllerClaims.entries()) {
+    if (claim.id === id && physicalId !== keepPhysicalId) {
+      controllerClaims.delete(physicalId);
+    }
   }
 }
 
@@ -230,11 +250,51 @@ function controllerPage() {
       const params = new URLSearchParams(location.search);
       const urlControllerId = params.get("id");
       const idKey = "fuitControllerId";
+      const deviceIdKey = "fuitControllerDeviceId";
       const controllerId = urlControllerId || sessionStorage.getItem(idKey) || crypto.randomUUID();
       sessionStorage.setItem(idKey, controllerId);
+      let controllerDeviceId = "";
+      try {
+        controllerDeviceId = localStorage.getItem(deviceIdKey) || "";
+        if (!controllerDeviceId) {
+          controllerDeviceId = crypto.randomUUID();
+          localStorage.setItem(deviceIdKey, controllerDeviceId);
+        }
+      } catch {
+        controllerDeviceId = [
+          navigator.userAgent || "browser",
+          navigator.platform || "platform",
+          screen.width + "x" + screen.height
+        ].join(":");
+      }
       const pressed = new Set();
+      const lockedGamepads = new Map();
       const status = document.getElementById("status");
       const keyMap = { KeyW: "up", KeyA: "left", KeyS: "down", KeyD: "right", KeyJ: "a", KeyK: "b", KeyU: "x", KeyI: "y", Enter: "start", ShiftRight: "select", ShiftLeft: "select" };
+      const gamepadMap = { 0: "a", 1: "b", 2: "x", 3: "y", 4: "l", 5: "r", 8: "select", 9: "start", 12: "up", 13: "down", 14: "left", 15: "right" };
+      let claimedPhysicalControllerId = "";
+
+      const getPadKey = pad => pad ? controllerDeviceId + ":" + String(pad.index) + ":" + (pad.id || "Gamepad") : "";
+      const getPadLabel = pad => String(pad?.id || "Keyboard").trim() || "Keyboard";
+      const releaseController = physicalControllerId => {
+        const releasePhysicalControllerId = typeof physicalControllerId === "string" ? physicalControllerId : claimedPhysicalControllerId;
+        const body = JSON.stringify({ id: controllerId, physicalControllerId: releasePhysicalControllerId });
+        try {
+          if (navigator.sendBeacon) {
+            const sent = navigator.sendBeacon("/api/controller/release", new Blob([body], { type: "application/json" }));
+            if (sent) return;
+          }
+        } catch {}
+        fetch("/api/controller/release", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+          keepalive: true
+        }).catch(() => {});
+      };
+
+      window.addEventListener("pagehide", () => releaseController());
+      window.addEventListener("beforeunload", () => releaseController());
 
       window.addEventListener("keydown", event => {
         const mapped = keyMap[event.code];
@@ -250,12 +310,9 @@ function controllerPage() {
         pressed.delete(mapped);
       });
 
-      async function sendInput() {
-        const pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : [];
-        const pad = pads[0];
-      const buttons = Array.from(pressed);
-      if (pad) {
-          const gamepadMap = { 0: "a", 1: "b", 2: "x", 3: "y", 4: "l", 5: "r", 8: "select", 9: "start", 12: "up", 13: "down", 14: "left", 15: "right" };
+      function readButtons(pad) {
+        const buttons = Array.from(pressed);
+        if (pad) {
           pad.buttons.forEach((button, index) => { if (button.pressed && gamepadMap[index]) buttons.push(gamepadMap[index]); });
           const x = pad.axes[0] || 0;
           const y = pad.axes[1] || 0;
@@ -263,14 +320,91 @@ function controllerPage() {
           if (x > 0.45) buttons.push("right");
           if (y < -0.45) buttons.push("up");
           if (y > 0.45) buttons.push("down");
+        }
+        return buttons;
       }
+
+      async function postControllerInput(pad) {
+        const physicalControllerId = getPadKey(pad);
+        const controllerLabel = getPadLabel(pad);
+        const buttons = readButtons(pad);
+        const response = await fetch("/api/controller", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: controllerId,
+            label: controllerLabel,
+            physicalControllerId,
+            buttons,
+            axes: pad?.axes || []
+          })
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok) {
+          if (result?.locked && physicalControllerId) {
+            lockedGamepads.set(physicalControllerId, Date.now() + 5000);
+            if (claimedPhysicalControllerId === physicalControllerId) claimedPhysicalControllerId = "";
+            return { ok: false, locked: true, label: result.label || controllerLabel, physicalControllerId };
+          }
+          throw new Error(result?.error || "Controller update failed.");
+        }
+        claimedPhysicalControllerId = physicalControllerId;
+        status.textContent = buttons.length
+          ? "Sending from " + controllerLabel + ": " + buttons.join(", ")
+          : "Connected: " + controllerLabel;
+        return { ok: true, locked: false, label: controllerLabel, physicalControllerId };
+      }
+
+      async function sendInput() {
+        const pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : [];
+        if (claimedPhysicalControllerId) {
+          const claimedPad = pads.find(candidate => getPadKey(candidate) === claimedPhysicalControllerId) || null;
+          if (claimedPad) {
+            try {
+              const result = await postControllerInput(claimedPad);
+              if (result.locked) status.textContent = result.label + " is already connected in another controller tab.";
+            } catch {
+              status.textContent = "Helper connection lost.";
+            }
+            return;
+          }
+
+          const releasedPhysicalControllerId = claimedPhysicalControllerId;
+          claimedPhysicalControllerId = "";
+          lockedGamepads.delete(releasedPhysicalControllerId);
+          releaseController(releasedPhysicalControllerId);
+        }
+
+        let lockedLabel = "";
+        const now = Date.now();
+        for (const pad of pads) {
+          const physicalControllerId = getPadKey(pad);
+          const lockedUntil = lockedGamepads.get(physicalControllerId) || 0;
+          if (lockedUntil > now) {
+            lockedLabel = lockedLabel || getPadLabel(pad);
+            continue;
+          }
+          lockedGamepads.delete(physicalControllerId);
+          try {
+            const result = await postControllerInput(pad);
+            if (result.ok) return;
+            if (result.locked) {
+              lockedLabel = lockedLabel || result.label;
+              continue;
+            }
+          } catch {
+            status.textContent = "Helper connection lost.";
+            return;
+          }
+        }
+
+        if (pads.length) {
+          status.textContent = (lockedLabel || getPadLabel(pads[0])) + " is already connected in another controller tab.";
+          return;
+        }
+
         try {
-          await fetch("/api/controller", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: controllerId, label: pad?.id || "Browser Controller", buttons, axes: pad?.axes || [] })
-          });
-          status.textContent = buttons.length ? "Sending: " + buttons.join(", ") : "Connected. Press a key or gamepad button.";
+          await postControllerInput(null);
         } catch {
           status.textContent = "Helper connection lost.";
         }
@@ -385,16 +519,72 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = JSON.parse(await readBody(req) || "{}");
       const id = String(body.id || "").slice(0, 80) || `controller-${controllers.size + 1}`;
+      const now = Date.now();
+      const physicalControllerId = normalizeControllerClaimId(body.physicalControllerId);
+      const label = String(body.label || "Browser Controller").slice(0, 120);
+      pruneControllers();
+
+      if (physicalControllerId) {
+        const existingClaim = controllerClaims.get(physicalControllerId);
+        if (
+          existingClaim &&
+          existingClaim.id !== id &&
+          controllers.has(existingClaim.id) &&
+          now - existingClaim.lastSeenMs <= CONTROLLER_CLAIM_STALE_MS
+        ) {
+          const currentController = controllers.get(id);
+          const hasDifferentPhysicalClaim = currentController?.physicalControllerId && currentController.physicalControllerId !== physicalControllerId;
+          if (!hasDifferentPhysicalClaim) {
+            controllers.delete(id);
+            releaseControllerClaims(id);
+          }
+          sendJson(res, 409, {
+            ok: false,
+            locked: true,
+            error: "This physical controller is already connected in another controller tab.",
+            label: existingClaim.label || label
+          });
+          return;
+        }
+
+        releaseControllerClaims(id, physicalControllerId);
+        controllerClaims.set(physicalControllerId, { id, label, lastSeenMs: now });
+      } else {
+        releaseControllerClaims(id);
+      }
+
       controllers.set(id, {
         id,
-        label: String(body.label || "Browser Controller").slice(0, 120),
+        label,
+        physicalControllerId,
         buttons: Array.isArray(body.buttons) ? body.buttons.slice(0, 32) : [],
         axes: Array.isArray(body.axes) ? body.axes.slice(0, 8) : [],
-        lastSeenMs: Date.now()
+        lastSeenMs: now
       });
       sendJson(res, 200, { ok: true });
     } catch (error) {
       sendJson(res, 400, { ok: false, error: error.message || "Bad controller payload." });
+    }
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/controller/release") {
+    try {
+      const body = JSON.parse(await readBody(req) || "{}");
+      const id = String(body.id || "").slice(0, 80);
+      const physicalControllerId = normalizeControllerClaimId(body.physicalControllerId);
+      if (id) {
+        controllers.delete(id);
+        if (physicalControllerId) {
+          const claim = controllerClaims.get(physicalControllerId);
+          if (claim?.id === id) controllerClaims.delete(physicalControllerId);
+        } else {
+          releaseControllerClaims(id);
+        }
+      }
+      sendJson(res, 200, { ok: true });
+    } catch (error) {
+      sendJson(res, 400, { ok: false, error: error.message || "Bad controller release payload." });
     }
     return;
   }

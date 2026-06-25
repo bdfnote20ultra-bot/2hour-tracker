@@ -120,6 +120,8 @@ const YOUTUBE_GAMING_VIDEOS_URL = "https://www.youtube.com/@xflivetv/videos";
 const RETROARCH_WEB_PLAYER_URL = "https://web.libretro.com/";
 const FUIT_MULTIPLAYER_HOST_URL_KEY = "fuitMultiplayerHostUrl_v1";
 const FUIT_MULTIPLAYER_DEFAULT_HOST_URL = "http://127.0.0.1:8174";
+const FUIT_CONTROLLER_RELAY_SOURCE = "fuit-multiplayer-controller";
+const FUIT_CONTROLLER_RELAY_TTL_MS = 60 * 60 * 1000;
 const FUIT_MULTIPLAYER_DISCOVERY_URLS = Array.from(
   new Set([
     FUIT_MULTIPLAYER_DEFAULT_HOST_URL,
@@ -739,6 +741,12 @@ function PokemonSidebar() {
   const gameCardRefs = useRef({});
   const gamepadKeysRef = useRef(new Set());
   const multiplayerRemoteKeysRef = useRef(new Map());
+  const multiplayerControllerRelayClaimsRef = useRef(new Map());
+  const browserGetGamepadsRef = useRef(
+    typeof navigator !== "undefined" && typeof navigator.getGamepads === "function"
+      ? navigator.getGamepads.bind(navigator)
+      : null
+  );
   const stoppedMultiplayerHelperRef = useRef({ baseUrl: "", startedAt: "" });
   const emulatorMenuOpenAllowedUntilRef = useRef(0);
   const n64PerformanceMode = isN64Game(gameLaunch);
@@ -1052,7 +1060,7 @@ function PokemonSidebar() {
     }
   };
   const openMultiplayerController = () => {
-    window.open(makeMultiplayerControllerUrl(), "_blank", "noopener,noreferrer");
+    window.open(makeMultiplayerControllerUrl(), "_blank");
   };
   const isStoppedMultiplayerHelper = useCallback((baseUrl, data) => {
     const stopped = stoppedMultiplayerHelperRef.current;
@@ -1243,6 +1251,150 @@ function PokemonSidebar() {
   useEffect(() => {
     try { localStorage.setItem(FUIT_MULTIPLAYER_HOST_URL_KEY, cleanMultiplayerHostUrl); } catch {}
   }, [cleanMultiplayerHostUrl]);
+
+  useEffect(() => {
+    if (activeGamingApp !== "multiplayer" || !multiplayerRoom.online || collapsed) {
+      multiplayerControllerRelayClaimsRef.current.clear();
+      return undefined;
+    }
+
+    if (!browserGetGamepadsRef.current && typeof navigator.getGamepads === "function") {
+      browserGetGamepadsRef.current = navigator.getGamepads.bind(navigator);
+    }
+
+    const helperBaseUrl = (() => {
+      const helperUrl = multiplayerRoom.data?.controllerUrl || multiplayerRoom.data?.viewerUrl || cleanMultiplayerHostUrl;
+      try { return new URL(helperUrl, window.location.href).origin; } catch { return cleanMultiplayerHostUrl; }
+    })();
+    const helperOrigin = (() => {
+      try { return new URL(helperBaseUrl, window.location.href).origin; } catch { return helperBaseUrl; }
+    })();
+    const gamepadMap = { 0: "a", 1: "b", 2: "x", 3: "y", 4: "l", 5: "r", 8: "select", 9: "start", 12: "up", 13: "down", 14: "left", 15: "right" };
+    let cancelled = false;
+    let relayTimer = 0;
+    let sendingRelayInput = false;
+    let relayAgain = false;
+
+    const pruneRelayClaims = () => {
+      const now = Date.now();
+      Array.from(multiplayerControllerRelayClaimsRef.current.entries()).forEach(([id, claim]) => {
+        if (now - Number(claim.updatedAt || 0) > FUIT_CONTROLLER_RELAY_TTL_MS) {
+          multiplayerControllerRelayClaimsRef.current.delete(id);
+        }
+      });
+    };
+
+    const readPadButtons = (pad) => {
+      const buttons = [];
+      if (!pad) return buttons;
+      pad.buttons.forEach((button, index) => { if (button.pressed && gamepadMap[index]) buttons.push(gamepadMap[index]); });
+      const x = pad.axes[0] || 0;
+      const y = pad.axes[1] || 0;
+      if (x < -0.45) buttons.push("left");
+      if (x > 0.45) buttons.push("right");
+      if (y < -0.45) buttons.push("up");
+      if (y > 0.45) buttons.push("down");
+      return buttons;
+    };
+
+    const findClaimPad = (pads, claim) => {
+      const claimPadIndex = Number(claim.padIndex);
+      const claimPadId = String(claim.padId || "");
+      return pads.find(pad =>
+        Number(pad.index) === claimPadIndex &&
+        (!claimPadId || String(pad.id || "") === claimPadId)
+      ) || null;
+    };
+
+    const sendRelayInput = async () => {
+      if (cancelled || document.hidden) return;
+      pruneRelayClaims();
+      const claims = Array.from(multiplayerControllerRelayClaimsRef.current.values());
+      if (!claims.length) return;
+      const getGamepads = browserGetGamepadsRef.current || (typeof navigator.getGamepads === "function" ? navigator.getGamepads.bind(navigator) : null);
+      if (!getGamepads) return;
+      const pads = Array.from(getGamepads()).filter(Boolean);
+      if (!pads.length) return;
+
+      for (const claim of claims) {
+        const pad = findClaimPad(pads, claim);
+        if (!pad) continue;
+        try {
+          await fetch(`${helperBaseUrl}/api/controller`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: claim.id,
+              label: claim.label || String(pad.id || "Gamepad"),
+              physicalControllerId: claim.physicalControllerId,
+              buttons: readPadButtons(pad),
+              axes: Array.from(pad.axes || [])
+            })
+          });
+        } catch {}
+      }
+    };
+
+    const queueRelayInput = (force = false) => {
+      if (!force && document.hidden) return;
+      if (sendingRelayInput) {
+        relayAgain = true;
+        return;
+      }
+      sendingRelayInput = true;
+      Promise.resolve()
+        .then(sendRelayInput)
+        .catch(() => {})
+        .finally(() => {
+          sendingRelayInput = false;
+          if (relayAgain) {
+            relayAgain = false;
+            queueRelayInput(true);
+          }
+        });
+    };
+
+    const handleControllerRelayMessage = (event) => {
+      if (event.origin !== helperOrigin) return;
+      const message = event.data || {};
+      if (message.source !== FUIT_CONTROLLER_RELAY_SOURCE) return;
+      const claim = message.claim || {};
+      if (message.type === "release") {
+        if (claim.id) multiplayerControllerRelayClaimsRef.current.delete(claim.id);
+        return;
+      }
+      if (message.type !== "claim" || !claim.id || !claim.physicalControllerId) return;
+      multiplayerControllerRelayClaimsRef.current.set(claim.id, {
+        ...claim,
+        updatedAt: Date.now()
+      });
+      queueRelayInput(true);
+    };
+    const handleRelayWake = () => queueRelayInput(true);
+
+    window.addEventListener("message", handleControllerRelayMessage);
+    window.addEventListener("gamepadconnected", handleRelayWake);
+    window.addEventListener("gamepaddisconnected", handleRelayWake);
+    document.addEventListener("visibilitychange", handleRelayWake);
+    relayTimer = window.setInterval(() => queueRelayInput(), 50);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(relayTimer);
+      window.removeEventListener("message", handleControllerRelayMessage);
+      window.removeEventListener("gamepadconnected", handleRelayWake);
+      window.removeEventListener("gamepaddisconnected", handleRelayWake);
+      document.removeEventListener("visibilitychange", handleRelayWake);
+      multiplayerControllerRelayClaimsRef.current.clear();
+    };
+  }, [
+    activeGamingApp,
+    cleanMultiplayerHostUrl,
+    collapsed,
+    multiplayerRoom.data?.controllerUrl,
+    multiplayerRoom.data?.viewerUrl,
+    multiplayerRoom.online
+  ]);
 
   useEffect(() => {
     if (activeGamingApp !== "multiplayer") return undefined;

@@ -543,6 +543,11 @@ function controllerPage() {
       let controllerTickWorker = null;
       let controllerTickWorkerUrl = "";
       let controllerTickFallbackTimer = 0;
+      const relayClaimsKey = "fuitControllerRelayClaims";
+      const relayClaimTtlMs = 60 * 60 * 1000;
+      const openerRelayTargetOrigin = (() => {
+        try { return document.referrer ? new URL(document.referrer).origin : "*"; } catch { return "*"; }
+      })();
       const nativeHelperFallbackAllowed = (() => {
         const host = String(location.hostname || "").toLowerCase();
         return host === "localhost" || host === "127.0.0.1" || host === "::1";
@@ -791,6 +796,49 @@ function controllerPage() {
 
       const getPadKey = pad => pad ? controllerDeviceId + ":" + String(pad.index) + ":" + (pad.id || "Gamepad") : "";
       const getPadLabel = pad => String(pad?.id || "Keyboard").trim() || "Keyboard";
+      function readRelayClaims() {
+        const now = Date.now();
+        try {
+          const parsed = JSON.parse(localStorage.getItem(relayClaimsKey) || "[]");
+          return (Array.isArray(parsed) ? parsed : [])
+            .filter(claim => claim && claim.id && claim.physicalControllerId && now - Number(claim.updatedAt || 0) < relayClaimTtlMs)
+            .slice(-8);
+        } catch {
+          return [];
+        }
+      }
+      function writeRelayClaims(claims) {
+        try { localStorage.setItem(relayClaimsKey, JSON.stringify(claims.slice(-8))); } catch {}
+      }
+      function postOpenerRelayMessage(type, claim = null) {
+        try {
+          if (!window.opener || window.opener.closed) return;
+          window.opener.postMessage({
+            source: "fuit-multiplayer-controller",
+            type,
+            claim
+          }, openerRelayTargetOrigin || "*");
+        } catch {}
+      }
+      function publishRelayClaim(controllerState) {
+        if (!controllerState?.pad || !controllerState.physicalControllerId) return;
+        const claim = {
+          id: controllerId,
+          label: controllerState.label || getPadLabel(controllerState.pad),
+          physicalControllerId: controllerState.physicalControllerId,
+          padIndex: Number(controllerState.pad.index),
+          padId: String(controllerState.pad.id || ""),
+          updatedAt: Date.now()
+        };
+        const claims = readRelayClaims().filter(existing => existing.id !== controllerId);
+        claims.push(claim);
+        writeRelayClaims(claims);
+        postOpenerRelayMessage("claim", claim);
+      }
+      function clearRelayClaim() {
+        writeRelayClaims(readRelayClaims().filter(existing => existing.id !== controllerId));
+        postOpenerRelayMessage("release", { id: controllerId, updatedAt: Date.now() });
+      }
       const releaseNativeController = physicalControllerId => {
         const releasePhysicalControllerId = typeof physicalControllerId === "string"
           ? physicalControllerId
@@ -807,6 +855,7 @@ function controllerPage() {
         const releasePhysicalControllerId = typeof physicalControllerId === "string"
           ? physicalControllerId
           : claimedPhysicalControllerId || claimedNativeController?.physicalControllerId || "";
+        clearRelayClaim();
         releaseNativeController(releasePhysicalControllerId);
         if (!physicalControllerId || releasePhysicalControllerId === claimedNativeController?.physicalControllerId) {
           claimedNativeController = null;
@@ -915,14 +964,16 @@ function controllerPage() {
             if (result?.locked) return false;
             throw new Error(result?.error || "Native controller claim failed.");
           }
-          if (result?.nativeAvailable) {
+          if (result?.nativeAvailable && result?.nativeConnected) {
             claimedNativeController = {
               physicalControllerId,
               nativeIndex: Number.isInteger(result.nativeIndex) ? result.nativeIndex : preferredNativeIndex,
               label
             };
+          } else if (claimedNativeController?.physicalControllerId === physicalControllerId) {
+            claimedNativeController = null;
           }
-          return Boolean(result?.nativeAvailable);
+          return Boolean(result?.nativeAvailable && result?.nativeConnected);
         } catch {
           return false;
         }
@@ -942,7 +993,15 @@ function controllerPage() {
               nativeIndex: claimedNativeController.nativeIndex
             })
           });
-          return response.ok;
+          const result = await response.json().catch(() => null);
+          if (response.ok && result?.nativeConnected) {
+            claimedNativeController.nativeIndex = Number.isInteger(result.nativeIndex)
+              ? result.nativeIndex
+              : claimedNativeController.nativeIndex;
+            return true;
+          }
+          claimedNativeController = null;
+          return false;
         } catch {
           return false;
         }
@@ -969,11 +1028,14 @@ function controllerPage() {
           if (result?.locked && physicalControllerId) {
             lockedGamepads.set(physicalControllerId, Date.now() + 5000);
             if (claimedPhysicalControllerId === physicalControllerId) claimedPhysicalControllerId = "";
+            clearRelayClaim();
             return { ok: false, locked: true, label: result.label || controllerLabel, physicalControllerId };
           }
           throw new Error(result?.error || "Controller update failed.");
         }
         claimedPhysicalControllerId = physicalControllerId;
+        if (controllerState.pad) publishRelayClaim(controllerState);
+        else clearRelayClaim();
         if (controllerState.pad) await claimNativeController(controllerState.pad);
         else if (claimedNativeController?.physicalControllerId && claimedNativeController.physicalControllerId !== physicalControllerId) {
           releaseNativeController(claimedNativeController.physicalControllerId);

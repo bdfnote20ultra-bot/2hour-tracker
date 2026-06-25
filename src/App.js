@@ -122,6 +122,8 @@ const FUIT_MULTIPLAYER_HOST_URL_KEY = "fuitMultiplayerHostUrl_v1";
 const FUIT_MULTIPLAYER_DEFAULT_HOST_URL = "http://127.0.0.1:8174";
 const FUIT_CONTROLLER_RELAY_SOURCE = "fuit-multiplayer-controller";
 const FUIT_CONTROLLER_RELAY_TTL_MS = 60 * 60 * 1000;
+const FUIT_CONTROLLER_RELAY_TICK_MS = 50;
+const FUIT_CONTROLLER_RELAY_HEARTBEAT_MS = 900;
 const FUIT_FRONT_CONTROLLER_DEVICE_ID_KEY = "fuitFrontControllerDeviceId_v1";
 const FUIT_MULTIPLAYER_DISCOVERY_URLS = Array.from(
   new Set([
@@ -1380,6 +1382,18 @@ function PokemonSidebar() {
       return buttons;
     };
 
+    const normalizeRelayAxis = (value) => {
+      const number = Number(value || 0);
+      if (!Number.isFinite(number) || Math.abs(number) < 0.03) return 0;
+      return Math.round(Math.max(-1, Math.min(1, number)) * 100) / 100;
+    };
+
+    const makeRelayInputSnapshot = (physicalControllerId, buttons, axes) => JSON.stringify({
+      physicalControllerId,
+      buttons: Array.from(new Set(buttons)).sort(),
+      axes: axes.map(normalizeRelayAxis)
+    });
+
     const findClaimPad = (pads, claim, claims) => {
       const claimPadIndex = Number(claim.padIndex);
       const claimPadId = String(claim.padId || "");
@@ -1412,6 +1426,13 @@ function PokemonSidebar() {
         const frontRelayPhysicalId = claim.frontRelay ? getMultiplayerFrontControllerPadKey(pad) : "";
         const physicalControllerId = frontRelayPhysicalId || claim.physicalControllerId;
         const label = claim.frontRelay ? getMultiplayerFrontControllerPadLabel(pad) : (claim.label || String(pad.id || "Gamepad"));
+        const buttons = readPadButtons(pad);
+        const axes = Array.from(pad.axes || []);
+        const inputSnapshot = makeRelayInputSnapshot(physicalControllerId, buttons, axes);
+        const now = Date.now();
+        const heartbeatDue = now - Number(claim.lastSentAt || 0) >= FUIT_CONTROLLER_RELAY_HEARTBEAT_MS;
+        if (!claim.pending && claim.inputSnapshot === inputSnapshot && !heartbeatDue) continue;
+
         try {
           const response = await fetch(`${helperBaseUrl}/api/controller`, {
             method: "POST",
@@ -1420,8 +1441,8 @@ function PokemonSidebar() {
               id: claim.id,
               label,
               physicalControllerId,
-              buttons: readPadButtons(pad),
-              axes: Array.from(pad.axes || [])
+              buttons,
+              axes
             })
           });
           if (!response.ok) continue;
@@ -1432,6 +1453,8 @@ function PokemonSidebar() {
             padIndex: Number(pad.index),
             padId: String(pad.id || ""),
             pending: false,
+            inputSnapshot,
+            lastSentAt: now,
             updatedAt: Date.now()
           });
         } catch {}
@@ -1481,7 +1504,7 @@ function PokemonSidebar() {
     window.addEventListener("gamepadconnected", handleRelayWake);
     window.addEventListener("gamepaddisconnected", handleRelayWake);
     document.addEventListener("visibilitychange", handleRelayWake);
-    relayTimer = window.setInterval(() => queueRelayInput(), 50);
+    relayTimer = window.setInterval(() => queueRelayInput(), FUIT_CONTROLLER_RELAY_TICK_MS);
 
     return () => {
       cancelled = true;
@@ -2281,7 +2304,7 @@ function PokemonSidebar() {
       }
     };
 
-    const interval = window.setInterval(pollRemoteControllers, n64Launch ? 120 : 80);
+    const interval = window.setInterval(pollRemoteControllers, n64Launch ? 160 : 120);
     pollRemoteControllers();
 
     return () => {

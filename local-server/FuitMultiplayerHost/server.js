@@ -31,7 +31,7 @@ const nativeControllerClaims = new Map();
 const nativeGamepadStates = new Map();
 const CONTROLLER_STALE_MS = 10000;
 const CONTROLLER_CLAIM_STALE_MS = 5000;
-const NATIVE_CONTROLLER_CLAIM_STALE_MS = 3500;
+const NATIVE_CONTROLLER_CLAIM_STALE_MS = 60 * 60 * 1000;
 const NATIVE_GAMEPAD_POLL_MS = 50;
 let latestFrame = null;
 let latestFrameMs = 0;
@@ -162,9 +162,19 @@ function pruneNativeControllerClaims(now = Date.now()) {
 function applyNativeControllerClaims() {
   const now = Date.now();
   pruneNativeControllerClaims(now);
+  const usedNativeIndexes = new Set();
   for (const claim of nativeControllerClaims.values()) {
-    const state = nativeGamepadStates.get(claim.nativeIndex);
+    let state = Number.isInteger(claim.nativeIndex) ? nativeGamepadStates.get(claim.nativeIndex) : null;
+    if (state && usedNativeIndexes.has(Number(state.index))) state = null;
+    if (!state) {
+      state = Array.from(nativeGamepadStates.values()).find(candidate => !usedNativeIndexes.has(Number(candidate.index))) || null;
+    }
     if (!state) continue;
+    const selectedNativeIndex = Number(state.index);
+    if (Number.isInteger(selectedNativeIndex)) {
+      claim.nativeIndex = selectedNativeIndex;
+      usedNativeIndexes.add(selectedNativeIndex);
+    }
     const mapped = mapXInputStateToController(state);
     storeControllerState({
       id: claim.id,
@@ -341,6 +351,17 @@ function statusPayload(req) {
       axes: controller.axes,
       lastSeenMs: controller.lastSeenMs
     })),
+    nativeInput: {
+      available: process.platform === "win32",
+      polling: Boolean(nativeGamepadProcess && !nativeGamepadProcess.killed),
+      connectedIndexes: Array.from(nativeGamepadStates.keys()),
+      claims: Array.from(nativeControllerClaims.values()).map(claim => ({
+        id: claim.id,
+        label: claim.label,
+        nativeIndex: claim.nativeIndex,
+        lastSeenMs: claim.lastSeenMs
+      }))
+    },
     startedAt: new Date(startedAtMs).toISOString(),
     uptimeSeconds: Math.floor((Date.now() - startedAtMs) / 1000),
     host: os.hostname()
@@ -522,6 +543,10 @@ function controllerPage() {
       let controllerTickWorker = null;
       let controllerTickWorkerUrl = "";
       let controllerTickFallbackTimer = 0;
+      const nativeHelperFallbackAllowed = (() => {
+        const host = String(location.hostname || "").toLowerCase();
+        return host === "localhost" || host === "127.0.0.1" || host === "::1";
+      })();
       const runSoon = typeof queueMicrotask === "function"
         ? queueMicrotask
         : callback => Promise.resolve().then(callback);
@@ -867,9 +892,10 @@ function controllerPage() {
       }
 
       async function claimNativeController(pad) {
+        if (!nativeHelperFallbackAllowed) return false;
         if (!pad) return false;
         const nativeIndex = Number(pad.index);
-        if (!Number.isInteger(nativeIndex) || nativeIndex < 0 || nativeIndex > 3) return false;
+        const preferredNativeIndex = Number.isInteger(nativeIndex) && nativeIndex >= 0 && nativeIndex < 4 ? nativeIndex : null;
 
         const physicalControllerId = getPadKey(pad);
         const label = getPadLabel(pad);
@@ -881,7 +907,7 @@ function controllerPage() {
               id: controllerId,
               label,
               physicalControllerId,
-              nativeIndex
+              nativeIndex: preferredNativeIndex
             })
           });
           const result = await response.json().catch(() => null);
@@ -889,7 +915,13 @@ function controllerPage() {
             if (result?.locked) return false;
             throw new Error(result?.error || "Native controller claim failed.");
           }
-          if (result?.nativeAvailable) claimedNativeController = { physicalControllerId, nativeIndex, label };
+          if (result?.nativeAvailable) {
+            claimedNativeController = {
+              physicalControllerId,
+              nativeIndex: Number.isInteger(result.nativeIndex) ? result.nativeIndex : preferredNativeIndex,
+              label
+            };
+          }
           return Boolean(result?.nativeAvailable);
         } catch {
           return false;
@@ -897,6 +929,7 @@ function controllerPage() {
       }
 
       async function keepNativeControllerClaimAlive() {
+        if (!nativeHelperFallbackAllowed) return false;
         if (!claimedNativeController) return false;
         try {
           const response = await fetch("/api/controller/native-claim", {
@@ -974,6 +1007,14 @@ function controllerPage() {
               status.textContent = "Helper connection lost.";
             }
             return;
+          }
+
+          if (claimedNativeController) {
+            const keptAlive = await keepNativeControllerClaimAlive();
+            if (keptAlive) {
+              status.textContent = "Controller tab is running in the background.";
+              return;
+            }
           }
         }
 
@@ -1195,9 +1236,13 @@ const server = http.createServer(async (req, res) => {
       const now = Date.now();
       const physicalControllerId = normalizeControllerClaimId(body.physicalControllerId);
       const label = normalizeControllerLabel(body.label || "Browser Controller");
-      const nativeIndex = Number(body.nativeIndex);
+      const nativeIndex = body.nativeIndex === null || body.nativeIndex === undefined || body.nativeIndex === ""
+        ? null
+        : Number(body.nativeIndex);
       if (!physicalControllerId) throw new Error("Expected a physical controller id.");
-      if (!Number.isInteger(nativeIndex) || nativeIndex < 0 || nativeIndex > 3) throw new Error("Expected an XInput controller index from 0 to 3.");
+      if (nativeIndex !== null && (!Number.isInteger(nativeIndex) || nativeIndex < 0 || nativeIndex > 3)) {
+        throw new Error("Expected an XInput controller index from 0 to 3.");
+      }
       pruneControllers();
 
       const existingClaim = controllerClaims.get(physicalControllerId);
@@ -1236,10 +1281,14 @@ const server = http.createServer(async (req, res) => {
         now
       });
       applyNativeControllerClaims();
+      const selectedClaim = nativeControllerClaims.get(physicalControllerId);
       sendJson(res, 200, {
         ok: true,
         nativeAvailable,
-        nativeConnected: nativeGamepadStates.has(nativeIndex)
+        nativeIndex: selectedClaim?.nativeIndex ?? null,
+        nativeConnected: selectedClaim?.nativeIndex !== null && selectedClaim?.nativeIndex !== undefined
+          ? nativeGamepadStates.has(selectedClaim.nativeIndex)
+          : nativeGamepadStates.size > 0
       });
     } catch (error) {
       sendJson(res, 400, { ok: false, error: error.message || "Bad native controller claim payload." });

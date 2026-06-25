@@ -739,6 +739,7 @@ function PokemonSidebar() {
   const gameCardRefs = useRef({});
   const gamepadKeysRef = useRef(new Set());
   const multiplayerRemoteKeysRef = useRef(new Set());
+  const stoppedMultiplayerHelperRef = useRef({ baseUrl: "", startedAt: "" });
   const emulatorMenuOpenAllowedUntilRef = useRef(0);
   const n64PerformanceMode = isN64Game(gameLaunch);
 
@@ -1031,6 +1032,15 @@ function PokemonSidebar() {
   const cleanMultiplayerHostUrl = (multiplayerHostUrl || FUIT_MULTIPLAYER_DEFAULT_HOST_URL).trim().replace(/\/+$/, "") || FUIT_MULTIPLAYER_DEFAULT_HOST_URL;
   const multiplayerViewerUrl = multiplayerRoom.data?.viewerUrl || `${cleanMultiplayerHostUrl}/room`;
   const multiplayerControllerUrl = multiplayerRoom.data?.controllerUrl || `${cleanMultiplayerHostUrl}/controller`;
+  const getMultiplayerHelperBaseUrl = () => {
+    const helperUrl = multiplayerRoom.data?.viewerUrl || multiplayerRoom.data?.controllerUrl || "";
+    if (helperUrl) {
+      try {
+        return new URL(helperUrl, window.location.href).origin;
+      } catch {}
+    }
+    return cleanMultiplayerHostUrl;
+  };
   const makeMultiplayerControllerUrl = () => {
     const controllerId = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     try {
@@ -1043,6 +1053,43 @@ function PokemonSidebar() {
   };
   const openMultiplayerController = () => {
     window.open(makeMultiplayerControllerUrl(), "_blank", "noopener,noreferrer");
+  };
+  const isStoppedMultiplayerHelper = useCallback((baseUrl, data) => {
+    const stopped = stoppedMultiplayerHelperRef.current;
+    if (!stopped.baseUrl || stopped.baseUrl !== baseUrl) return false;
+    if (stopped.startedAt && data?.startedAt && stopped.startedAt !== data.startedAt) {
+      stoppedMultiplayerHelperRef.current = { baseUrl: "", startedAt: "" };
+      return false;
+    }
+    return true;
+  }, []);
+  const stopHostedMultiplayerGame = async () => {
+    const stoppedHelper = {
+      baseUrl: getMultiplayerHelperBaseUrl(),
+      startedAt: multiplayerRoom.data?.startedAt || ""
+    };
+    stoppedMultiplayerHelperRef.current = stoppedHelper;
+    setMultiplayerRoom({
+      online: false,
+      loading: false,
+      error: "Start the separate FUIT Multiplayer helper to turn this room on.",
+      data: null
+    });
+    stopRunningGame();
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 1600);
+    try {
+      await fetch(`${stoppedHelper.baseUrl}/api/shutdown`, {
+        method: "POST",
+        cache: "no-store",
+        signal: controller.signal,
+        keepalive: true
+      });
+    } catch {
+    } finally {
+      window.clearTimeout(timeout);
+    }
   };
   const getPokemonFrameSourceRect = (canvas) => {
     const width = Math.max(1, canvas?.width || 0);
@@ -1215,6 +1262,7 @@ function PokemonSidebar() {
         if (!response.ok) throw new Error("Helper not ready.");
         const data = await response.json();
         if (!data?.active) throw new Error("Helper inactive.");
+        if (isStoppedMultiplayerHelper(baseUrl, data)) throw new Error("Helper is stopping.");
         return { baseUrl, data };
       } catch (error) {
         return null;
@@ -1274,7 +1322,7 @@ function PokemonSidebar() {
       cancelled = true;
       if (timeoutId) window.clearTimeout(timeoutId);
     };
-  }, [activeGamingApp, cleanMultiplayerHostUrl]);
+  }, [activeGamingApp, cleanMultiplayerHostUrl, isStoppedMultiplayerHelper]);
 
   useEffect(() => {
     if (activeGamingApp !== "multiplayer" || !multiplayerRoom.online || !multiplayerSelectedGame) return;
@@ -2461,7 +2509,7 @@ function PokemonSidebar() {
             {activeGame && gameLaunch && (
               <button
                 type="button"
-                onClick={stopRunningGame}
+                onClick={activeGamingApp === "multiplayer" ? stopHostedMultiplayerGame : stopRunningGame}
                 style={{
                   border: "1px solid rgba(248,113,113,.45)",
                   borderRadius: 10,

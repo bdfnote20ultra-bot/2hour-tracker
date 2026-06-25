@@ -399,6 +399,12 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === "POST" && (url.pathname === "/api/shutdown" || url.pathname === "/api/stop")) {
+    sendJson(res, 200, { ok: true, shuttingDown: true });
+    setTimeout(() => shutdown(0), 25).unref();
+    return;
+  }
+
   send(res, 404, "Not found");
 });
 

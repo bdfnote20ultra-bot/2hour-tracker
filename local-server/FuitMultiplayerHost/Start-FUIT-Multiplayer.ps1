@@ -240,6 +240,7 @@ while ($true) {
     "1" {
       try {
         Start-MultiplayerRoom
+        exit 0
       } catch {
         Write-Host ""
         Write-Host ($_.Exception.Message) -ForegroundColor Red

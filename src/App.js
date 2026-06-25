@@ -775,33 +775,84 @@ function PokemonSidebar() {
     return { x: point.clientX, y: point.clientY };
   };
 
+  const getEmulatorEventNow = () => (
+    typeof performance !== "undefined" ? performance.now() : Date.now()
+  );
+
+  const isVisibleElement = (element) => {
+    if (!element || typeof element.getBoundingClientRect !== "function") return false;
+    const rect = element.getBoundingClientRect();
+    if (rect.width <= 1 || rect.height <= 1) return false;
+    const style = window.getComputedStyle(element);
+    return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity || 1) > 0;
+  };
+
+  const getPokemonEmulatorMenuToggle = () => (
+    window.EJS_emulator?.elements?.menuToggle ||
+    emulatorHostRef.current?.querySelector(".ejs_virtualGamepad_open") ||
+    null
+  );
+
+  const getPokemonEmulatorMenuBar = () => (
+    window.EJS_emulator?.elements?.menu ||
+    emulatorHostRef.current?.querySelector(".ejs_menu_bar") ||
+    null
+  );
+
+  const isEventInsideElement = (event, element) => {
+    if (!element) return false;
+
+    const path = typeof event?.composedPath === "function" ? event.composedPath() : [];
+    if (path.some(node => node === element || (node?.nodeType && element.contains?.(node)))) return true;
+
+    const point = getEventClientPoint(event);
+    if (!point || !isVisibleElement(element)) return false;
+
+    const rect = element.getBoundingClientRect();
+    return (
+      point.x >= rect.left &&
+      point.x <= rect.right &&
+      point.y >= rect.top &&
+      point.y <= rect.bottom
+    );
+  };
+
   const isPokemonEmulatorMenuGesture = (event) => {
     const host = emulatorHostRef.current;
     if (!host) return false;
 
+    const menuToggle = getPokemonEmulatorMenuToggle();
+    if (isVisibleElement(menuToggle) && isEventInsideElement(event, menuToggle)) return true;
+
+    const menuBar = getPokemonEmulatorMenuBar();
+    if (
+      isVisibleElement(menuBar) &&
+      !menuBar.classList?.contains("ejs_menu_bar_hidden") &&
+      isEventInsideElement(event, menuBar)
+    ) {
+      return true;
+    }
+
     const target = event?.target;
     const path = typeof event?.composedPath === "function" ? event.composedPath() : [];
-    const menuTarget = path.concat(target || []).some(element => {
+    return path.concat(target || []).some(element => {
       if (!element || typeof element.closest !== "function") return false;
-      return Boolean(element.closest(".ejs_menu_button, .ejs_menu_bar, .ejs_control_bar, [class*='menu']"));
+      return Boolean(element.closest(".ejs_settings_parent, .ejs_popup_container, .ejs_context_menu, .ejs_cheat_parent, .ejs_control_bar, .ejs_control_set_button"));
     });
-    if (menuTarget) return true;
+  };
 
-    const point = getEventClientPoint(event);
-    if (!point) return false;
+  const allowPokemonEmulatorMenuOpen = () => {
+    emulatorMenuOpenAllowedUntilRef.current = getEmulatorEventNow() + 900;
+    emulatorHostRef.current?.classList.add("pokemon-emulator-menu-user-open");
+  };
 
-    const rect = host.getBoundingClientRect();
-    const hamburgerWidth = Math.min(74, Math.max(34, rect.width * 0.28));
-    const hamburgerHeight = Math.min(74, Math.max(34, rect.height * 0.28));
-    return (
-      point.x >= rect.right - hamburgerWidth &&
-      point.x <= rect.right &&
-      point.y >= rect.top &&
-      point.y <= rect.top + hamburgerHeight
-    );
+  const lockPokemonEmulatorMenuOpen = () => {
+    emulatorMenuOpenAllowedUntilRef.current = 0;
+    emulatorHostRef.current?.classList.remove("pokemon-emulator-menu-user-open");
   };
 
   const closePokemonEmulatorMenu = () => {
+    lockPokemonEmulatorMenuOpen();
     try { window.EJS_emulator?.menu?.close?.(); } catch {}
     try { window.EJS_emulator?.closePopup?.(); } catch {}
   };
@@ -809,19 +860,51 @@ function PokemonSidebar() {
   const patchPokemonEmulatorMenu = () => {
     const menu = window.EJS_emulator?.menu;
     if (!menu || typeof menu.open !== "function") return false;
-    if (menu.__fuitHamburgerOnlyOpen) return true;
+    if (menu.__fuitHamburgerOnlyOpenVersion === 2) return true;
 
+    const originalClose = typeof menu.close === "function" ? menu.close.bind(menu) : null;
     const originalOpen = menu.open.bind(menu);
+    const originalToggle = typeof menu.toggle === "function" ? menu.toggle.bind(menu) : null;
+    const isAllowed = () => getEmulatorEventNow() <= emulatorMenuOpenAllowedUntilRef.current;
+
+    if (originalClose) {
+      menu.close = (...args) => {
+        lockPokemonEmulatorMenuOpen();
+        return originalClose(...args);
+      };
+    }
+
     menu.open = (...args) => {
-      const now = typeof performance !== "undefined" ? performance.now() : Date.now();
-      if (now > emulatorMenuOpenAllowedUntilRef.current) {
+      if (!isAllowed()) {
+        lockPokemonEmulatorMenuOpen();
         window.setTimeout(closePokemonEmulatorMenu, 0);
         return undefined;
       }
+
+      emulatorHostRef.current?.classList.add("pokemon-emulator-menu-user-open");
       emulatorMenuOpenAllowedUntilRef.current = 0;
       return originalOpen(...args);
     };
+
+    if (originalToggle) {
+      menu.toggle = (...args) => {
+        const menuBar = getPokemonEmulatorMenuBar();
+        const opening = Boolean(menuBar?.classList?.contains("ejs_menu_bar_hidden"));
+        if (opening && !isAllowed()) {
+          lockPokemonEmulatorMenuOpen();
+          window.setTimeout(closePokemonEmulatorMenu, 0);
+          return undefined;
+        }
+
+        if (opening) emulatorHostRef.current?.classList.add("pokemon-emulator-menu-user-open");
+        else lockPokemonEmulatorMenuOpen();
+        emulatorMenuOpenAllowedUntilRef.current = 0;
+        return originalToggle(...args);
+      };
+    }
+
     menu.__fuitHamburgerOnlyOpen = true;
+    menu.__fuitHamburgerOnlyOpenVersion = 2;
     return true;
   };
 
@@ -1475,23 +1558,36 @@ function PokemonSidebar() {
     const host = emulatorHostRef.current;
     const handleMenuGesture = (event) => {
       if (isPokemonEmulatorMenuGesture(event)) {
-        const now = typeof performance !== "undefined" ? performance.now() : Date.now();
-        emulatorMenuOpenAllowedUntilRef.current = now + 900;
+        allowPokemonEmulatorMenuOpen();
         return;
       }
 
-      emulatorMenuOpenAllowedUntilRef.current = 0;
+      lockPokemonEmulatorMenuOpen();
+      window.setTimeout(closePokemonEmulatorMenu, 0);
+    };
+    const handleSurfaceClick = (event) => {
+      patchPokemonEmulatorMenu();
+      if (isPokemonEmulatorMenuGesture(event)) {
+        allowPokemonEmulatorMenuOpen();
+        return;
+      }
+
+      lockPokemonEmulatorMenuOpen();
+      event.stopPropagation();
+      event.stopImmediatePropagation?.();
       window.setTimeout(closePokemonEmulatorMenu, 0);
     };
 
     host.addEventListener("pointerdown", handleMenuGesture, true);
     host.addEventListener("mousedown", handleMenuGesture, true);
     host.addEventListener("touchstart", handleMenuGesture, true);
+    host.addEventListener("click", handleSurfaceClick, true);
 
     return () => {
       host.removeEventListener("pointerdown", handleMenuGesture, true);
       host.removeEventListener("mousedown", handleMenuGesture, true);
       host.removeEventListener("touchstart", handleMenuGesture, true);
+      host.removeEventListener("click", handleSurfaceClick, true);
     };
   }, [gameLaunch, collapsed]);
 
@@ -1922,6 +2018,11 @@ function PokemonSidebar() {
           max-width: 100% !important;
           max-height: 100% !important;
           object-fit: contain;
+        }
+        .pokemon-emulator-host:not(.pokemon-emulator-menu-user-open) .ejs_menu_bar:not(.ejs_menu_bar_hidden) {
+          opacity: 0 !important;
+          pointer-events: none !important;
+          transform: translateY(120%) !important;
         }
         .pokemon-emulator-frame:fullscreen,
         .pokemon-emulator-frame:-webkit-full-screen {

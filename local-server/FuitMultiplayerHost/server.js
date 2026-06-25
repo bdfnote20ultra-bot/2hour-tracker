@@ -273,6 +273,17 @@ function controllerPage() {
       const keyMap = { KeyW: "up", KeyA: "left", KeyS: "down", KeyD: "right", KeyJ: "a", KeyK: "b", KeyU: "x", KeyI: "y", Enter: "start", ShiftRight: "select", ShiftLeft: "select" };
       const gamepadMap = { 0: "a", 1: "b", 2: "x", 3: "y", 4: "l", 5: "r", 8: "select", 9: "start", 12: "up", 13: "down", 14: "left", 15: "right" };
       let claimedPhysicalControllerId = "";
+      const controllerTickMs = 50;
+      let sendingInput = false;
+      let sendAgain = false;
+      let lastInputStartedAt = 0;
+      let controllerTickSource = null;
+      let controllerTickWorker = null;
+      let controllerTickWorkerUrl = "";
+      let controllerTickFallbackTimer = 0;
+      const runSoon = typeof queueMicrotask === "function"
+        ? queueMicrotask
+        : callback => Promise.resolve().then(callback);
 
       const getPadKey = pad => pad ? controllerDeviceId + ":" + String(pad.index) + ":" + (pad.id || "Gamepad") : "";
       const getPadLabel = pad => String(pad?.id || "Keyboard").trim() || "Keyboard";
@@ -292,15 +303,42 @@ function controllerPage() {
           keepalive: true
         }).catch(() => {});
       };
+      const stopControllerTicker = () => {
+        if (controllerTickSource) {
+          try { controllerTickSource.close(); } catch {}
+          controllerTickSource = null;
+        }
+        if (controllerTickWorker) {
+          try { controllerTickWorker.postMessage({ type: "stop" }); } catch {}
+          try { controllerTickWorker.terminate(); } catch {}
+          controllerTickWorker = null;
+        }
+        if (controllerTickWorkerUrl) {
+          try { URL.revokeObjectURL(controllerTickWorkerUrl); } catch {}
+          controllerTickWorkerUrl = "";
+        }
+        if (controllerTickFallbackTimer) {
+          clearInterval(controllerTickFallbackTimer);
+          controllerTickFallbackTimer = 0;
+        }
+      };
 
-      window.addEventListener("pagehide", () => releaseController());
-      window.addEventListener("beforeunload", () => releaseController());
+      window.addEventListener("pagehide", () => {
+        stopControllerTicker();
+        releaseController();
+      });
+      window.addEventListener("beforeunload", () => {
+        stopControllerTicker();
+        releaseController();
+      });
+      document.addEventListener("visibilitychange", () => queueSendInput(true));
 
       window.addEventListener("keydown", event => {
         const mapped = keyMap[event.code];
         if (!mapped) return;
         event.preventDefault();
         pressed.add(mapped);
+        queueSendInput(true);
       });
 
       window.addEventListener("keyup", event => {
@@ -308,6 +346,13 @@ function controllerPage() {
         if (!mapped) return;
         event.preventDefault();
         pressed.delete(mapped);
+        queueSendInput(true);
+      });
+
+      window.addEventListener("blur", () => {
+        if (!pressed.size) return;
+        pressed.clear();
+        queueSendInput(true);
       });
 
       function readButtons(pad) {
@@ -336,7 +381,7 @@ function controllerPage() {
             label: controllerLabel,
             physicalControllerId,
             buttons,
-            axes: pad?.axes || []
+            axes: Array.from(pad?.axes || [])
           })
         });
         const result = await response.json().catch(() => null);
@@ -409,8 +454,67 @@ function controllerPage() {
           status.textContent = "Helper connection lost.";
         }
       }
-      setInterval(sendInput, 100);
-      sendInput();
+
+      function queueSendInput(force = false) {
+        const now = typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
+        if (!force && now - lastInputStartedAt < controllerTickMs - 5) return;
+        if (sendingInput) {
+          sendAgain = true;
+          return;
+        }
+
+        sendingInput = true;
+        lastInputStartedAt = now;
+        Promise.resolve()
+          .then(sendInput)
+          .catch(() => {})
+          .finally(() => {
+            sendingInput = false;
+            if (sendAgain) {
+              sendAgain = false;
+              runSoon(() => queueSendInput(true));
+            }
+          });
+      }
+
+      function startControllerTicker() {
+        if (window.EventSource) {
+          try {
+            controllerTickSource = new EventSource("/api/controller/ticks");
+            controllerTickSource.onmessage = () => queueSendInput();
+            controllerTickSource.onerror = () => {};
+          } catch {}
+        }
+
+        try {
+          const workerCode = [
+            "let timer = 0;",
+            "function tick() { postMessage(0); }",
+            "onmessage = function(event) {",
+            "  const data = event.data || {};",
+            "  if (data.type === 'start') {",
+            "    clearInterval(timer);",
+            "    timer = setInterval(tick, Math.max(16, Number(data.interval) || 50));",
+            "    tick();",
+            "  }",
+            "  if (data.type === 'stop') {",
+            "    clearInterval(timer);",
+            "    close();",
+            "  }",
+            "};"
+          ].join("\\n");
+          const workerBlob = new Blob([workerCode], { type: "application/javascript" });
+          controllerTickWorkerUrl = URL.createObjectURL(workerBlob);
+          controllerTickWorker = new Worker(controllerTickWorkerUrl);
+          controllerTickWorker.onmessage = () => queueSendInput();
+          controllerTickWorker.postMessage({ type: "start", interval: controllerTickMs });
+        } catch {}
+
+        controllerTickFallbackTimer = setInterval(() => queueSendInput(), 250);
+        queueSendInput(true);
+      }
+
+      startControllerTicker();
     </script>
   `);
 }
@@ -459,6 +563,26 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === "GET" && url.pathname === "/controller") {
     send(res, 200, controllerPage(), "text/html; charset=utf-8");
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/controller/ticks") {
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Access-Control-Allow-Origin": "*",
+      "Cache-Control": "no-store, no-transform",
+      "Connection": "keep-alive",
+      "X-Accel-Buffering": "no"
+    });
+    res.flushHeaders?.();
+    const sendTick = () => {
+      if (res.destroyed) return;
+      res.write(`data: ${Date.now()}\n\n`);
+    };
+    const tickTimer = setInterval(sendTick, 50);
+    tickTimer.unref?.();
+    sendTick();
+    req.on("close", () => clearInterval(tickTimer));
     return;
   }
 

@@ -33,9 +33,11 @@ const CONTROLLER_STALE_MS = 10000;
 const CONTROLLER_CLAIM_STALE_MS = 5000;
 const NATIVE_CONTROLLER_CLAIM_STALE_MS = 60 * 60 * 1000;
 const NATIVE_GAMEPAD_POLL_MS = 50;
+const FRAME_VIEWER_ACTIVE_MS = 6500;
 let latestFrame = null;
 let latestFrameMs = 0;
 let latestFrameEtag = "0";
+let frameViewerLastSeenMs = 0;
 let nativeGamepadProcess = null;
 let nativeGamepadStdout = "";
 let hostState = {
@@ -328,6 +330,54 @@ function releaseNativeControllerClaims(id, keepPhysicalId = "") {
   }
 }
 
+function controllerStatusPayload() {
+  pruneControllers();
+  return {
+    ok: true,
+    active: true,
+    controllers: Array.from(controllers.values()).map(controller => ({
+      id: controller.id,
+      label: controller.label,
+      buttons: controller.buttons,
+      axes: controller.axes,
+      lastSeenMs: controller.lastSeenMs
+    }))
+  };
+}
+
+function markFrameViewerActive() {
+  frameViewerLastSeenMs = Date.now();
+}
+
+function frameViewerIsActive(now = Date.now()) {
+  return now - frameViewerLastSeenMs <= FRAME_VIEWER_ACTIVE_MS;
+}
+
+function frameStatusPayload({ markActive = false } = {}) {
+  pruneControllers();
+  if (markActive) markFrameViewerActive();
+  return {
+    ok: true,
+    active: true,
+    hasFrame: Boolean(latestFrame),
+    latestFrameMs,
+    hostState
+  };
+}
+
+function frameDemandPayload() {
+  const now = Date.now();
+  pruneControllers();
+  return {
+    ok: true,
+    active: true,
+    needed: frameViewerIsActive(now),
+    viewerLastSeenMs: frameViewerLastSeenMs,
+    hasFrame: Boolean(latestFrame),
+    latestFrameMs
+  };
+}
+
 function statusPayload(req) {
   pruneControllers();
   const origin = publicOrigin(req);
@@ -420,10 +470,11 @@ function roomPage(req) {
         let lastFrameMs = 0;
         let refreshing = false;
         async function refreshFrame() {
+          if (document.hidden) return;
           if (refreshing) return;
           refreshing = true;
           try {
-            const status = await fetch("/status?t=" + Date.now(), { cache: "no-store" }).then(response => response.json());
+            const status = await fetch("/api/frame-status?t=" + Date.now(), { cache: "no-store" }).then(response => response.json());
             if (!status.hasFrame || status.latestFrameMs === lastFrameMs) return;
             lastFrameMs = status.latestFrameMs;
             const next = "/frame.jpg?ts=" + status.latestFrameMs;
@@ -445,6 +496,9 @@ function roomPage(req) {
             refreshing = false;
           }
         }
+        document.addEventListener("visibilitychange", () => {
+          if (!document.hidden) refreshFrame();
+        });
         setInterval(refreshFrame, 750);
         refreshFrame();
       </script>`}
@@ -1272,11 +1326,27 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === "GET" && url.pathname === "/api/controllers") {
+    sendJson(res, 200, controllerStatusPayload());
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/frame-status") {
+    sendJson(res, 200, frameStatusPayload({ markActive: true }));
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/frame-demand") {
+    sendJson(res, 200, frameDemandPayload());
+    return;
+  }
+
   if (req.method === "GET" && url.pathname === "/frame.jpg") {
     if (!latestFrame) {
       send(res, 404, "No host frame yet.");
       return;
     }
+    markFrameViewerActive();
     res.writeHead(200, {
       "Content-Type": latestFrame.type,
       "Access-Control-Allow-Origin": "*",

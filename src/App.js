@@ -2040,9 +2040,33 @@ function PokemonSidebar() {
     let gamepadTimer = 0;
     let gamepadScheduleType = "timeout";
     let lastGamepadFocus = 0;
+    let lastGamepadInputSnapshot = "";
     const n64Launch = isN64Game(gameLaunch);
     const n64IdlePollDelay = 900;
     const n64ActivePollDelay = 50;
+    const axisButtonSnapshot = (value, threshold) => {
+      const amount = Number(value || 0);
+      if (amount < -threshold) return "n";
+      if (amount > threshold) return "p";
+      return "0";
+    };
+    const makeGamepadInputSnapshot = (pad) => {
+      const buttonSnapshot = buttonEntries
+        .map(([index]) => (pad.buttons[Number(index)]?.pressed ? "1" : "0"))
+        .join("");
+      const axes = n64Launch
+        ? [
+            axisButtonSnapshot(pad.axes[0], 0.35),
+            axisButtonSnapshot(pad.axes[1], 0.35),
+            axisButtonSnapshot(pad.axes[2], 0.45),
+            axisButtonSnapshot(pad.axes[3], 0.45)
+          ]
+        : [
+            axisButtonSnapshot(pad.axes[0], 0.45),
+            axisButtonSnapshot(pad.axes[1], 0.45)
+          ];
+      return `${buttonSnapshot}|${axes.join("")}`;
+    };
     const scheduleGamepadPoll = (hasPad = false) => {
       if (n64Launch) {
         gamepadScheduleType = "timeout";
@@ -2056,6 +2080,7 @@ function PokemonSidebar() {
       const pad = getFirstGamepad();
 
       if (!pad) {
+        lastGamepadInputSnapshot = "";
         releaseAllKeys();
         scheduleGamepadPoll(false);
         return;
@@ -2066,6 +2091,13 @@ function PokemonSidebar() {
         lastGamepadFocus = now;
         focusPokemonEmulator();
       }
+      const inputSnapshot = makeGamepadInputSnapshot(pad);
+      if (inputSnapshot === lastGamepadInputSnapshot) {
+        scheduleGamepadPoll(true);
+        return;
+      }
+      lastGamepadInputSnapshot = inputSnapshot;
+
       buttonEntries.forEach(([index, keyName]) => {
         setGameKey(keyName, Boolean(pad.buttons[Number(index)]?.pressed));
       });
@@ -2096,6 +2128,7 @@ function PokemonSidebar() {
     const handleGamepadConnected = () => {
       if (gamepadScheduleType === "timeout") window.clearTimeout(gamepadTimer);
       else window.cancelAnimationFrame(gamepadTimer);
+      lastGamepadInputSnapshot = "";
       focusPokemonEmulator();
       scheduleGamepadPoll(true);
     };
@@ -2134,6 +2167,24 @@ function PokemonSidebar() {
       }
     };
 
+    const shouldSendMultiplayerFrame = async () => {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 650);
+      try {
+        const response = await fetch(`${cleanMultiplayerHostUrl}/api/frame-demand`, {
+          cache: "no-store",
+          signal: controller.signal
+        });
+        if (!response.ok) return true;
+        const data = await response.json().catch(() => null);
+        return data?.needed !== false;
+      } catch {
+        return true;
+      } finally {
+        window.clearTimeout(timeout);
+      }
+    };
+
     const sendHostFrame = async () => {
       if (cancelled || sendingHostFrame) return;
       sendingHostFrame = true;
@@ -2142,6 +2193,9 @@ function PokemonSidebar() {
         try {
           await postToMultiplayerHelper("/api/host", { gameName: gameLaunch.label });
         } catch {}
+
+        const frameNeeded = await shouldSendMultiplayerFrame();
+        if (!frameNeeded || cancelled) return;
 
         const canvas = emulatorHostRef.current?.querySelector("canvas");
         if (canvas?.width && canvas?.height) {
@@ -2217,15 +2271,16 @@ function PokemonSidebar() {
       const activeInputs = multiplayerRemoteKeysRef.current;
       const current = activeInputs.get(keyId);
       if (value) {
-        if (current?.value === value) return;
-        if (!simulateRemoteInput(input, value)) return;
+        if (current?.value === value) return true;
+        if (!simulateRemoteInput(input, value)) return false;
         activeInputs.set(keyId, { ...input, value });
-        return;
+        return true;
       }
 
-      if (!current) return;
-      simulateRemoteInput(current, 0);
+      if (!current) return true;
+      if (!simulateRemoteInput(current, 0)) return false;
       activeInputs.delete(keyId);
+      return true;
     };
 
     const releaseRemoteKeys = () => {
@@ -2280,26 +2335,56 @@ function PokemonSidebar() {
       }
     };
 
+    const makeRemoteControllersSnapshot = (controllers) => JSON.stringify(
+      controllers.slice(0, playerCount).map(controller => ({
+        id: controller?.id || "",
+        buttons: Array.isArray(controller?.buttons) ? [...controller.buttons].sort() : [],
+        axes: Array.isArray(controller?.axes) ? controller.axes : []
+      }))
+    );
+
+    const canSimulateRemoteInput = () => (
+      typeof window.EJS_emulator?.gameManager?.simulateInput === "function"
+    );
+
+    const loadRemoteControllerStatus = async () => {
+      let response = await fetch(`${cleanMultiplayerHostUrl}/api/controllers`, { cache: "no-store" });
+      if (response.status === 404) response = await fetch(`${cleanMultiplayerHostUrl}/status`, { cache: "no-store" });
+      if (!response.ok) throw new Error("No multiplayer helper.");
+      return response.json();
+    };
+
     let cancelled = false;
+    let lastRemoteControllersSnapshot = "";
     const n64Launch = isN64Game(gameLaunch);
     const pollRemoteControllers = async () => {
       if (cancelled) return;
 
       try {
-        const response = await fetch(`${cleanMultiplayerHostUrl}/status`, { cache: "no-store" });
-        if (!response.ok) throw new Error("No multiplayer helper.");
-        const data = await response.json();
+        const data = await loadRemoteControllerStatus();
         const controllers = Array.isArray(data?.controllers) ? data.controllers : [];
+        const controllerSnapshot = makeRemoteControllersSnapshot(controllers);
+        if (controllerSnapshot === lastRemoteControllersSnapshot) return;
+        if (!canSimulateRemoteInput()) {
+          lastRemoteControllersSnapshot = "";
+          return;
+        }
+
         const pressedInputs = new Map();
         controllers
           .slice(0, playerCount)
           .forEach((controller, controllerIndex) => addControllerInputs(pressedInputs, controller, controllerIndex, n64Launch));
 
-        pressedInputs.forEach((input, keyId) => setRemoteInput(keyId, input, input.value));
-        Array.from(multiplayerRemoteKeysRef.current.entries()).forEach(([keyId, mapped]) => {
-          if (!pressedInputs.has(keyId)) setRemoteInput(keyId, mapped, 0);
+        let inputsApplied = true;
+        pressedInputs.forEach((input, keyId) => {
+          if (!setRemoteInput(keyId, input, input.value)) inputsApplied = false;
         });
+        Array.from(multiplayerRemoteKeysRef.current.entries()).forEach(([keyId, mapped]) => {
+          if (!pressedInputs.has(keyId) && !setRemoteInput(keyId, mapped, 0)) inputsApplied = false;
+        });
+        lastRemoteControllersSnapshot = inputsApplied ? controllerSnapshot : "";
       } catch {
+        lastRemoteControllersSnapshot = "";
         releaseRemoteKeys();
       }
     };

@@ -208,10 +208,12 @@ function Start-MultiplayerRoom {
   $serverProcess = $null
   try {
     $serverProcess = Start-Process -FilePath $node -ArgumentList @($serverFile) -WorkingDirectory $scriptDir -NoNewWindow -PassThru
-    Wait-Process -Id $serverProcess.Id
+    $serverProcess.WaitForExit()
     $serverProcess.Refresh()
-    if ($serverProcess.ExitCode -ne 0) {
-      throw "FUIT Multiplayer helper stopped with exit code $($serverProcess.ExitCode)."
+    $exitCode = $serverProcess.ExitCode
+    if ($null -eq $exitCode) { $exitCode = 0 }
+    if ($exitCode -ne 0) {
+      throw "FUIT Multiplayer helper stopped with exit code $exitCode."
     }
   } finally {
     if ($serverProcess -and -not $serverProcess.HasExited) {

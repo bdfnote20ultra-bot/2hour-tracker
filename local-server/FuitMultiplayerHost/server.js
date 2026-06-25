@@ -1,5 +1,6 @@
 const http = require("http");
 const os = require("os");
+const { spawn } = require("child_process");
 
 const PORT = Number(process.env.FUIT_MULTIPLAYER_PORT || 8174);
 const startedAtMs = Date.now();
@@ -26,11 +27,17 @@ const selectedGame = (() => {
 })();
 const controllers = new Map();
 const controllerClaims = new Map();
+const nativeControllerClaims = new Map();
+const nativeGamepadStates = new Map();
 const CONTROLLER_STALE_MS = 10000;
 const CONTROLLER_CLAIM_STALE_MS = 5000;
+const NATIVE_CONTROLLER_CLAIM_STALE_MS = 3500;
+const NATIVE_GAMEPAD_POLL_MS = 50;
 let latestFrame = null;
 let latestFrameMs = 0;
 let latestFrameEtag = "0";
+let nativeGamepadProcess = null;
+let nativeGamepadStdout = "";
 let hostState = {
   connected: false,
   gameName: selectedGame?.label || gameName,
@@ -58,11 +65,229 @@ function publicOrigin(req) {
   return `${proto}://${host}`;
 }
 
+function normalizeControllerId(value) {
+  return String(value || "").slice(0, 80);
+}
+
+function normalizeControllerLabel(value) {
+  return String(value || "Browser Controller").slice(0, 120);
+}
+
+function normalizeControllerAxis(value) {
+  const number = Number(value || 0);
+  if (!Number.isFinite(number)) return 0;
+  return Math.max(-1, Math.min(1, number));
+}
+
+function normalizeControllerAxes(value) {
+  return Array.isArray(value) ? value.slice(0, 8).map(normalizeControllerAxis) : [];
+}
+
+function normalizeControllerButtons(value) {
+  return Array.isArray(value) ? Array.from(new Set(value.map(button => String(button || "").slice(0, 32)).filter(Boolean))).slice(0, 32) : [];
+}
+
+function storeControllerState({ id, label, physicalControllerId = "", buttons = [], axes = [], now = Date.now() }) {
+  if (!id) return null;
+  const safeLabel = normalizeControllerLabel(label);
+  const safePhysicalControllerId = normalizeControllerClaimId(physicalControllerId);
+
+  if (safePhysicalControllerId) {
+    releaseControllerClaims(id, safePhysicalControllerId);
+    controllerClaims.set(safePhysicalControllerId, { id, label: safeLabel, lastSeenMs: now });
+  } else {
+    releaseControllerClaims(id);
+  }
+
+  const controller = {
+    id,
+    label: safeLabel,
+    physicalControllerId: safePhysicalControllerId,
+    buttons: normalizeControllerButtons(buttons),
+    axes: normalizeControllerAxes(axes),
+    lastSeenMs: now
+  };
+  controllers.set(id, controller);
+  return controller;
+}
+
+function normalizeXInputThumb(value, deadzone) {
+  const number = Number(value || 0);
+  if (Math.abs(number) <= deadzone) return 0;
+  const divisor = number < 0 ? 32768 : 32767;
+  return Math.max(-1, Math.min(1, number / divisor));
+}
+
+function mapXInputStateToController(state) {
+  const mask = Number(state?.buttons || 0);
+  const buttons = new Set();
+  const addButton = (bit, name) => {
+    if ((mask & bit) === bit) buttons.add(name);
+  };
+
+  addButton(0x1000, "a");
+  addButton(0x2000, "b");
+  addButton(0x4000, "x");
+  addButton(0x8000, "y");
+  addButton(0x0100, "l");
+  addButton(0x0200, "r");
+  addButton(0x0020, "select");
+  addButton(0x0010, "start");
+  addButton(0x0001, "up");
+  addButton(0x0002, "down");
+  addButton(0x0004, "left");
+  addButton(0x0008, "right");
+  if (Number(state?.lt || 0) > 30) buttons.add("l");
+  if (Number(state?.rt || 0) > 30) buttons.add("r");
+
+  return {
+    buttons: Array.from(buttons),
+    axes: [
+      normalizeXInputThumb(state?.lx, 7849),
+      -normalizeXInputThumb(state?.ly, 7849),
+      normalizeXInputThumb(state?.rx, 8689),
+      -normalizeXInputThumb(state?.ry, 8689)
+    ]
+  };
+}
+
+function pruneNativeControllerClaims(now = Date.now()) {
+  for (const [physicalId, claim] of nativeControllerClaims.entries()) {
+    if (now - claim.lastSeenMs > NATIVE_CONTROLLER_CLAIM_STALE_MS || !controllers.has(claim.id)) {
+      nativeControllerClaims.delete(physicalId);
+    }
+  }
+}
+
+function applyNativeControllerClaims() {
+  const now = Date.now();
+  pruneNativeControllerClaims(now);
+  for (const claim of nativeControllerClaims.values()) {
+    const state = nativeGamepadStates.get(claim.nativeIndex);
+    if (!state) continue;
+    const mapped = mapXInputStateToController(state);
+    storeControllerState({
+      id: claim.id,
+      label: claim.label,
+      physicalControllerId: claim.physicalControllerId,
+      buttons: mapped.buttons,
+      axes: mapped.axes,
+      now
+    });
+  }
+}
+
+function handleNativeGamepadLine(line) {
+  const trimmed = String(line || "").trim();
+  if (!trimmed) return;
+  try {
+    const states = JSON.parse(trimmed);
+    nativeGamepadStates.clear();
+    (Array.isArray(states) ? states : []).forEach(state => {
+      const index = Number(state?.index);
+      if (Number.isInteger(index) && index >= 0 && index < 4) nativeGamepadStates.set(index, state);
+    });
+    applyNativeControllerClaims();
+  } catch {}
+}
+
+function buildNativeGamepadScript() {
+  return `
+$ErrorActionPreference = "SilentlyContinue"
+$code = @'
+using System;
+using System.Runtime.InteropServices;
+public static class FuitXInput {
+  [StructLayout(LayoutKind.Sequential)]
+  public struct XINPUT_GAMEPAD {
+    public ushort wButtons;
+    public byte bLeftTrigger;
+    public byte bRightTrigger;
+    public short sThumbLX;
+    public short sThumbLY;
+    public short sThumbRX;
+    public short sThumbRY;
+  }
+  [StructLayout(LayoutKind.Sequential)]
+  public struct XINPUT_STATE {
+    public uint dwPacketNumber;
+    public XINPUT_GAMEPAD Gamepad;
+  }
+  [DllImport("xinput1_4.dll", EntryPoint="XInputGetState")]
+  public static extern uint XInputGetState14(uint userIndex, out XINPUT_STATE state);
+  [DllImport("xinput9_1_0.dll", EntryPoint="XInputGetState")]
+  public static extern uint XInputGetState910(uint userIndex, out XINPUT_STATE state);
+}
+'@
+try { Add-Type $code } catch {}
+while ($true) {
+  $states = @()
+  for ($i = 0; $i -lt 4; $i += 1) {
+    $state = New-Object FuitXInput+XINPUT_STATE
+    $result = 1167
+    try {
+      $result = [FuitXInput]::XInputGetState14([uint32]$i, [ref]$state)
+    } catch {
+      try { $result = [FuitXInput]::XInputGetState910([uint32]$i, [ref]$state) } catch {}
+    }
+    if ($result -eq 0) {
+      $states += [pscustomobject]@{
+        index = $i
+        packet = [uint32]$state.dwPacketNumber
+        buttons = [uint16]$state.Gamepad.wButtons
+        lt = [int]$state.Gamepad.bLeftTrigger
+        rt = [int]$state.Gamepad.bRightTrigger
+        lx = [int]$state.Gamepad.sThumbLX
+        ly = [int]$state.Gamepad.sThumbLY
+        rx = [int]$state.Gamepad.sThumbRX
+        ry = [int]$state.Gamepad.sThumbRY
+      }
+    }
+  }
+  [Console]::Out.WriteLine((ConvertTo-Json -Compress -InputObject @($states)))
+  [Console]::Out.Flush()
+  Start-Sleep -Milliseconds ${NATIVE_GAMEPAD_POLL_MS}
+}
+`;
+}
+
+function startNativeGamepadPoller() {
+  if (process.platform !== "win32") return false;
+  if (nativeGamepadProcess && !nativeGamepadProcess.killed) return true;
+
+  try {
+    const encodedScript = Buffer.from(buildNativeGamepadScript(), "utf16le").toString("base64");
+    nativeGamepadProcess = spawn(
+      "powershell.exe",
+      ["-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encodedScript],
+      { windowsHide: true, stdio: ["ignore", "pipe", "ignore"] }
+    );
+    nativeGamepadStdout = "";
+    nativeGamepadProcess.stdout.on("data", chunk => {
+      nativeGamepadStdout += chunk.toString("utf8");
+      const lines = nativeGamepadStdout.split(/\r?\n/);
+      nativeGamepadStdout = lines.pop() || "";
+      lines.forEach(handleNativeGamepadLine);
+    });
+    nativeGamepadProcess.on("exit", () => {
+      nativeGamepadProcess = null;
+      nativeGamepadStdout = "";
+      nativeGamepadStates.clear();
+    });
+    return true;
+  } catch {
+    nativeGamepadProcess = null;
+    nativeGamepadStdout = "";
+    return false;
+  }
+}
+
 function pruneControllers() {
   const now = Date.now();
   for (const [id, controller] of controllers.entries()) {
     if (now - controller.lastSeenMs > CONTROLLER_STALE_MS) controllers.delete(id);
   }
+  pruneNativeControllerClaims(now);
   for (const [physicalId, claim] of controllerClaims.entries()) {
     if (now - claim.lastSeenMs > CONTROLLER_CLAIM_STALE_MS || !controllers.has(claim.id)) {
       controllerClaims.delete(physicalId);
@@ -81,6 +306,14 @@ function releaseControllerClaims(id, keepPhysicalId = "") {
   for (const [physicalId, claim] of controllerClaims.entries()) {
     if (claim.id === id && physicalId !== keepPhysicalId) {
       controllerClaims.delete(physicalId);
+    }
+  }
+}
+
+function releaseNativeControllerClaims(id, keepPhysicalId = "") {
+  for (const [physicalId, claim] of nativeControllerClaims.entries()) {
+    if (claim.id === id && physicalId !== keepPhysicalId) {
+      nativeControllerClaims.delete(physicalId);
     }
   }
 }
@@ -242,6 +475,7 @@ function controllerPage() {
           <div>
             <div class="sub">Status</div>
             <p id="status" class="muted">Waiting for input...</p>
+            <button id="hidConnect" type="button" style="display:none;margin-top:8px;">Link HID</button>
           </div>
         </div>
       </section>
@@ -270,9 +504,16 @@ function controllerPage() {
       const pressed = new Set();
       const lockedGamepads = new Map();
       const status = document.getElementById("status");
+      const hidConnectButton = document.getElementById("hidConnect");
       const keyMap = { KeyW: "up", KeyA: "left", KeyS: "down", KeyD: "right", KeyJ: "a", KeyK: "b", KeyU: "x", KeyI: "y", Enter: "start", ShiftRight: "select", ShiftLeft: "select" };
       const gamepadMap = { 0: "a", 1: "b", 2: "x", 3: "y", 4: "l", 5: "r", 8: "select", 9: "start", 12: "up", 13: "down", 14: "left", 15: "right" };
+      const hidGamepadUsages = new Set(["1:4", "1:5", "1:8"]);
+      const hidAxisUsages = { 48: 0, 49: 1, 51: 2, 52: 3, 50: 2, 53: 3 };
       let claimedPhysicalControllerId = "";
+      let claimedNativeController = null;
+      let hidDevice = null;
+      let hidReportParsers = new Map();
+      let hidControllerState = null;
       const controllerTickMs = 50;
       let sendingInput = false;
       let sendAgain = false;
@@ -285,10 +526,266 @@ function controllerPage() {
         ? queueMicrotask
         : callback => Promise.resolve().then(callback);
 
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const makeHidUsage = (page, id) => (Number(page || 0) * 65536) + Number(id || 0);
+      const hidUsagePage = (usage, fallbackPage = 0) => {
+        const number = Number(usage || 0);
+        return number > 65535 ? Math.floor(number / 65536) : Number(fallbackPage || 0);
+      };
+      const hidUsageId = usage => Number(usage || 0) % 65536;
+      const isHidGamepadCollection = collection => hidGamepadUsages.has(Number(collection?.usagePage || 0) + ":" + Number(collection?.usage || 0));
+      function collectHidGamepadCollections(device) {
+        const matches = [];
+        const visit = collection => {
+          if (!collection) return;
+          if (isHidGamepadCollection(collection)) {
+            matches.push(collection);
+            return;
+          }
+          (collection.children || []).forEach(visit);
+        };
+        (device?.collections || []).forEach(visit);
+        return matches;
+      }
+
+      function hidItemUsages(item, fallbackPage) {
+        if (Array.isArray(item?.usages) && item.usages.length) {
+          return item.usages.map(usage => makeHidUsage(hidUsagePage(usage, fallbackPage), hidUsageId(usage)));
+        }
+
+        if (item?.isRange && item.usageMinimum !== undefined && item.usageMaximum !== undefined) {
+          const usageMinimum = Number(item.usageMinimum || 0);
+          const usageMaximum = Number(item.usageMaximum || 0);
+          const usagePage = hidUsagePage(usageMinimum, fallbackPage);
+          const minId = hidUsageId(usageMinimum);
+          const maxId = hidUsageId(usageMaximum);
+          const count = Math.min(Number(item.reportCount || 0), Math.max(0, maxId - minId + 1), 64);
+          return Array.from({ length: count }, (_, index) => makeHidUsage(usagePage, minId + index));
+        }
+
+        return [];
+      }
+
+      function makeHidReportParsers(device) {
+        const parsers = new Map();
+        collectHidGamepadCollections(device).forEach(collection => {
+          (collection.inputReports || []).forEach(report => {
+            let bitOffset = 0;
+            const fields = [];
+            (report.items || []).forEach(item => {
+              const reportSize = Number(item.reportSize || 0);
+              const reportCount = Number(item.reportCount || 0);
+              if (!reportSize || !reportCount) return;
+              const usages = hidItemUsages(item, collection.usagePage);
+              const usagePage = usages.length ? hidUsagePage(usages[0], collection.usagePage) : Number(collection.usagePage || 0);
+              if (!item.isConstant && !item.isBufferedBytes) {
+                fields.push({
+                  bitOffset,
+                  reportSize,
+                  reportCount,
+                  isArray: Boolean(item.isArray),
+                  hasNull: Boolean(item.hasNull),
+                  logicalMinimum: Number(item.logicalMinimum || 0),
+                  logicalMaximum: Number(item.logicalMaximum || 0),
+                  usagePage,
+                  usages
+                });
+              }
+              bitOffset += reportSize * reportCount;
+            });
+            if (fields.length) parsers.set(Number(report.reportId || 0), fields);
+          });
+        });
+        return parsers;
+      }
+
+      function readHidBits(bytes, bitOffset, bitLength, signed) {
+        let value = 0;
+        let multiplier = 1;
+        for (let bit = 0; bit < bitLength; bit += 1) {
+          const sourceBit = bitOffset + bit;
+          const byte = bytes[sourceBit >> 3] || 0;
+          if (byte & (1 << (sourceBit & 7))) value += multiplier;
+          multiplier *= 2;
+        }
+        if (signed && bitLength > 0) {
+          const sign = Math.pow(2, bitLength - 1);
+          if (value >= sign) value -= Math.pow(2, bitLength);
+        }
+        return value;
+      }
+
+      function normalizeHidAxis(value, field) {
+        const min = Number(field.logicalMinimum || 0);
+        const max = Number(field.logicalMaximum || 0);
+        if (max <= min) return 0;
+        const center = min < 0 && max > 0 ? 0 : (min + max) / 2;
+        const range = min < 0 && max > 0 ? Math.max(Math.abs(min), Math.abs(max)) : (max - min) / 2;
+        if (!range) return 0;
+        const normalized = clamp((Number(value || 0) - center) / range, -1, 1);
+        return Math.abs(normalized) < 0.05 ? 0 : normalized;
+      }
+
+      function addHidHatButtons(buttons, value, field) {
+        let hat = Number(value);
+        if (field.hasNull && (hat < field.logicalMinimum || hat > field.logicalMaximum)) return;
+        if (field.logicalMinimum === 1 && field.logicalMaximum >= 8) hat -= 1;
+        if (hat < 0 || hat > 7) return;
+        const directions = [
+          ["up"],
+          ["up", "right"],
+          ["right"],
+          ["down", "right"],
+          ["down"],
+          ["down", "left"],
+          ["left"],
+          ["up", "left"]
+        ];
+        directions[hat].forEach(direction => buttons.add(direction));
+      }
+
+      function applyHidValue(buttons, axes, usage, value, field) {
+        const page = hidUsagePage(usage, field.usagePage);
+        const id = hidUsageId(usage);
+        if (page === 9) {
+          const mapped = gamepadMap[id - 1];
+          if (mapped && Number(value)) buttons.add(mapped);
+          return;
+        }
+        if (page !== 1) return;
+        if (id === 57) {
+          addHidHatButtons(buttons, value, field);
+          return;
+        }
+        const axisIndex = hidAxisUsages[id];
+        if (axisIndex !== undefined) axes[axisIndex] = normalizeHidAxis(value, field);
+      }
+
+      function parseHidInputReport(event) {
+        const fields = hidReportParsers.get(Number(event.reportId || 0));
+        if (!fields) return null;
+        const bytes = new Uint8Array(event.data.buffer, event.data.byteOffset, event.data.byteLength);
+        const buttons = new Set();
+        const axes = [0, 0, 0, 0];
+        fields.forEach(field => {
+          const signed = field.logicalMinimum < 0;
+          for (let index = 0; index < field.reportCount; index += 1) {
+            const value = readHidBits(bytes, field.bitOffset + (index * field.reportSize), field.reportSize, signed);
+            if (field.isArray) {
+              if (!value) continue;
+              applyHidValue(buttons, axes, makeHidUsage(field.usagePage, value), 1, field);
+            } else {
+              const usage = field.usages[index] || field.usages[0] || 0;
+              if (usage) applyHidValue(buttons, axes, usage, value, field);
+            }
+          }
+        });
+        return {
+          physicalControllerId: controllerDeviceId + ":hid:" + Number(event.device.vendorId || 0) + ":" + Number(event.device.productId || 0) + ":" + (event.device.productName || "Controller"),
+          label: event.device.productName || "HID Controller",
+          buttons: Array.from(buttons),
+          axes
+        };
+      }
+
+      function handleHidInputReport(event) {
+        if (!hidDevice || event.device !== hidDevice) return;
+        const state = parseHidInputReport(event);
+        if (!state) return;
+        hidControllerState = state;
+        queueSendInput(true);
+      }
+
+      function getActiveHidControllerState() {
+        if (!hidDevice || !hidControllerState) return null;
+        return {
+          physicalControllerId: hidControllerState.physicalControllerId,
+          label: hidControllerState.label,
+          buttons: Array.from(new Set([...pressed, ...hidControllerState.buttons])),
+          axes: Array.isArray(hidControllerState.axes) ? hidControllerState.axes : []
+        };
+      }
+
+      async function openHidDevice(device) {
+        if (!device || !collectHidGamepadCollections(device).length) return false;
+        const parsers = makeHidReportParsers(device);
+        if (!parsers.size) return false;
+        if (hidDevice && hidDevice !== device) {
+          try { hidDevice.removeEventListener("inputreport", handleHidInputReport); } catch {}
+        }
+        hidDevice = device;
+        hidReportParsers = parsers;
+        if (!device.opened) await device.open();
+        try { device.removeEventListener("inputreport", handleHidInputReport); } catch {}
+        device.addEventListener("inputreport", handleHidInputReport);
+        if (hidConnectButton) hidConnectButton.textContent = "HID Linked";
+        status.textContent = "HID linked: " + (device.productName || "Controller");
+        return true;
+      }
+
+      async function connectRememberedHidDevices() {
+        if (!navigator.hid) return;
+        try {
+          const devices = await navigator.hid.getDevices();
+          for (const device of devices) {
+            if (await openHidDevice(device)) return;
+          }
+        } catch {}
+      }
+
+      async function requestHidDevice() {
+        if (!navigator.hid) return;
+        try {
+          const devices = await navigator.hid.requestDevice({
+            filters: [
+              { usagePage: 1, usage: 4 },
+              { usagePage: 1, usage: 5 },
+              { usagePage: 1, usage: 8 }
+            ]
+          });
+          for (const device of devices) {
+            if (await openHidDevice(device)) return;
+          }
+        } catch {}
+      }
+
+      if (navigator.hid && hidConnectButton) {
+        hidConnectButton.style.display = "inline-block";
+        hidConnectButton.addEventListener("click", requestHidDevice);
+        connectRememberedHidDevices();
+        navigator.hid.addEventListener("disconnect", event => {
+          if (event.device !== hidDevice) return;
+          try { hidDevice.removeEventListener("inputreport", handleHidInputReport); } catch {}
+          hidDevice = null;
+          hidReportParsers = new Map();
+          hidControllerState = null;
+          hidConnectButton.textContent = "Link HID";
+          queueSendInput(true);
+        });
+      }
+
       const getPadKey = pad => pad ? controllerDeviceId + ":" + String(pad.index) + ":" + (pad.id || "Gamepad") : "";
       const getPadLabel = pad => String(pad?.id || "Keyboard").trim() || "Keyboard";
+      const releaseNativeController = physicalControllerId => {
+        const releasePhysicalControllerId = typeof physicalControllerId === "string"
+          ? physicalControllerId
+          : claimedNativeController?.physicalControllerId || "";
+        if (!releasePhysicalControllerId) return;
+        fetch("/api/controller/native-release", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: controllerId, physicalControllerId: releasePhysicalControllerId }),
+          keepalive: true
+        }).catch(() => {});
+      };
       const releaseController = physicalControllerId => {
-        const releasePhysicalControllerId = typeof physicalControllerId === "string" ? physicalControllerId : claimedPhysicalControllerId;
+        const releasePhysicalControllerId = typeof physicalControllerId === "string"
+          ? physicalControllerId
+          : claimedPhysicalControllerId || claimedNativeController?.physicalControllerId || "";
+        releaseNativeController(releasePhysicalControllerId);
+        if (!physicalControllerId || releasePhysicalControllerId === claimedNativeController?.physicalControllerId) {
+          claimedNativeController = null;
+        }
         const body = JSON.stringify({ id: controllerId, physicalControllerId: releasePhysicalControllerId });
         try {
           if (navigator.sendBeacon) {
@@ -369,10 +866,60 @@ function controllerPage() {
         return buttons;
       }
 
-      async function postControllerInput(pad) {
+      async function claimNativeController(pad) {
+        if (!pad) return false;
+        const nativeIndex = Number(pad.index);
+        if (!Number.isInteger(nativeIndex) || nativeIndex < 0 || nativeIndex > 3) return false;
+
         const physicalControllerId = getPadKey(pad);
-        const controllerLabel = getPadLabel(pad);
-        const buttons = readButtons(pad);
+        const label = getPadLabel(pad);
+        try {
+          const response = await fetch("/api/controller/native-claim", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: controllerId,
+              label,
+              physicalControllerId,
+              nativeIndex
+            })
+          });
+          const result = await response.json().catch(() => null);
+          if (!response.ok) {
+            if (result?.locked) return false;
+            throw new Error(result?.error || "Native controller claim failed.");
+          }
+          if (result?.nativeAvailable) claimedNativeController = { physicalControllerId, nativeIndex, label };
+          return Boolean(result?.nativeAvailable);
+        } catch {
+          return false;
+        }
+      }
+
+      async function keepNativeControllerClaimAlive() {
+        if (!claimedNativeController) return false;
+        try {
+          const response = await fetch("/api/controller/native-claim", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: controllerId,
+              label: claimedNativeController.label,
+              physicalControllerId: claimedNativeController.physicalControllerId,
+              nativeIndex: claimedNativeController.nativeIndex
+            })
+          });
+          return response.ok;
+        } catch {
+          return false;
+        }
+      }
+
+      async function postControllerState(controllerState) {
+        const physicalControllerId = controllerState.physicalControllerId || "";
+        const controllerLabel = controllerState.label || "Keyboard";
+        const buttons = Array.isArray(controllerState.buttons) ? controllerState.buttons : [];
+        const axes = Array.isArray(controllerState.axes) ? controllerState.axes : [];
         const response = await fetch("/api/controller", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -381,7 +928,7 @@ function controllerPage() {
             label: controllerLabel,
             physicalControllerId,
             buttons,
-            axes: Array.from(pad?.axes || [])
+            axes
           })
         });
         const result = await response.json().catch(() => null);
@@ -394,14 +941,42 @@ function controllerPage() {
           throw new Error(result?.error || "Controller update failed.");
         }
         claimedPhysicalControllerId = physicalControllerId;
+        if (controllerState.pad) await claimNativeController(controllerState.pad);
+        else if (claimedNativeController?.physicalControllerId && claimedNativeController.physicalControllerId !== physicalControllerId) {
+          releaseNativeController(claimedNativeController.physicalControllerId);
+          claimedNativeController = null;
+        }
         status.textContent = buttons.length
           ? "Sending from " + controllerLabel + ": " + buttons.join(", ")
           : "Connected: " + controllerLabel;
         return { ok: true, locked: false, label: controllerLabel, physicalControllerId };
       }
 
+      async function postControllerInput(pad) {
+        return postControllerState({
+          physicalControllerId: getPadKey(pad),
+          label: getPadLabel(pad),
+          buttons: readButtons(pad),
+          axes: Array.from(pad?.axes || []),
+          pad
+        });
+      }
+
       async function sendInput() {
         const pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : [];
+        if (document.hidden) {
+          const hidState = getActiveHidControllerState();
+          if (hidState) {
+            try {
+              const result = await postControllerState(hidState);
+              if (result.locked) status.textContent = result.label + " is already connected in another controller tab.";
+            } catch {
+              status.textContent = "Helper connection lost.";
+            }
+            return;
+          }
+        }
+
         if (claimedPhysicalControllerId) {
           const claimedPad = pads.find(candidate => getPadKey(candidate) === claimedPhysicalControllerId) || null;
           if (claimedPad) {
@@ -415,8 +990,15 @@ function controllerPage() {
           }
 
           const releasedPhysicalControllerId = claimedPhysicalControllerId;
-          claimedPhysicalControllerId = "";
           lockedGamepads.delete(releasedPhysicalControllerId);
+          if (document.hidden && claimedNativeController?.physicalControllerId === releasedPhysicalControllerId) {
+            const keptAlive = await keepNativeControllerClaimAlive();
+            if (keptAlive) {
+              status.textContent = "Controller tab is running in the background.";
+              return;
+            }
+          }
+          claimedPhysicalControllerId = "";
           releaseController(releasedPhysicalControllerId);
         }
 
@@ -606,6 +1188,84 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === "POST" && url.pathname === "/api/controller/native-claim") {
+    try {
+      const body = JSON.parse(await readBody(req) || "{}");
+      const id = normalizeControllerId(body.id) || `controller-${controllers.size + 1}`;
+      const now = Date.now();
+      const physicalControllerId = normalizeControllerClaimId(body.physicalControllerId);
+      const label = normalizeControllerLabel(body.label || "Browser Controller");
+      const nativeIndex = Number(body.nativeIndex);
+      if (!physicalControllerId) throw new Error("Expected a physical controller id.");
+      if (!Number.isInteger(nativeIndex) || nativeIndex < 0 || nativeIndex > 3) throw new Error("Expected an XInput controller index from 0 to 3.");
+      pruneControllers();
+
+      const existingClaim = controllerClaims.get(physicalControllerId);
+      if (
+        existingClaim &&
+        existingClaim.id !== id &&
+        controllers.has(existingClaim.id) &&
+        now - existingClaim.lastSeenMs <= CONTROLLER_CLAIM_STALE_MS
+      ) {
+        sendJson(res, 409, {
+          ok: false,
+          locked: true,
+          error: "This physical controller is already connected in another controller tab.",
+          label: existingClaim.label || label
+        });
+        return;
+      }
+
+      const nativeAvailable = startNativeGamepadPoller();
+      releaseNativeControllerClaims(id, physicalControllerId);
+      nativeControllerClaims.set(physicalControllerId, {
+        id,
+        label,
+        physicalControllerId,
+        nativeIndex,
+        lastSeenMs: now
+      });
+
+      const current = controllers.get(id);
+      storeControllerState({
+        id,
+        label,
+        physicalControllerId,
+        buttons: current?.buttons || [],
+        axes: current?.axes || [],
+        now
+      });
+      applyNativeControllerClaims();
+      sendJson(res, 200, {
+        ok: true,
+        nativeAvailable,
+        nativeConnected: nativeGamepadStates.has(nativeIndex)
+      });
+    } catch (error) {
+      sendJson(res, 400, { ok: false, error: error.message || "Bad native controller claim payload." });
+    }
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/controller/native-release") {
+    try {
+      const body = JSON.parse(await readBody(req) || "{}");
+      const id = normalizeControllerId(body.id);
+      const physicalControllerId = normalizeControllerClaimId(body.physicalControllerId);
+      if (id) {
+        for (const [nativePhysicalId, claim] of nativeControllerClaims.entries()) {
+          if (claim.id === id && (!physicalControllerId || nativePhysicalId === physicalControllerId)) {
+            nativeControllerClaims.delete(nativePhysicalId);
+          }
+        }
+      }
+      sendJson(res, 200, { ok: true });
+    } catch (error) {
+      sendJson(res, 400, { ok: false, error: error.message || "Bad native controller release payload." });
+    }
+    return;
+  }
+
   if (req.method === "POST" && url.pathname === "/api/host") {
     try {
       const body = JSON.parse(await readBody(req) || "{}");
@@ -642,10 +1302,10 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "POST" && url.pathname === "/api/controller") {
     try {
       const body = JSON.parse(await readBody(req) || "{}");
-      const id = String(body.id || "").slice(0, 80) || `controller-${controllers.size + 1}`;
+      const id = normalizeControllerId(body.id) || `controller-${controllers.size + 1}`;
       const now = Date.now();
       const physicalControllerId = normalizeControllerClaimId(body.physicalControllerId);
-      const label = String(body.label || "Browser Controller").slice(0, 120);
+      const label = normalizeControllerLabel(body.label || "Browser Controller");
       pruneControllers();
 
       if (physicalControllerId) {
@@ -672,18 +1332,19 @@ const server = http.createServer(async (req, res) => {
         }
 
         releaseControllerClaims(id, physicalControllerId);
-        controllerClaims.set(physicalControllerId, { id, label, lastSeenMs: now });
+        releaseNativeControllerClaims(id, physicalControllerId);
       } else {
         releaseControllerClaims(id);
+        releaseNativeControllerClaims(id);
       }
 
-      controllers.set(id, {
+      storeControllerState({
         id,
         label,
         physicalControllerId,
-        buttons: Array.isArray(body.buttons) ? body.buttons.slice(0, 32) : [],
-        axes: Array.isArray(body.axes) ? body.axes.slice(0, 8) : [],
-        lastSeenMs: now
+        buttons: body.buttons,
+        axes: body.axes,
+        now
       });
       sendJson(res, 200, { ok: true });
     } catch (error) {
@@ -699,6 +1360,7 @@ const server = http.createServer(async (req, res) => {
       const physicalControllerId = normalizeControllerClaimId(body.physicalControllerId);
       if (id) {
         controllers.delete(id);
+        releaseNativeControllerClaims(id, physicalControllerId);
         if (physicalControllerId) {
           const claim = controllerClaims.get(physicalControllerId);
           if (claim?.id === id) controllerClaims.delete(physicalControllerId);
@@ -726,6 +1388,7 @@ let shuttingDown = false;
 function shutdown(exitCode = 0) {
   if (shuttingDown) return;
   shuttingDown = true;
+  try { nativeGamepadProcess?.kill?.(); } catch {}
   try {
     server.close(() => process.exit(exitCode));
   } catch {

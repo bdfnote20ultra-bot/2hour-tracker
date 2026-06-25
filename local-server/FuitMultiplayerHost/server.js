@@ -1094,12 +1094,16 @@ function controllerPage() {
 
           const releasedPhysicalControllerId = claimedPhysicalControllerId;
           lockedGamepads.delete(releasedPhysicalControllerId);
-          if (document.hidden && claimedNativeController?.physicalControllerId === releasedPhysicalControllerId) {
-            const keptAlive = await keepNativeControllerClaimAlive();
-            if (keptAlive) {
-              status.textContent = "Controller tab is running in the background.";
-              return;
+          if (document.hidden) {
+            if (claimedNativeController?.physicalControllerId === releasedPhysicalControllerId) {
+              const keptAlive = await keepNativeControllerClaimAlive();
+              if (keptAlive) {
+                status.textContent = "Controller tab is running in the background.";
+                return;
+              }
             }
+            status.textContent = "Controller tab is running in the background.";
+            return;
           }
           claimedPhysicalControllerId = "";
           releaseController(releasedPhysicalControllerId);
@@ -1132,6 +1136,8 @@ function controllerPage() {
           status.textContent = (lockedLabel || getPadLabel(pads[0])) + " is already connected in another controller tab.";
           return;
         }
+
+        if (document.hidden) return;
 
         try {
           await postControllerInput(null);

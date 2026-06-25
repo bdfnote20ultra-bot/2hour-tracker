@@ -738,7 +738,7 @@ function PokemonSidebar() {
   const gameCarouselRef = useRef(null);
   const gameCardRefs = useRef({});
   const gamepadKeysRef = useRef(new Set());
-  const multiplayerRemoteKeysRef = useRef(new Set());
+  const multiplayerRemoteKeysRef = useRef(new Map());
   const stoppedMultiplayerHelperRef = useRef({ baseUrl: "", startedAt: "" });
   const emulatorMenuOpenAllowedUntilRef = useRef(0);
   const n64PerformanceMode = isN64Game(gameLaunch);
@@ -1470,6 +1470,33 @@ function PokemonSidebar() {
   };
 
   useEffect(() => {
+    if (activeGamingApp !== "multiplayer" || !gameLaunch || collapsed || !navigator.getGamepads) return undefined;
+
+    const ownDescriptor = Object.getOwnPropertyDescriptor(navigator, "getGamepads");
+    let masked = false;
+    try {
+      Object.defineProperty(navigator, "getGamepads", {
+        configurable: true,
+        value: () => []
+      });
+      masked = true;
+    } catch {
+      try {
+        navigator.getGamepads = () => [];
+        masked = true;
+      } catch {}
+    }
+
+    return () => {
+      if (!masked) return;
+      try {
+        if (ownDescriptor) Object.defineProperty(navigator, "getGamepads", ownDescriptor);
+        else delete navigator.getGamepads;
+      } catch {}
+    };
+  }, [activeGamingApp, gameLaunch, collapsed]);
+
+  useEffect(() => {
     if (!gameLaunch) {
       resetPokemonEmulator();
       setStretchGame(false);
@@ -1640,7 +1667,7 @@ function PokemonSidebar() {
   }, [gameLaunch, collapsed]);
 
   useEffect(() => {
-    if (!gameLaunch || collapsed) return;
+    if (!gameLaunch || collapsed || activeGamingApp === "multiplayer") return;
 
     const keyMap = {
       z: { key: "z", code: "KeyZ", keyCode: 90 },
@@ -1799,7 +1826,7 @@ function PokemonSidebar() {
       window.removeEventListener("gamepadconnected", handleGamepadConnected);
       releaseAllKeys();
     };
-  }, [gameLaunch, collapsed]);
+  }, [activeGamingApp, gameLaunch, collapsed]);
 
   useEffect(() => {
     if (activeGamingApp !== "multiplayer" || !gameLaunch || !multiplayerRoom.online || collapsed) return undefined;
@@ -1864,23 +1891,47 @@ function PokemonSidebar() {
   useEffect(() => {
     if (activeGamingApp !== "multiplayer" || !gameLaunch || !multiplayerRoom.online || collapsed) return undefined;
 
-    const keyMap = {
-      up: { key: "w", code: "KeyW", keyCode: 87 },
-      down: { key: "c", code: "KeyC", keyCode: 67 },
-      left: { key: "d", code: "KeyD", keyCode: 68 },
-      right: { key: "m", code: "KeyM", keyCode: 77 },
-      a: { key: "y", code: "KeyY", keyCode: 89 },
-      b: { key: "u", code: "KeyU", keyCode: 85 },
-      x: { key: "p", code: "KeyP", keyCode: 80 },
-      y: { key: "o", code: "KeyO", keyCode: 79 },
-      select: { key: "b", code: "KeyB", keyCode: 66 },
-      start: { key: "n", code: "KeyN", keyCode: 78 }
-    };
+    if (!(multiplayerRemoteKeysRef.current instanceof Map)) multiplayerRemoteKeysRef.current = new Map();
 
-    const dispatchRemoteKey = (keyName, type) => {
-      const mapped = keyMap[keyName];
+    const playerKeyMaps = [
+      {
+        up: { key: "ArrowUp", code: "ArrowUp", keyCode: 38 },
+        down: { key: "ArrowDown", code: "ArrowDown", keyCode: 40 },
+        left: { key: "ArrowLeft", code: "ArrowLeft", keyCode: 37 },
+        right: { key: "ArrowRight", code: "ArrowRight", keyCode: 39 },
+        a: { key: "z", code: "KeyZ", keyCode: 90 },
+        b: { key: "x", code: "KeyX", keyCode: 88 },
+        x: { key: "a", code: "KeyA", keyCode: 65 },
+        y: { key: "s", code: "KeyS", keyCode: 83 },
+        l: { key: "q", code: "KeyQ", keyCode: 81 },
+        r: { key: "e", code: "KeyE", keyCode: 69 },
+        select: { key: "v", code: "KeyV", keyCode: 86 },
+        start: { key: "Enter", code: "Enter", keyCode: 13 },
+        analogLeft: { key: "f", code: "KeyF", keyCode: 70 },
+        analogRight: { key: "h", code: "KeyH", keyCode: 72 },
+        analogUp: { key: "t", code: "KeyT", keyCode: 84 },
+        analogDown: { key: "g", code: "KeyG", keyCode: 71 },
+        cLeft: { key: "j", code: "KeyJ", keyCode: 74 },
+        cRight: { key: "l", code: "KeyL", keyCode: 76 },
+        cUp: { key: "i", code: "KeyI", keyCode: 73 },
+        cDown: { key: "k", code: "KeyK", keyCode: 75 }
+      },
+      {
+        up: { key: "w", code: "KeyW", keyCode: 87 },
+        down: { key: "c", code: "KeyC", keyCode: 67 },
+        left: { key: "d", code: "KeyD", keyCode: 68 },
+        right: { key: "m", code: "KeyM", keyCode: 77 },
+        a: { key: "y", code: "KeyY", keyCode: 89 },
+        b: { key: "u", code: "KeyU", keyCode: 85 },
+        x: { key: "p", code: "KeyP", keyCode: 80 },
+        y: { key: "o", code: "KeyO", keyCode: 79 },
+        select: { key: "b", code: "KeyB", keyCode: 66 },
+        start: { key: "n", code: "KeyN", keyCode: 78 }
+      }
+    ];
+
+    const dispatchRemoteKey = (mapped, type) => {
       if (!mapped) return;
-
       const canvas = emulatorHostRef.current?.querySelector("canvas");
       const targets = [canvas || document.activeElement || document.body, document, window];
       targets.forEach(target => {
@@ -1896,19 +1947,57 @@ function PokemonSidebar() {
       });
     };
 
-    const setRemoteKey = (keyName, pressed) => {
+    const setRemoteKey = (keyId, mapped, pressed) => {
       const activeKeys = multiplayerRemoteKeysRef.current;
-      if (pressed && !activeKeys.has(keyName)) {
-        activeKeys.add(keyName);
-        dispatchRemoteKey(keyName, "keydown");
-      } else if (!pressed && activeKeys.has(keyName)) {
-        activeKeys.delete(keyName);
-        dispatchRemoteKey(keyName, "keyup");
+      if (pressed && !activeKeys.has(keyId)) {
+        activeKeys.set(keyId, mapped);
+        dispatchRemoteKey(mapped, "keydown");
+      } else if (!pressed && activeKeys.has(keyId)) {
+        const activeMapped = activeKeys.get(keyId) || mapped;
+        activeKeys.delete(keyId);
+        dispatchRemoteKey(activeMapped, "keyup");
       }
     };
 
     const releaseRemoteKeys = () => {
-      Array.from(multiplayerRemoteKeysRef.current).forEach(keyName => setRemoteKey(keyName, false));
+      Array.from(multiplayerRemoteKeysRef.current.entries()).forEach(([keyId, mapped]) => setRemoteKey(keyId, mapped, false));
+    };
+
+    const addPressedKey = (pressedKeys, controllerIndex, keyName, mapped) => {
+      if (!mapped) return;
+      pressedKeys.set(`${controllerIndex}:${keyName}`, mapped);
+    };
+
+    const addControllerKeys = (pressedKeys, controller, controllerIndex, n64Launch) => {
+      const keyMap = playerKeyMaps[controllerIndex];
+      if (!keyMap) return;
+
+      const buttons = new Set(Array.isArray(controller?.buttons) ? controller.buttons : []);
+      Object.entries(keyMap).forEach(([keyName, mapped]) => {
+        if (buttons.has(keyName)) addPressedKey(pressedKeys, controllerIndex, keyName, mapped);
+      });
+
+      const axes = Array.isArray(controller?.axes) ? controller.axes : [];
+      const leftX = Number(axes[0] || 0);
+      const leftY = Number(axes[1] || 0);
+      if (n64Launch && controllerIndex === 0) {
+        addPressedKey(pressedKeys, controllerIndex, "analogLeft", leftX < -0.35 ? keyMap.analogLeft : null);
+        addPressedKey(pressedKeys, controllerIndex, "analogRight", leftX > 0.35 ? keyMap.analogRight : null);
+        addPressedKey(pressedKeys, controllerIndex, "analogUp", leftY < -0.35 ? keyMap.analogUp : null);
+        addPressedKey(pressedKeys, controllerIndex, "analogDown", leftY > 0.35 ? keyMap.analogDown : null);
+
+        const rightX = Number(axes[2] || 0);
+        const rightY = Number(axes[3] || 0);
+        addPressedKey(pressedKeys, controllerIndex, "cLeft", rightX < -0.45 ? keyMap.cLeft : null);
+        addPressedKey(pressedKeys, controllerIndex, "cRight", rightX > 0.45 ? keyMap.cRight : null);
+        addPressedKey(pressedKeys, controllerIndex, "cUp", rightY < -0.45 ? keyMap.cUp : null);
+        addPressedKey(pressedKeys, controllerIndex, "cDown", rightY > 0.45 ? keyMap.cDown : null);
+      } else {
+        addPressedKey(pressedKeys, controllerIndex, "left", leftX < -0.45 ? keyMap.left : null);
+        addPressedKey(pressedKeys, controllerIndex, "right", leftX > 0.45 ? keyMap.right : null);
+        addPressedKey(pressedKeys, controllerIndex, "up", leftY < -0.45 ? keyMap.up : null);
+        addPressedKey(pressedKeys, controllerIndex, "down", leftY > 0.45 ? keyMap.down : null);
+      }
     };
 
     let cancelled = false;
@@ -1921,11 +2010,15 @@ function PokemonSidebar() {
         if (!response.ok) throw new Error("No multiplayer helper.");
         const data = await response.json();
         const controllers = Array.isArray(data?.controllers) ? data.controllers : [];
-        const buttons = new Set(controllers.flatMap(controller =>
-          Array.isArray(controller?.buttons) ? controller.buttons : []
-        ));
+        const pressedKeys = new Map();
+        controllers
+          .slice(0, playerKeyMaps.length)
+          .forEach((controller, controllerIndex) => addControllerKeys(pressedKeys, controller, controllerIndex, n64Launch));
 
-        Object.keys(keyMap).forEach(keyName => setRemoteKey(keyName, buttons.has(keyName)));
+        pressedKeys.forEach((mapped, keyId) => setRemoteKey(keyId, mapped, true));
+        Array.from(multiplayerRemoteKeysRef.current.entries()).forEach(([keyId, mapped]) => {
+          if (!pressedKeys.has(keyId)) setRemoteKey(keyId, mapped, false);
+        });
       } catch {
         releaseRemoteKeys();
       }

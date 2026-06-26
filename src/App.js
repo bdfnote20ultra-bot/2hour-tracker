@@ -1238,9 +1238,6 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       window.focus?.();
     } catch {}
   };
-  const addMultiplayerControllerOnThisPage = () => {
-    claimMultiplayerControllerOnFrontPage(makeMultiplayerControllerId(), window);
-  };
   const openMultiplayerEmulatorPage = () => {
     try {
       const url = new URL("/multiplayer-emulator", window.location.href);
@@ -3373,25 +3370,6 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
                   }}
                 >
                   Open Emulator
-                </button>
-              )}
-              {standaloneMultiplayer && (
-                <button
-                  type="button"
-                  disabled={!multiplayerRoom.online}
-                  onClick={addMultiplayerControllerOnThisPage}
-                  style={{
-                    border: "none",
-                    borderRadius: 10,
-                    padding: "10px 10px",
-                    background: multiplayerRoom.online ? "#22c55e" : "rgba(148,163,184,.34)",
-                    color: multiplayerRoom.online ? "#052e16" : "#94a3b8",
-                    fontSize: 11,
-                    fontWeight: 1000,
-                    cursor: multiplayerRoom.online ? "pointer" : "default"
-                  }}
-                >
-                  Add This PC Controller
                 </button>
               )}
               <button

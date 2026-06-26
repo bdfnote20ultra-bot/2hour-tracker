@@ -181,9 +181,10 @@ function applyNativeControllerClaims() {
   pruneNativeControllerClaims(now);
   const usedNativeIndexes = new Set();
   for (const claim of nativeControllerClaims.values()) {
-    let state = Number.isInteger(claim.nativeIndex) ? nativeGamepadStates.get(claim.nativeIndex) : null;
+    const hasExplicitNativeIndex = Number.isInteger(claim.nativeIndex);
+    let state = hasExplicitNativeIndex ? nativeGamepadStates.get(claim.nativeIndex) : null;
     if (state && usedNativeIndexes.has(Number(state.index))) state = null;
-    if (!state) {
+    if (!state && !hasExplicitNativeIndex) {
       state = Array.from(nativeGamepadStates.values()).find(candidate => !usedNativeIndexes.has(Number(candidate.index))) || null;
     }
     if (!state) continue;

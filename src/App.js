@@ -439,7 +439,6 @@ const POKEMON_STRETCH_DEFAULT_OPTIONS = {
   video_scale_integer: "false",
   video_aspect_ratio_auto: "false"
 };
-
 const isN64Game = game => game?.system === "N64" || game?.core === "n64";
 const POKEMON_FULLSCREEN_ASPECT = 16 / 9;
 
@@ -2353,6 +2352,8 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
           await postToMultiplayerHelper("/api/host", { gameName: gameLaunch.label });
         } catch {}
 
+        if (n64Launch) return;
+
         const frameNeeded = await shouldSendMultiplayerFrame();
         if (!frameNeeded || cancelled) return;
 
@@ -2363,7 +2364,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
             if (frameState === "blank") return;
             if (frameState === "unknown" && !hasSentActiveFrame && Date.now() - relayStartedAt < 12000) return;
             const image = await makeMultiplayerFrameImage(canvas, n64Launch
-              ? { quality: 0.54, maxWidth: 640, maxHeight: 480 }
+              ? { quality: 0.28, maxWidth: 360, maxHeight: 270 }
               : { quality: 0.42, maxWidth: 480, maxHeight: 360 }
             );
             if (isUsableFrameImage(image)) {
@@ -2378,7 +2379,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
     };
 
     const firstFrameTimer = window.setTimeout(sendHostFrame, 1200);
-    const interval = window.setInterval(sendHostFrame, n64Launch ? 900 : 1200);
+    const interval = window.setInterval(sendHostFrame, n64Launch ? 5000 : 1200);
 
     return () => {
       cancelled = true;
@@ -2603,7 +2604,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
         });
     };
 
-    const interval = window.setInterval(queueRemoteControllerPoll, n64Launch ? 50 : 80);
+    const interval = window.setInterval(queueRemoteControllerPoll, n64Launch ? 120 : 80);
     queueRemoteControllerPoll();
 
     return () => {

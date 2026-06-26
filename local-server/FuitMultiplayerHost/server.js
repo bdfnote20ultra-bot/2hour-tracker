@@ -102,15 +102,51 @@ function normalizeControllerButtons(value) {
   return Array.isArray(value) ? Array.from(new Set(value.map(button => String(button || "").slice(0, 32)).filter(Boolean))).slice(0, 32) : [];
 }
 
-function storeControllerState({ id, label, physicalControllerId = "", buttons = [], axes = [], source = "", now = Date.now() }) {
+function normalizeControllerClaimSignature(value) {
+  return String(value || "").slice(0, 240);
+}
+
+function makeControllerClaimKeys(physicalControllerId = "", physicalControllerSignature = "") {
+  return Array.from(new Set([
+    normalizeControllerClaimId(physicalControllerId),
+    normalizeControllerClaimSignature(physicalControllerSignature)
+  ].filter(Boolean)));
+}
+
+function findActiveControllerClaim(claimKeys, id, now = Date.now()) {
+  for (const claimKey of claimKeys) {
+    const existingClaim = controllerClaims.get(claimKey);
+    if (
+      existingClaim &&
+      existingClaim.id !== id &&
+      controllers.has(existingClaim.id) &&
+      now - existingClaim.lastSeenMs <= CONTROLLER_CLAIM_STALE_MS
+    ) {
+      return existingClaim;
+    }
+  }
+  return null;
+}
+
+function storeControllerState({ id, label, physicalControllerId = "", physicalControllerSignature = "", buttons = [], axes = [], source = "", now = Date.now() }) {
   if (!id) return null;
   const safeLabel = normalizeControllerLabel(label);
   const safePhysicalControllerId = normalizeControllerClaimId(physicalControllerId);
+  const safePhysicalControllerSignature = normalizeControllerClaimSignature(physicalControllerSignature);
   const safeSource = normalizeControllerSource(source);
+  const claimKeys = makeControllerClaimKeys(safePhysicalControllerId, safePhysicalControllerSignature);
 
-  if (safePhysicalControllerId) {
-    releaseControllerClaims(id, safePhysicalControllerId);
-    controllerClaims.set(safePhysicalControllerId, { id, label: safeLabel, lastSeenMs: now });
+  if (claimKeys.length) {
+    releaseControllerClaims(id, claimKeys);
+    claimKeys.forEach(claimKey => {
+      controllerClaims.set(claimKey, {
+        id,
+        label: safeLabel,
+        physicalControllerId: safePhysicalControllerId,
+        physicalControllerSignature: safePhysicalControllerSignature,
+        lastSeenMs: now
+      });
+    });
   } else {
     releaseControllerClaims(id);
   }
@@ -119,6 +155,7 @@ function storeControllerState({ id, label, physicalControllerId = "", buttons = 
     id,
     label: safeLabel,
     physicalControllerId: safePhysicalControllerId,
+    physicalControllerSignature: safePhysicalControllerSignature,
     buttons: normalizeControllerButtons(buttons),
     axes: normalizeControllerAxes(axes),
     inputSource: safeSource,
@@ -198,6 +235,7 @@ function applyNativeControllerClaims() {
       id: claim.id,
       label: claim.label,
       physicalControllerId: claim.physicalControllerId,
+      physicalControllerSignature: claim.physicalControllerSignature,
       buttons: mapped.buttons,
       axes: mapped.axes,
       source: "native-helper",
@@ -335,8 +373,9 @@ function normalizeControllerClaimId(value) {
 }
 
 function releaseControllerClaims(id, keepPhysicalId = "") {
+  const keepPhysicalIds = new Set(Array.isArray(keepPhysicalId) ? keepPhysicalId : [keepPhysicalId].filter(Boolean));
   for (const [physicalId, claim] of controllerClaims.entries()) {
-    if (claim.id === id && physicalId !== keepPhysicalId) {
+    if (claim.id === id && !keepPhysicalIds.has(physicalId)) {
       controllerClaims.delete(physicalId);
     }
   }
@@ -664,6 +703,7 @@ function controllerPage() {
       };
       const hidUsageId = usage => Number(usage || 0) % 65536;
       const getHidPhysicalControllerId = device => controllerDeviceId + ":hid:" + Number(device?.vendorId || 0) + ":" + Number(device?.productId || 0) + ":" + (device?.productName || "Controller");
+      const getHidPhysicalControllerSignature = device => "hid:" + Number(device?.vendorId || 0) + ":" + Number(device?.productId || 0) + ":" + (device?.productName || "Controller");
       const isHidGamepadCollection = collection => hidGamepadUsages.has(Number(collection?.usagePage || 0) + ":" + Number(collection?.usage || 0));
       function collectHidGamepadCollections(device) {
         const matches = [];
@@ -822,6 +862,7 @@ function controllerPage() {
         if (matchingPad) {
           return {
             physicalControllerId: getPadKey(matchingPad),
+            physicalControllerSignature: getPadSignature(matchingPad),
             label: getPadLabel(matchingPad),
             buttons: readGamepadButtons(matchingPad),
             axes: Array.from(matchingPad.axes || []),
@@ -854,6 +895,7 @@ function controllerPage() {
         });
         return {
           physicalControllerId: getHidPhysicalControllerId(event.device),
+          physicalControllerSignature: getHidPhysicalControllerSignature(event.device),
           label: event.device.productName || "HID Controller",
           buttons: Array.from(buttons),
           axes
@@ -874,6 +916,7 @@ function controllerPage() {
         if (matchingPad) {
           return {
             physicalControllerId: getPadKey(matchingPad),
+            physicalControllerSignature: getPadSignature(matchingPad),
             label: getPadLabel(matchingPad),
             buttons: Array.from(new Set([...pressed, ...readGamepadButtons(matchingPad)])),
             axes: Array.from(matchingPad.axes || []),
@@ -882,6 +925,7 @@ function controllerPage() {
         }
         return {
           physicalControllerId: hidControllerState.physicalControllerId,
+          physicalControllerSignature: hidControllerState.physicalControllerSignature,
           label: hidControllerState.label,
           buttons: Array.from(new Set([...pressed, ...hidControllerState.buttons])),
           axes: Array.isArray(hidControllerState.axes) ? hidControllerState.axes : []
@@ -951,6 +995,9 @@ function controllerPage() {
 
       function getPadKey(pad) {
         return pad ? controllerDeviceId + ":" + String(pad.index) + ":" + (pad.id || "Gamepad") : "";
+      }
+      function getPadSignature(pad) {
+        return pad ? "gamepad:" + String(pad.index) + ":" + (pad.id || "Gamepad") : "";
       }
       function getPadLabel(pad) {
         return String(pad?.id || "Keyboard").trim() || "Keyboard";
@@ -1087,6 +1134,7 @@ function controllerPage() {
           id: controllerId,
           label: controllerState.label || getPadLabel(controllerState.pad),
           physicalControllerId: controllerState.physicalControllerId,
+          physicalControllerSignature: controllerState.physicalControllerSignature || getPadSignature(controllerState.pad),
           padIndex: Number(controllerState.pad.index),
           padId: String(controllerState.pad.id || ""),
           updatedAt: Date.now()
@@ -1224,6 +1272,7 @@ function controllerPage() {
         const preferredNativeIndex = Number.isInteger(nativeIndex) && nativeIndex >= 0 && nativeIndex < 4 ? nativeIndex : null;
 
         const physicalControllerId = getPadKey(pad);
+        const physicalControllerSignature = getPadSignature(pad);
         const label = getPadLabel(pad);
         try {
           const response = await fetch("/api/controller/native-claim", {
@@ -1233,6 +1282,7 @@ function controllerPage() {
               id: controllerId,
               label,
               physicalControllerId,
+              physicalControllerSignature,
               nativeIndex: preferredNativeIndex
             })
           });
@@ -1244,6 +1294,7 @@ function controllerPage() {
           if (result?.nativeAvailable && result?.nativeConnected) {
             claimedNativeController = {
               physicalControllerId,
+              physicalControllerSignature,
               nativeIndex: Number.isInteger(result.nativeIndex) ? result.nativeIndex : preferredNativeIndex,
               label
             };
@@ -1260,6 +1311,7 @@ function controllerPage() {
         if (!nativeHelperFallbackAllowed) return false;
         if (!device) return false;
         const physicalControllerId = getHidPhysicalControllerId(device);
+        const physicalControllerSignature = getHidPhysicalControllerSignature(device);
         const label = device.productName || "HID Controller";
         try {
           const response = await fetch("/api/controller/native-claim", {
@@ -1269,6 +1321,7 @@ function controllerPage() {
               id: controllerId,
               label,
               physicalControllerId,
+              physicalControllerSignature,
               nativeIndex: null
             })
           });
@@ -1280,6 +1333,7 @@ function controllerPage() {
           if (result?.nativeAvailable && result?.nativeConnected) {
             claimedNativeController = {
               physicalControllerId,
+              physicalControllerSignature,
               nativeIndex: Number.isInteger(result.nativeIndex) ? result.nativeIndex : null,
               label
             };
@@ -1303,6 +1357,7 @@ function controllerPage() {
               id: controllerId,
               label: claimedNativeController.label,
               physicalControllerId: claimedNativeController.physicalControllerId,
+              physicalControllerSignature: claimedNativeController.physicalControllerSignature,
               nativeIndex: claimedNativeController.nativeIndex
             })
           });
@@ -1322,6 +1377,7 @@ function controllerPage() {
 
       async function postControllerState(controllerState) {
         const physicalControllerId = controllerState.physicalControllerId || "";
+        const physicalControllerSignature = controllerState.physicalControllerSignature || "";
         const controllerLabel = controllerState.label || "Keyboard";
         const buttons = Array.isArray(controllerState.buttons) ? controllerState.buttons : [];
         const axes = Array.isArray(controllerState.axes) ? controllerState.axes : [];
@@ -1332,6 +1388,7 @@ function controllerPage() {
             id: controllerId,
             label: controllerLabel,
             physicalControllerId,
+            physicalControllerSignature,
             buttons,
             axes,
             source: "controller-tab"
@@ -1364,6 +1421,7 @@ function controllerPage() {
       async function postControllerInput(pad) {
         return postControllerState({
           physicalControllerId: getPadKey(pad),
+          physicalControllerSignature: getPadSignature(pad),
           label: getPadLabel(pad),
           buttons: readButtons(pad),
           axes: Array.from(pad?.axes || []),
@@ -1652,6 +1710,8 @@ const server = http.createServer(async (req, res) => {
       const id = normalizeControllerId(body.id) || `controller-${controllers.size + 1}`;
       const now = Date.now();
       const physicalControllerId = normalizeControllerClaimId(body.physicalControllerId);
+      const physicalControllerSignature = normalizeControllerClaimSignature(body.physicalControllerSignature);
+      const claimKeys = makeControllerClaimKeys(physicalControllerId, physicalControllerSignature);
       const label = normalizeControllerLabel(body.label || "Browser Controller");
       const nativeIndex = body.nativeIndex === null || body.nativeIndex === undefined || body.nativeIndex === ""
         ? null
@@ -1662,13 +1722,8 @@ const server = http.createServer(async (req, res) => {
       }
       pruneControllers();
 
-      const existingClaim = controllerClaims.get(physicalControllerId);
-      if (
-        existingClaim &&
-        existingClaim.id !== id &&
-        controllers.has(existingClaim.id) &&
-        now - existingClaim.lastSeenMs <= CONTROLLER_CLAIM_STALE_MS
-      ) {
+      const existingClaim = findActiveControllerClaim(claimKeys, id, now);
+      if (existingClaim) {
         sendJson(res, 409, {
           ok: false,
           locked: true,
@@ -1684,6 +1739,7 @@ const server = http.createServer(async (req, res) => {
         id,
         label,
         physicalControllerId,
+        physicalControllerSignature,
         nativeIndex,
         lastSeenMs: now
       });
@@ -1693,6 +1749,7 @@ const server = http.createServer(async (req, res) => {
         id,
         label,
         physicalControllerId,
+        physicalControllerSignature,
         buttons: current?.buttons || [],
         axes: current?.axes || [],
         now
@@ -1771,8 +1828,10 @@ const server = http.createServer(async (req, res) => {
       const id = normalizeControllerId(body.id) || `controller-${controllers.size + 1}`;
       const now = Date.now();
       const physicalControllerId = normalizeControllerClaimId(body.physicalControllerId);
+      const physicalControllerSignature = normalizeControllerClaimSignature(body.physicalControllerSignature);
       const label = normalizeControllerLabel(body.label || "Browser Controller");
       const inputSource = normalizeControllerSource(body.source);
+      const claimKeys = makeControllerClaimKeys(physicalControllerId, physicalControllerSignature);
       pruneControllers();
 
       const currentController = controllers.get(id);
@@ -1780,7 +1839,7 @@ const server = http.createServer(async (req, res) => {
         inputSource === "front-relay" &&
         currentController?.inputSource &&
         currentController.inputSource !== "front-relay" &&
-        now - Number(currentController.lastSeenMs || 0) <= CONTROLLER_DIRECT_INPUT_GRACE_MS
+        now - Number(currentController.lastSeenMs || 0) <= CONTROLLER_STALE_MS
       ) {
         sendJson(res, 200, {
           ok: true,
@@ -1790,16 +1849,12 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      if (physicalControllerId) {
-        const existingClaim = controllerClaims.get(physicalControllerId);
-        if (
-          existingClaim &&
-          existingClaim.id !== id &&
-          controllers.has(existingClaim.id) &&
-          now - existingClaim.lastSeenMs <= CONTROLLER_CLAIM_STALE_MS
-        ) {
+      if (claimKeys.length) {
+        const existingClaim = findActiveControllerClaim(claimKeys, id, now);
+        if (existingClaim) {
           const currentController = controllers.get(id);
-          const hasDifferentPhysicalClaim = currentController?.physicalControllerId && currentController.physicalControllerId !== physicalControllerId;
+          const currentClaimKeys = makeControllerClaimKeys(currentController?.physicalControllerId, currentController?.physicalControllerSignature);
+          const hasDifferentPhysicalClaim = currentClaimKeys.some(claimKey => !claimKeys.includes(claimKey));
           if (!hasDifferentPhysicalClaim) {
             controllers.delete(id);
             releaseControllerClaims(id);
@@ -1813,7 +1868,7 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
-        releaseControllerClaims(id, physicalControllerId);
+        releaseControllerClaims(id, claimKeys);
         releaseNativeControllerClaims(id, physicalControllerId);
       } else {
         releaseControllerClaims(id);
@@ -1824,6 +1879,7 @@ const server = http.createServer(async (req, res) => {
         id,
         label,
         physicalControllerId,
+        physicalControllerSignature,
         buttons: body.buttons,
         axes: body.axes,
         source: inputSource,
@@ -1844,12 +1900,7 @@ const server = http.createServer(async (req, res) => {
       if (id) {
         controllers.delete(id);
         releaseNativeControllerClaims(id, physicalControllerId);
-        if (physicalControllerId) {
-          const claim = controllerClaims.get(physicalControllerId);
-          if (claim?.id === id) controllerClaims.delete(physicalControllerId);
-        } else {
-          releaseControllerClaims(id);
-        }
+        releaseControllerClaims(id);
       }
       sendJson(res, 200, { ok: true });
     } catch (error) {

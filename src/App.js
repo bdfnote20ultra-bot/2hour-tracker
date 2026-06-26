@@ -1197,6 +1197,9 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
   const getMultiplayerFrontControllerPadKey = useCallback((pad) => (
     pad ? `${getMultiplayerFrontControllerDeviceId()}:${String(pad.index)}:${String(pad.id || "Gamepad")}` : ""
   ), [getMultiplayerFrontControllerDeviceId]);
+  const getMultiplayerFrontControllerPadSignature = useCallback((pad) => (
+    pad ? `gamepad:${String(pad.index)}:${String(pad.id || "Gamepad")}` : ""
+  ), []);
   const getMultiplayerFrontControllerPadLabel = useCallback((pad) => (
     String(pad?.id || "Gamepad").trim() || "Gamepad"
   ), []);
@@ -1205,14 +1208,18 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
     const pads = getBrowserGamepads();
     const claimedPhysicalIds = new Set(
       Array.from(multiplayerControllerRelayClaimsRef.current.values())
-        .map(claim => claim?.physicalControllerId)
+        .flatMap(claim => [claim?.physicalControllerId, claim?.physicalControllerSignature])
         .filter(Boolean)
     );
-    const pad = pads.find(candidate => !claimedPhysicalIds.has(getMultiplayerFrontControllerPadKey(candidate))) || pads[0] || null;
+    const pad = pads.find(candidate =>
+      !claimedPhysicalIds.has(getMultiplayerFrontControllerPadKey(candidate)) &&
+      !claimedPhysicalIds.has(getMultiplayerFrontControllerPadSignature(candidate))
+    ) || null;
     multiplayerControllerRelayClaimsRef.current.set(controllerId, {
       id: controllerId,
       label: pad ? getMultiplayerFrontControllerPadLabel(pad) : "Gamepad",
       physicalControllerId: pad ? getMultiplayerFrontControllerPadKey(pad) : "",
+      physicalControllerSignature: pad ? getMultiplayerFrontControllerPadSignature(pad) : "",
       padIndex: pad ? Number(pad.index) : null,
       padId: pad ? String(pad.id || "") : "",
       frontRelay: true,
@@ -1220,7 +1227,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       controllerWindow,
       updatedAt: Date.now()
     });
-  }, [getBrowserGamepads, getMultiplayerFrontControllerPadKey, getMultiplayerFrontControllerPadLabel]);
+  }, [getBrowserGamepads, getMultiplayerFrontControllerPadKey, getMultiplayerFrontControllerPadLabel, getMultiplayerFrontControllerPadSignature]);
   const openMultiplayerController = () => {
     if (!canAddMultiplayerController) return;
     const controllerId = makeMultiplayerControllerId();
@@ -1500,8 +1507,9 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       return Math.round(Math.max(-1, Math.min(1, number)) * 100) / 100;
     };
 
-    const makeRelayInputSnapshot = (physicalControllerId, buttons, axes) => JSON.stringify({
+    const makeRelayInputSnapshot = (physicalControllerId, physicalControllerSignature, buttons, axes) => JSON.stringify({
       physicalControllerId,
+      physicalControllerSignature,
       buttons: Array.from(new Set(buttons)).sort(),
       axes: axes.map(normalizeRelayAxis)
     });
@@ -1518,10 +1526,13 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       const claimedPhysicalIds = new Set(
         claims
           .filter(existing => existing.id !== claim.id)
-          .map(existing => existing.physicalControllerId)
+          .flatMap(existing => [existing.physicalControllerId, existing.physicalControllerSignature])
           .filter(Boolean)
       );
-      return pads.find(pad => !claimedPhysicalIds.has(getMultiplayerFrontControllerPadKey(pad))) || pads[0] || null;
+      return pads.find(pad =>
+        !claimedPhysicalIds.has(getMultiplayerFrontControllerPadKey(pad)) &&
+        !claimedPhysicalIds.has(getMultiplayerFrontControllerPadSignature(pad))
+      ) || null;
     };
 
     const sendRelayInput = async () => {
@@ -1533,14 +1544,17 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       if (!pads.length) return;
 
       for (const claim of claims) {
+        if (!claim.frontRelay) continue;
         const pad = findClaimPad(pads, claim, claims);
         if (!pad) continue;
         const frontRelayPhysicalId = claim.frontRelay ? getMultiplayerFrontControllerPadKey(pad) : "";
+        const frontRelayPhysicalSignature = claim.frontRelay ? getMultiplayerFrontControllerPadSignature(pad) : "";
         const physicalControllerId = frontRelayPhysicalId || claim.physicalControllerId;
+        const physicalControllerSignature = frontRelayPhysicalSignature || claim.physicalControllerSignature || "";
         const label = claim.frontRelay ? getMultiplayerFrontControllerPadLabel(pad) : (claim.label || String(pad.id || "Gamepad"));
         const buttons = readPadButtons(pad);
         const axes = Array.from(pad.axes || []);
-        const inputSnapshot = makeRelayInputSnapshot(physicalControllerId, buttons, axes);
+        const inputSnapshot = makeRelayInputSnapshot(physicalControllerId, physicalControllerSignature, buttons, axes);
         const now = Date.now();
         const heartbeatDue = now - Number(claim.lastSentAt || 0) >= FUIT_CONTROLLER_RELAY_HEARTBEAT_MS;
         if (!claim.pending && claim.inputSnapshot === inputSnapshot && !heartbeatDue) continue;
@@ -1553,6 +1567,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
               id: claim.id,
               label,
               physicalControllerId,
+              physicalControllerSignature,
               buttons,
               axes,
               source: "front-relay"
@@ -1563,6 +1578,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
             ...claim,
             label,
             physicalControllerId,
+            physicalControllerSignature,
             padIndex: Number(pad.index),
             padId: String(pad.id || ""),
             pending: false,
@@ -1635,6 +1651,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
     getBrowserGamepads,
     getMultiplayerFrontControllerPadKey,
     getMultiplayerFrontControllerPadLabel,
+    getMultiplayerFrontControllerPadSignature,
     multiplayerRoom.data?.controllerUrl,
     multiplayerRoom.data?.viewerUrl,
     multiplayerRoom.online,

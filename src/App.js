@@ -1448,7 +1448,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
     const helperOrigin = (() => {
       try { return new URL(helperBaseUrl, window.location.href).origin; } catch { return helperBaseUrl; }
     })();
-    const gamepadMap = { 0: "a", 1: "b", 2: "x", 3: "y", 4: "l", 5: "r", 8: "select", 9: "start", 12: "up", 13: "down", 14: "left", 15: "right" };
+    const gamepadMap = { 0: "a", 1: "b", 2: "x", 3: "y", 4: "l", 5: "r", 6: "z", 7: "r2", 8: "select", 9: "start", 12: "up", 13: "down", 14: "left", 15: "right" };
     let cancelled = false;
     let relayTimer = 0;
     let sendingRelayInput = false;
@@ -1935,16 +1935,16 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       window.EJS_threads = true;
     }
     const makeN64ControllerControls = (keys = {}) => ({
-      0: { value: keys[0] || "", value2: "BUTTON_2" },
-      1: { value: keys[1] || "", value2: "BUTTON_4" },
+      0: { value: keys[0] || "", value2: "BUTTON_1" },
+      1: { value: keys[1] || "", value2: "BUTTON_2" },
       2: { value: keys[2] || "", value2: "SELECT" },
       3: { value: keys[3] || "", value2: "START" },
       4: { value: keys[4] || "", value2: "DPAD_UP" },
       5: { value: keys[5] || "", value2: "DPAD_DOWN" },
       6: { value: keys[6] || "", value2: "DPAD_LEFT" },
       7: { value: keys[7] || "", value2: "DPAD_RIGHT" },
-      8: { value: keys[8] || "", value2: "BUTTON_1" },
-      9: { value: keys[9] || "", value2: "BUTTON_3" },
+      8: { value: keys[8] || "", value2: "BUTTON_3" },
+      9: { value: keys[9] || "", value2: "BUTTON_4" },
       10: { value: keys[10] || "", value2: "LEFT_TOP_SHOULDER" },
       11: { value: keys[11] || "", value2: "RIGHT_TOP_SHOULDER" },
       12: { value: keys[12] || "", value2: "LEFT_BOTTOM_SHOULDER" },
@@ -2372,7 +2372,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
     if (!(multiplayerRemoteKeysRef.current instanceof Map)) multiplayerRemoteKeysRef.current = new Map();
 
     const playerCount = 4;
-    const digitalInputs = {
+    const defaultDigitalInputs = {
       b: 0,
       y: 1,
       select: 2,
@@ -2385,6 +2385,22 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       x: 9,
       l: 10,
       r: 11
+    };
+    const n64DigitalInputs = {
+      a: 0,
+      b: 1,
+      select: 2,
+      start: 3,
+      up: 4,
+      down: 5,
+      left: 6,
+      right: 7,
+      x: 8,
+      y: 9,
+      l: 10,
+      r: 11,
+      z: 12,
+      r2: 13
     };
     const analogInputs = {
       right: 16,
@@ -2418,7 +2434,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
         return true;
       }
 
-      if (!current) return true;
+      if (!current) return input.forceZero ? simulateRemoteInput(input, 0) : true;
       if (!simulateRemoteInput(current, 0)) return false;
       activeInputs.delete(keyId);
       return true;
@@ -2430,7 +2446,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
 
     const addPressedInput = (pressedInputs, controllerIndex, name, index, value = 1, includeZero = false) => {
       if (index === undefined || (!includeZero && !value)) return;
-      pressedInputs.set(`${controllerIndex}:${name}`, { player: controllerIndex, index, value });
+      pressedInputs.set(`${controllerIndex}:${name}`, { player: controllerIndex, index, value, forceZero: includeZero });
     };
 
     const addAxisInput = (pressedInputs, controllerIndex, name, negativeIndex, positiveIndex, value, threshold, analog = false) => {
@@ -2473,6 +2489,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       if (controllerIndex >= playerCount) return;
 
       const buttons = new Set(Array.isArray(controller?.buttons) ? controller.buttons : []);
+      const digitalInputs = n64Launch ? n64DigitalInputs : defaultDigitalInputs;
       Object.entries(digitalInputs).forEach(([buttonName, inputIndex]) => {
         if (buttons.has(buttonName)) addPressedInput(pressedInputs, controllerIndex, buttonName, inputIndex);
       });

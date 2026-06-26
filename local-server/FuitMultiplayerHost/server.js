@@ -624,7 +624,7 @@ function controllerPage() {
       let controllerSelectSignature = "";
       try { selectedPhysicalControllerId = sessionStorage.getItem(selectedControllerKey) || ""; } catch {}
       const keyMap = { KeyW: "up", KeyA: "left", KeyS: "down", KeyD: "right", KeyJ: "a", KeyK: "b", KeyU: "x", KeyI: "y", Enter: "start", ShiftRight: "select", ShiftLeft: "select" };
-      const gamepadMap = { 0: "a", 1: "b", 2: "x", 3: "y", 4: "l", 5: "r", 8: "select", 9: "start", 12: "up", 13: "down", 14: "left", 15: "right" };
+      const gamepadMap = { 0: "a", 1: "b", 2: "x", 3: "y", 4: "l", 5: "r", 6: "z", 7: "r2", 8: "select", 9: "start", 12: "up", 13: "down", 14: "left", 15: "right" };
       const hidGamepadUsages = new Set(["1:4", "1:5", "1:8"]);
       const hidAxisUsages = { 48: 0, 49: 1, 51: 2, 52: 3, 50: 2, 53: 3 };
       let claimedPhysicalControllerId = "";

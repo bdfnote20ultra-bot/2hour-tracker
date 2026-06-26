@@ -125,6 +125,10 @@ const FUIT_CONTROLLER_RELAY_TTL_MS = 60 * 60 * 1000;
 const FUIT_CONTROLLER_RELAY_TICK_MS = 50;
 const FUIT_CONTROLLER_RELAY_HEARTBEAT_MS = 900;
 const FUIT_FRONT_CONTROLLER_DEVICE_ID_KEY = "fuitFrontControllerDeviceId_v1";
+const FUIT_MULTIPLAYER_STANDALONE_STATUS_KEY = "fuitMultiplayerStandaloneEmulatorStatus_v1";
+const FUIT_MULTIPLAYER_STANDALONE_STATUS_SOURCE = "fuit-multiplayer-standalone-emulator";
+const FUIT_MULTIPLAYER_STANDALONE_STATUS_TTL_MS = 2 * 60 * 1000;
+const FUIT_MULTIPLAYER_STANDALONE_HEARTBEAT_MS = 2000;
 const FUIT_MULTIPLAYER_DISCOVERY_URLS = Array.from(
   new Set([
     FUIT_MULTIPLAYER_DEFAULT_HOST_URL,
@@ -134,6 +138,44 @@ const FUIT_MULTIPLAYER_DISCOVERY_URLS = Array.from(
 const SIGNUP_REQUESTS_KEY = "fuitsSignupRequests_v1";
 const APPROVED_USERS_KEY = "fuitsApprovedUsers_v1";
 const BANNED_USERS_KEY = "fuitsBannedUsers_v1";
+
+function normalizeFuitMultiplayerHostUrl(hostUrl = "") {
+  return (hostUrl || FUIT_MULTIPLAYER_DEFAULT_HOST_URL).trim().replace(/\/+$/, "") || FUIT_MULTIPLAYER_DEFAULT_HOST_URL;
+}
+
+function readFuitStandaloneMultiplayerStatus(expectedHostUrl = "") {
+  try {
+    const status = JSON.parse(localStorage.getItem(FUIT_MULTIPLAYER_STANDALONE_STATUS_KEY) || "null");
+    if (!status || status.source !== FUIT_MULTIPLAYER_STANDALONE_STATUS_SOURCE || !status.id) return null;
+    const updatedAt = Number(status.updatedAt || 0);
+    if (!updatedAt || Date.now() - updatedAt > FUIT_MULTIPLAYER_STANDALONE_STATUS_TTL_MS) {
+      localStorage.removeItem(FUIT_MULTIPLAYER_STANDALONE_STATUS_KEY);
+      return null;
+    }
+    if (normalizeFuitMultiplayerHostUrl(status.hostUrl) !== normalizeFuitMultiplayerHostUrl(expectedHostUrl)) return null;
+    return status;
+  } catch {
+    return null;
+  }
+}
+
+function writeFuitStandaloneMultiplayerStatus({ id, hostUrl }) {
+  try {
+    localStorage.setItem(FUIT_MULTIPLAYER_STANDALONE_STATUS_KEY, JSON.stringify({
+      source: FUIT_MULTIPLAYER_STANDALONE_STATUS_SOURCE,
+      id,
+      hostUrl: normalizeFuitMultiplayerHostUrl(hostUrl),
+      updatedAt: Date.now()
+    }));
+  } catch {}
+}
+
+function clearFuitStandaloneMultiplayerStatus(id, hostUrl) {
+  try {
+    const status = readFuitStandaloneMultiplayerStatus(hostUrl);
+    if (!status || status.id === id) localStorage.removeItem(FUIT_MULTIPLAYER_STANDALONE_STATUS_KEY);
+  } catch {}
+}
 
 function loadData() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
@@ -732,6 +774,10 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
     try { return localStorage.getItem(KICK_GAMING_CHANNEL_KEY) || "flivetv"; } catch { return "flivetv"; }
   });
   const [multiplayerHostUrl, setMultiplayerHostUrl] = useState(getInitialMultiplayerHostUrl);
+  const cleanMultiplayerHostUrl = normalizeFuitMultiplayerHostUrl(multiplayerHostUrl);
+  const [standaloneMultiplayerOpen, setStandaloneMultiplayerOpen] = useState(() => (
+    !standaloneMultiplayer && Boolean(readFuitStandaloneMultiplayerStatus(cleanMultiplayerHostUrl))
+  ));
   const [multiplayerHostInput, setMultiplayerHostInput] = useState(getInitialMultiplayerHostUrl);
   const [multiplayerRoom, setMultiplayerRoom] = useState({ online: false, loading: true, error: "", data: null });
   const [gameSearch, setGameSearch] = useState("");
@@ -758,7 +804,14 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
   );
   const stoppedMultiplayerHelperRef = useRef({ baseUrl: "", startedAt: "" });
   const emulatorMenuOpenAllowedUntilRef = useRef(0);
+  const standaloneMultiplayerTabIdRef = useRef("");
+  if (!standaloneMultiplayerTabIdRef.current) {
+    standaloneMultiplayerTabIdRef.current = window.crypto?.randomUUID?.() || `standalone-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
   const n64PerformanceMode = isN64Game(gameLaunch);
+  const helperStandaloneMultiplayerOpen = Boolean(multiplayerRoom.data?.standaloneEmulator?.active);
+  const frontPageEmulatorHandedOff = !standaloneMultiplayer && (standaloneMultiplayerOpen || helperStandaloneMultiplayerOpen);
+  const canAddMultiplayerController = multiplayerRoom.online && !frontPageEmulatorHandedOff;
 
   const isInteractiveElement = (element) => {
     if (!element || element === document.body) return false;
@@ -949,6 +1002,75 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
     setGameLaunch({ ...game, launchId: Date.now() });
   };
 
+  useEffect(() => {
+    if (!standaloneMultiplayer) return undefined;
+
+    const tabId = standaloneMultiplayerTabIdRef.current;
+    const postStandaloneStatus = (active, { keepalive = false } = {}) => {
+      try {
+        fetch(`${cleanMultiplayerHostUrl}/api/emulator-tab`, {
+          method: "POST",
+          cache: "no-store",
+          keepalive,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: tabId, active })
+        }).catch(() => {});
+      } catch {}
+    };
+    const publishOpen = () => {
+      writeFuitStandaloneMultiplayerStatus({ id: tabId, hostUrl: cleanMultiplayerHostUrl });
+      postStandaloneStatus(true);
+    };
+    const publishClosed = () => {
+      clearFuitStandaloneMultiplayerStatus(tabId, cleanMultiplayerHostUrl);
+      postStandaloneStatus(false, { keepalive: true });
+    };
+    const handleVisibilityChange = () => publishOpen();
+
+    publishOpen();
+    const heartbeatTimer = window.setInterval(publishOpen, FUIT_MULTIPLAYER_STANDALONE_HEARTBEAT_MS);
+    window.addEventListener("pagehide", publishClosed);
+    window.addEventListener("beforeunload", publishClosed);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(heartbeatTimer);
+      window.removeEventListener("pagehide", publishClosed);
+      window.removeEventListener("beforeunload", publishClosed);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      publishClosed();
+    };
+  }, [standaloneMultiplayer, cleanMultiplayerHostUrl]);
+
+  useEffect(() => {
+    if (standaloneMultiplayer) {
+      setStandaloneMultiplayerOpen(false);
+      return undefined;
+    }
+
+    const syncStandaloneStatus = () => {
+      setStandaloneMultiplayerOpen(Boolean(readFuitStandaloneMultiplayerStatus(cleanMultiplayerHostUrl)));
+    };
+
+    syncStandaloneStatus();
+    const syncTimer = window.setInterval(syncStandaloneStatus, 1000);
+    window.addEventListener("storage", syncStandaloneStatus);
+    window.addEventListener("focus", syncStandaloneStatus);
+    document.addEventListener("visibilitychange", syncStandaloneStatus);
+
+    return () => {
+      window.clearInterval(syncTimer);
+      window.removeEventListener("storage", syncStandaloneStatus);
+      window.removeEventListener("focus", syncStandaloneStatus);
+      document.removeEventListener("visibilitychange", syncStandaloneStatus);
+    };
+  }, [standaloneMultiplayer, cleanMultiplayerHostUrl]);
+
+  useEffect(() => {
+    if (!frontPageEmulatorHandedOff || activeGamingApp !== "multiplayer" || !gameLaunch) return;
+    stopRunningGame();
+  }, [frontPageEmulatorHandedOff, activeGamingApp, gameLaunch?.launchId]);
+
   const constrainPokemonEmulatorLayout = () => {
     const host = emulatorHostRef.current;
     if (!host) return;
@@ -1046,7 +1168,6 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
   const kickGamingChannel = normalizeKickChannel(kickGamingChannelInput) || "flivetv";
   const kickGamingEmbedUrl = `https://player.kick.com/${encodeURIComponent(kickGamingChannel)}?autoplay=true&muted=true`;
   const kickGamingChatUrl = `https://kick.com/popout/${encodeURIComponent(kickGamingChannel)}/chat`;
-  const cleanMultiplayerHostUrl = (multiplayerHostUrl || FUIT_MULTIPLAYER_DEFAULT_HOST_URL).trim().replace(/\/+$/, "") || FUIT_MULTIPLAYER_DEFAULT_HOST_URL;
   const multiplayerViewerUrl = multiplayerRoom.data?.viewerUrl || `${cleanMultiplayerHostUrl}/room`;
   const multiplayerControllerUrl = multiplayerRoom.data?.controllerUrl || `${cleanMultiplayerHostUrl}/controller`;
   const getMultiplayerHelperBaseUrl = () => {
@@ -1128,6 +1249,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
     });
   }, [getBrowserGamepads, getMultiplayerFrontControllerPadKey, getMultiplayerFrontControllerPadLabel]);
   const openMultiplayerController = () => {
+    if (!canAddMultiplayerController) return;
     const controllerId = makeMultiplayerControllerId();
     const controllerWindow = window.open(makeMultiplayerControllerUrl(controllerId), "_blank");
     claimMultiplayerControllerOnFrontPage(controllerId, controllerWindow);
@@ -1626,7 +1748,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
   }, [activeGamingApp, cleanMultiplayerHostUrl, isStoppedMultiplayerHelper]);
 
   useEffect(() => {
-    if (activeGamingApp !== "multiplayer" || !multiplayerRoom.online || !multiplayerSelectedGame) return;
+    if (activeGamingApp !== "multiplayer" || !multiplayerRoom.online || !multiplayerSelectedGame || frontPageEmulatorHandedOff) return;
     const alreadySelected = activeGame &&
       activeGame.system === multiplayerSelectedGame.system &&
       activeGame.file === multiplayerSelectedGame.file;
@@ -1653,7 +1775,8 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
     multiplayerSelectedGame?.gameUrl,
     activeGame?.system,
     activeGame?.file,
-    gameLaunch
+    gameLaunch,
+    frontPageEmulatorHandedOff
   ]);
 
   useEffect(() => {
@@ -1798,7 +1921,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
   }, [activeGamingApp, gameLaunch, collapsed]);
 
   useEffect(() => {
-    if (!gameLaunch) {
+    if (!gameLaunch || frontPageEmulatorHandedOff) {
       resetPokemonEmulator();
       setStretchGame(false);
       setGameFullscreen(false);
@@ -1926,10 +2049,10 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       focusTimers.forEach(timer => window.clearTimeout(timer));
       resetPokemonEmulator(emulatorHostRef.current);
     };
-  }, [activeGamingApp, gameLaunch?.core, gameLaunch?.discUrls?.join("|"), gameLaunch?.file, gameLaunch?.gameUrl, gameLaunch?.label, gameLaunch?.launchId, selectedDiscIndex, collapsed]);
+  }, [activeGamingApp, gameLaunch?.core, gameLaunch?.discUrls?.join("|"), gameLaunch?.file, gameLaunch?.gameUrl, gameLaunch?.label, gameLaunch?.launchId, selectedDiscIndex, collapsed, frontPageEmulatorHandedOff]);
 
   useEffect(() => {
-    if (!gameLaunch || collapsed || !emulatorHostRef.current) return undefined;
+    if (!gameLaunch || frontPageEmulatorHandedOff || collapsed || !emulatorHostRef.current) return undefined;
 
     const host = emulatorHostRef.current;
     const handleMenuGesture = (event) => {
@@ -1965,7 +2088,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       host.removeEventListener("touchstart", handleMenuGesture, true);
       host.removeEventListener("click", handleSurfaceClick, true);
     };
-  }, [gameLaunch, collapsed]);
+  }, [gameLaunch, collapsed, frontPageEmulatorHandedOff]);
 
   useEffect(() => {
     if (!gameLaunch || collapsed || activeGamingApp === "multiplayer") return;
@@ -2163,7 +2286,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
   }, [activeGamingApp, gameLaunch, collapsed]);
 
   useEffect(() => {
-    if (activeGamingApp !== "multiplayer" || !gameLaunch || !multiplayerRoom.online || collapsed) return undefined;
+    if (activeGamingApp !== "multiplayer" || !gameLaunch || !multiplayerRoom.online || collapsed || frontPageEmulatorHandedOff) return undefined;
 
     let cancelled = false;
     let sendingHostFrame = false;
@@ -2241,10 +2364,10 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       window.clearTimeout(firstFrameTimer);
       window.clearInterval(interval);
     };
-  }, [activeGamingApp, cleanMultiplayerHostUrl, gameLaunch, multiplayerRoom.online, collapsed]);
+  }, [activeGamingApp, cleanMultiplayerHostUrl, gameLaunch, multiplayerRoom.online, collapsed, frontPageEmulatorHandedOff]);
 
   useEffect(() => {
-    if (activeGamingApp !== "multiplayer" || !gameLaunch || !multiplayerRoom.online || collapsed) return undefined;
+    if (activeGamingApp !== "multiplayer" || !gameLaunch || !multiplayerRoom.online || collapsed || frontPageEmulatorHandedOff) return undefined;
 
     if (!(multiplayerRemoteKeysRef.current instanceof Map)) multiplayerRemoteKeysRef.current = new Map();
 
@@ -2415,7 +2538,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       window.clearInterval(interval);
       releaseRemoteKeys();
     };
-  }, [activeGamingApp, cleanMultiplayerHostUrl, gameLaunch, multiplayerRoom.online, collapsed]);
+  }, [activeGamingApp, cleanMultiplayerHostUrl, gameLaunch, multiplayerRoom.online, collapsed, frontPageEmulatorHandedOff]);
 
   useEffect(() => {
     if (!gameLaunch) return;
@@ -3048,7 +3171,13 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
               display: "grid",
               placeItems: "center"
             }}>
-              {activeGame && gameLaunch ? (
+              {frontPageEmulatorHandedOff ? (
+                <div style={{ textAlign: "center", padding: 18 }}>
+                  <div style={{ color: "#bbf7d0", fontSize: 16, fontWeight: 1000, letterSpacing: 0 }}>
+                    EMU OPEN IN NEW TAB
+                  </div>
+                </div>
+              ) : activeGame && gameLaunch ? (
                 <div
                   ref={emulatorHostRef}
                   className={`pokemon-emulator-host${stretchGame ? " pokemon-emulator-stretch" : ""}`}
@@ -3074,7 +3203,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
               )}
             </div>
 
-            {multiplayerSelectedGame && !gameLaunch && (
+            {multiplayerSelectedGame && !gameLaunch && !frontPageEmulatorHandedOff && (
               <button
                 className="pokemon-multiplayer-host-button"
                 type="button"
@@ -3094,7 +3223,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
               </button>
             )}
 
-            {activeGame && gameLaunch && (
+            {activeGame && gameLaunch && !frontPageEmulatorHandedOff && (
               <button
                 className="pokemon-multiplayer-stop-button"
                 type="button"
@@ -3218,17 +3347,17 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
               )}
               <button
                 type="button"
-                disabled={!multiplayerRoom.online}
+                disabled={!canAddMultiplayerController}
                 onClick={openMultiplayerController}
                 style={{
                   border: "none",
                   borderRadius: 10,
                   padding: "10px 10px",
-                  background: multiplayerRoom.online ? "#bbf7d0" : "rgba(148,163,184,.34)",
-                  color: multiplayerRoom.online ? "#052e16" : "#94a3b8",
+                  background: canAddMultiplayerController ? "#bbf7d0" : "rgba(148,163,184,.34)",
+                  color: canAddMultiplayerController ? "#052e16" : "#94a3b8",
                   fontSize: 11,
                   fontWeight: 1000,
-                  cursor: multiplayerRoom.online ? "pointer" : "default"
+                  cursor: canAddMultiplayerController ? "pointer" : "default"
                 }}
               >
                 Add Controller

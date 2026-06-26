@@ -34,6 +34,7 @@ const CONTROLLER_CLAIM_STALE_MS = 5000;
 const NATIVE_CONTROLLER_CLAIM_STALE_MS = 60 * 60 * 1000;
 const NATIVE_GAMEPAD_POLL_MS = 50;
 const FRAME_VIEWER_ACTIVE_MS = 6500;
+const STANDALONE_EMULATOR_STALE_MS = 7000;
 let latestFrame = null;
 let latestFrameMs = 0;
 let latestFrameEtag = "0";
@@ -43,6 +44,11 @@ let nativeGamepadStdout = "";
 let hostState = {
   connected: false,
   gameName: selectedGame?.label || gameName,
+  lastSeenMs: 0
+};
+let standaloneEmulatorState = {
+  active: false,
+  id: "",
   lastSeenMs: 0
 };
 
@@ -309,6 +315,9 @@ function pruneControllers() {
   if (hostState.connected && now - hostState.lastSeenMs > 5000) {
     hostState = { ...hostState, connected: false };
   }
+  if (standaloneEmulatorState.active && now - standaloneEmulatorState.lastSeenMs > STANDALONE_EMULATOR_STALE_MS) {
+    standaloneEmulatorState = { ...standaloneEmulatorState, active: false };
+  }
 }
 
 function normalizeControllerClaimId(value) {
@@ -379,6 +388,15 @@ function frameDemandPayload() {
   };
 }
 
+function standaloneEmulatorPayload() {
+  pruneControllers();
+  return {
+    active: Boolean(standaloneEmulatorState.active),
+    id: standaloneEmulatorState.active ? standaloneEmulatorState.id : "",
+    lastSeenMs: standaloneEmulatorState.active ? standaloneEmulatorState.lastSeenMs : 0
+  };
+}
+
 function statusPayload(req) {
   pruneControllers();
   const origin = publicOrigin(req);
@@ -393,6 +411,7 @@ function statusPayload(req) {
     hasFrame: Boolean(latestFrame),
     latestFrameMs,
     hostState,
+    standaloneEmulator: standaloneEmulatorPayload(),
     viewerUrl: `${origin}/room`,
     controllerUrl: `${origin}/controller`,
     controllers: Array.from(controllers.values()).map(controller => ({
@@ -1340,6 +1359,25 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === "GET" && url.pathname === "/api/frame-demand") {
     sendJson(res, 200, frameDemandPayload());
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/emulator-tab") {
+    try {
+      const body = JSON.parse(await readBody(req) || "{}");
+      const id = normalizeControllerId(body.id) || `emulator-${Date.now()}`;
+      const now = Date.now();
+      if (body.active === false) {
+        if (!standaloneEmulatorState.id || standaloneEmulatorState.id === id) {
+          standaloneEmulatorState = { active: false, id: "", lastSeenMs: 0 };
+        }
+      } else {
+        standaloneEmulatorState = { active: true, id, lastSeenMs: now };
+      }
+      sendJson(res, 200, { ok: true, standaloneEmulator: standaloneEmulatorPayload() });
+    } catch (error) {
+      sendJson(res, 400, { ok: false, error: error.message || "Bad emulator tab payload." });
+    }
     return;
   }
 

@@ -31,6 +31,7 @@ const nativeControllerClaims = new Map();
 const nativeGamepadStates = new Map();
 const CONTROLLER_STALE_MS = 3500;
 const CONTROLLER_CLAIM_STALE_MS = 2500;
+const CONTROLLER_DIRECT_INPUT_GRACE_MS = 650;
 const NATIVE_CONTROLLER_CLAIM_STALE_MS = 60 * 60 * 1000;
 const NATIVE_GAMEPAD_POLL_MS = 50;
 const FRAME_VIEWER_ACTIVE_MS = 6500;
@@ -82,6 +83,11 @@ function normalizeControllerLabel(value) {
   return String(value || "Browser Controller").slice(0, 120);
 }
 
+function normalizeControllerSource(value) {
+  const source = String(value || "").toLowerCase();
+  return ["controller-tab", "front-relay", "native-helper"].includes(source) ? source : "";
+}
+
 function normalizeControllerAxis(value) {
   const number = Number(value || 0);
   if (!Number.isFinite(number)) return 0;
@@ -96,10 +102,11 @@ function normalizeControllerButtons(value) {
   return Array.isArray(value) ? Array.from(new Set(value.map(button => String(button || "").slice(0, 32)).filter(Boolean))).slice(0, 32) : [];
 }
 
-function storeControllerState({ id, label, physicalControllerId = "", buttons = [], axes = [], now = Date.now() }) {
+function storeControllerState({ id, label, physicalControllerId = "", buttons = [], axes = [], source = "", now = Date.now() }) {
   if (!id) return null;
   const safeLabel = normalizeControllerLabel(label);
   const safePhysicalControllerId = normalizeControllerClaimId(physicalControllerId);
+  const safeSource = normalizeControllerSource(source);
 
   if (safePhysicalControllerId) {
     releaseControllerClaims(id, safePhysicalControllerId);
@@ -114,6 +121,7 @@ function storeControllerState({ id, label, physicalControllerId = "", buttons = 
     physicalControllerId: safePhysicalControllerId,
     buttons: normalizeControllerButtons(buttons),
     axes: normalizeControllerAxes(axes),
+    inputSource: safeSource,
     lastSeenMs: now
   };
   controllers.set(id, controller);
@@ -191,6 +199,7 @@ function applyNativeControllerClaims() {
       physicalControllerId: claim.physicalControllerId,
       buttons: mapped.buttons,
       axes: mapped.axes,
+      source: "native-helper",
       now
     });
   }
@@ -350,6 +359,7 @@ function controllerStatusPayload() {
       label: controller.label,
       buttons: controller.buttons,
       axes: controller.axes,
+      inputSource: controller.inputSource,
       lastSeenMs: controller.lastSeenMs
     }))
   };
@@ -419,6 +429,7 @@ function statusPayload(req) {
       label: controller.label,
       buttons: controller.buttons,
       axes: controller.axes,
+      inputSource: controller.inputSource,
       lastSeenMs: controller.lastSeenMs
     })),
     nativeInput: {
@@ -1192,7 +1203,8 @@ function controllerPage() {
             label: controllerLabel,
             physicalControllerId,
             buttons,
-            axes
+            axes,
+            source: "controller-tab"
           })
         });
         const result = await response.json().catch(() => null);
@@ -1618,7 +1630,23 @@ const server = http.createServer(async (req, res) => {
       const now = Date.now();
       const physicalControllerId = normalizeControllerClaimId(body.physicalControllerId);
       const label = normalizeControllerLabel(body.label || "Browser Controller");
+      const inputSource = normalizeControllerSource(body.source);
       pruneControllers();
+
+      const currentController = controllers.get(id);
+      if (
+        inputSource === "front-relay" &&
+        currentController?.inputSource &&
+        currentController.inputSource !== "front-relay" &&
+        now - Number(currentController.lastSeenMs || 0) <= CONTROLLER_DIRECT_INPUT_GRACE_MS
+      ) {
+        sendJson(res, 200, {
+          ok: true,
+          ignored: true,
+          activeSource: currentController.inputSource
+        });
+        return;
+      }
 
       if (physicalControllerId) {
         const existingClaim = controllerClaims.get(physicalControllerId);
@@ -1656,6 +1684,7 @@ const server = http.createServer(async (req, res) => {
         physicalControllerId,
         buttons: body.buttons,
         axes: body.axes,
+        source: inputSource,
         now
       });
       sendJson(res, 200, { ok: true });

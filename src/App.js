@@ -1554,7 +1554,8 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
               label,
               physicalControllerId,
               buttons,
-              axes
+              axes,
+              source: "front-relay"
             })
           });
           if (!response.ok) continue;

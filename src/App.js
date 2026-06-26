@@ -439,7 +439,37 @@ const POKEMON_STRETCH_DEFAULT_OPTIONS = {
   video_scale_integer: "false",
   video_aspect_ratio_auto: "false"
 };
+const POKEMON_N64_DEFAULT_OPTIONS = {
+  video_scale_integer: "false",
+  video_smooth: "false",
+  "mupen64plus-cpucore": "dynamic_recompiler",
+  "mupen64plus-rdp-plugin": "gliden64",
+  "mupen64plus-rsp-plugin": "hle",
+  "mupen64plus-MultiSampling": "0",
+  "mupen64plus-FXAA": "0",
+  "mupen64plus-EnableFBEmulation": "True",
+  "mupen64plus-EnableCopyColorToRDRAM": "Async",
+  "mupen64plus-EnableCopyDepthToRDRAM": "Software",
+  "mupen64plus-EnableNativeResTexrects": "Disabled"
+};
+const POKEMON_MARIO_KART_64_DEFAULT_OPTIONS = {
+  ...POKEMON_N64_DEFAULT_OPTIONS,
+  "mupen64plus-rsp-plugin": "parallel",
+  "mupen64plus-EnableLegacyBlending": "True",
+  "mupen64plus-EnableFragmentDepthWrite": "True",
+  "mupen64plus-BackgroundMode": "OnePiece",
+  "mupen64plus-CorrectTexrectCoords": "Auto",
+  "mupen64plus-FrameDuping": "False",
+  "mupen64plus-Framerate": "Original",
+  "mupen64plus-virefresh": "Auto"
+};
 const isN64Game = game => game?.system === "N64" || game?.core === "n64";
+const isMarioKart64Game = game => isN64Game(game) && /mario\s*kart\s*64|mariokart64/i.test(
+  [game?.label, game?.file, game?.gameUrl].filter(Boolean).join(" ")
+);
+const getPokemonN64DefaultOptions = game => (
+  isMarioKart64Game(game) ? POKEMON_MARIO_KART_64_DEFAULT_OPTIONS : POKEMON_N64_DEFAULT_OPTIONS
+);
 const POKEMON_FULLSCREEN_ASPECT = 16 / 9;
 
 function pokemonAssetPath(game, fileName) {
@@ -1940,14 +1970,12 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
     window.EJS_backgroundColor = "#111827";
     window.EJS_color = "#38bdf8";
     const n64Launch = isN64Game(gameLaunch);
+    const marioKart64Launch = isMarioKart64Game(gameLaunch);
     window.EJS_defaultOptions = {
       ...(stretchGame ? POKEMON_STRETCH_DEFAULT_OPTIONS : {}),
-      ...(n64Launch ? {
-        video_scale_integer: "false",
-        video_smooth: "false"
-      } : {})
+      ...(n64Launch ? getPokemonN64DefaultOptions(gameLaunch) : {})
     };
-    window.EJS_disableLocalStorage = stretchGame;
+    window.EJS_disableLocalStorage = stretchGame || marioKart64Launch;
     if (n64Launch && typeof window.SharedArrayBuffer === "function") {
       window.EJS_threads = true;
     }

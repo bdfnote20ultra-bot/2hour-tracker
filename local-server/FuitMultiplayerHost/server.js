@@ -1372,6 +1372,14 @@ function controllerPage() {
 
       async function sendInput() {
         if (document.hidden) {
+          if (claimedNativeController) {
+            const keptAlive = await keepNativeControllerClaimAlive();
+            if (keptAlive) {
+              status.textContent = "Controller tab is running in the background.";
+              return;
+            }
+          }
+
           const hidState = getActiveHidControllerState();
           if (hidState) {
             try {
@@ -1383,13 +1391,6 @@ function controllerPage() {
             return;
           }
 
-          if (claimedNativeController) {
-            const keptAlive = await keepNativeControllerClaimAlive();
-            if (keptAlive) {
-              status.textContent = "Controller tab is running in the background.";
-              return;
-            }
-          }
           status.textContent = "Controller tab is running in the background.";
           return;
         }

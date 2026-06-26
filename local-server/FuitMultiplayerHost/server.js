@@ -154,8 +154,8 @@ function mapXInputStateToController(state) {
   addButton(0x0002, "down");
   addButton(0x0004, "left");
   addButton(0x0008, "right");
-  if (Number(state?.lt || 0) > 30) buttons.add("l");
-  if (Number(state?.rt || 0) > 30) buttons.add("r");
+  if (Number(state?.lt || 0) > 30) buttons.add("z");
+  if (Number(state?.rt || 0) > 30) buttons.add("r2");
 
   return {
     buttons: Array.from(buttons),
@@ -625,8 +625,10 @@ function controllerPage() {
       try { selectedPhysicalControllerId = sessionStorage.getItem(selectedControllerKey) || ""; } catch {}
       const keyMap = { KeyW: "up", KeyA: "left", KeyS: "down", KeyD: "right", KeyJ: "a", KeyK: "b", KeyU: "x", KeyI: "y", Enter: "start", ShiftRight: "select", ShiftLeft: "select" };
       const gamepadMap = { 0: "a", 1: "b", 2: "x", 3: "y", 4: "l", 5: "r", 6: "z", 7: "r2", 8: "select", 9: "start", 12: "up", 13: "down", 14: "left", 15: "right" };
+      const hidButtonMap = { 1: "a", 2: "b", 3: "x", 4: "y", 5: "l", 6: "r", 7: "select", 8: "start", 11: "z", 12: "r2" };
       const hidGamepadUsages = new Set(["1:4", "1:5", "1:8"]);
-      const hidAxisUsages = { 48: 0, 49: 1, 51: 2, 52: 3, 50: 2, 53: 3 };
+      const hidPrimaryAxisUsages = { 48: 0, 49: 1, 51: 2, 52: 3 };
+      const hidFallbackAxisUsages = { 50: 2, 53: 3 };
       let claimedPhysicalControllerId = "";
       let claimedNativeController = null;
       let hidDevice = null;
@@ -660,6 +662,7 @@ function controllerPage() {
         return number > 65535 ? Math.floor(number / 65536) : Number(fallbackPage || 0);
       };
       const hidUsageId = usage => Number(usage || 0) % 65536;
+      const getHidPhysicalControllerId = device => controllerDeviceId + ":hid:" + Number(device?.vendorId || 0) + ":" + Number(device?.productId || 0) + ":" + (device?.productName || "Controller");
       const isHidGamepadCollection = collection => hidGamepadUsages.has(Number(collection?.usagePage || 0) + ":" + Number(collection?.usage || 0));
       function collectHidGamepadCollections(device) {
         const matches = [];
@@ -753,6 +756,14 @@ function controllerPage() {
         return Math.abs(normalized) < 0.05 ? 0 : normalized;
       }
 
+      function normalizeHidTrigger(value, field) {
+        const min = Number(field.logicalMinimum || 0);
+        const max = Number(field.logicalMaximum || 0);
+        if (max <= min) return 0;
+        const normalized = clamp((Number(value || 0) - min) / (max - min), 0, 1);
+        return normalized < 0.08 ? 0 : normalized;
+      }
+
       function addHidHatButtons(buttons, value, field) {
         let hat = Number(value);
         if (field.hasNull && (hat < field.logicalMinimum || hat > field.logicalMaximum)) return;
@@ -771,11 +782,11 @@ function controllerPage() {
         directions[hat].forEach(direction => buttons.add(direction));
       }
 
-      function applyHidValue(buttons, axes, usage, value, field) {
+      function applyHidValue(buttons, axes, usage, value, field, context) {
         const page = hidUsagePage(usage, field.usagePage);
         const id = hidUsageId(usage);
         if (page === 9) {
-          const mapped = gamepadMap[id - 1];
+          const mapped = hidButtonMap[id];
           if (mapped && Number(value)) buttons.add(mapped);
           return;
         }
@@ -784,31 +795,64 @@ function controllerPage() {
           addHidHatButtons(buttons, value, field);
           return;
         }
-        const axisIndex = hidAxisUsages[id];
-        if (axisIndex !== undefined) axes[axisIndex] = normalizeHidAxis(value, field);
+        const axisIndex = hidPrimaryAxisUsages[id];
+        if (axisIndex !== undefined) {
+          axes[axisIndex] = normalizeHidAxis(value, field);
+          context.axesSeen.add(axisIndex);
+          return;
+        }
+        const fallbackAxisIndex = hidFallbackAxisUsages[id];
+        if (fallbackAxisIndex === undefined) return;
+        if (context.hasPrimaryRightStick) {
+          const triggerName = id === 50 ? "z" : "r2";
+          if (normalizeHidTrigger(value, field) > 0.45) buttons.add(triggerName);
+          return;
+        }
+        if (!context.axesSeen.has(fallbackAxisIndex)) {
+          axes[fallbackAxisIndex] = normalizeHidAxis(value, field);
+          context.axesSeen.add(fallbackAxisIndex);
+        }
       }
 
       function parseHidInputReport(event) {
         const fields = hidReportParsers.get(Number(event.reportId || 0));
         if (!fields) return null;
+        const matchingPad = document.hidden ? null : findHidGamepad(event.device);
+        if (matchingPad) {
+          return {
+            physicalControllerId: getPadKey(matchingPad),
+            label: getPadLabel(matchingPad),
+            buttons: readGamepadButtons(matchingPad),
+            axes: Array.from(matchingPad.axes || []),
+            pad: matchingPad
+          };
+        }
         const bytes = new Uint8Array(event.data.buffer, event.data.byteOffset, event.data.byteLength);
         const buttons = new Set();
         const axes = [0, 0, 0, 0];
+        const hidContext = {
+          axesSeen: new Set(),
+          hasPrimaryRightStick: fields.some(field => (field.usages || []).some(usage => {
+            const page = hidUsagePage(usage, field.usagePage);
+            const id = hidUsageId(usage);
+            return page === 1 && (id === 51 || id === 52);
+          }))
+        };
         fields.forEach(field => {
           const signed = field.logicalMinimum < 0;
           for (let index = 0; index < field.reportCount; index += 1) {
             const value = readHidBits(bytes, field.bitOffset + (index * field.reportSize), field.reportSize, signed);
             if (field.isArray) {
               if (!value) continue;
-              applyHidValue(buttons, axes, makeHidUsage(field.usagePage, value), 1, field);
+              applyHidValue(buttons, axes, makeHidUsage(field.usagePage, value), 1, field, hidContext);
             } else {
               const usage = field.usages[index] || field.usages[0] || 0;
-              if (usage) applyHidValue(buttons, axes, usage, value, field);
+              if (usage) applyHidValue(buttons, axes, usage, value, field, hidContext);
             }
           }
         });
         return {
-          physicalControllerId: controllerDeviceId + ":hid:" + Number(event.device.vendorId || 0) + ":" + Number(event.device.productId || 0) + ":" + (event.device.productName || "Controller"),
+          physicalControllerId: getHidPhysicalControllerId(event.device),
           label: event.device.productName || "HID Controller",
           buttons: Array.from(buttons),
           axes
@@ -825,6 +869,16 @@ function controllerPage() {
 
       function getActiveHidControllerState() {
         if (!hidDevice || !hidControllerState) return null;
+        const matchingPad = document.hidden ? null : (hidControllerState.pad || findHidGamepad(hidDevice));
+        if (matchingPad) {
+          return {
+            physicalControllerId: getPadKey(matchingPad),
+            label: getPadLabel(matchingPad),
+            buttons: Array.from(new Set([...pressed, ...readGamepadButtons(matchingPad)])),
+            axes: Array.from(matchingPad.axes || []),
+            pad: matchingPad
+          };
+        }
         return {
           physicalControllerId: hidControllerState.physicalControllerId,
           label: hidControllerState.label,
@@ -847,6 +901,9 @@ function controllerPage() {
         device.addEventListener("inputreport", handleHidInputReport);
         if (hidConnectButton) hidConnectButton.textContent = "HID Linked";
         status.textContent = "HID linked: " + (device.productName || "Controller");
+        claimNativeControllerForHidDevice(device).then(claimed => {
+          if (claimed) queueSendInput(true);
+        }).catch(() => {});
         return true;
       }
 
@@ -891,9 +948,40 @@ function controllerPage() {
         });
       }
 
-      const getPadKey = pad => pad ? controllerDeviceId + ":" + String(pad.index) + ":" + (pad.id || "Gamepad") : "";
-      const getPadLabel = pad => String(pad?.id || "Keyboard").trim() || "Keyboard";
-      const getConnectedPads = () => navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : [];
+      function getPadKey(pad) {
+        return pad ? controllerDeviceId + ":" + String(pad.index) + ":" + (pad.id || "Gamepad") : "";
+      }
+      function getPadLabel(pad) {
+        return String(pad?.id || "Keyboard").trim() || "Keyboard";
+      }
+      function getConnectedPads() {
+        return navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : [];
+      }
+      function normalizePadSearchText(value) {
+        return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      }
+      function findHidGamepad(device) {
+        const pads = getConnectedPads();
+        if (!pads.length) return null;
+        if (selectedPhysicalControllerId && selectedPhysicalControllerId !== keyboardControllerValue) {
+          const selectedPad = pads.find(pad => getPadKey(pad) === selectedPhysicalControllerId);
+          if (selectedPad) return selectedPad;
+        }
+        if (pads.length === 1) return pads[0];
+        const vendorHex = Number(device?.vendorId || 0).toString(16).padStart(4, "0");
+        const productHex = Number(device?.productId || 0).toString(16).padStart(4, "0");
+        const idMatch = pads.find(pad => {
+          const id = String(pad?.id || "").toLowerCase();
+          return vendorHex !== "0000" && productHex !== "0000" && id.includes(vendorHex) && id.includes(productHex);
+        });
+        if (idMatch) return idMatch;
+        const productWords = normalizePadSearchText(device?.productName).split(" ").filter(word => word.length > 2);
+        if (!productWords.length) return null;
+        return pads.find(pad => {
+          const id = normalizePadSearchText(pad?.id);
+          return productWords.every(word => id.includes(word));
+        }) || null;
+      }
       const getPadOptionLabel = pad => {
         const number = Number(pad?.index);
         const prefix = Number.isInteger(number) ? "Controller " + (number + 1) + " - " : "";
@@ -1109,8 +1197,9 @@ function controllerPage() {
         queueSendInput(true);
       });
 
-      function readButtons(pad) {
+      function readGamepadButtons(pad, includePressed = false) {
         const buttons = Array.from(pressed);
+        if (!includePressed) buttons.length = 0;
         if (pad) {
           pad.buttons.forEach((button, index) => { if (button.pressed && gamepadMap[index]) buttons.push(gamepadMap[index]); });
           const x = pad.axes[0] || 0;
@@ -1121,6 +1210,10 @@ function controllerPage() {
           if (y > 0.45) buttons.push("down");
         }
         return buttons;
+      }
+
+      function readButtons(pad) {
+        return readGamepadButtons(pad, true);
       }
 
       async function claimNativeController(pad) {
@@ -1157,6 +1250,42 @@ function controllerPage() {
             claimedNativeController = null;
           }
           return Boolean(result?.nativeAvailable && result?.nativeConnected);
+        } catch {
+          return false;
+        }
+      }
+
+      async function claimNativeControllerForHidDevice(device) {
+        if (!nativeHelperFallbackAllowed) return false;
+        if (!device) return false;
+        const physicalControllerId = getHidPhysicalControllerId(device);
+        const label = device.productName || "HID Controller";
+        try {
+          const response = await fetch("/api/controller/native-claim", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: controllerId,
+              label,
+              physicalControllerId,
+              nativeIndex: null
+            })
+          });
+          const result = await response.json().catch(() => null);
+          if (!response.ok) {
+            if (result?.locked) return false;
+            throw new Error(result?.error || "Native controller claim failed.");
+          }
+          if (result?.nativeAvailable && result?.nativeConnected) {
+            claimedNativeController = {
+              physicalControllerId,
+              nativeIndex: Number.isInteger(result.nativeIndex) ? result.nativeIndex : null,
+              label
+            };
+            return true;
+          }
+          if (claimedNativeController?.physicalControllerId === physicalControllerId) claimedNativeController = null;
+          return false;
         } catch {
           return false;
         }
@@ -1271,6 +1400,17 @@ function controllerPage() {
         if (selectedPhysicalControllerId === keyboardControllerValue) {
           try {
             await postControllerInput(null);
+          } catch {
+            status.textContent = "Helper connection lost.";
+          }
+          return;
+        }
+
+        const hidState = getActiveHidControllerState();
+        if (hidState && (!selectedPhysicalControllerId || selectedPhysicalControllerId === hidState.physicalControllerId)) {
+          try {
+            const result = await postControllerState(hidState);
+            if (result.locked) status.textContent = result.label + " is already connected in another controller tab.";
           } catch {
             status.textContent = "Helper connection lost.";
           }

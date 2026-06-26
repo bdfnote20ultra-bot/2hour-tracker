@@ -2428,8 +2428,8 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       Array.from(multiplayerRemoteKeysRef.current.entries()).forEach(([keyId, input]) => setRemoteInput(keyId, input, 0));
     };
 
-    const addPressedInput = (pressedInputs, controllerIndex, name, index, value = 1) => {
-      if (index === undefined || !value) return;
+    const addPressedInput = (pressedInputs, controllerIndex, name, index, value = 1, includeZero = false) => {
+      if (index === undefined || (!includeZero && !value)) return;
       pressedInputs.set(`${controllerIndex}:${name}`, { player: controllerIndex, index, value });
     };
 
@@ -2454,6 +2454,21 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       }
     };
 
+    const addN64AnalogAxisInput = (pressedInputs, controllerIndex, name, negativeIndex, positiveIndex, value, threshold) => {
+      const amount = Number(value || 0);
+      const scaledValue = Math.round(Math.min(1, Math.abs(amount)) * 0x7fff);
+      if (amount > threshold) {
+        addPressedInput(pressedInputs, controllerIndex, `${name}Positive`, positiveIndex, scaledValue, true);
+        addPressedInput(pressedInputs, controllerIndex, `${name}Negative`, negativeIndex, 0, true);
+      } else if (amount < -threshold) {
+        addPressedInput(pressedInputs, controllerIndex, `${name}Negative`, negativeIndex, scaledValue, true);
+        addPressedInput(pressedInputs, controllerIndex, `${name}Positive`, positiveIndex, 0, true);
+      } else {
+        addPressedInput(pressedInputs, controllerIndex, `${name}Positive`, positiveIndex, 0, true);
+        addPressedInput(pressedInputs, controllerIndex, `${name}Negative`, negativeIndex, 0, true);
+      }
+    };
+
     const addControllerInputs = (pressedInputs, controller, controllerIndex, n64Launch) => {
       if (controllerIndex >= playerCount) return;
 
@@ -2466,10 +2481,10 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       const leftX = Number(axes[0] || 0);
       const leftY = Number(axes[1] || 0);
       if (n64Launch) {
-        addAxisInput(pressedInputs, controllerIndex, "stickX", analogInputs.left, analogInputs.right, leftX, 0.35, true);
-        addAxisInput(pressedInputs, controllerIndex, "stickY", analogInputs.up, analogInputs.down, leftY, 0.35, true);
-        addAxisInput(pressedInputs, controllerIndex, "cX", analogInputs.cLeft, analogInputs.cRight, Number(axes[2] || 0), 0.45, true);
-        addAxisInput(pressedInputs, controllerIndex, "cY", analogInputs.cUp, analogInputs.cDown, Number(axes[3] || 0), 0.45, true);
+        addN64AnalogAxisInput(pressedInputs, controllerIndex, "stickX", analogInputs.left, analogInputs.right, leftX, 0.35);
+        addN64AnalogAxisInput(pressedInputs, controllerIndex, "stickY", analogInputs.up, analogInputs.down, leftY, 0.35);
+        addN64AnalogAxisInput(pressedInputs, controllerIndex, "cX", analogInputs.cLeft, analogInputs.cRight, Number(axes[2] || 0), 0.45);
+        addN64AnalogAxisInput(pressedInputs, controllerIndex, "cY", analogInputs.cUp, analogInputs.cDown, Number(axes[3] || 0), 0.45);
       } else {
         addAxisInput(pressedInputs, controllerIndex, "dpadX", digitalInputs.left, digitalInputs.right, leftX, 0.45);
         addAxisInput(pressedInputs, controllerIndex, "dpadY", digitalInputs.up, digitalInputs.down, leftY, 0.45);

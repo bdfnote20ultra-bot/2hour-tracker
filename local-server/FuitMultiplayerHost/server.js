@@ -466,9 +466,11 @@ function pageShell(title, body, extraHead = "") {
     .stream { min-height: 220px; overflow: hidden; padding: 0; display: grid; place-items: center; background: #000; }
     iframe { width: 100%; height: 100%; min-height: 320px; border: 0; background: #000; }
     button { border: 0; border-radius: 10px; padding: 10px 12px; background: #bbf7d0; color: #052e16; font-weight: 1000; cursor: pointer; }
+    select { width: 100%; border: 1px solid rgba(187,247,208,.28); border-radius: 10px; padding: 10px 12px; background: rgba(15,23,42,.9); color: #dcfce7; font-weight: 1000; outline: none; }
     .muted { color: #94a3b8; }
     .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
     .kbd { display: inline-block; min-width: 28px; padding: 5px 8px; margin: 3px; border-radius: 7px; border: 1px solid rgba(187,247,208,.28); background: rgba(15,23,42,.82); text-align: center; font-weight: 1000; }
+    .controller-picker { margin-top: 12px; display: grid; gap: 6px; }
   </style>
 </head>
 <body>${body}</body>
@@ -559,6 +561,10 @@ function controllerPage() {
       <section class="panel">
         <div class="title">Add Controller</div>
         <div class="sub">This page sends keyboard/gamepad input to the FUIT helper. Virtual controller injection comes in the next layer.</div>
+        <div class="controller-picker">
+          <label class="sub" for="controllerSelect">Controller</label>
+          <select id="controllerSelect"></select>
+        </div>
       </section>
       <section class="panel">
         <div class="grid">
@@ -600,6 +606,12 @@ function controllerPage() {
       const lockedGamepads = new Map();
       const status = document.getElementById("status");
       const hidConnectButton = document.getElementById("hidConnect");
+      const controllerSelect = document.getElementById("controllerSelect");
+      const selectedControllerKey = "fuitControllerSelectedPadKey";
+      const keyboardControllerValue = "__keyboard__";
+      let selectedPhysicalControllerId = "";
+      let controllerSelectSignature = "";
+      try { selectedPhysicalControllerId = sessionStorage.getItem(selectedControllerKey) || ""; } catch {}
       const keyMap = { KeyW: "up", KeyA: "left", KeyS: "down", KeyD: "right", KeyJ: "a", KeyK: "b", KeyU: "x", KeyI: "y", Enter: "start", ShiftRight: "select", ShiftLeft: "select" };
       const gamepadMap = { 0: "a", 1: "b", 2: "x", 3: "y", 4: "l", 5: "r", 8: "select", 9: "start", 12: "up", 13: "down", 14: "left", 15: "right" };
       const hidGamepadUsages = new Set(["1:4", "1:5", "1:8"]);
@@ -870,6 +882,81 @@ function controllerPage() {
 
       const getPadKey = pad => pad ? controllerDeviceId + ":" + String(pad.index) + ":" + (pad.id || "Gamepad") : "";
       const getPadLabel = pad => String(pad?.id || "Keyboard").trim() || "Keyboard";
+      const getConnectedPads = () => navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : [];
+      const getPadOptionLabel = pad => {
+        const number = Number(pad?.index);
+        const prefix = Number.isInteger(number) ? "Controller " + (number + 1) + " - " : "";
+        return prefix + getPadLabel(pad);
+      };
+      function saveSelectedPhysicalControllerId(value) {
+        selectedPhysicalControllerId = value || "";
+        try {
+          if (selectedPhysicalControllerId) sessionStorage.setItem(selectedControllerKey, selectedPhysicalControllerId);
+          else sessionStorage.removeItem(selectedControllerKey);
+        } catch {}
+      }
+      function syncControllerSelect(pads = getConnectedPads()) {
+        if (!controllerSelect) return;
+        const padOptions = pads.map(pad => ({ value: getPadKey(pad), label: getPadOptionLabel(pad), disabled: false }));
+        const selectedPadAvailable = selectedPhysicalControllerId &&
+          selectedPhysicalControllerId !== keyboardControllerValue &&
+          padOptions.some(option => option.value === selectedPhysicalControllerId);
+        const options = [
+          {
+            value: "",
+            label: padOptions.length ? "Select controller" : "No browser controllers found",
+            disabled: true
+          },
+          { value: keyboardControllerValue, label: "Keyboard only", disabled: false },
+          ...padOptions
+        ];
+        if (selectedPhysicalControllerId && selectedPhysicalControllerId !== keyboardControllerValue && !selectedPadAvailable) {
+          options.push({ value: selectedPhysicalControllerId, label: "Selected controller disconnected", disabled: true });
+        }
+
+        const signature = JSON.stringify(options) + "|" + selectedPhysicalControllerId;
+        if (signature === controllerSelectSignature) {
+          controllerSelect.value = selectedPhysicalControllerId || "";
+          return;
+        }
+
+        controllerSelectSignature = signature;
+        controllerSelect.replaceChildren(...options.map(option => {
+          const element = document.createElement("option");
+          element.value = option.value;
+          element.textContent = option.label;
+          element.disabled = Boolean(option.disabled);
+          return element;
+        }));
+        controllerSelect.value = selectedPhysicalControllerId || "";
+      }
+      function selectPhysicalController(value) {
+        const nextPhysicalControllerId = value || "";
+        const previousSelectedPhysicalControllerId = selectedPhysicalControllerId;
+        if (
+          claimedPhysicalControllerId &&
+          claimedPhysicalControllerId !== nextPhysicalControllerId
+        ) {
+          releaseController(claimedPhysicalControllerId);
+          claimedPhysicalControllerId = "";
+        } else if (
+          previousSelectedPhysicalControllerId &&
+          previousSelectedPhysicalControllerId !== keyboardControllerValue &&
+          previousSelectedPhysicalControllerId !== nextPhysicalControllerId
+        ) {
+          releaseController(previousSelectedPhysicalControllerId);
+        }
+
+        saveSelectedPhysicalControllerId(nextPhysicalControllerId);
+        if (nextPhysicalControllerId) lockedGamepads.delete(nextPhysicalControllerId);
+        syncControllerSelect();
+        status.textContent = nextPhysicalControllerId === keyboardControllerValue
+          ? "Connected: Keyboard"
+          : nextPhysicalControllerId
+            ? "Controller selected."
+            : "Select a controller.";
+        queueSendInput(true);
+      }
       function readRelayClaims() {
         const now = Date.now();
         try {
@@ -977,6 +1064,17 @@ function controllerPage() {
         releaseController();
       });
       document.addEventListener("visibilitychange", () => queueSendInput(true));
+      if (controllerSelect) {
+        controllerSelect.addEventListener("change", event => selectPhysicalController(event.target.value));
+      }
+      window.addEventListener("gamepadconnected", () => {
+        syncControllerSelect();
+        queueSendInput(true);
+      });
+      window.addEventListener("gamepaddisconnected", () => {
+        syncControllerSelect();
+        queueSendInput(true);
+      });
 
       window.addEventListener("keydown", event => {
         const mapped = keyMap[event.code];
@@ -1155,13 +1253,29 @@ function controllerPage() {
           return;
         }
 
-        const pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : [];
+        const pads = getConnectedPads();
+        syncControllerSelect(pads);
 
-        if (claimedPhysicalControllerId) {
-          const claimedPad = pads.find(candidate => getPadKey(candidate) === claimedPhysicalControllerId) || null;
-          if (claimedPad) {
+        if (selectedPhysicalControllerId === keyboardControllerValue) {
+          try {
+            await postControllerInput(null);
+          } catch {
+            status.textContent = "Helper connection lost.";
+          }
+          return;
+        }
+
+        if (selectedPhysicalControllerId) {
+          const selectedPad = pads.find(candidate => getPadKey(candidate) === selectedPhysicalControllerId) || null;
+          if (selectedPad) {
+            const lockedUntil = lockedGamepads.get(selectedPhysicalControllerId) || 0;
+            if (lockedUntil > Date.now()) {
+              status.textContent = getPadLabel(selectedPad) + " is already connected in another controller tab.";
+              return;
+            }
+            lockedGamepads.delete(selectedPhysicalControllerId);
             try {
-              const result = await postControllerInput(claimedPad);
+              const result = await postControllerInput(selectedPad);
               if (result.locked) status.textContent = result.label + " is already connected in another controller tab.";
             } catch {
               status.textContent = "Helper connection lost.";
@@ -1169,37 +1283,29 @@ function controllerPage() {
             return;
           }
 
-          const releasedPhysicalControllerId = claimedPhysicalControllerId;
-          lockedGamepads.delete(releasedPhysicalControllerId);
-          claimedPhysicalControllerId = "";
-          releaseController(releasedPhysicalControllerId);
-        }
+          if (claimedPhysicalControllerId) {
+            const releasedPhysicalControllerId = claimedPhysicalControllerId;
+            lockedGamepads.delete(releasedPhysicalControllerId);
+            claimedPhysicalControllerId = "";
+            releaseController(releasedPhysicalControllerId);
+          }
 
-        let lockedLabel = "";
-        const now = Date.now();
-        for (const pad of pads) {
-          const physicalControllerId = getPadKey(pad);
-          const lockedUntil = lockedGamepads.get(physicalControllerId) || 0;
-          if (lockedUntil > now) {
-            lockedLabel = lockedLabel || getPadLabel(pad);
-            continue;
-          }
-          lockedGamepads.delete(physicalControllerId);
-          try {
-            const result = await postControllerInput(pad);
-            if (result.ok) return;
-            if (result.locked) {
-              lockedLabel = lockedLabel || result.label;
-              continue;
-            }
-          } catch {
-            status.textContent = "Helper connection lost.";
-            return;
-          }
+          releaseController(selectedPhysicalControllerId);
+          status.textContent = "Selected controller disconnected.";
+          return;
         }
 
         if (pads.length) {
-          status.textContent = (lockedLabel || getPadLabel(pads[0])) + " is already connected in another controller tab.";
+          if (claimedPhysicalControllerId) {
+            releaseController(claimedPhysicalControllerId);
+            claimedPhysicalControllerId = "";
+          }
+          try {
+            await postControllerInput(null);
+            status.textContent = "Select a controller.";
+          } catch {
+            status.textContent = "Helper connection lost.";
+          }
           return;
         }
 
@@ -1269,6 +1375,7 @@ function controllerPage() {
         queueSendInput(true);
       }
 
+      syncControllerSelect();
       startControllerTicker();
     </script>
   `);

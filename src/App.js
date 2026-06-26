@@ -1287,6 +1287,9 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
   const getPokemonFrameSourceRect = (canvas) => {
     const width = Math.max(1, canvas?.width || 0);
     const height = Math.max(1, canvas?.height || 0);
+    if (isN64Game(gameLaunch) || activeGame?.system === "N64" || activeGame?.core === "n64") {
+      return { x: 0, y: 0, width, height };
+    }
     const systemAspect = POKEMON_SYSTEM_ASPECTS[gameLaunch?.system || activeGame?.system] || width / height || 4 / 3;
     let sourceWidth = width;
     let sourceHeight = height;
@@ -1371,9 +1374,10 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       resolve("");
     }
   });
-  const makeMultiplayerFrameImage = async (canvas, quality) => {
-    const maxWidth = 480;
-    const maxHeight = 360;
+  const makeMultiplayerFrameImage = async (canvas, options = {}) => {
+    const quality = Number.isFinite(options.quality) ? options.quality : 0.42;
+    const maxWidth = Number.isFinite(options.maxWidth) ? options.maxWidth : 480;
+    const maxHeight = Number.isFinite(options.maxHeight) ? options.maxHeight : 360;
     const source = getPokemonFrameSourceRect(canvas);
     const scale = Math.min(1, maxWidth / source.width, maxHeight / source.height);
     const frameCanvas = document.createElement("canvas");
@@ -2358,7 +2362,10 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
             const frameState = getCanvasFrameState(canvas);
             if (frameState === "blank") return;
             if (frameState === "unknown" && !hasSentActiveFrame && Date.now() - relayStartedAt < 12000) return;
-            const image = await makeMultiplayerFrameImage(canvas, n64Launch ? 0.32 : 0.42);
+            const image = await makeMultiplayerFrameImage(canvas, n64Launch
+              ? { quality: 0.54, maxWidth: 640, maxHeight: 480 }
+              : { quality: 0.42, maxWidth: 480, maxHeight: 360 }
+            );
             if (isUsableFrameImage(image)) {
               hasSentActiveFrame = frameState === "active" || hasSentActiveFrame;
               await postToMultiplayerHelper("/api/frame", { image }, n64Launch ? 5000 : 3500);
@@ -2371,7 +2378,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
     };
 
     const firstFrameTimer = window.setTimeout(sendHostFrame, 1200);
-    const interval = window.setInterval(sendHostFrame, n64Launch ? 1800 : 1200);
+    const interval = window.setInterval(sendHostFrame, n64Launch ? 900 : 1200);
 
     return () => {
       cancelled = true;
@@ -2543,6 +2550,8 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
 
     let cancelled = false;
     let lastRemoteControllersSnapshot = "";
+    let pollingRemoteControllers = false;
+    let pollRemoteControllersAgain = false;
     const n64Launch = isN64Game(gameLaunch);
     const pollRemoteControllers = async () => {
       if (cancelled) return;
@@ -2575,9 +2584,27 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
         releaseRemoteKeys();
       }
     };
+    const queueRemoteControllerPoll = () => {
+      if (cancelled) return;
+      if (pollingRemoteControllers) {
+        pollRemoteControllersAgain = true;
+        return;
+      }
 
-    const interval = window.setInterval(pollRemoteControllers, n64Launch ? 160 : 120);
-    pollRemoteControllers();
+      pollingRemoteControllers = true;
+      Promise.resolve()
+        .then(pollRemoteControllers)
+        .finally(() => {
+          pollingRemoteControllers = false;
+          if (pollRemoteControllersAgain && !cancelled) {
+            pollRemoteControllersAgain = false;
+            queueRemoteControllerPoll();
+          }
+        });
+    };
+
+    const interval = window.setInterval(queueRemoteControllerPoll, n64Launch ? 50 : 80);
+    queueRemoteControllerPoll();
 
     return () => {
       cancelled = true;
@@ -2705,6 +2732,12 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
           min-height: 0 !important;
           max-height: min(62vh, 650px);
           align-self: center;
+        }
+        .pokemon-standalone-multiplayer.pokemon-n64-performance .pokemon-multiplayer-stage {
+          width: min(100%, calc(min(62vh, 650px) * 4 / 3));
+          height: auto !important;
+          aspect-ratio: 4 / 3;
+          justify-self: center;
         }
         .pokemon-standalone-multiplayer .pokemon-multiplayer-selected {
           grid-area: selected;

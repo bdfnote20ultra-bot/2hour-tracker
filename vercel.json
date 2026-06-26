@@ -17,29 +17,6 @@
           "value": "no-cache"
         }
       ]
-    },
-    {
-      "source": "/multiplayer-emulator",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-cache"
-        },
-        {
-          "key": "Cross-Origin-Opener-Policy",
-          "value": "same-origin"
-        },
-        {
-          "key": "Cross-Origin-Embedder-Policy",
-          "value": "credentialless"
-        }
-      ]
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/multiplayer-emulator",
-      "destination": "/"
     }
   ]
 }

@@ -29,6 +29,9 @@ const DISCOUNTS_DIR = path.join(__dirname, "discounts");
 const GAMES_ROOT = path.join(ROOT, "Games");
 const GAME_ROMS_DIR = path.join(GAMES_ROOT, "Roms");
 const GAME_IMAGES_DIR = path.join(GAMES_ROOT, "Images");
+const GAME_SAVES_DIR = path.join(GAMES_ROOT, "SavedGames");
+const GAME_SAVES_INDEX_PATH = path.join(GAME_SAVES_DIR, "saved-games.json");
+const MAX_GAME_SAVE_UPLOAD_BYTES = 64 * 1024 * 1024;
 const MUSIC_LIBRARY_DIR = path.join(ROOT, "MusicLibrary");
 const MUSIC_LIBRARY_MUSIC_DIR = path.join(MUSIC_LIBRARY_DIR, "Music");
 const MUSIC_LIBRARY_VIDEOS_DIR = path.join(MUSIC_LIBRARY_DIR, "Videos");
@@ -1608,6 +1611,235 @@ function listGames() {
     if (systemCompare) return systemCompare;
     return a.label.localeCompare(b.label);
   });
+}
+
+function ensureGameSaveFolders() {
+  ensureGameFolders();
+  fs.mkdirSync(GAME_SAVES_DIR, { recursive: true });
+}
+
+function cleanGameSaveText(value, maxLength = 80) {
+  return String(value || "")
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength);
+}
+
+function safeGameSaveSegment(value, fallback = "save") {
+  const cleaned = cleanGameSaveText(value, 110)
+    .replace(/[<>:"/\\|?*\x00-\x1f]+/g, "_")
+    .replace(/\.+/g, ".")
+    .replace(/^\.+|\.+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return (cleaned || fallback).slice(0, 110);
+}
+
+function makeGameSaveId() {
+  return `save_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function readGameSaves() {
+  ensureGameSaveFolders();
+  try {
+    const parsed = JSON.parse(fs.readFileSync(GAME_SAVES_INDEX_PATH, "utf8"));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeGameSaves(saves) {
+  ensureGameSaveFolders();
+  fs.writeFileSync(GAME_SAVES_INDEX_PATH, JSON.stringify(saves, null, 2));
+}
+
+function isGameSavePathInside(filePath) {
+  const baseDir = path.resolve(GAME_SAVES_DIR);
+  const relativePath = path.relative(baseDir, filePath);
+  return Boolean(relativePath) && !relativePath.startsWith("..") && !path.isAbsolute(relativePath);
+}
+
+function getSavedGameFilePath(save) {
+  const relativePath = String(save?.relativePath || "");
+  const filePath = path.resolve(GAME_SAVES_DIR, relativePath);
+  if (!isGameSavePathInside(filePath)) return "";
+  return filePath;
+}
+
+function listGameSaves(origin = "") {
+  const games = listGames();
+  const gameMap = new Map(games.map(game => [`${game.system}::${game.file}`, game]));
+  const saves = readGameSaves()
+    .filter(save => {
+      const filePath = getSavedGameFilePath(save);
+      return filePath && fs.existsSync(filePath);
+    })
+    .map(save => {
+      const game = gameMap.get(`${save.system}::${save.gameFile}`) || null;
+      const fileName = save.fileName || path.basename(save.relativePath || "save-file");
+      return {
+        ...save,
+        gameLabel: save.gameLabel || game?.label || save.gameFile || "Unknown Game",
+        fileName,
+        sizeBytes: Number(save.sizeBytes || 0),
+        downloadUrl: `${origin}/saved-games/download/${encodeURIComponent(save.id)}/${encodeURIComponent(fileName)}`
+      };
+    });
+
+  return saves.sort((a, b) => String(b.uploadedAt || "").localeCompare(String(a.uploadedAt || "")));
+}
+
+function parseMultipartDisposition(value = "") {
+  const result = {};
+  String(value || "").split(";").forEach(part => {
+    const [rawKey, ...rawValue] = part.trim().split("=");
+    const key = rawKey.trim().toLowerCase();
+    if (!key) return;
+    const joined = rawValue.join("=").trim();
+    result[key] = joined.replace(/^"|"$/g, "");
+  });
+  return result;
+}
+
+function parseMultipartUpload(req, body) {
+  const contentType = String(req.headers["content-type"] || "");
+  const boundaryMatch = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/i);
+  const boundaryText = boundaryMatch ? (boundaryMatch[1] || boundaryMatch[2] || "").trim() : "";
+  if (!boundaryText) throw new Error("Upload form boundary missing.");
+
+  const boundary = Buffer.from(`--${boundaryText}`);
+  const fields = {};
+  const files = {};
+  let offset = body.indexOf(boundary);
+
+  while (offset >= 0) {
+    offset += boundary.length;
+    if (body.slice(offset, offset + 2).toString() === "--") break;
+    if (body.slice(offset, offset + 2).toString() === "\r\n") offset += 2;
+
+    const nextBoundary = body.indexOf(boundary, offset);
+    if (nextBoundary < 0) break;
+
+    let part = body.slice(offset, nextBoundary);
+    if (part.slice(-2).toString() === "\r\n") part = part.slice(0, -2);
+    const headerEnd = part.indexOf(Buffer.from("\r\n\r\n"));
+    if (headerEnd >= 0) {
+      const headerText = part.slice(0, headerEnd).toString("latin1");
+      const data = part.slice(headerEnd + 4);
+      const headers = {};
+      headerText.split(/\r\n/).forEach(line => {
+        const colon = line.indexOf(":");
+        if (colon < 0) return;
+        headers[line.slice(0, colon).trim().toLowerCase()] = line.slice(colon + 1).trim();
+      });
+      const disposition = parseMultipartDisposition(headers["content-disposition"]);
+      const name = disposition.name || "";
+      if (name) {
+        if (disposition.filename) {
+          files[name] = {
+            fileName: path.basename(disposition.filename),
+            contentType: headers["content-type"] || "application/octet-stream",
+            data
+          };
+        } else {
+          fields[name] = data.toString("utf8");
+        }
+      }
+    }
+
+    offset = nextBoundary;
+  }
+
+  return { fields, files };
+}
+
+function readRequestBuffer(req, maxBytes) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let totalBytes = 0;
+    req.on("data", chunk => {
+      totalBytes += chunk.length;
+      if (totalBytes > maxBytes) {
+        reject(new Error("Save file is too large."));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
+  });
+}
+
+function saveUploadedGameSave(req, origin) {
+  return readRequestBuffer(req, MAX_GAME_SAVE_UPLOAD_BYTES).then(body => {
+    const form = parseMultipartUpload(req, body);
+    const username = cleanGameSaveText(form.fields.username, 32);
+    const system = cleanGameSaveText(form.fields.system, 12).toUpperCase();
+    const gameFile = cleanGameSaveText(form.fields.gameFile, 180);
+    const saveFile = form.files.saveFile || form.files.file;
+
+    if (!username) throw new Error("Sign in before uploading a save.");
+    if (!GAME_SYSTEMS[system]) throw new Error("Choose a valid system.");
+    if (!saveFile?.data?.length) throw new Error("Choose a save file to upload.");
+
+    const game = listGames().find(item => item.system === system && item.file === gameFile);
+    if (!game) throw new Error("Choose a valid game.");
+
+    const originalFileName = safeGameSaveSegment(saveFile.fileName || "save-file", "save-file");
+    const saveName = cleanGameSaveText(form.fields.saveName, 80) || path.basename(originalFileName, path.extname(originalFileName)) || "Saved Game";
+    const id = makeGameSaveId();
+    const extension = path.extname(originalFileName).slice(0, 20);
+    const storedName = safeGameSaveSegment(`${id}-${saveName}${extension}`, `${id}${extension || ".sav"}`);
+    const relativePath = path.join(system, safeGameSaveSegment(game.label, "game"), storedName);
+    const targetPath = path.resolve(GAME_SAVES_DIR, relativePath);
+
+    if (!isGameSavePathInside(targetPath)) throw new Error("Invalid save path.");
+    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+    fs.writeFileSync(targetPath, saveFile.data);
+
+    const item = {
+      id,
+      saveName,
+      username,
+      system,
+      gameFile: game.file,
+      gameLabel: game.label,
+      fileName: originalFileName,
+      relativePath,
+      sizeBytes: saveFile.data.length,
+      uploadedAt: new Date().toISOString()
+    };
+    const saves = readGameSaves();
+    saves.unshift(item);
+    writeGameSaves(saves);
+
+    return {
+      ...item,
+      downloadUrl: `${origin}/saved-games/download/${encodeURIComponent(item.id)}/${encodeURIComponent(item.fileName)}`
+    };
+  });
+}
+
+function serveGameSaveDownload(res, saveId) {
+  const save = readGameSaves().find(item => item.id === saveId);
+  const filePath = getSavedGameFilePath(save);
+  if (!save || !filePath || !fs.existsSync(filePath)) {
+    send(res, 404, "Saved game not found");
+    return;
+  }
+
+  const fileName = safeGameSaveSegment(save.fileName || path.basename(filePath), "save-file");
+  res.writeHead(200, {
+    "Content-Type": "application/octet-stream",
+    "Content-Length": fs.statSync(filePath).size,
+    "Content-Disposition": `attachment; filename="${fileName.replace(/"/g, "")}"`,
+    "Access-Control-Allow-Origin": "*",
+    "Cache-Control": "private, max-age=0"
+  });
+  fs.createReadStream(filePath).pipe(res);
 }
 
 function serveGameFile(req, res, system, encodedPath) {
@@ -5513,6 +5745,18 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (url.pathname === "/saved-games.json" && req.method === "GET") {
+    sendJson(res, 200, listGameSaves(requestOrigin));
+    return;
+  }
+
+  if (url.pathname === "/saved-games/upload" && req.method === "POST") {
+    saveUploadedGameSave(req, requestOrigin)
+      .then(item => sendJson(res, 200, { ok: true, item }))
+      .catch(error => send(res, 400, error.message || "Saved game upload failed"));
+    return;
+  }
+
   const gifMatch = url.pathname.match(/^\/chat-gifs\/(.+)$/);
   if (gifMatch && req.method === "GET") {
     const requestedFile = path.basename(decodeURIComponent(gifMatch[1]));
@@ -5569,6 +5813,12 @@ const server = http.createServer((req, res) => {
   const gameMatch = url.pathname.match(/^\/games\/(GB|GBC|GBA|N64|PS1)\/(.+)$/);
   if (gameMatch && (req.method === "GET" || req.method === "HEAD")) {
     serveGameFile(req, res, gameMatch[1], gameMatch[2]);
+    return;
+  }
+
+  const savedGameDownloadMatch = url.pathname.match(/^\/saved-games\/download\/([^/]+)/);
+  if (savedGameDownloadMatch && req.method === "GET") {
+    serveGameSaveDownload(res, decodeURIComponent(savedGameDownloadMatch[1]));
     return;
   }
 

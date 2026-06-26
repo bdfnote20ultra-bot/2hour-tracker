@@ -118,65 +118,9 @@ const KICK_GAMING_CHANNEL_KEY = "fuitLiveGamingKickChannel_v1";
 const YOUTUBE_GAMING_CHANNEL_URL = "https://www.youtube.com/@xflivetv";
 const YOUTUBE_GAMING_VIDEOS_URL = "https://www.youtube.com/@xflivetv/videos";
 const RETROARCH_WEB_PLAYER_URL = "https://web.libretro.com/";
-const FUIT_MULTIPLAYER_HOST_URL_KEY = "fuitMultiplayerHostUrl_v1";
-const FUIT_MULTIPLAYER_DEFAULT_HOST_URL = "http://127.0.0.1:8174";
-const FUIT_CONTROLLER_RELAY_SOURCE = "fuit-multiplayer-controller";
-const FUIT_CONTROLLER_RELAY_TTL_MS = 60 * 60 * 1000;
-const FUIT_CONTROLLER_RELAY_TICK_MS = 50;
-const FUIT_CONTROLLER_RELAY_HEARTBEAT_MS = 900;
-const FUIT_FRONT_CONTROLLER_DEVICE_ID_KEY = "fuitFrontControllerDeviceId_v1";
-const FUIT_MULTIPLAYER_STANDALONE_STATUS_KEY = "fuitMultiplayerStandaloneEmulatorStatus_v1";
-const FUIT_MULTIPLAYER_STANDALONE_STATUS_SOURCE = "fuit-multiplayer-standalone-emulator";
-const FUIT_MULTIPLAYER_STANDALONE_STATUS_TTL_MS = 2 * 60 * 1000;
-const FUIT_MULTIPLAYER_STANDALONE_HEARTBEAT_MS = 2000;
-const FUIT_MULTIPLAYER_DISCOVERY_URLS = Array.from(
-  new Set([
-    FUIT_MULTIPLAYER_DEFAULT_HOST_URL,
-    ...Array.from({ length: 11 }, (_, index) => `http://127.0.0.1:${8174 + index}`)
-  ])
-);
 const SIGNUP_REQUESTS_KEY = "fuitsSignupRequests_v1";
 const APPROVED_USERS_KEY = "fuitsApprovedUsers_v1";
 const BANNED_USERS_KEY = "fuitsBannedUsers_v1";
-
-function normalizeFuitMultiplayerHostUrl(hostUrl = "") {
-  return (hostUrl || FUIT_MULTIPLAYER_DEFAULT_HOST_URL).trim().replace(/\/+$/, "") || FUIT_MULTIPLAYER_DEFAULT_HOST_URL;
-}
-
-function readFuitStandaloneMultiplayerStatus(expectedHostUrl = "") {
-  try {
-    const status = JSON.parse(localStorage.getItem(FUIT_MULTIPLAYER_STANDALONE_STATUS_KEY) || "null");
-    if (!status || status.source !== FUIT_MULTIPLAYER_STANDALONE_STATUS_SOURCE || !status.id) return null;
-    const updatedAt = Number(status.updatedAt || 0);
-    if (!updatedAt || Date.now() - updatedAt > FUIT_MULTIPLAYER_STANDALONE_STATUS_TTL_MS) {
-      localStorage.removeItem(FUIT_MULTIPLAYER_STANDALONE_STATUS_KEY);
-      return null;
-    }
-    if (normalizeFuitMultiplayerHostUrl(status.hostUrl) !== normalizeFuitMultiplayerHostUrl(expectedHostUrl)) return null;
-    return status;
-  } catch {
-    return null;
-  }
-}
-
-function writeFuitStandaloneMultiplayerStatus({ id, hostUrl }) {
-  try {
-    localStorage.setItem(FUIT_MULTIPLAYER_STANDALONE_STATUS_KEY, JSON.stringify({
-      source: FUIT_MULTIPLAYER_STANDALONE_STATUS_SOURCE,
-      id,
-      hostUrl: normalizeFuitMultiplayerHostUrl(hostUrl),
-      updatedAt: Date.now()
-    }));
-  } catch {}
-}
-
-function clearFuitStandaloneMultiplayerStatus(id, hostUrl) {
-  try {
-    const status = readFuitStandaloneMultiplayerStatus(hostUrl);
-    if (!status || status.id === id) localStorage.removeItem(FUIT_MULTIPLAYER_STANDALONE_STATUS_KEY);
-  } catch {}
-}
-
 function loadData() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
 }
@@ -490,6 +434,17 @@ function normalizePublicUrls(urls) {
   return Array.isArray(urls) ? urls.map(normalizePublicUrl).filter(Boolean) : undefined;
 }
 
+function formatSavedGameBytes(bytes) {
+  const size = Number(bytes || 0);
+  if (!Number.isFinite(size) || size <= 0) return "0 KB";
+  if (size >= 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(size / 1024))} KB`;
+}
+
+function getSavedGameKey(system, gameFile = "") {
+  return `${system || "GAME"}::${gameFile || ""}`;
+}
+
 function pokemonAssetOverride(game, keys) {
   const value = keys.map(key => game?.[key]).find(Boolean);
   if (!value || typeof value !== "string") return "";
@@ -782,31 +737,24 @@ function GamingCenterSecondPanel() {
   );
 }
 
-function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
+function PokemonSidebar({ loggedInUsername = "" } = {}) {
   const fuitsLiveTvChannelUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
-  const getInitialMultiplayerHostUrl = () => {
-    if (standaloneMultiplayer) {
-      try {
-        const hostUrl = new URLSearchParams(window.location.search).get("host");
-        if (hostUrl) return hostUrl;
-      } catch {}
-    }
-    try { return localStorage.getItem(FUIT_MULTIPLAYER_HOST_URL_KEY) || FUIT_MULTIPLAYER_DEFAULT_HOST_URL; } catch { return FUIT_MULTIPLAYER_DEFAULT_HOST_URL; }
-  };
   const [games, setGames] = useState(POKEMON_ROMS);
   const [activeSystem, setActiveSystem] = useState("GB");
   const [activeGame, setActiveGame] = useState(() => POKEMON_ROMS.find(game => game.system === "GB") || POKEMON_ROMS[0] || null);
   const [collapsed, setCollapsed] = useState(false);
-  const [activeGamingApp, setActiveGamingApp] = useState(() => standaloneMultiplayer ? "multiplayer" : "gaming-center");
+  const [activeGamingApp, setActiveGamingApp] = useState("gaming-center");
   const [gamingMenuOpen, setGamingMenuOpen] = useState(false);
   const [kickGamingChannelInput, setKickGamingChannelInput] = useState(() => {
     try { return localStorage.getItem(KICK_GAMING_CHANNEL_KEY) || "flivetv"; } catch { return "flivetv"; }
   });
-  const [multiplayerHostUrl, setMultiplayerHostUrl] = useState(getInitialMultiplayerHostUrl);
-  const cleanMultiplayerHostUrl = normalizeFuitMultiplayerHostUrl(multiplayerHostUrl);
-  const [multiplayerHostInput, setMultiplayerHostInput] = useState(getInitialMultiplayerHostUrl);
-  const [multiplayerRoom, setMultiplayerRoom] = useState({ online: false, loading: true, error: "", data: null });
   const [gameSearch, setGameSearch] = useState("");
+  const [savedGames, setSavedGames] = useState({ loading: false, error: "", items: [] });
+  const [savedGameOpenSections, setSavedGameOpenSections] = useState({ master: true });
+  const [savedGameUpload, setSavedGameUpload] = useState({ system: "GB", gameFile: "", saveName: "" });
+  const [savedGameUploadFile, setSavedGameUploadFile] = useState(null);
+  const [savedGameUploadStatus, setSavedGameUploadStatus] = useState("");
+  const [savedGameUploading, setSavedGameUploading] = useState(false);
   const [selectedArt, setSelectedArt] = useState("cover");
   const [zoomedCover, setZoomedCover] = useState(null);
   const [activeGameAssets, setActiveGameAssets] = useState({ manualUrl: "", backUrl: "" });
@@ -818,27 +766,11 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
   const emulatorHostRef = useRef(null);
   const retroarchPlayerRef = useRef(null);
   const gameCarouselRef = useRef(null);
+  const savedGameFileInputRef = useRef(null);
   const gameCardRefs = useRef({});
   const gamepadKeysRef = useRef(new Set());
-  const multiplayerRemoteKeysRef = useRef(new Map());
-  const multiplayerControllerRelayClaimsRef = useRef(new Map());
-  const multiplayerFrontControllerDeviceIdRef = useRef("");
-  const browserGetGamepadsRef = useRef(
-    typeof navigator !== "undefined" && typeof navigator.getGamepads === "function"
-      ? navigator.getGamepads.bind(navigator)
-      : null
-  );
-  const stoppedMultiplayerHelperRef = useRef({ baseUrl: "", startedAt: "" });
   const emulatorMenuOpenAllowedUntilRef = useRef(0);
-  const standaloneMultiplayerTabIdRef = useRef("");
-  if (!standaloneMultiplayerTabIdRef.current) {
-    standaloneMultiplayerTabIdRef.current = window.crypto?.randomUUID?.() || `standalone-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  }
   const n64PerformanceMode = isN64Game(gameLaunch);
-  const helperStandaloneMultiplayerOpen = Boolean(multiplayerRoom.data?.standaloneEmulator?.active);
-  const frontPageEmulatorHandedOff = !standaloneMultiplayer && multiplayerRoom.online && helperStandaloneMultiplayerOpen;
-  const canAddMultiplayerController = multiplayerRoom.online && !frontPageEmulatorHandedOff;
-
   const isInteractiveElement = (element) => {
     if (!element || element === document.body) return false;
     return Boolean(element.closest?.("select, input, textarea, button, [contenteditable='true']"));
@@ -1028,51 +960,6 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
     setGameLaunch({ ...game, launchId: Date.now() });
   };
 
-  useEffect(() => {
-    if (!standaloneMultiplayer) return undefined;
-
-    const tabId = standaloneMultiplayerTabIdRef.current;
-    const postStandaloneStatus = (active, { keepalive = false } = {}) => {
-      try {
-        fetch(`${cleanMultiplayerHostUrl}/api/emulator-tab`, {
-          method: "POST",
-          cache: "no-store",
-          keepalive,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: tabId, active })
-        }).catch(() => {});
-      } catch {}
-    };
-    const publishOpen = () => {
-      writeFuitStandaloneMultiplayerStatus({ id: tabId, hostUrl: cleanMultiplayerHostUrl });
-      postStandaloneStatus(true);
-    };
-    const publishClosed = () => {
-      clearFuitStandaloneMultiplayerStatus(tabId, cleanMultiplayerHostUrl);
-      postStandaloneStatus(false, { keepalive: true });
-    };
-    const handleVisibilityChange = () => publishOpen();
-
-    publishOpen();
-    const heartbeatTimer = window.setInterval(publishOpen, FUIT_MULTIPLAYER_STANDALONE_HEARTBEAT_MS);
-    window.addEventListener("pagehide", publishClosed);
-    window.addEventListener("beforeunload", publishClosed);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      window.clearInterval(heartbeatTimer);
-      window.removeEventListener("pagehide", publishClosed);
-      window.removeEventListener("beforeunload", publishClosed);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      publishClosed();
-    };
-  }, [standaloneMultiplayer, cleanMultiplayerHostUrl]);
-
-  useEffect(() => {
-    if (!frontPageEmulatorHandedOff || activeGamingApp !== "multiplayer" || !gameLaunch) return;
-    stopRunningGame();
-  }, [frontPageEmulatorHandedOff, activeGamingApp, gameLaunch?.launchId]);
-
   const constrainPokemonEmulatorLayout = () => {
     const host = emulatorHostRef.current;
     if (!host) return;
@@ -1166,639 +1053,124 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
     : systemGames;
   const carouselGames = filteredSystemGames;
   const activeGameIndex = activeGame ? Math.max(0, carouselGames.findIndex(game => game.file === activeGame.file)) : 0;
+  const savedGameItems = Array.isArray(savedGames.items) ? savedGames.items : [];
+  const savedGameUploadGames = games.filter(game => game.system === savedGameUpload.system);
+  const selectedSavedGameUploadGame = savedGameUploadGames.find(game => game.file === savedGameUpload.gameFile) || savedGameUploadGames[0] || null;
+  const savedGameSystems = GAME_SYSTEMS.map(system => {
+    const knownGames = games.filter(game => game.system === system);
+    const knownKeys = new Set(knownGames.map(game => getSavedGameKey(game.system, game.file)));
+    const saveOnlyGames = savedGameItems
+      .filter(save => save.system === system && !knownKeys.has(getSavedGameKey(save.system, save.gameFile)))
+      .map(save => ({
+        system: save.system,
+        file: save.gameFile || save.gameLabel,
+        label: save.gameLabel || save.gameFile || "Saved Game"
+      }));
+    const gamesForSystem = [...knownGames, ...saveOnlyGames]
+      .map(game => ({
+        ...game,
+        saves: savedGameItems.filter(save => save.system === game.system && save.gameFile === game.file)
+      }))
+      .filter(game => game.saves.length);
+    return {
+      system,
+      games: gamesForSystem,
+      count: gamesForSystem.reduce((sum, game) => sum + game.saves.length, 0)
+    };
+  }).filter(group => group.count > 0);
   const backgroundImage = SYSTEM_BACKGROUNDS[activeSystem] || SYSTEM_BACKGROUNDS.GB;
   const kickGamingChannel = normalizeKickChannel(kickGamingChannelInput) || "flivetv";
   const kickGamingEmbedUrl = `https://player.kick.com/${encodeURIComponent(kickGamingChannel)}?autoplay=true&muted=true`;
   const kickGamingChatUrl = `https://kick.com/popout/${encodeURIComponent(kickGamingChannel)}/chat`;
-  const multiplayerViewerUrl = multiplayerRoom.data?.viewerUrl || `${cleanMultiplayerHostUrl}/room`;
-  const multiplayerControllerUrl = multiplayerRoom.data?.controllerUrl || `${cleanMultiplayerHostUrl}/controller`;
-  const getMultiplayerHelperBaseUrl = () => {
-    const helperUrl = multiplayerRoom.data?.viewerUrl || multiplayerRoom.data?.controllerUrl || "";
-    if (helperUrl) {
-      try {
-        return new URL(helperUrl, window.location.href).origin;
-      } catch {}
-    }
-    return cleanMultiplayerHostUrl;
-  };
-  const makeMultiplayerControllerId = () => (
-    window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`
-  );
-  const makeMultiplayerControllerUrl = (controllerId = makeMultiplayerControllerId()) => {
-    try {
-      const url = new URL(multiplayerControllerUrl, window.location.href);
-      url.searchParams.set("id", controllerId);
-      return url.toString();
-    } catch {
-      return `${multiplayerControllerUrl}${multiplayerControllerUrl.includes("?") ? "&" : "?"}id=${encodeURIComponent(controllerId)}`;
-    }
-  };
-  const getBrowserGamepads = useCallback(() => {
-    if (!browserGetGamepadsRef.current && typeof navigator !== "undefined" && typeof navigator.getGamepads === "function") {
-      browserGetGamepadsRef.current = navigator.getGamepads.bind(navigator);
-    }
-    try {
-      return browserGetGamepadsRef.current ? Array.from(browserGetGamepadsRef.current()).filter(Boolean) : [];
-    } catch {
-      return [];
-    }
-  }, []);
-  const getMultiplayerFrontControllerDeviceId = useCallback(() => {
-    if (multiplayerFrontControllerDeviceIdRef.current) return multiplayerFrontControllerDeviceIdRef.current;
-    try {
-      let deviceId = localStorage.getItem(FUIT_FRONT_CONTROLLER_DEVICE_ID_KEY) || "";
-      if (!deviceId) {
-        deviceId = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        localStorage.setItem(FUIT_FRONT_CONTROLLER_DEVICE_ID_KEY, deviceId);
-      }
-      multiplayerFrontControllerDeviceIdRef.current = deviceId;
-      return deviceId;
-    } catch {
-      const fallback = [
-        navigator.userAgent || "browser",
-        navigator.platform || "platform",
-        window.screen?.width + "x" + window.screen?.height
-      ].join(":");
-      multiplayerFrontControllerDeviceIdRef.current = fallback;
-      return fallback;
-    }
-  }, []);
-  const getMultiplayerFrontControllerPadKey = useCallback((pad) => (
-    pad ? `${getMultiplayerFrontControllerDeviceId()}:${String(pad.index)}:${String(pad.id || "Gamepad")}` : ""
-  ), [getMultiplayerFrontControllerDeviceId]);
-  const getMultiplayerFrontControllerPadSignature = useCallback((pad) => (
-    pad ? `gamepad:${String(pad.index)}:${String(pad.id || "Gamepad")}` : ""
-  ), []);
-  const getMultiplayerFrontControllerPadLabel = useCallback((pad) => (
-    String(pad?.id || "Gamepad").trim() || "Gamepad"
-  ), []);
-  const claimMultiplayerControllerOnFrontPage = useCallback((controllerId, controllerWindow = null) => {
-    if (!controllerId) return;
-    const pads = getBrowserGamepads();
-    const claimedPhysicalIds = new Set(
-      Array.from(multiplayerControllerRelayClaimsRef.current.values())
-        .flatMap(claim => [claim?.physicalControllerId, claim?.physicalControllerSignature])
-        .filter(Boolean)
-    );
-    const pad = pads.find(candidate =>
-      !claimedPhysicalIds.has(getMultiplayerFrontControllerPadKey(candidate)) &&
-      !claimedPhysicalIds.has(getMultiplayerFrontControllerPadSignature(candidate))
-    ) || null;
-    multiplayerControllerRelayClaimsRef.current.set(controllerId, {
-      id: controllerId,
-      label: pad ? getMultiplayerFrontControllerPadLabel(pad) : "Gamepad",
-      physicalControllerId: pad ? getMultiplayerFrontControllerPadKey(pad) : "",
-      physicalControllerSignature: pad ? getMultiplayerFrontControllerPadSignature(pad) : "",
-      padIndex: pad ? Number(pad.index) : null,
-      padId: pad ? String(pad.id || "") : "",
-      frontRelay: true,
-      pending: !pad,
-      controllerWindow,
-      updatedAt: Date.now()
-    });
-  }, [getBrowserGamepads, getMultiplayerFrontControllerPadKey, getMultiplayerFrontControllerPadLabel, getMultiplayerFrontControllerPadSignature]);
-  const openMultiplayerController = () => {
-    if (!canAddMultiplayerController) return;
-    const controllerId = makeMultiplayerControllerId();
-    const controllerWindow = window.open(makeMultiplayerControllerUrl(controllerId), "_blank");
-    claimMultiplayerControllerOnFrontPage(controllerId, controllerWindow);
-    try {
-      controllerWindow?.blur?.();
-      window.focus?.();
-    } catch {}
-  };
-  const openMultiplayerEmulatorPage = () => {
-    try {
-      const url = new URL("/multiplayer-emulator", window.location.href);
-      url.searchParams.set("host", cleanMultiplayerHostUrl);
-      window.open(url.toString(), "_blank", "noopener,noreferrer");
-    } catch {
-      window.open(`/multiplayer-emulator?host=${encodeURIComponent(cleanMultiplayerHostUrl)}`, "_blank", "noopener,noreferrer");
-    }
-  };
-  const isStoppedMultiplayerHelper = useCallback((baseUrl, data) => {
-    const stopped = stoppedMultiplayerHelperRef.current;
-    if (!stopped.baseUrl || stopped.baseUrl !== baseUrl) return false;
-    if (stopped.startedAt && data?.startedAt && stopped.startedAt !== data.startedAt) {
-      stoppedMultiplayerHelperRef.current = { baseUrl: "", startedAt: "" };
-      return false;
-    }
-    return true;
-  }, []);
-  const stopHostedMultiplayerGame = async () => {
-    const stoppedHelper = {
-      baseUrl: getMultiplayerHelperBaseUrl(),
-      startedAt: multiplayerRoom.data?.startedAt || ""
-    };
-    stoppedMultiplayerHelperRef.current = stoppedHelper;
-    setMultiplayerRoom({
-      online: false,
-      loading: false,
-      error: "Start the separate FUIT Multiplayer helper to turn this room on.",
-      data: null
-    });
-    stopRunningGame();
 
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 1600);
+  const loadSavedGames = useCallback(async () => {
+    if (!fuitsLiveTvChannelUrl) {
+      setSavedGames({ loading: false, error: "FUITS Live TV URL is not set yet.", items: [] });
+      return;
+    }
+
+    setSavedGames(current => ({ ...current, loading: true, error: "" }));
     try {
-      await fetch(`${stoppedHelper.baseUrl}/api/shutdown`, {
+      const response = await fetch(`${fuitsLiveTvChannelUrl}/saved-games.json`, { cache: "no-store" });
+      if (!response.ok) throw new Error("Saved games are not available yet.");
+      const data = await response.json();
+      setSavedGames({ loading: false, error: "", items: Array.isArray(data) ? data : [] });
+    } catch (error) {
+      setSavedGames({ loading: false, error: error.message || "Could not load saved games.", items: [] });
+    }
+  }, [fuitsLiveTvChannelUrl]);
+
+  const toggleSavedGameSection = key => {
+    setSavedGameOpenSections(current => ({ ...current, [key]: !current[key] }));
+  };
+
+  const uploadSavedGame = async event => {
+    event.preventDefault();
+    if (!fuitsLiveTvChannelUrl) {
+      setSavedGameUploadStatus("FUITS Live TV URL is not set yet.");
+      return;
+    }
+    if (!loggedInUsername) {
+      setSavedGameUploadStatus("Sign in before uploading a save.");
+      return;
+    }
+    if (!selectedSavedGameUploadGame) {
+      setSavedGameUploadStatus("Choose a game first.");
+      return;
+    }
+    if (!savedGameUploadFile) {
+      setSavedGameUploadStatus("Choose a save file first.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("username", loggedInUsername);
+    formData.append("system", selectedSavedGameUploadGame.system);
+    formData.append("gameFile", selectedSavedGameUploadGame.file);
+    formData.append("gameLabel", selectedSavedGameUploadGame.label);
+    formData.append("saveName", savedGameUpload.saveName || savedGameUploadFile.name);
+    formData.append("saveFile", savedGameUploadFile);
+
+    setSavedGameUploading(true);
+    setSavedGameUploadStatus("Uploading save...");
+    try {
+      const response = await fetch(`${fuitsLiveTvChannelUrl}/saved-games/upload`, {
         method: "POST",
-        cache: "no-store",
-        signal: controller.signal,
-        keepalive: true
+        body: formData
       });
-    } catch {
+      const text = await response.text();
+      if (!response.ok) throw new Error(text || "Upload failed.");
+      setSavedGameUpload(current => ({ ...current, saveName: "" }));
+      setSavedGameUploadFile(null);
+      if (savedGameFileInputRef.current) savedGameFileInputRef.current.value = "";
+      setSavedGameUploadStatus("Save uploaded.");
+      await loadSavedGames();
+    } catch (error) {
+      setSavedGameUploadStatus(error.message || "Could not upload that save.");
     } finally {
-      window.clearTimeout(timeout);
+      setSavedGameUploading(false);
     }
   };
-  const getPokemonFrameSourceRect = (canvas) => {
-    const width = Math.max(1, canvas?.width || 0);
-    const height = Math.max(1, canvas?.height || 0);
-    if (isN64Game(gameLaunch) || activeGame?.system === "N64" || activeGame?.core === "n64") {
-      return { x: 0, y: 0, width, height };
-    }
-    const systemAspect = POKEMON_SYSTEM_ASPECTS[gameLaunch?.system || activeGame?.system] || width / height || 4 / 3;
-    let sourceWidth = width;
-    let sourceHeight = height;
-
-    if (height > Math.max(width * 4, 720)) {
-      sourceHeight = Math.max(1, Math.min(height, Math.round(sourceWidth / systemAspect)));
-    }
-    if (width > Math.max(height * 4, 1280)) {
-      sourceWidth = Math.max(1, Math.min(width, Math.round(sourceHeight * systemAspect)));
-    }
-
-    return { x: 0, y: 0, width: sourceWidth, height: sourceHeight };
-  };
-  const getCanvasFrameState = (canvas) => {
-    if (!canvas?.width || !canvas?.height) return "empty";
-    const source = getPokemonFrameSourceRect(canvas);
-    const samplePoints = [
-      [0.5, 0.5],
-      [0.5, 0.2],
-      [0.5, 0.8],
-      [0.2, 0.5],
-      [0.8, 0.5],
-      [0.25, 0.25],
-      [0.75, 0.25],
-      [0.25, 0.75],
-      [0.75, 0.75]
-    ];
-    const isActivePixel = (pixel) => pixel[3] > 0 && pixel[0] + pixel[1] + pixel[2] > 30;
-
-    try {
-      const context = canvas.getContext("2d", { willReadFrequently: true });
-      if (context) {
-        let activePixels = 0;
-        for (const [xRatio, yRatio] of samplePoints) {
-          const x = Math.min(canvas.width - 1, Math.max(0, source.x + Math.floor(source.width * xRatio)));
-          const y = Math.min(canvas.height - 1, Math.max(0, source.y + Math.floor(source.height * yRatio)));
-          if (isActivePixel(context.getImageData(x, y, 1, 1).data)) activePixels += 1;
-        }
-        return activePixels >= 2 ? "active" : "blank";
-      }
-    } catch {}
-
-    try {
-      const gl = canvas.getContext("webgl2") || canvas.getContext("webgl");
-      if (!gl) return "unknown";
-      let activePixels = 0;
-      for (const [xRatio, yRatio] of samplePoints) {
-        const x = Math.min(canvas.width - 1, Math.max(0, source.x + Math.floor(source.width * xRatio)));
-        const y = Math.min(canvas.height - 1, Math.max(0, source.y + Math.floor(source.height * yRatio)));
-        const pixel = new Uint8Array(4);
-        gl.readPixels(x, canvas.height - y - 1, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
-        if (isActivePixel(pixel)) activePixels += 1;
-      }
-      return activePixels >= 2 ? "active" : "blank";
-    } catch {
-      return "unknown";
-    }
-  };
-  const isUsableFrameImage = (image) =>
-    /^data:image\/(?:jpeg|png|webp);base64,/i.test(image || "") && image.length > 512;
-  const canvasToDataUrl = (canvas, quality) => new Promise((resolve) => {
-    if (canvas.toBlob) {
-      try {
-        canvas.toBlob(blob => {
-          if (!blob || blob.size < 128) {
-            resolve("");
-            return;
-          }
-
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(String(reader.result || ""));
-          reader.onerror = () => resolve("");
-          reader.readAsDataURL(blob);
-        }, "image/jpeg", quality);
-        return;
-      } catch {}
-    }
-
-    try {
-      resolve(canvas.toDataURL("image/jpeg", quality));
-    } catch {
-      resolve("");
-    }
-  });
-  const makeMultiplayerFrameImage = async (canvas, options = {}) => {
-    const quality = Number.isFinite(options.quality) ? options.quality : 0.42;
-    const maxWidth = Number.isFinite(options.maxWidth) ? options.maxWidth : 480;
-    const maxHeight = Number.isFinite(options.maxHeight) ? options.maxHeight : 360;
-    const source = getPokemonFrameSourceRect(canvas);
-    const scale = Math.min(1, maxWidth / source.width, maxHeight / source.height);
-    const frameCanvas = document.createElement("canvas");
-    frameCanvas.width = Math.max(1, Math.round(source.width * scale));
-    frameCanvas.height = Math.max(1, Math.round(source.height * scale));
-    const context = frameCanvas.getContext("2d");
-    if (context) {
-      try {
-        context.imageSmoothingEnabled = false;
-        context.drawImage(
-          canvas,
-          source.x,
-          source.y,
-          source.width,
-          source.height,
-          0,
-          0,
-          frameCanvas.width,
-          frameCanvas.height
-        );
-        if (getCanvasFrameState(frameCanvas) === "blank") return "";
-        const downscaled = await canvasToDataUrl(frameCanvas, quality);
-        if (isUsableFrameImage(downscaled)) return downscaled;
-      } catch {}
-    }
-
-    return canvasToDataUrl(canvas, quality);
-  };
-  const makeFuitsGameUrl = (value) => {
-    const text = String(value || "");
-    if (!text) return "";
-    if (/^https?:\/\//i.test(text)) return text;
-    if (!fuitsLiveTvChannelUrl) return text;
-    return `${fuitsLiveTvChannelUrl.replace(/\/+$/, "")}${text.startsWith("/") ? text : `/${text}`}`;
-  };
-  const multiplayerSelectedGame = (() => {
-    const selected = multiplayerRoom.data?.selectedGame;
-    if (!selected) return null;
-    const known = games.find(game =>
-      game.system === selected.system &&
-      (game.file === selected.file || game.label === selected.label)
-    );
-    if (known) return known;
-    return {
-      label: selected.label || selected.file || "Selected browser game",
-      system: selected.system || "GB",
-      core: selected.core || "gb",
-      year: "",
-      file: selected.file || selected.label || "selected-game",
-      gameUrl: makeFuitsGameUrl(selected.gameUrl),
-      discUrls: Array.isArray(selected.discUrls) ? selected.discUrls.map(makeFuitsGameUrl).filter(Boolean) : [],
-      assetBaseUrl: ""
-    };
-  })();
 
   useEffect(() => {
     try { localStorage.setItem(KICK_GAMING_CHANNEL_KEY, kickGamingChannel); } catch {}
   }, [kickGamingChannel]);
 
   useEffect(() => {
-    try { localStorage.setItem(FUIT_MULTIPLAYER_HOST_URL_KEY, cleanMultiplayerHostUrl); } catch {}
-  }, [cleanMultiplayerHostUrl]);
+    if (activeGamingApp !== "saved-games") return;
+    loadSavedGames();
+  }, [activeGamingApp, loadSavedGames]);
 
   useEffect(() => {
-    if (activeGamingApp !== "multiplayer" || !multiplayerRoom.online || (!standaloneMultiplayer && collapsed)) {
-      multiplayerControllerRelayClaimsRef.current.clear();
-      return undefined;
-    }
-
-    getBrowserGamepads();
-
-    const helperBaseUrl = (() => {
-      const helperUrl = multiplayerRoom.data?.controllerUrl || multiplayerRoom.data?.viewerUrl || cleanMultiplayerHostUrl;
-      try { return new URL(helperUrl, window.location.href).origin; } catch { return cleanMultiplayerHostUrl; }
-    })();
-    const helperOrigin = (() => {
-      try { return new URL(helperBaseUrl, window.location.href).origin; } catch { return helperBaseUrl; }
-    })();
-    const gamepadMap = { 0: "a", 1: "b", 2: "x", 3: "y", 4: "l", 5: "r", 6: "z", 7: "r2", 8: "select", 9: "start", 12: "up", 13: "down", 14: "left", 15: "right" };
-    let cancelled = false;
-    let relayTimer = 0;
-    let sendingRelayInput = false;
-    let relayAgain = false;
-
-    const releaseRelayController = (claim) => {
-      if (!claim?.id) return;
-      try {
-        fetch(`${helperBaseUrl}/api/controller/release`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: claim.id,
-            physicalControllerId: claim.physicalControllerId || ""
-          }),
-          keepalive: true
-        }).catch(() => {});
-      } catch {}
-    };
-
-    const pruneRelayClaims = () => {
-      const now = Date.now();
-      Array.from(multiplayerControllerRelayClaimsRef.current.entries()).forEach(([id, claim]) => {
-        const expired = now - Number(claim.updatedAt || 0) > FUIT_CONTROLLER_RELAY_TTL_MS;
-        const closed = Boolean(claim.frontRelay && claim.controllerWindow?.closed);
-        if (expired || closed) {
-          multiplayerControllerRelayClaimsRef.current.delete(id);
-          releaseRelayController(claim);
-        }
-      });
-    };
-
-    const readPadButtons = (pad) => {
-      const buttons = [];
-      if (!pad) return buttons;
-      pad.buttons.forEach((button, index) => { if (button.pressed && gamepadMap[index]) buttons.push(gamepadMap[index]); });
-      const x = pad.axes[0] || 0;
-      const y = pad.axes[1] || 0;
-      if (x < -0.45) buttons.push("left");
-      if (x > 0.45) buttons.push("right");
-      if (y < -0.45) buttons.push("up");
-      if (y > 0.45) buttons.push("down");
-      return buttons;
-    };
-
-    const normalizeRelayAxis = (value) => {
-      const number = Number(value || 0);
-      if (!Number.isFinite(number) || Math.abs(number) < 0.03) return 0;
-      return Math.round(Math.max(-1, Math.min(1, number)) * 100) / 100;
-    };
-
-    const makeRelayInputSnapshot = (physicalControllerId, physicalControllerSignature, buttons, axes) => JSON.stringify({
-      physicalControllerId,
-      physicalControllerSignature,
-      buttons: Array.from(new Set(buttons)).sort(),
-      axes: axes.map(normalizeRelayAxis)
-    });
-
-    const findClaimPad = (pads, claim, claims) => {
-      const claimPadIndex = Number(claim.padIndex);
-      const claimPadId = String(claim.padId || "");
-      const matchingPad = pads.find(pad =>
-        Number(pad.index) === claimPadIndex &&
-        (!claimPadId || String(pad.id || "") === claimPadId)
-      ) || null;
-      if (matchingPad) return matchingPad;
-      if (!claim.frontRelay) return null;
-      const claimedPhysicalIds = new Set(
-        claims
-          .filter(existing => existing.id !== claim.id)
-          .flatMap(existing => [existing.physicalControllerId, existing.physicalControllerSignature])
-          .filter(Boolean)
-      );
-      return pads.find(pad =>
-        !claimedPhysicalIds.has(getMultiplayerFrontControllerPadKey(pad)) &&
-        !claimedPhysicalIds.has(getMultiplayerFrontControllerPadSignature(pad))
-      ) || null;
-    };
-
-    const sendRelayInput = async () => {
-      if (cancelled || document.hidden) return;
-      pruneRelayClaims();
-      const claims = Array.from(multiplayerControllerRelayClaimsRef.current.values());
-      if (!claims.length) return;
-      const pads = getBrowserGamepads();
-      if (!pads.length) return;
-
-      for (const claim of claims) {
-        if (!claim.frontRelay) continue;
-        const pad = findClaimPad(pads, claim, claims);
-        if (!pad) continue;
-        const frontRelayPhysicalId = claim.frontRelay ? getMultiplayerFrontControllerPadKey(pad) : "";
-        const frontRelayPhysicalSignature = claim.frontRelay ? getMultiplayerFrontControllerPadSignature(pad) : "";
-        const physicalControllerId = frontRelayPhysicalId || claim.physicalControllerId;
-        const physicalControllerSignature = frontRelayPhysicalSignature || claim.physicalControllerSignature || "";
-        const label = claim.frontRelay ? getMultiplayerFrontControllerPadLabel(pad) : (claim.label || String(pad.id || "Gamepad"));
-        const buttons = readPadButtons(pad);
-        const axes = Array.from(pad.axes || []);
-        const inputSnapshot = makeRelayInputSnapshot(physicalControllerId, physicalControllerSignature, buttons, axes);
-        const now = Date.now();
-        const heartbeatDue = now - Number(claim.lastSentAt || 0) >= FUIT_CONTROLLER_RELAY_HEARTBEAT_MS;
-        if (!claim.pending && claim.inputSnapshot === inputSnapshot && !heartbeatDue) continue;
-
-        try {
-          const response = await fetch(`${helperBaseUrl}/api/controller`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              id: claim.id,
-              label,
-              physicalControllerId,
-              physicalControllerSignature,
-              buttons,
-              axes,
-              source: "front-relay"
-            })
-          });
-          if (!response.ok) continue;
-          multiplayerControllerRelayClaimsRef.current.set(claim.id, {
-            ...claim,
-            label,
-            physicalControllerId,
-            physicalControllerSignature,
-            padIndex: Number(pad.index),
-            padId: String(pad.id || ""),
-            pending: false,
-            inputSnapshot,
-            lastSentAt: now,
-            updatedAt: Date.now()
-          });
-        } catch {}
-      }
-    };
-
-    const queueRelayInput = (force = false) => {
-      if (!force && document.hidden) return;
-      if (sendingRelayInput) {
-        relayAgain = true;
-        return;
-      }
-      sendingRelayInput = true;
-      Promise.resolve()
-        .then(sendRelayInput)
-        .catch(() => {})
-        .finally(() => {
-          sendingRelayInput = false;
-          if (relayAgain) {
-            relayAgain = false;
-            queueRelayInput(true);
-          }
-        });
-    };
-
-    const handleControllerRelayMessage = (event) => {
-      if (event.origin !== helperOrigin) return;
-      const message = event.data || {};
-      if (message.source !== FUIT_CONTROLLER_RELAY_SOURCE) return;
-      const claim = message.claim || {};
-      if (message.type === "release") {
-        const existingClaim = claim.id ? multiplayerControllerRelayClaimsRef.current.get(claim.id) : null;
-        if (existingClaim?.frontRelay && existingClaim.controllerWindow && !existingClaim.controllerWindow.closed) return;
-        if (claim.id) multiplayerControllerRelayClaimsRef.current.delete(claim.id);
-        return;
-      }
-      if (message.type !== "claim" || !claim.id || !claim.physicalControllerId) return;
-      multiplayerControllerRelayClaimsRef.current.set(claim.id, {
-        ...claim,
-        updatedAt: Date.now()
-      });
-      queueRelayInput(true);
-    };
-    const handleRelayWake = () => queueRelayInput(true);
-
-    window.addEventListener("message", handleControllerRelayMessage);
-    window.addEventListener("gamepadconnected", handleRelayWake);
-    window.addEventListener("gamepaddisconnected", handleRelayWake);
-    document.addEventListener("visibilitychange", handleRelayWake);
-    relayTimer = window.setInterval(() => queueRelayInput(), FUIT_CONTROLLER_RELAY_TICK_MS);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(relayTimer);
-      window.removeEventListener("message", handleControllerRelayMessage);
-      window.removeEventListener("gamepadconnected", handleRelayWake);
-      window.removeEventListener("gamepaddisconnected", handleRelayWake);
-      document.removeEventListener("visibilitychange", handleRelayWake);
-      multiplayerControllerRelayClaimsRef.current.clear();
-    };
-  }, [
-    activeGamingApp,
-    cleanMultiplayerHostUrl,
-    collapsed,
-    getBrowserGamepads,
-    getMultiplayerFrontControllerPadKey,
-    getMultiplayerFrontControllerPadLabel,
-    getMultiplayerFrontControllerPadSignature,
-    multiplayerRoom.data?.controllerUrl,
-    multiplayerRoom.data?.viewerUrl,
-    multiplayerRoom.online,
-    standaloneMultiplayer
-  ]);
-
-  useEffect(() => {
-    if (activeGamingApp !== "multiplayer") return undefined;
-
-    let cancelled = false;
-    let timeoutId = null;
-
-    const loadHelperStatus = async (baseUrl) => {
-      const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), 1100);
-
-      try {
-        const response = await fetch(`${baseUrl}/status`, {
-          cache: "no-store",
-          signal: controller.signal
-        });
-        if (!response.ok) throw new Error("Helper not ready.");
-        const data = await response.json();
-        if (!data?.active) throw new Error("Helper inactive.");
-        if (isStoppedMultiplayerHelper(baseUrl, data)) throw new Error("Helper is stopping.");
-        return { baseUrl, data };
-      } catch (error) {
-        return null;
-      } finally {
-        window.clearTimeout(timeout);
-      }
-    };
-
-    const loadMultiplayerRoom = async () => {
-      const candidates = Array.from(new Set([
-        cleanMultiplayerHostUrl,
-        ...FUIT_MULTIPLAYER_DISCOVERY_URLS
-      ].map(url => (url || "").trim().replace(/\/+$/, "")).filter(Boolean)));
-
-      try {
-        const results = await Promise.all(candidates.map(loadHelperStatus));
-        const helper = results
-          .filter(Boolean)
-          .sort((left, right) => {
-            const leftStarted = Date.parse(left.data?.startedAt || "") || 0;
-            const rightStarted = Date.parse(right.data?.startedAt || "") || 0;
-            return rightStarted - leftStarted;
-          })[0];
-
-        if (!helper) throw new Error("No multiplayer helper.");
-
-        if (!cancelled) {
-          if (helper.baseUrl !== cleanMultiplayerHostUrl) {
-            setMultiplayerHostUrl(helper.baseUrl);
-            setMultiplayerHostInput(helper.baseUrl);
-          }
-          setMultiplayerRoom({
-            online: true,
-            loading: false,
-            error: "",
-            data: helper.data
-          });
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setMultiplayerRoom({
-            online: false,
-            loading: false,
-            error: "Start the separate FUIT Multiplayer helper to turn this room on.",
-            data: null
-          });
-        }
-      } finally {
-        if (!cancelled) timeoutId = window.setTimeout(loadMultiplayerRoom, 5000);
-      }
-    };
-
-    setMultiplayerRoom(current => ({ ...current, loading: true }));
-    loadMultiplayerRoom();
-
-    return () => {
-      cancelled = true;
-      if (timeoutId) window.clearTimeout(timeoutId);
-    };
-  }, [activeGamingApp, cleanMultiplayerHostUrl, isStoppedMultiplayerHelper]);
-
-  useEffect(() => {
-    if (activeGamingApp !== "multiplayer" || !multiplayerRoom.online || !multiplayerSelectedGame || frontPageEmulatorHandedOff) return;
-    const alreadySelected = activeGame &&
-      activeGame.system === multiplayerSelectedGame.system &&
-      activeGame.file === multiplayerSelectedGame.file;
-    const launchedSelected = gameLaunch &&
-      gameLaunch.system === multiplayerSelectedGame.system &&
-      gameLaunch.file === multiplayerSelectedGame.file;
-
-    if (gameLaunch && !launchedSelected) stopRunningGame();
-    if (!alreadySelected) {
-      setActiveSystem(multiplayerSelectedGame.system);
-      setActiveGame(multiplayerSelectedGame);
-      setSelectedArt("cover");
-      setSelectedDiscIndex(0);
-    }
-    if (!launchedSelected && (multiplayerSelectedGame.gameUrl || multiplayerSelectedGame.discUrls?.length)) {
-      startBrowserGame(multiplayerSelectedGame);
-    }
-  }, [
-    activeGamingApp,
-    multiplayerRoom.online,
-    multiplayerSelectedGame?.system,
-    multiplayerSelectedGame?.file,
-    multiplayerSelectedGame?.label,
-    multiplayerSelectedGame?.gameUrl,
-    activeGame?.system,
-    activeGame?.file,
-    gameLaunch,
-    frontPageEmulatorHandedOff
-  ]);
+    if (savedGameUploadGames.some(game => game.file === savedGameUpload.gameFile)) return;
+    const nextGame = savedGameUploadGames[0] || games[0] || null;
+    if (!nextGame) return;
+    setSavedGameUpload(current => ({
+      ...current,
+      system: nextGame.system,
+      gameFile: nextGame.file
+    }));
+  }, [games, savedGameUpload.gameFile, savedGameUploadGames, savedGameUpload.system]);
 
   useEffect(() => {
     const carousel = gameCarouselRef.current;
@@ -1915,34 +1287,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
   };
 
   useEffect(() => {
-    if (activeGamingApp !== "multiplayer" || !gameLaunch || collapsed || !navigator.getGamepads) return undefined;
-
-    const ownDescriptor = Object.getOwnPropertyDescriptor(navigator, "getGamepads");
-    let masked = false;
-    try {
-      Object.defineProperty(navigator, "getGamepads", {
-        configurable: true,
-        value: () => []
-      });
-      masked = true;
-    } catch {
-      try {
-        navigator.getGamepads = () => [];
-        masked = true;
-      } catch {}
-    }
-
-    return () => {
-      if (!masked) return;
-      try {
-        if (ownDescriptor) Object.defineProperty(navigator, "getGamepads", ownDescriptor);
-        else delete navigator.getGamepads;
-      } catch {}
-    };
-  }, [activeGamingApp, gameLaunch, collapsed]);
-
-  useEffect(() => {
-    if (!gameLaunch || frontPageEmulatorHandedOff) {
+    if (!gameLaunch) {
       resetPokemonEmulator();
       setStretchGame(false);
       setGameFullscreen(false);
@@ -2094,10 +1439,10 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       focusTimers.forEach(timer => window.clearTimeout(timer));
       resetPokemonEmulator(emulatorHostRef.current);
     };
-  }, [activeGamingApp, gameLaunch?.core, gameLaunch?.discUrls?.join("|"), gameLaunch?.file, gameLaunch?.gameUrl, gameLaunch?.label, gameLaunch?.launchId, selectedDiscIndex, collapsed, frontPageEmulatorHandedOff]);
+  }, [activeGamingApp, gameLaunch?.core, gameLaunch?.discUrls?.join("|"), gameLaunch?.file, gameLaunch?.gameUrl, gameLaunch?.label, gameLaunch?.launchId, selectedDiscIndex, collapsed]);
 
   useEffect(() => {
-    if (!gameLaunch || frontPageEmulatorHandedOff || collapsed || !emulatorHostRef.current) return undefined;
+    if (!gameLaunch || collapsed || !emulatorHostRef.current) return undefined;
 
     const host = emulatorHostRef.current;
     const handleMenuGesture = (event) => {
@@ -2133,10 +1478,10 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       host.removeEventListener("touchstart", handleMenuGesture, true);
       host.removeEventListener("click", handleSurfaceClick, true);
     };
-  }, [gameLaunch, collapsed, frontPageEmulatorHandedOff]);
+  }, [gameLaunch, collapsed]);
 
   useEffect(() => {
-    if (!gameLaunch || collapsed || activeGamingApp === "multiplayer") return;
+    if (!gameLaunch || collapsed) return;
 
     const keyMap = {
       z: { key: "z", code: "KeyZ", keyCode: 90 },
@@ -2328,319 +1673,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       window.removeEventListener("gamepadconnected", handleGamepadConnected);
       releaseAllKeys();
     };
-  }, [activeGamingApp, gameLaunch, collapsed]);
-
-  useEffect(() => {
-    if (activeGamingApp !== "multiplayer" || !gameLaunch || !multiplayerRoom.online || collapsed || frontPageEmulatorHandedOff) return undefined;
-
-    let cancelled = false;
-    let sendingHostFrame = false;
-    const relayStartedAt = Date.now();
-    let hasSentActiveFrame = false;
-    const n64Launch = isN64Game(gameLaunch);
-    const postToMultiplayerHelper = async (path, body, timeoutMs = 900) => {
-      const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
-      try {
-        await fetch(`${cleanMultiplayerHostUrl}${path}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-          signal: controller.signal
-        });
-      } finally {
-        window.clearTimeout(timeout);
-      }
-    };
-
-    const shouldSendMultiplayerFrame = async () => {
-      const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), 650);
-      try {
-        const response = await fetch(`${cleanMultiplayerHostUrl}/api/frame-demand`, {
-          cache: "no-store",
-          signal: controller.signal
-        });
-        if (!response.ok) return true;
-        const data = await response.json().catch(() => null);
-        return data?.needed !== false;
-      } catch {
-        return true;
-      } finally {
-        window.clearTimeout(timeout);
-      }
-    };
-
-    const sendHostFrame = async () => {
-      if (cancelled || sendingHostFrame) return;
-      sendingHostFrame = true;
-
-      try {
-        try {
-          await postToMultiplayerHelper("/api/host", { gameName: gameLaunch.label });
-        } catch {}
-
-        if (n64Launch) return;
-
-        const frameNeeded = await shouldSendMultiplayerFrame();
-        if (!frameNeeded || cancelled) return;
-
-        const canvas = emulatorHostRef.current?.querySelector("canvas");
-        if (canvas?.width && canvas?.height) {
-          try {
-            const frameState = getCanvasFrameState(canvas);
-            if (frameState === "blank") return;
-            if (frameState === "unknown" && !hasSentActiveFrame && Date.now() - relayStartedAt < 12000) return;
-            const image = await makeMultiplayerFrameImage(canvas, n64Launch
-              ? { quality: 0.28, maxWidth: 360, maxHeight: 270 }
-              : { quality: 0.42, maxWidth: 480, maxHeight: 360 }
-            );
-            if (isUsableFrameImage(image)) {
-              hasSentActiveFrame = frameState === "active" || hasSentActiveFrame;
-              await postToMultiplayerHelper("/api/frame", { image }, n64Launch ? 5000 : 3500);
-            }
-          } catch {}
-        }
-      } finally {
-        sendingHostFrame = false;
-      }
-    };
-
-    const firstFrameTimer = window.setTimeout(sendHostFrame, 1200);
-    const interval = window.setInterval(sendHostFrame, n64Launch ? 5000 : 1200);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(firstFrameTimer);
-      window.clearInterval(interval);
-    };
-  }, [activeGamingApp, cleanMultiplayerHostUrl, gameLaunch, multiplayerRoom.online, collapsed, frontPageEmulatorHandedOff]);
-
-  useEffect(() => {
-    if (activeGamingApp !== "multiplayer" || !gameLaunch || !multiplayerRoom.online || collapsed || frontPageEmulatorHandedOff) return undefined;
-
-    if (!(multiplayerRemoteKeysRef.current instanceof Map)) multiplayerRemoteKeysRef.current = new Map();
-
-    const playerCount = 4;
-    const defaultDigitalInputs = {
-      b: 0,
-      y: 1,
-      select: 2,
-      start: 3,
-      up: 4,
-      down: 5,
-      left: 6,
-      right: 7,
-      a: 8,
-      x: 9,
-      l: 10,
-      r: 11
-    };
-    const n64DigitalInputs = {
-      a: 0,
-      b: 1,
-      select: 2,
-      start: 3,
-      up: 4,
-      down: 5,
-      left: 6,
-      right: 7,
-      x: 8,
-      y: 9,
-      l: 10,
-      r: 11,
-      z: 12,
-      r2: 13
-    };
-    const analogInputs = {
-      right: 16,
-      left: 17,
-      down: 18,
-      up: 19,
-      cRight: 20,
-      cLeft: 21,
-      cDown: 22,
-      cUp: 23
-    };
-
-    const simulateRemoteInput = (input, value) => {
-      const manager = window.EJS_emulator?.gameManager;
-      if (typeof manager?.simulateInput !== "function") return false;
-      try {
-        manager.simulateInput(input.player, input.index, value);
-        return true;
-      } catch {
-        return false;
-      }
-    };
-
-    const setRemoteInput = (keyId, input, value) => {
-      const activeInputs = multiplayerRemoteKeysRef.current;
-      const current = activeInputs.get(keyId);
-      if (value) {
-        if (current?.value === value) return true;
-        if (!simulateRemoteInput(input, value)) return false;
-        activeInputs.set(keyId, { ...input, value });
-        return true;
-      }
-
-      if (!current) return input.forceZero ? simulateRemoteInput(input, 0) : true;
-      if (!simulateRemoteInput(current, 0)) return false;
-      activeInputs.delete(keyId);
-      return true;
-    };
-
-    const releaseRemoteKeys = () => {
-      Array.from(multiplayerRemoteKeysRef.current.entries()).forEach(([keyId, input]) => setRemoteInput(keyId, input, 0));
-    };
-
-    const addPressedInput = (pressedInputs, controllerIndex, name, index, value = 1, includeZero = false) => {
-      if (index === undefined || (!includeZero && !value)) return;
-      pressedInputs.set(`${controllerIndex}:${name}`, { player: controllerIndex, index, value, forceZero: includeZero });
-    };
-
-    const addAxisInput = (pressedInputs, controllerIndex, name, negativeIndex, positiveIndex, value, threshold, analog = false) => {
-      const amount = Number(value || 0);
-      if (amount < -threshold) {
-        addPressedInput(
-          pressedInputs,
-          controllerIndex,
-          `${name}Negative`,
-          negativeIndex,
-          analog ? Math.round(Math.min(1, Math.abs(amount)) * 0x7fff) : 1
-        );
-      } else if (amount > threshold) {
-        addPressedInput(
-          pressedInputs,
-          controllerIndex,
-          `${name}Positive`,
-          positiveIndex,
-          analog ? Math.round(Math.min(1, Math.abs(amount)) * 0x7fff) : 1
-        );
-      }
-    };
-
-    const addN64AnalogAxisInput = (pressedInputs, controllerIndex, name, negativeIndex, positiveIndex, value, threshold) => {
-      const amount = Number(value || 0);
-      const scaledValue = Math.round(Math.min(1, Math.abs(amount)) * 0x7fff);
-      if (amount > threshold) {
-        addPressedInput(pressedInputs, controllerIndex, `${name}Positive`, positiveIndex, scaledValue, true);
-        addPressedInput(pressedInputs, controllerIndex, `${name}Negative`, negativeIndex, 0, true);
-      } else if (amount < -threshold) {
-        addPressedInput(pressedInputs, controllerIndex, `${name}Negative`, negativeIndex, scaledValue, true);
-        addPressedInput(pressedInputs, controllerIndex, `${name}Positive`, positiveIndex, 0, true);
-      } else {
-        addPressedInput(pressedInputs, controllerIndex, `${name}Positive`, positiveIndex, 0, true);
-        addPressedInput(pressedInputs, controllerIndex, `${name}Negative`, negativeIndex, 0, true);
-      }
-    };
-
-    const addControllerInputs = (pressedInputs, controller, controllerIndex, n64Launch) => {
-      if (controllerIndex >= playerCount) return;
-
-      const buttons = new Set(Array.isArray(controller?.buttons) ? controller.buttons : []);
-      const digitalInputs = n64Launch ? n64DigitalInputs : defaultDigitalInputs;
-      Object.entries(digitalInputs).forEach(([buttonName, inputIndex]) => {
-        if (buttons.has(buttonName)) addPressedInput(pressedInputs, controllerIndex, buttonName, inputIndex);
-      });
-
-      const axes = Array.isArray(controller?.axes) ? controller.axes : [];
-      const leftX = Number(axes[0] || 0);
-      const leftY = Number(axes[1] || 0);
-      if (n64Launch) {
-        addN64AnalogAxisInput(pressedInputs, controllerIndex, "stickX", analogInputs.left, analogInputs.right, leftX, 0.35);
-        addN64AnalogAxisInput(pressedInputs, controllerIndex, "stickY", analogInputs.up, analogInputs.down, leftY, 0.35);
-        addN64AnalogAxisInput(pressedInputs, controllerIndex, "cX", analogInputs.cLeft, analogInputs.cRight, Number(axes[2] || 0), 0.45);
-        addN64AnalogAxisInput(pressedInputs, controllerIndex, "cY", analogInputs.cUp, analogInputs.cDown, Number(axes[3] || 0), 0.45);
-      } else {
-        addAxisInput(pressedInputs, controllerIndex, "dpadX", digitalInputs.left, digitalInputs.right, leftX, 0.45);
-        addAxisInput(pressedInputs, controllerIndex, "dpadY", digitalInputs.up, digitalInputs.down, leftY, 0.45);
-      }
-    };
-
-    const makeRemoteControllersSnapshot = (controllers) => JSON.stringify(
-      controllers.slice(0, playerCount).map(controller => ({
-        id: controller?.id || "",
-        buttons: Array.isArray(controller?.buttons) ? [...controller.buttons].sort() : [],
-        axes: Array.isArray(controller?.axes) ? controller.axes : []
-      }))
-    );
-
-    const canSimulateRemoteInput = () => (
-      typeof window.EJS_emulator?.gameManager?.simulateInput === "function"
-    );
-
-    const loadRemoteControllerStatus = async () => {
-      let response = await fetch(`${cleanMultiplayerHostUrl}/api/controllers`, { cache: "no-store" });
-      if (response.status === 404) response = await fetch(`${cleanMultiplayerHostUrl}/status`, { cache: "no-store" });
-      if (!response.ok) throw new Error("No multiplayer helper.");
-      return response.json();
-    };
-
-    let cancelled = false;
-    let lastRemoteControllersSnapshot = "";
-    let pollingRemoteControllers = false;
-    let pollRemoteControllersAgain = false;
-    const n64Launch = isN64Game(gameLaunch);
-    const pollRemoteControllers = async () => {
-      if (cancelled) return;
-
-      try {
-        const data = await loadRemoteControllerStatus();
-        const controllers = Array.isArray(data?.controllers) ? data.controllers : [];
-        const controllerSnapshot = makeRemoteControllersSnapshot(controllers);
-        if (controllerSnapshot === lastRemoteControllersSnapshot) return;
-        if (!canSimulateRemoteInput()) {
-          lastRemoteControllersSnapshot = "";
-          return;
-        }
-
-        const pressedInputs = new Map();
-        controllers
-          .slice(0, playerCount)
-          .forEach((controller, controllerIndex) => addControllerInputs(pressedInputs, controller, controllerIndex, n64Launch));
-
-        let inputsApplied = true;
-        pressedInputs.forEach((input, keyId) => {
-          if (!setRemoteInput(keyId, input, input.value)) inputsApplied = false;
-        });
-        Array.from(multiplayerRemoteKeysRef.current.entries()).forEach(([keyId, mapped]) => {
-          if (!pressedInputs.has(keyId) && !setRemoteInput(keyId, mapped, 0)) inputsApplied = false;
-        });
-        lastRemoteControllersSnapshot = inputsApplied ? controllerSnapshot : "";
-      } catch {
-        lastRemoteControllersSnapshot = "";
-        releaseRemoteKeys();
-      }
-    };
-    const queueRemoteControllerPoll = () => {
-      if (cancelled) return;
-      if (pollingRemoteControllers) {
-        pollRemoteControllersAgain = true;
-        return;
-      }
-
-      pollingRemoteControllers = true;
-      Promise.resolve()
-        .then(pollRemoteControllers)
-        .finally(() => {
-          pollingRemoteControllers = false;
-          if (pollRemoteControllersAgain && !cancelled) {
-            pollRemoteControllersAgain = false;
-            queueRemoteControllerPoll();
-          }
-        });
-    };
-
-    const interval = window.setInterval(queueRemoteControllerPoll, n64Launch ? 120 : 80);
-    queueRemoteControllerPoll();
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-      releaseRemoteKeys();
-    };
-  }, [activeGamingApp, cleanMultiplayerHostUrl, gameLaunch, multiplayerRoom.online, collapsed, frontPageEmulatorHandedOff]);
+  }, [gameLaunch, collapsed]);
 
   useEffect(() => {
     if (!gameLaunch) return;
@@ -2681,15 +1714,12 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
   }, [gameFullscreen]);
 
   return (
-    <div className={`pokemon-desktop-stack${n64PerformanceMode ? " pokemon-n64-performance" : ""}${standaloneMultiplayer ? " pokemon-standalone-multiplayer" : ""}`} style={{
-      position: standaloneMultiplayer ? "relative" : "fixed",
-      left: standaloneMultiplayer ? "auto" : "calc(18px * var(--flive-scale, 1))",
-      top: standaloneMultiplayer ? "auto" : "calc(4px * var(--flive-scale, 1))",
-      bottom: standaloneMultiplayer ? "auto" : "calc(8px * var(--flive-scale, 1))",
-      width: standaloneMultiplayer ? "min(100vw, 1320px)" : (collapsed ? "calc(72px * var(--flive-gaming-scale, var(--flive-scale, 1)))" : "calc(390px * var(--flive-gaming-scale, var(--flive-scale, 1)))"),
-      height: standaloneMultiplayer ? "100vh" : undefined,
-      minHeight: standaloneMultiplayer ? 0 : undefined,
-      margin: standaloneMultiplayer ? "0 auto" : undefined,
+    <div className={`pokemon-desktop-stack${n64PerformanceMode ? " pokemon-n64-performance" : ""}`} style={{
+      position: "fixed",
+      left: "calc(18px * var(--flive-scale, 1))",
+      top: "calc(4px * var(--flive-scale, 1))",
+      bottom: "calc(8px * var(--flive-scale, 1))",
+      width: collapsed ? "calc(72px * var(--flive-gaming-scale, var(--flive-scale, 1)))" : "calc(390px * var(--flive-gaming-scale, var(--flive-scale, 1)))",
       zIndex: 4,
       display: "flex",
       flexDirection: "column",
@@ -2697,20 +1727,20 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       paddingBottom: 0,
       boxSizing: "border-box",
       overflowX: "hidden",
-      overflowY: standaloneMultiplayer ? "hidden" : (collapsed ? "hidden" : "auto"),
-      pointerEvents: standaloneMultiplayer ? "auto" : "none",
+      overflowY: collapsed ? "hidden" : "auto",
+      pointerEvents: "none",
       transition: n64PerformanceMode ? "none" : "width .25s ease"
     }}>
     <aside className="pokemon-desktop-sidebar" style={{
       width: "100%",
       flex: "0 0 auto",
-      borderRadius: standaloneMultiplayer ? 0 : "calc(24px * var(--flive-gaming-scale, var(--flive-scale, 1)))",
+      borderRadius: "calc(24px * var(--flive-gaming-scale, var(--flive-scale, 1)))",
       border: "2px solid rgba(255,255,255,0.22)",
       background: n64PerformanceMode ? "rgba(2,6,23,.96)" : `linear-gradient(rgba(2,6,23,0.62), rgba(2,6,23,0.82)), url(${process.env.PUBLIC_URL}/${backgroundImage})`,
       backgroundSize: "cover",
       backgroundPosition: "center",
       boxShadow: n64PerformanceMode ? "none" : "0 18px 60px rgba(0,0,0,0.55)",
-      padding: standaloneMultiplayer ? "clamp(6px, 1.1vh, 12px)" : "calc(12px * var(--flive-gaming-scale, var(--flive-scale, 1)))",
+      padding: "calc(12px * var(--flive-gaming-scale, var(--flive-scale, 1)))",
       color: "#f8fafc",
       fontFamily: "system-ui, sans-serif",
       transition: n64PerformanceMode ? "none" : "width .25s ease, padding .25s ease",
@@ -2718,105 +1748,6 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       pointerEvents: "auto"
     }}>
       <style>{`
-        .pokemon-standalone-multiplayer {
-          height: 100vh;
-          max-height: 100vh;
-          background: #020617;
-          overflow: hidden;
-        }
-        .pokemon-standalone-multiplayer .pokemon-desktop-sidebar {
-          height: 100%;
-          min-height: 0;
-          max-height: 100vh;
-          box-sizing: border-box;
-          display: flex;
-          flex-direction: column;
-          gap: clamp(6px, 1vh, 10px);
-          overflow: hidden;
-        }
-        .pokemon-standalone-multiplayer .pokemon-multiplayer-panel {
-          flex: 1 1 0;
-          min-height: 0 !important;
-          overflow: hidden;
-        }
-        .pokemon-standalone-multiplayer .pokemon-multiplayer-panel-content {
-          height: 100%;
-          min-height: 0;
-          grid-template-columns: minmax(0, 1fr) minmax(280px, 0.58fr);
-          grid-template-rows: auto minmax(0, 1fr) auto auto auto;
-          grid-template-areas:
-            "header selected"
-            "stage stage"
-            "game game"
-            "stats host"
-            "actions actions";
-        }
-        .pokemon-standalone-multiplayer .pokemon-multiplayer-header {
-          grid-area: header;
-          min-width: 0;
-        }
-        .pokemon-standalone-multiplayer .pokemon-multiplayer-stage {
-          grid-area: stage;
-          height: 100%;
-          min-height: 0 !important;
-          max-height: min(62vh, 650px);
-          align-self: center;
-        }
-        .pokemon-standalone-multiplayer.pokemon-n64-performance .pokemon-multiplayer-stage {
-          width: min(100%, calc(min(62vh, 650px) * 4 / 3));
-          height: auto !important;
-          aspect-ratio: 4 / 3;
-          justify-self: center;
-        }
-        .pokemon-standalone-multiplayer .pokemon-multiplayer-selected {
-          grid-area: selected;
-          padding: 8px 10px !important;
-        }
-        .pokemon-standalone-multiplayer .pokemon-multiplayer-host-button,
-        .pokemon-standalone-multiplayer .pokemon-multiplayer-stop-button {
-          grid-area: game;
-        }
-        .pokemon-standalone-multiplayer .pokemon-multiplayer-room-stats {
-          grid-area: stats;
-        }
-        .pokemon-standalone-multiplayer .pokemon-multiplayer-room-stats > div {
-          padding: 7px 8px !important;
-        }
-        .pokemon-standalone-multiplayer .pokemon-multiplayer-host-button,
-        .pokemon-standalone-multiplayer .pokemon-multiplayer-stop-button,
-        .pokemon-standalone-multiplayer .pokemon-multiplayer-host-row button,
-        .pokemon-standalone-multiplayer .pokemon-multiplayer-action-row button {
-          padding: 8px 10px !important;
-        }
-        .pokemon-standalone-multiplayer .pokemon-multiplayer-host-row input {
-          padding: 8px 9px !important;
-        }
-        .pokemon-standalone-multiplayer .pokemon-multiplayer-host-row {
-          grid-area: host;
-          align-self: stretch;
-        }
-        .pokemon-standalone-multiplayer .pokemon-multiplayer-action-row {
-          grid-area: actions;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-        @media (max-width: 760px) {
-          .pokemon-standalone-multiplayer .pokemon-multiplayer-panel-content {
-            grid-template-columns: 1fr;
-            grid-template-rows: auto auto minmax(0, 1fr) auto auto auto auto;
-            grid-template-areas:
-              "header"
-              "selected"
-              "stage"
-              "game"
-              "stats"
-              "host"
-              "actions";
-          }
-        }
-        @media (max-width: 360px) { .pokemon-desktop-stack { display: none !important; } }
-        @media (max-width: 360px) { .pokemon-standalone-multiplayer { display: flex !important; } }
-        @media (max-width: 360px) { .pokemon-desktop-sidebar { display: none !important; } }
-        @media (max-width: 360px) { .pokemon-standalone-multiplayer .pokemon-desktop-sidebar { display: block !important; } }
         @media (max-width: 1350px) and (max-height: 760px) {
           .pokemon-desktop-sidebar > :not(style) {
             zoom: var(--flive-gaming-content-scale, var(--flive-panel-content-scale, 1));
@@ -2930,7 +1861,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
         position: "sticky",
         top: 0,
         zIndex: 6,
-        marginBottom: standaloneMultiplayer ? 0 : 8,
+        marginBottom: 8,
         flex: "0 0 auto"
       }}>
         <button
@@ -2961,8 +1892,10 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
                 ? "FUIT LIVE GAMING"
                 : activeGamingApp === "live-gaming-youtube"
                   ? "FUIT LIVE GAMING YOUTUBE"
-                : activeGamingApp === "multiplayer"
+                : activeGamingApp === "multiplayer-blank"
                   ? "FUIT MULTIPLAYER"
+                  : activeGamingApp === "saved-games"
+                    ? "FUITS SAVED GAMES"
                   : activeGamingApp === "retroarch"
                     ? "RETROARCH WEB PLAYER"
                   : activeGamingApp === "free-games"
@@ -2971,7 +1904,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
           </span>
           {!collapsed && <span style={{ fontSize: 12, fontWeight: 1000 }}>{gamingMenuOpen ? "^" : "v"}</span>}
         </button>
-        {gamingMenuOpen && !collapsed && !standaloneMultiplayer && (
+        {gamingMenuOpen && !collapsed && (
           <div style={{
             position: "absolute",
             top: "calc(100% + 8px)",
@@ -2986,7 +1919,8 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
           }}>
             {[
               { value: "gaming-center", label: "FUIT GAMING CENTER" },
-              { value: "multiplayer", label: "FUIT MULTIPLAYER" },
+              { value: "multiplayer-blank", label: "FUIT MULTIPLAYER" },
+              { value: "saved-games", label: "FUITS SAVED GAMES" },
               { value: "retroarch", label: "RETROARCH WEB PLAYER" },
               { value: "free-games", label: "FREE GAMES" },
               { value: "live-gaming", label: "FUIT LIVE GAMING" },
@@ -3220,238 +2154,276 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
             </div>
           </div>
         </div>
-      ) : activeGamingApp === "multiplayer" ? (
-        <div className="pokemon-multiplayer-panel" style={{
+      ) : activeGamingApp === "multiplayer-blank" ? (
+        <div style={{
           width: "100%",
-          minHeight: standaloneMultiplayer ? 0 : 245,
-          height: standaloneMultiplayer ? "100%" : undefined,
-          borderRadius: standaloneMultiplayer ? 14 : 22,
-          background: "linear-gradient(180deg, rgba(20,83,45,.92), rgba(15,23,42,.96))",
-          border: "2px solid rgba(34,197,94,.42)",
+          minHeight: 245,
+          borderRadius: 22,
+          background: "rgba(15,23,42,.94)",
+          border: "2px solid rgba(148,163,184,.28)",
+          boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)"
+        }} />
+      ) : activeGamingApp === "saved-games" ? (
+        <div style={{
+          width: "100%",
+          minHeight: 245,
+          borderRadius: 22,
+          background: "linear-gradient(180deg, rgba(15,118,110,.92), rgba(15,23,42,.96))",
+          border: "2px solid rgba(45,212,191,.42)",
           boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)",
-          padding: standaloneMultiplayer ? "clamp(8px, 1.3vh, 14px)" : 18,
-          color: "#dcfce7",
+          padding: 12,
+          color: "#ccfbf1",
           fontWeight: 1000,
           display: "grid",
-          minWidth: 0
+          gap: 10
         }}>
-          <div className="pokemon-multiplayer-panel-content" style={{
+          <form onSubmit={uploadSavedGame} style={{
             display: "grid",
-            gap: standaloneMultiplayer ? "clamp(6px, 1vh, 10px)" : 12,
-            minHeight: 0,
-            height: standaloneMultiplayer ? "100%" : undefined
+            gap: 8,
+            padding: 10,
+            borderRadius: 14,
+            background: "rgba(2,6,23,.58)",
+            border: "1px solid rgba(204,251,241,.20)"
           }}>
-            <div className="pokemon-multiplayer-header">
-              <div style={{ fontSize: standaloneMultiplayer ? 16 : 18, color: "#bbf7d0", marginBottom: standaloneMultiplayer ? 2 : 5 }}>
-                {standaloneMultiplayer ? "FUIT MULTIPLAYER EMULATOR" : "FUIT MULTIPLAYER"}
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+              <div>
+                <div style={{ color: "#99f6e4", fontSize: 15, marginBottom: 2 }}>FUITS SAVED GAMES</div>
+                <div style={{ color: "#5eead4", fontSize: 10, lineHeight: 1.25 }}>Uploading as {loggedInUsername || "SIGNED OUT"}</div>
               </div>
-              <div style={{ fontSize: standaloneMultiplayer ? 11 : 12, color: "#86efac", lineHeight: 1.25 }}>
-                {multiplayerRoom.online
-                  ? `${multiplayerRoom.data?.roomName || "Multiplayer room"} is live.`
-                  : "Start the separate FUIT Multiplayer helper when you want this room online."}
-              </div>
-            </div>
-
-            <div className="pokemon-multiplayer-selected" style={{
-              border: "1px solid rgba(187,247,208,.22)",
-              borderRadius: 12,
-              padding: 10,
-              background: "rgba(6,78,59,.34)",
-              color: "#dcfce7",
-              fontSize: 12,
-              lineHeight: 1.35
-            }}>
-              <div style={{ color: "#86efac", fontSize: 10, textTransform: "uppercase", marginBottom: 4 }}>Selected From Helper</div>
-              <div style={{ color: "#fff" }}>{multiplayerSelectedGame?.label || "Start the FUIT Multiplayer helper and pick a ROM."}</div>
-              {multiplayerSelectedGame?.system && (
-                <div style={{ color: "#bbf7d0", fontSize: 11, marginTop: 3 }}>{multiplayerSelectedGame.system}</div>
-              )}
-            </div>
-
-            <div className="pokemon-multiplayer-stage" style={{
-              borderRadius: 14,
-              overflow: "hidden",
-              background: "#020617",
-              border: "2px solid rgba(187,247,208,.22)",
-              aspectRatio: standaloneMultiplayer ? undefined : "16 / 9",
-              minHeight: standaloneMultiplayer ? 0 : 170,
-              height: standaloneMultiplayer ? "100%" : undefined,
-              display: "grid",
-              placeItems: "center"
-            }}>
-              {frontPageEmulatorHandedOff ? (
-                <div style={{ textAlign: "center", padding: 18 }}>
-                  <div style={{ color: "#bbf7d0", fontSize: 16, fontWeight: 1000, letterSpacing: 0 }}>
-                    EMU OPEN IN NEW TAB
-                  </div>
-                </div>
-              ) : activeGame && gameLaunch ? (
-                <div
-                  ref={emulatorHostRef}
-                  className={`pokemon-emulator-host${stretchGame ? " pokemon-emulator-stretch" : ""}`}
-                  tabIndex={0}
-                  style={{ width: "100%", height: "100%" }}
-                />
-              ) : multiplayerRoom.online ? (
-                <iframe
-                  title="FUIT Multiplayer Room"
-                  src={multiplayerViewerUrl}
-                  style={{ width: "100%", height: "100%", border: "none", background: "#020617" }}
-                  allow="autoplay; fullscreen; gamepad; clipboard-read; clipboard-write"
-                />
-              ) : (
-                <div style={{ textAlign: "center", padding: 18 }}>
-                  <div style={{ color: "#bbf7d0", fontSize: 14, marginBottom: 8 }}>
-                    {multiplayerRoom.loading ? "Checking for helper..." : "Multiplayer room offline"}
-                  </div>
-                  <div style={{ color: "#86efac", fontSize: 11, lineHeight: 1.45 }}>
-                    Double-click Start-FUIT-Multiplayer.bat, press 1, then this box will switch on.
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {multiplayerSelectedGame && !gameLaunch && !frontPageEmulatorHandedOff && (
               <button
-                className="pokemon-multiplayer-host-button"
                 type="button"
-                onClick={() => startBrowserGame(multiplayerSelectedGame)}
+                onClick={loadSavedGames}
                 style={{
-                  border: "none",
+                  border: "1px solid rgba(204,251,241,.28)",
                   borderRadius: 10,
-                  padding: "11px 12px",
-                  background: "#22c55e",
-                  color: "#052e16",
-                  fontSize: 12,
-                  fontWeight: 1000,
-                  cursor: "pointer"
-                }}
-              >
-                HOST BROWSER GAME
-              </button>
-            )}
-
-            {activeGame && gameLaunch && !frontPageEmulatorHandedOff && (
-              <button
-                className="pokemon-multiplayer-stop-button"
-                type="button"
-                onClick={activeGamingApp === "multiplayer" ? stopHostedMultiplayerGame : stopRunningGame}
-                style={{
-                  border: "1px solid rgba(248,113,113,.45)",
-                  borderRadius: 10,
-                  padding: "10px 12px",
-                  background: "rgba(127,29,29,.72)",
-                  color: "#fecaca",
-                  fontSize: 11,
-                  fontWeight: 1000,
-                  cursor: "pointer"
-                }}
-              >
-                Stop Hosted Game
-              </button>
-            )}
-
-            {multiplayerRoom.online && (
-              <div className="pokemon-multiplayer-room-stats" style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 8,
-                color: "#d1fae5",
-                fontSize: 11
-              }}>
-                <div style={{
-                  border: "1px solid rgba(187,247,208,.20)",
-                  borderRadius: 10,
-                  padding: 9,
-                  background: "rgba(6,78,59,.44)"
-                }}>
-                  <div style={{ color: "#86efac", marginBottom: 3 }}>Room Label</div>
-                  <div style={{ color: "#fff", lineHeight: 1.25 }}>{multiplayerRoom.data?.gameName || "Any game you choose"}</div>
-                </div>
-                <div style={{
-                  border: "1px solid rgba(187,247,208,.20)",
-                  borderRadius: 10,
-                  padding: 9,
-                  background: "rgba(6,78,59,.44)"
-                }}>
-                  <div style={{ color: "#86efac", marginBottom: 3 }}>Controllers</div>
-                  <div style={{ color: "#fff" }}>{multiplayerRoom.data?.controllers?.length || 0} connected</div>
-                </div>
-              </div>
-            )}
-
-            <div className="pokemon-multiplayer-host-row" style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, alignItems: "center" }}>
-              <input
-                value={multiplayerHostInput}
-                onChange={event => setMultiplayerHostInput(event.target.value)}
-                placeholder={FUIT_MULTIPLAYER_DEFAULT_HOST_URL}
-                style={{
-                  width: "100%",
-                  border: "1px solid rgba(187,247,208,.24)",
-                  borderRadius: 10,
-                  padding: "9px 10px",
+                  padding: "8px 10px",
                   background: "rgba(15,23,42,.82)",
-                  color: "#dcfce7",
-                  fontSize: 11,
-                  fontWeight: 900
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => setMultiplayerHostUrl((multiplayerHostInput || FUIT_MULTIPLAYER_DEFAULT_HOST_URL).trim() || FUIT_MULTIPLAYER_DEFAULT_HOST_URL)}
-                style={{
-                  border: "none",
-                  borderRadius: 10,
-                  padding: "10px 12px",
-                  background: "#22c55e",
-                  color: "#052e16",
-                  fontSize: 11,
-                  fontWeight: 1000,
-                  cursor: "pointer"
+                  color: "#ccfbf1",
+                  cursor: "pointer",
+                  fontSize: 10,
+                  fontWeight: 1000
                 }}
               >
-                Refresh
+                REFRESH
               </button>
             </div>
+            <select
+              value={savedGameUpload.system}
+              onChange={event => setSavedGameUpload(current => ({ ...current, system: event.target.value, gameFile: "" }))}
+              style={{
+                width: "100%",
+                border: "1px solid rgba(204,251,241,.24)",
+                borderRadius: 10,
+                padding: "9px 10px",
+                background: "rgba(15,23,42,.92)",
+                color: "#f8fafc",
+                fontWeight: 900
+              }}
+            >
+              {GAME_SYSTEMS.map(system => (
+                <option key={system} value={system}>{system}</option>
+              ))}
+            </select>
+            <select
+              value={selectedSavedGameUploadGame?.file || ""}
+              onChange={event => setSavedGameUpload(current => ({ ...current, gameFile: event.target.value }))}
+              disabled={!savedGameUploadGames.length}
+              style={{
+                width: "100%",
+                border: "1px solid rgba(204,251,241,.24)",
+                borderRadius: 10,
+                padding: "9px 10px",
+                background: "rgba(15,23,42,.92)",
+                color: "#f8fafc",
+                fontWeight: 900
+              }}
+            >
+              {savedGameUploadGames.map(game => (
+                <option key={game.file} value={game.file}>{game.label}</option>
+              ))}
+            </select>
+            <input
+              value={savedGameUpload.saveName}
+              onChange={event => setSavedGameUpload(current => ({ ...current, saveName: event.target.value }))}
+              placeholder="Name this save"
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                border: "1px solid rgba(204,251,241,.24)",
+                borderRadius: 10,
+                padding: "9px 10px",
+                background: "rgba(15,23,42,.92)",
+                color: "#f8fafc",
+                fontWeight: 900
+              }}
+            />
+            <input
+              ref={savedGameFileInputRef}
+              type="file"
+              onChange={event => setSavedGameUploadFile(event.target.files?.[0] || null)}
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                border: "1px solid rgba(204,251,241,.24)",
+                borderRadius: 10,
+                padding: "8px 9px",
+                background: "rgba(15,23,42,.92)",
+                color: "#f8fafc",
+                fontSize: 11,
+                fontWeight: 900
+              }}
+            />
+            <button
+              type="submit"
+              disabled={savedGameUploading || !selectedSavedGameUploadGame || !savedGameUploadFile}
+              style={{
+                border: "none",
+                borderRadius: 10,
+                padding: "10px 12px",
+                background: savedGameUploading || !selectedSavedGameUploadGame || !savedGameUploadFile ? "rgba(148,163,184,.42)" : "#2dd4bf",
+                color: savedGameUploading || !selectedSavedGameUploadGame || !savedGameUploadFile ? "#94a3b8" : "#042f2e",
+                fontSize: 12,
+                fontWeight: 1000,
+                cursor: savedGameUploading || !selectedSavedGameUploadGame || !savedGameUploadFile ? "default" : "pointer"
+              }}
+            >
+              UPLOAD SAVE
+            </button>
+            {savedGameUploadStatus && (
+              <div style={{ color: savedGameUploadStatus.includes("uploaded") ? "#bbf7d0" : "#fef3c7", fontSize: 11, lineHeight: 1.35 }}>
+                {savedGameUploadStatus}
+              </div>
+            )}
+          </form>
 
-            <div className="pokemon-multiplayer-action-row" style={{ display: "grid", gap: 8 }}>
-              {!standaloneMultiplayer && (
-                <button
-                  type="button"
-                  disabled={!multiplayerRoom.online}
-                  onClick={openMultiplayerEmulatorPage}
-                  style={{
-                    border: "1px solid rgba(187,247,208,.24)",
-                    borderRadius: 10,
-                    padding: "10px 10px",
-                    background: multiplayerRoom.online ? "rgba(15,23,42,.82)" : "rgba(15,23,42,.42)",
-                    color: multiplayerRoom.online ? "#dcfce7" : "#64748b",
-                    fontSize: 11,
-                    fontWeight: 1000,
-                    cursor: multiplayerRoom.online ? "pointer" : "default"
-                  }}
-                >
-                  Open Emulator
-                </button>
-              )}
-              <button
-                type="button"
-                disabled={!canAddMultiplayerController}
-                onClick={openMultiplayerController}
-                style={{
-                  border: "none",
-                  borderRadius: 10,
-                  padding: "10px 10px",
-                  background: canAddMultiplayerController ? "#bbf7d0" : "rgba(148,163,184,.34)",
-                  color: canAddMultiplayerController ? "#052e16" : "#94a3b8",
-                  fontSize: 11,
-                  fontWeight: 1000,
-                  cursor: canAddMultiplayerController ? "pointer" : "default"
-                }}
-              >
-                Add Controller
-              </button>
-            </div>
+          <div style={{
+            display: "grid",
+            gap: 8,
+            padding: 10,
+            borderRadius: 14,
+            background: "rgba(2,6,23,.50)",
+            border: "1px solid rgba(204,251,241,.18)"
+          }}>
+            <button
+              type="button"
+              onClick={() => toggleSavedGameSection("master")}
+              style={{
+                border: "1px solid rgba(204,251,241,.22)",
+                borderRadius: 10,
+                padding: "10px 12px",
+                background: "rgba(15,23,42,.82)",
+                color: "#f8fafc",
+                cursor: "pointer",
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 8,
+                fontSize: 12,
+                fontWeight: 1000
+              }}
+            >
+              <span>MASTER</span>
+              <span>{savedGameOpenSections.master ? "^" : "v"} {savedGameItems.length}</span>
+            </button>
+            {savedGames.loading && <div style={{ color: "#99f6e4", fontSize: 12 }}>Loading saved games...</div>}
+            {savedGames.error && <div style={{ color: "#fecaca", fontSize: 12 }}>{savedGames.error}</div>}
+            {savedGameOpenSections.master && !savedGames.loading && !savedGames.error && (
+              <div style={{ display: "grid", gap: 8 }}>
+                {!savedGameSystems.length && (
+                  <div style={{ color: "#99f6e4", fontSize: 12, lineHeight: 1.35 }}>No uploaded saves yet.</div>
+                )}
+                {savedGameSystems.map(group => {
+                  const systemKey = `system:${group.system}`;
+                  const systemOpen = Boolean(savedGameOpenSections[systemKey]);
+                  return (
+                    <div key={group.system} style={{ display: "grid", gap: 6 }}>
+                      <button
+                        type="button"
+                        onClick={() => toggleSavedGameSection(systemKey)}
+                        style={{
+                          border: "1px solid rgba(94,234,212,.22)",
+                          borderRadius: 10,
+                          padding: "9px 10px",
+                          background: "rgba(13,148,136,.22)",
+                          color: "#ccfbf1",
+                          cursor: "pointer",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 8,
+                          fontSize: 12,
+                          fontWeight: 1000
+                        }}
+                      >
+                        <span>{group.system}</span>
+                        <span>{systemOpen ? "^" : "v"} {group.count}</span>
+                      </button>
+                      {systemOpen && group.games.map(game => {
+                        const gameKey = `game:${group.system}:${game.file}`;
+                        const gameOpen = Boolean(savedGameOpenSections[gameKey]);
+                        return (
+                          <div key={gameKey} style={{ display: "grid", gap: 6, paddingLeft: 8 }}>
+                            <button
+                              type="button"
+                              onClick={() => toggleSavedGameSection(gameKey)}
+                              style={{
+                                border: "1px solid rgba(148,163,184,.20)",
+                                borderRadius: 10,
+                                padding: "9px 10px",
+                                background: "rgba(15,23,42,.76)",
+                                color: "#f8fafc",
+                                cursor: "pointer",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                gap: 8,
+                                textAlign: "left",
+                                fontSize: 11,
+                                fontWeight: 1000
+                              }}
+                            >
+                              <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>{game.label}</span>
+                              <span style={{ whiteSpace: "nowrap" }}>{gameOpen ? "^" : "v"} {game.saves.length}</span>
+                            </button>
+                            {gameOpen && game.saves.map(save => (
+                              <div key={save.id} style={{
+                                display: "grid",
+                                gap: 5,
+                                marginLeft: 8,
+                                padding: 9,
+                                borderRadius: 10,
+                                border: "1px solid rgba(204,251,241,.18)",
+                                background: "rgba(2,6,23,.58)",
+                                fontSize: 11,
+                                lineHeight: 1.3
+                              }}>
+                                <div style={{ color: "#fff", overflowWrap: "anywhere" }}>{save.saveName || save.fileName || "Saved Game"}</div>
+                                <div style={{ color: "#99f6e4", overflowWrap: "anywhere" }}>By {save.username || "User"} - {formatSavedGameBytes(save.sizeBytes)}</div>
+                                <div style={{ color: "#5eead4" }}>{save.uploadedAt ? new Date(save.uploadedAt).toLocaleString() : ""}</div>
+                                <a
+                                  href={save.downloadUrl}
+                                  style={{
+                                    width: "100%",
+                                    boxSizing: "border-box",
+                                    borderRadius: 10,
+                                    padding: "8px 10px",
+                                    background: "#ccfbf1",
+                                    color: "#042f2e",
+                                    textDecoration: "none",
+                                    textAlign: "center",
+                                    fontSize: 11,
+                                    fontWeight: 1000
+                                  }}
+                                >
+                                  DOWNLOAD
+                                </a>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       ) : activeGamingApp === "retroarch" ? (
@@ -3531,9 +2503,6 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
           }}>
             <div style={{ padding: 8, borderRadius: 10, background: "rgba(15,23,42,.62)", border: "1px solid rgba(199,210,254,.18)" }}>
               Try Chrome or Edge first. If the embedded player feels cramped, use Full Tab.
-            </div>
-            <div style={{ padding: 8, borderRadius: 10, background: "rgba(15,23,42,.62)", border: "1px solid rgba(199,210,254,.18)" }}>
-              This is separate from FUIT Multiplayer for now, so your existing multiplayer plan stays intact.
             </div>
           </div>
         </div>
@@ -9931,9 +8900,6 @@ function LoginPage({ onLogin, approvedUsers, bannedUsers = [], onSignupRequest }
 }
 
 export default function App() {
-  const standaloneMultiplayerPage = (() => {
-    try { return window.location.pathname === "/multiplayer-emulator"; } catch { return false; }
-  })();
   const [loggedInUsername, setLoggedInUsername] = useState(() => {
     try { return localStorage.getItem("fuitsLoggedInUsername") || ""; } catch { return ""; }
   });
@@ -10229,14 +9195,6 @@ export default function App() {
     setIsMusicPlaying(false);
     setMusicNeedsTap(false);
   }, [activeMusicSrc]);
-
-  if (standaloneMultiplayerPage) {
-    return (
-      <div style={{ minHeight: "100vh", background: "#020617" }}>
-        <PokemonSidebar standaloneMultiplayer />
-      </div>
-    );
-  }
 
   if (!loggedInUsername) {
     return <LoginPage onLogin={loginUser} approvedUsers={approvedUsers} bannedUsers={bannedUsers} onSignupRequest={submitSignupRequest} />;
@@ -10591,7 +9549,7 @@ if (view === "gambling") {
           100% { transform: translateX(0); }
         }
       `}</style>
-      {view === "week" && <PokemonSidebar />}
+      {view === "week" && <PokemonSidebar loggedInUsername={loggedInUsername} />}
       {view === "week" && (
         <div className="flive-main-coins-ticker" style={{
           position: "fixed",

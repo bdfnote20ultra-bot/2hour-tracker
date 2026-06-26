@@ -775,9 +775,6 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
   });
   const [multiplayerHostUrl, setMultiplayerHostUrl] = useState(getInitialMultiplayerHostUrl);
   const cleanMultiplayerHostUrl = normalizeFuitMultiplayerHostUrl(multiplayerHostUrl);
-  const [standaloneMultiplayerOpen, setStandaloneMultiplayerOpen] = useState(() => (
-    !standaloneMultiplayer && Boolean(readFuitStandaloneMultiplayerStatus(cleanMultiplayerHostUrl))
-  ));
   const [multiplayerHostInput, setMultiplayerHostInput] = useState(getInitialMultiplayerHostUrl);
   const [multiplayerRoom, setMultiplayerRoom] = useState({ online: false, loading: true, error: "", data: null });
   const [gameSearch, setGameSearch] = useState("");
@@ -810,7 +807,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
   }
   const n64PerformanceMode = isN64Game(gameLaunch);
   const helperStandaloneMultiplayerOpen = Boolean(multiplayerRoom.data?.standaloneEmulator?.active);
-  const frontPageEmulatorHandedOff = !standaloneMultiplayer && (standaloneMultiplayerOpen || helperStandaloneMultiplayerOpen);
+  const frontPageEmulatorHandedOff = !standaloneMultiplayer && multiplayerRoom.online && helperStandaloneMultiplayerOpen;
   const canAddMultiplayerController = multiplayerRoom.online && !frontPageEmulatorHandedOff;
 
   const isInteractiveElement = (element) => {
@@ -1039,30 +1036,6 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       window.removeEventListener("beforeunload", publishClosed);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       publishClosed();
-    };
-  }, [standaloneMultiplayer, cleanMultiplayerHostUrl]);
-
-  useEffect(() => {
-    if (standaloneMultiplayer) {
-      setStandaloneMultiplayerOpen(false);
-      return undefined;
-    }
-
-    const syncStandaloneStatus = () => {
-      setStandaloneMultiplayerOpen(Boolean(readFuitStandaloneMultiplayerStatus(cleanMultiplayerHostUrl)));
-    };
-
-    syncStandaloneStatus();
-    const syncTimer = window.setInterval(syncStandaloneStatus, 1000);
-    window.addEventListener("storage", syncStandaloneStatus);
-    window.addEventListener("focus", syncStandaloneStatus);
-    document.addEventListener("visibilitychange", syncStandaloneStatus);
-
-    return () => {
-      window.clearInterval(syncTimer);
-      window.removeEventListener("storage", syncStandaloneStatus);
-      window.removeEventListener("focus", syncStandaloneStatus);
-      document.removeEventListener("visibilitychange", syncStandaloneStatus);
     };
   }, [standaloneMultiplayer, cleanMultiplayerHostUrl]);
 

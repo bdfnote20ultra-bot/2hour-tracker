@@ -29,12 +29,12 @@ const controllers = new Map();
 const controllerClaims = new Map();
 const nativeControllerClaims = new Map();
 const nativeGamepadStates = new Map();
-const CONTROLLER_STALE_MS = 10000;
-const CONTROLLER_CLAIM_STALE_MS = 5000;
+const CONTROLLER_STALE_MS = 3500;
+const CONTROLLER_CLAIM_STALE_MS = 2500;
 const NATIVE_CONTROLLER_CLAIM_STALE_MS = 60 * 60 * 1000;
 const NATIVE_GAMEPAD_POLL_MS = 50;
 const FRAME_VIEWER_ACTIVE_MS = 6500;
-const STANDALONE_EMULATOR_STALE_MS = 7000;
+const STANDALONE_EMULATOR_STALE_MS = 3500;
 let latestFrame = null;
 let latestFrameMs = 0;
 let latestFrameEtag = "0";
@@ -1295,25 +1295,12 @@ function controllerPage() {
           return;
         }
 
-        if (pads.length) {
-          if (claimedPhysicalControllerId) {
-            releaseController(claimedPhysicalControllerId);
-            claimedPhysicalControllerId = "";
-          }
-          try {
-            await postControllerInput(null);
-            status.textContent = "Select a controller.";
-          } catch {
-            status.textContent = "Helper connection lost.";
-          }
-          return;
+        if (claimedPhysicalControllerId || claimedNativeController) {
+          const releasedPhysicalControllerId = claimedPhysicalControllerId || claimedNativeController?.physicalControllerId || "";
+          claimedPhysicalControllerId = "";
+          releaseController(releasedPhysicalControllerId);
         }
-
-        try {
-          await postControllerInput(null);
-        } catch {
-          status.textContent = "Helper connection lost.";
-        }
+        status.textContent = pads.length ? "Select a controller." : "Select Keyboard only to use this keyboard.";
       }
 
       function queueSendInput(force = false) {

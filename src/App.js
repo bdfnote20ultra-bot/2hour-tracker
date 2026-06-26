@@ -2461,8 +2461,9 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       left: standaloneMultiplayer ? "auto" : "calc(18px * var(--flive-scale, 1))",
       top: standaloneMultiplayer ? "auto" : "calc(4px * var(--flive-scale, 1))",
       bottom: standaloneMultiplayer ? "auto" : "calc(8px * var(--flive-scale, 1))",
-      width: standaloneMultiplayer ? "min(100vw, 1280px)" : (collapsed ? "calc(72px * var(--flive-gaming-scale, var(--flive-scale, 1)))" : "calc(390px * var(--flive-gaming-scale, var(--flive-scale, 1)))"),
-      minHeight: standaloneMultiplayer ? "100vh" : undefined,
+      width: standaloneMultiplayer ? "min(100vw, 1320px)" : (collapsed ? "calc(72px * var(--flive-gaming-scale, var(--flive-scale, 1)))" : "calc(390px * var(--flive-gaming-scale, var(--flive-scale, 1)))"),
+      height: standaloneMultiplayer ? "100vh" : undefined,
+      minHeight: standaloneMultiplayer ? 0 : undefined,
       margin: standaloneMultiplayer ? "0 auto" : undefined,
       zIndex: 4,
       display: "flex",
@@ -2471,7 +2472,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       paddingBottom: 0,
       boxSizing: "border-box",
       overflowX: "hidden",
-      overflowY: standaloneMultiplayer ? "auto" : (collapsed ? "hidden" : "auto"),
+      overflowY: standaloneMultiplayer ? "hidden" : (collapsed ? "hidden" : "auto"),
       pointerEvents: standaloneMultiplayer ? "auto" : "none",
       transition: n64PerformanceMode ? "none" : "width .25s ease"
     }}>
@@ -2484,7 +2485,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
       backgroundSize: "cover",
       backgroundPosition: "center",
       boxShadow: n64PerformanceMode ? "none" : "0 18px 60px rgba(0,0,0,0.55)",
-      padding: "calc(12px * var(--flive-gaming-scale, var(--flive-scale, 1)))",
+      padding: standaloneMultiplayer ? "clamp(6px, 1.1vh, 12px)" : "calc(12px * var(--flive-gaming-scale, var(--flive-scale, 1)))",
       color: "#f8fafc",
       fontFamily: "system-ui, sans-serif",
       transition: n64PerformanceMode ? "none" : "width .25s ease, padding .25s ease",
@@ -2493,11 +2494,93 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
     }}>
       <style>{`
         .pokemon-standalone-multiplayer {
+          height: 100vh;
+          max-height: 100vh;
           background: #020617;
+          overflow: hidden;
         }
         .pokemon-standalone-multiplayer .pokemon-desktop-sidebar {
-          min-height: 100vh;
+          height: 100%;
+          min-height: 0;
+          max-height: 100vh;
           box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
+          gap: clamp(6px, 1vh, 10px);
+          overflow: hidden;
+        }
+        .pokemon-standalone-multiplayer .pokemon-multiplayer-panel {
+          flex: 1 1 0;
+          min-height: 0 !important;
+          overflow: hidden;
+        }
+        .pokemon-standalone-multiplayer .pokemon-multiplayer-panel-content {
+          height: 100%;
+          min-height: 0;
+          grid-template-columns: minmax(0, 1fr) minmax(280px, 0.58fr);
+          grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+          grid-template-areas:
+            "header selected"
+            "stage stage"
+            "game game"
+            "stats host"
+            "actions actions";
+        }
+        .pokemon-standalone-multiplayer .pokemon-multiplayer-header {
+          grid-area: header;
+          min-width: 0;
+        }
+        .pokemon-standalone-multiplayer .pokemon-multiplayer-stage {
+          grid-area: stage;
+          height: 100%;
+          min-height: 0 !important;
+          max-height: min(62vh, 650px);
+          align-self: center;
+        }
+        .pokemon-standalone-multiplayer .pokemon-multiplayer-selected {
+          grid-area: selected;
+          padding: 8px 10px !important;
+        }
+        .pokemon-standalone-multiplayer .pokemon-multiplayer-host-button,
+        .pokemon-standalone-multiplayer .pokemon-multiplayer-stop-button {
+          grid-area: game;
+        }
+        .pokemon-standalone-multiplayer .pokemon-multiplayer-room-stats {
+          grid-area: stats;
+        }
+        .pokemon-standalone-multiplayer .pokemon-multiplayer-room-stats > div {
+          padding: 7px 8px !important;
+        }
+        .pokemon-standalone-multiplayer .pokemon-multiplayer-host-button,
+        .pokemon-standalone-multiplayer .pokemon-multiplayer-stop-button,
+        .pokemon-standalone-multiplayer .pokemon-multiplayer-host-row button,
+        .pokemon-standalone-multiplayer .pokemon-multiplayer-action-row button {
+          padding: 8px 10px !important;
+        }
+        .pokemon-standalone-multiplayer .pokemon-multiplayer-host-row input {
+          padding: 8px 9px !important;
+        }
+        .pokemon-standalone-multiplayer .pokemon-multiplayer-host-row {
+          grid-area: host;
+          align-self: stretch;
+        }
+        .pokemon-standalone-multiplayer .pokemon-multiplayer-action-row {
+          grid-area: actions;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        @media (max-width: 760px) {
+          .pokemon-standalone-multiplayer .pokemon-multiplayer-panel-content {
+            grid-template-columns: 1fr;
+            grid-template-rows: auto auto minmax(0, 1fr) auto auto auto auto;
+            grid-template-areas:
+              "header"
+              "selected"
+              "stage"
+              "game"
+              "stats"
+              "host"
+              "actions";
+          }
         }
         @media (max-width: 360px) { .pokemon-desktop-stack { display: none !important; } }
         @media (max-width: 360px) { .pokemon-standalone-multiplayer { display: flex !important; } }
@@ -2612,7 +2695,13 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
           min-height: 100vh !important;
         }
       `}</style>
-      <div style={{ position: "sticky", top: 0, zIndex: 6, marginBottom: 8 }}>
+      <div style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 6,
+        marginBottom: standaloneMultiplayer ? 0 : 8,
+        flex: "0 0 auto"
+      }}>
         <button
           onClick={() => setGamingMenuOpen(open => !open)}
           style={{
@@ -2901,30 +2990,38 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
           </div>
         </div>
       ) : activeGamingApp === "multiplayer" ? (
-        <div style={{
+        <div className="pokemon-multiplayer-panel" style={{
           width: "100%",
-          minHeight: 245,
-          borderRadius: 22,
+          minHeight: standaloneMultiplayer ? 0 : 245,
+          height: standaloneMultiplayer ? "100%" : undefined,
+          borderRadius: standaloneMultiplayer ? 14 : 22,
           background: "linear-gradient(180deg, rgba(20,83,45,.92), rgba(15,23,42,.96))",
           border: "2px solid rgba(34,197,94,.42)",
           boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)",
-          padding: 18,
+          padding: standaloneMultiplayer ? "clamp(8px, 1.3vh, 14px)" : 18,
           color: "#dcfce7",
-          fontWeight: 1000
+          fontWeight: 1000,
+          display: "grid",
+          minWidth: 0
         }}>
-          <div style={{ display: "grid", gap: 12 }}>
-            <div>
-              <div style={{ fontSize: standaloneMultiplayer ? 22 : 18, color: "#bbf7d0", marginBottom: 5 }}>
+          <div className="pokemon-multiplayer-panel-content" style={{
+            display: "grid",
+            gap: standaloneMultiplayer ? "clamp(6px, 1vh, 10px)" : 12,
+            minHeight: 0,
+            height: standaloneMultiplayer ? "100%" : undefined
+          }}>
+            <div className="pokemon-multiplayer-header">
+              <div style={{ fontSize: standaloneMultiplayer ? 16 : 18, color: "#bbf7d0", marginBottom: standaloneMultiplayer ? 2 : 5 }}>
                 {standaloneMultiplayer ? "FUIT MULTIPLAYER EMULATOR" : "FUIT MULTIPLAYER"}
               </div>
-              <div style={{ fontSize: 12, color: "#86efac", lineHeight: 1.35 }}>
+              <div style={{ fontSize: standaloneMultiplayer ? 11 : 12, color: "#86efac", lineHeight: 1.25 }}>
                 {multiplayerRoom.online
                   ? `${multiplayerRoom.data?.roomName || "Multiplayer room"} is live.`
                   : "Start the separate FUIT Multiplayer helper when you want this room online."}
               </div>
             </div>
 
-            <div style={{
+            <div className="pokemon-multiplayer-selected" style={{
               border: "1px solid rgba(187,247,208,.22)",
               borderRadius: 12,
               padding: 10,
@@ -2940,13 +3037,14 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
               )}
             </div>
 
-            <div style={{
+            <div className="pokemon-multiplayer-stage" style={{
               borderRadius: 14,
               overflow: "hidden",
               background: "#020617",
               border: "2px solid rgba(187,247,208,.22)",
-              aspectRatio: standaloneMultiplayer ? "4 / 3" : "16 / 9",
-              minHeight: standaloneMultiplayer ? "min(72vh, 720px)" : 170,
+              aspectRatio: standaloneMultiplayer ? undefined : "16 / 9",
+              minHeight: standaloneMultiplayer ? 0 : 170,
+              height: standaloneMultiplayer ? "100%" : undefined,
               display: "grid",
               placeItems: "center"
             }}>
@@ -2978,6 +3076,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
 
             {multiplayerSelectedGame && !gameLaunch && (
               <button
+                className="pokemon-multiplayer-host-button"
                 type="button"
                 onClick={() => startBrowserGame(multiplayerSelectedGame)}
                 style={{
@@ -2997,6 +3096,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
 
             {activeGame && gameLaunch && (
               <button
+                className="pokemon-multiplayer-stop-button"
                 type="button"
                 onClick={activeGamingApp === "multiplayer" ? stopHostedMultiplayerGame : stopRunningGame}
                 style={{
@@ -3015,7 +3115,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
             )}
 
             {multiplayerRoom.online && (
-              <div style={{
+              <div className="pokemon-multiplayer-room-stats" style={{
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr",
                 gap: 8,
@@ -3043,7 +3143,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
               </div>
             )}
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, alignItems: "center" }}>
+            <div className="pokemon-multiplayer-host-row" style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, alignItems: "center" }}>
               <input
                 value={multiplayerHostInput}
                 onChange={event => setMultiplayerHostInput(event.target.value)}
@@ -3077,7 +3177,7 @@ function PokemonSidebar({ standaloneMultiplayer = false } = {}) {
               </button>
             </div>
 
-            <div style={{ display: "grid", gap: 8 }}>
+            <div className="pokemon-multiplayer-action-row" style={{ display: "grid", gap: 8 }}>
               {!standaloneMultiplayer && (
                 <button
                   type="button"

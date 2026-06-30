@@ -9373,7 +9373,7 @@ export default function App() {
     };
     setMainFuitWealth(current => ({ ...current, loading: true }));
     loadMainFuitWealth();
-    const timer = setInterval(loadMainFuitWealth, 30000);
+    const timer = setInterval(loadMainFuitWealth, 7 * 60 * 1000);
     window.addEventListener("focus", loadMainFuitWealth);
     return () => {
       cancelled = true;

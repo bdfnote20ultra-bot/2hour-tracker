@@ -9319,7 +9319,12 @@ export default function App() {
   const [signupRequests, setSignupRequests] = useState(loadSignupRequests);
   const [approvedUsers, setApprovedUsers] = useState(loadApprovedUsers);
   const [bannedUsers, setBannedUsers] = useState(loadBannedUsers);
+  const [mainFuitWealth, setMainFuitWealth] = useState({ loading: true, balance: 0, symbol: "FUIT" });
   const weekDates = getWeekDates(weekOffset);
+  const loggedInApprovedUser = useMemo(() => approvedUsers.find(user =>
+    (user.username || "").toLowerCase() === String(loggedInUsername || "").toLowerCase()
+  ), [approvedUsers, loggedInUsername]);
+  const loggedInWalletAddress = loggedInApprovedUser?.walletAddress || "";
 
   useEffect(() => { saveData(entries); }, [entries]);
   useEffect(() => { saveRates(projectRates); }, [projectRates]);
@@ -9331,6 +9336,51 @@ export default function App() {
   useEffect(() => { saveSignupRequests(signupRequests); }, [signupRequests]);
   useEffect(() => { saveApprovedUsers(approvedUsers); }, [approvedUsers]);
   useEffect(() => { saveBannedUsers(bannedUsers); }, [bannedUsers]);
+  useEffect(() => {
+    if (!loggedInUsername) {
+      setMainFuitWealth({ loading: false, balance: 0, symbol: "FUIT" });
+      return undefined;
+    }
+    let cancelled = false;
+    const baseUrl = FUIT_CREDITS_BASE_URL ? FUIT_CREDITS_BASE_URL.replace(/\/+$/, "") : "";
+    const loadMainFuitWealth = async () => {
+      if (!baseUrl) {
+        if (!cancelled) setMainFuitWealth(current => ({ ...current, loading: false }));
+        return;
+      }
+      try {
+        const wallet = extractFuitWalletAddress(loggedInWalletAddress);
+        const response = await fetch(`${baseUrl}/fuit-credits`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "summary",
+            username: loggedInUsername,
+            wallet: wallet || undefined
+          })
+        });
+        if (!response.ok) throw new Error("FUIT wealth unavailable");
+        const result = await response.json();
+        if (cancelled) return;
+        setMainFuitWealth({
+          loading: false,
+          balance: Number(result.user?.balance) || 0,
+          symbol: result.settings?.creditSymbol || "FUIT"
+        });
+      } catch {
+        if (!cancelled) setMainFuitWealth(current => ({ ...current, loading: false }));
+      }
+    };
+    setMainFuitWealth(current => ({ ...current, loading: true }));
+    loadMainFuitWealth();
+    const timer = setInterval(loadMainFuitWealth, 30000);
+    window.addEventListener("focus", loadMainFuitWealth);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+      window.removeEventListener("focus", loadMainFuitWealth);
+    };
+  }, [loggedInUsername, loggedInWalletAddress]);
   const activeMusicSrc = musicData || "";
 
   const hourlyRate = projectRates[activeProjectId] || 0;
@@ -10019,7 +10069,7 @@ if (view === "gambling") {
               FUITS WEALTH
             </div>
             <div style={{ fontSize: "calc(22px * var(--flive-menu-text-scale, var(--flive-scale, 1)))", fontWeight: 1000, letterSpacing: .6, lineHeight: 1.05, marginTop: "calc(4px * var(--flive-scale, 1))" }}>
-              0 FUIT COINS
+              {mainFuitWealth.loading ? "LOADING FUIT COINS" : `${formatFuitCreditAmount(mainFuitWealth.balance)} ${mainFuitWealth.symbol} COINS`}
             </div>
           </div>
         </>

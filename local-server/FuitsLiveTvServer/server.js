@@ -11,6 +11,7 @@ const CHANNEL_PLAYLIST_DIR = path.join(ROOT, "Playlists", "FuitsLiveTV");
 const DEFAULT_CHANNEL_PLAYLISTS = ["ChannelA.m3u", "ChannelB.m3u", "SMOKING-CHANNEL.m3u"];
 const PASSWORD_PATH = path.join(__dirname, "admin-password.txt");
 const ACCESS_CONTROL_PATH = path.join(__dirname, "access-control.json");
+const FUIT_CREDIT_LEDGER_PATH = path.join(__dirname, "fuit-credit-ledger.json");
 const SHUFFLE_PASSWORD = "FOOLIO";
 const SITE_BLANK_PATH = path.join(__dirname, "site-blank.json");
 const VIDEO_STREAM_SETTINGS_PATH = path.join(__dirname, "video-stream-settings.json");
@@ -127,6 +128,346 @@ function writeAccessControl(access) {
   };
   fs.writeFileSync(ACCESS_CONTROL_PATH, JSON.stringify(next, null, 2), "utf8");
   return next;
+}
+
+function normalizeFuitCreditUsername(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[^\w .@-]/g, "")
+    .slice(0, 80);
+}
+
+function getFuitCreditUserKey(username) {
+  return normalizeFuitCreditUsername(username).toLowerCase();
+}
+
+function normalizeFuitWallet(value) {
+  const text = String(value || "").trim();
+  const match = text.match(/0x[a-fA-F0-9]{40}/);
+  if (!match) throw new Error("Enter a valid 0x wallet address.");
+  return match[0];
+}
+
+function normalizeFuitTxHash(value) {
+  const text = String(value || "").trim();
+  const match = text.match(/0x[a-fA-F0-9]{64}/);
+  if (!match) throw new Error("Enter the transaction hash from the deposit.");
+  return match[0];
+}
+
+function normalizeFuitAmount(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error("Enter an amount greater than 0.");
+  }
+  return Number(amount.toFixed(6));
+}
+
+function createDefaultFuitCreditState() {
+  return {
+    settings: {
+      creditSymbol: "FUIT",
+      depositToken: "USDT",
+      depositNetwork: "Polygon",
+      treasuryWallet: "",
+      instructions: "Send USDT on Polygon to the admin wallet. Keep enough POL for the network fee before sending. FUIT Coin is issued only after admin approval."
+    },
+    wallets: {},
+    balances: {},
+    deposits: [],
+    ledger: [],
+    blacklistedWallets: []
+  };
+}
+
+function readFuitCreditState() {
+  const defaults = createDefaultFuitCreditState();
+  try {
+    const parsed = JSON.parse(fs.readFileSync(FUIT_CREDIT_LEDGER_PATH, "utf8"));
+    return {
+      settings: { ...defaults.settings, ...(parsed.settings || {}) },
+      wallets: parsed.wallets && typeof parsed.wallets === "object" ? parsed.wallets : {},
+      balances: parsed.balances && typeof parsed.balances === "object" ? parsed.balances : {},
+      deposits: Array.isArray(parsed.deposits) ? parsed.deposits : [],
+      ledger: Array.isArray(parsed.ledger) ? parsed.ledger : [],
+      blacklistedWallets: Array.isArray(parsed.blacklistedWallets) ? parsed.blacklistedWallets : []
+    };
+  } catch {
+    return defaults;
+  }
+}
+
+function writeFuitCreditState(state) {
+  const next = {
+    ...createDefaultFuitCreditState(),
+    ...state,
+    settings: { ...createDefaultFuitCreditState().settings, ...(state.settings || {}) },
+    deposits: Array.isArray(state.deposits) ? state.deposits : [],
+    ledger: Array.isArray(state.ledger) ? state.ledger : [],
+    blacklistedWallets: Array.isArray(state.blacklistedWallets) ? state.blacklistedWallets : []
+  };
+  fs.writeFileSync(FUIT_CREDIT_LEDGER_PATH, JSON.stringify(next, null, 2), "utf8");
+  return next;
+}
+
+function isFuitWalletBlacklisted(state, wallet) {
+  const normalized = String(wallet || "").toLowerCase();
+  return (state.blacklistedWallets || []).some(item => String(item.wallet || "").toLowerCase() === normalized);
+}
+
+function getFuitBalanceRecord(state, username, wallet = "") {
+  const cleanUsername = normalizeFuitCreditUsername(username);
+  const key = getFuitCreditUserKey(cleanUsername);
+  if (!key) throw new Error("Username required.");
+  const existing = state.balances[key] || {};
+  const record = {
+    username: existing.username || cleanUsername,
+    wallet: wallet || existing.wallet || state.wallets[key]?.wallet || "",
+    balance: Number(existing.balance) || 0,
+    issuedTotal: Number(existing.issuedTotal) || 0,
+    withdrawnTotal: Number(existing.withdrawnTotal) || 0,
+    updatedAt: existing.updatedAt || new Date().toISOString()
+  };
+  state.balances[key] = record;
+  return record;
+}
+
+function getPublicFuitCreditSummary(payload = {}) {
+  const state = readFuitCreditState();
+  const username = normalizeFuitCreditUsername(payload.username);
+  const key = getFuitCreditUserKey(username);
+  const wallet = payload.wallet ? normalizeFuitWallet(payload.wallet) : (state.wallets[key]?.wallet || state.balances[key]?.wallet || "");
+  const balance = key ? getFuitBalanceRecord(state, username, wallet) : null;
+  const walletLower = String(wallet || "").toLowerCase();
+  const deposits = (state.deposits || [])
+    .filter(item => (
+      (key && getFuitCreditUserKey(item.username) === key) ||
+      (walletLower && String(item.wallet || "").toLowerCase() === walletLower)
+    ))
+    .slice(0, 60);
+  return {
+    ok: true,
+    settings: state.settings,
+    user: {
+      username,
+      wallet,
+      walletBlacklisted: wallet ? isFuitWalletBlacklisted(state, wallet) : false,
+      balance: Number(balance?.balance) || 0,
+      issuedTotal: Number(balance?.issuedTotal) || 0,
+      withdrawnTotal: Number(balance?.withdrawnTotal) || 0,
+      deposits
+    }
+  };
+}
+
+function saveFuitCreditWallet(payload = {}) {
+  const username = normalizeFuitCreditUsername(payload.username);
+  const key = getFuitCreditUserKey(username);
+  const wallet = normalizeFuitWallet(payload.wallet);
+  if (!key) throw new Error("Username required.");
+  const state = readFuitCreditState();
+  const now = new Date().toISOString();
+  state.wallets[key] = {
+    username,
+    wallet,
+    createdAt: state.wallets[key]?.createdAt || now,
+    updatedAt: now
+  };
+  getFuitBalanceRecord(state, username, wallet).wallet = wallet;
+  writeFuitCreditState(state);
+  return getPublicFuitCreditSummary({ username, wallet });
+}
+
+function submitFuitCreditDeposit(payload = {}) {
+  const username = normalizeFuitCreditUsername(payload.username);
+  const key = getFuitCreditUserKey(username);
+  const wallet = normalizeFuitWallet(payload.wallet);
+  const amount = normalizeFuitAmount(payload.amount);
+  const txHash = normalizeFuitTxHash(payload.txHash);
+  if (!key) throw new Error("Username required.");
+
+  const state = readFuitCreditState();
+  if (isFuitWalletBlacklisted(state, wallet)) {
+    throw new Error("This wallet is blacklisted.");
+  }
+  if ((state.deposits || []).some(item => String(item.txHash || "").toLowerCase() === txHash.toLowerCase())) {
+    throw new Error("That transaction hash is already submitted.");
+  }
+
+  const now = new Date().toISOString();
+  state.wallets[key] = {
+    username,
+    wallet,
+    createdAt: state.wallets[key]?.createdAt || now,
+    updatedAt: now
+  };
+  getFuitBalanceRecord(state, username, wallet).wallet = wallet;
+  const deposit = {
+    id: `deposit_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+    username,
+    wallet,
+    amount,
+    txHash,
+    token: state.settings.depositToken || "USDT",
+    network: state.settings.depositNetwork || "Polygon",
+    status: "pending",
+    note: String(payload.note || "").trim().slice(0, 240),
+    createdAt: now
+  };
+  state.deposits.unshift(deposit);
+  writeFuitCreditState(state);
+  return { ...getPublicFuitCreditSummary({ username, wallet }), deposit };
+}
+
+function getAdminFuitCreditState() {
+  const state = readFuitCreditState();
+  const totals = Object.values(state.balances || {}).reduce((acc, item) => ({
+    issued: acc.issued + (Number(item.issuedTotal) || 0),
+    balance: acc.balance + (Number(item.balance) || 0),
+    withdrawn: acc.withdrawn + (Number(item.withdrawnTotal) || 0)
+  }), { issued: 0, balance: 0, withdrawn: 0 });
+  return {
+    ok: true,
+    settings: state.settings,
+    wallets: state.wallets || {},
+    balances: state.balances || {},
+    deposits: state.deposits || [],
+    ledger: (state.ledger || []).slice(0, 200),
+    blacklistedWallets: state.blacklistedWallets || [],
+    totals,
+    pendingCount: (state.deposits || []).filter(item => item.status === "pending").length
+  };
+}
+
+function updateAdminFuitCredits(payload = {}) {
+  const state = readFuitCreditState();
+  const now = new Date().toISOString();
+  const action = String(payload.action || "load");
+
+  if (action === "settings") {
+    const treasuryWallet = String(payload.treasuryWallet || "").trim()
+      ? normalizeFuitWallet(payload.treasuryWallet)
+      : "";
+    state.settings = {
+      ...state.settings,
+      treasuryWallet,
+      depositToken: "USDT",
+      depositNetwork: "Polygon",
+      instructions: String(payload.instructions || state.settings.instructions || "").trim().slice(0, 420)
+    };
+    writeFuitCreditState(state);
+    return getAdminFuitCreditState();
+  }
+
+  if (action === "issueDeposit") {
+    const deposit = state.deposits.find(item => item.id === payload.depositId);
+    if (!deposit) throw new Error("Deposit not found.");
+    if (deposit.status === "issued") throw new Error("Deposit already issued.");
+    if (isFuitWalletBlacklisted(state, deposit.wallet)) throw new Error("Wallet is blacklisted.");
+    const issueAmount = payload.amount ? normalizeFuitAmount(payload.amount) : normalizeFuitAmount(deposit.amount);
+    const balance = getFuitBalanceRecord(state, deposit.username, deposit.wallet);
+    balance.balance = Number((Number(balance.balance || 0) + issueAmount).toFixed(6));
+    balance.issuedTotal = Number((Number(balance.issuedTotal || 0) + issueAmount).toFixed(6));
+    balance.updatedAt = now;
+    deposit.status = "issued";
+    deposit.issuedAmount = issueAmount;
+    deposit.reviewedAt = now;
+    deposit.adminNote = String(payload.adminNote || "").trim().slice(0, 240);
+    state.ledger.unshift({
+      id: `ledger_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+      type: "issue",
+      username: deposit.username,
+      wallet: deposit.wallet,
+      amount: issueAmount,
+      depositId: deposit.id,
+      txHash: deposit.txHash,
+      createdAt: now,
+      note: deposit.adminNote
+    });
+    writeFuitCreditState(state);
+    return getAdminFuitCreditState();
+  }
+
+  if (action === "rejectDeposit") {
+    const deposit = state.deposits.find(item => item.id === payload.depositId);
+    if (!deposit) throw new Error("Deposit not found.");
+    deposit.status = "rejected";
+    deposit.reviewedAt = now;
+    deposit.adminNote = String(payload.adminNote || "").trim().slice(0, 240);
+    writeFuitCreditState(state);
+    return getAdminFuitCreditState();
+  }
+
+  if (action === "manualIssue") {
+    const username = normalizeFuitCreditUsername(payload.username);
+    const wallet = normalizeFuitWallet(payload.wallet);
+    const amount = normalizeFuitAmount(payload.amount);
+    if (isFuitWalletBlacklisted(state, wallet)) throw new Error("Wallet is blacklisted.");
+    const balance = getFuitBalanceRecord(state, username, wallet);
+    balance.wallet = wallet;
+    balance.balance = Number((Number(balance.balance || 0) + amount).toFixed(6));
+    balance.issuedTotal = Number((Number(balance.issuedTotal || 0) + amount).toFixed(6));
+    balance.updatedAt = now;
+    state.wallets[getFuitCreditUserKey(username)] = {
+      username,
+      wallet,
+      createdAt: state.wallets[getFuitCreditUserKey(username)]?.createdAt || now,
+      updatedAt: now
+    };
+    state.ledger.unshift({
+      id: `ledger_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+      type: "manual_issue",
+      username,
+      wallet,
+      amount,
+      createdAt: now,
+      note: String(payload.note || "").trim().slice(0, 240)
+    });
+    writeFuitCreditState(state);
+    return getAdminFuitCreditState();
+  }
+
+  if (action === "withdrawCredits") {
+    const username = normalizeFuitCreditUsername(payload.username);
+    const amount = normalizeFuitAmount(payload.amount);
+    const balance = getFuitBalanceRecord(state, username, payload.wallet || "");
+    balance.balance = Math.max(0, Number((Number(balance.balance || 0) - amount).toFixed(6)));
+    balance.withdrawnTotal = Number((Number(balance.withdrawnTotal || 0) + amount).toFixed(6));
+    balance.updatedAt = now;
+    state.ledger.unshift({
+      id: `ledger_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+      type: "withdraw",
+      username,
+      wallet: balance.wallet || "",
+      amount,
+      createdAt: now,
+      note: String(payload.note || "").trim().slice(0, 240)
+    });
+    writeFuitCreditState(state);
+    return getAdminFuitCreditState();
+  }
+
+  if (action === "blacklistWallet") {
+    const wallet = normalizeFuitWallet(payload.wallet);
+    if (!isFuitWalletBlacklisted(state, wallet)) {
+      state.blacklistedWallets.unshift({
+        wallet,
+        note: String(payload.note || "").trim().slice(0, 180),
+        createdAt: now
+      });
+    }
+    writeFuitCreditState(state);
+    return getAdminFuitCreditState();
+  }
+
+  if (action === "unblacklistWallet") {
+    const wallet = normalizeFuitWallet(payload.wallet);
+    state.blacklistedWallets = state.blacklistedWallets.filter(item => String(item.wallet || "").toLowerCase() !== wallet.toLowerCase());
+    writeFuitCreditState(state);
+    return getAdminFuitCreditState();
+  }
+
+  return getAdminFuitCreditState();
 }
 
 function hasAccessEntry(entries, value) {
@@ -5679,12 +6020,50 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (url.pathname === "/fuit-credits" && req.method === "POST") {
+    readRequestBody(req)
+      .then(body => {
+        const payload = JSON.parse(body || "{}");
+        const action = String(payload.action || "summary");
+        if (action === "saveWallet") {
+          sendJson(res, 200, saveFuitCreditWallet(payload));
+          return;
+        }
+        if (action === "submitDeposit") {
+          sendJson(res, 200, submitFuitCreditDeposit(payload));
+          return;
+        }
+        sendJson(res, 200, getPublicFuitCreditSummary(payload));
+      })
+      .catch(error => {
+        send(res, 400, error.message || "FUIT credits request failed");
+      });
+    return;
+  }
+
   if (url.pathname === "/admin/online-users" && req.method === "GET") {
     if (url.searchParams.get("password") !== getAdminPassword()) {
       sendJson(res, 403, { ok: false, error: "Wrong password" });
       return;
     }
     sendJson(res, 200, buildOnlineStats());
+    return;
+  }
+
+  if (url.pathname === "/admin/fuit-credits" && req.method === "POST") {
+    readRequestBody(req)
+      .then(body => {
+        const payload = JSON.parse(body || "{}");
+        if (!isAdminPassword(payload.password)) {
+          send(res, 401, "Unauthorized");
+          return;
+        }
+
+        sendJson(res, 200, updateAdminFuitCredits(payload));
+      })
+      .catch(error => {
+        send(res, 400, error.message || "FUIT credits admin failed");
+      });
     return;
   }
 

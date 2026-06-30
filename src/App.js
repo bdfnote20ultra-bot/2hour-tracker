@@ -121,6 +121,14 @@ const RETROARCH_WEB_PLAYER_URL = "https://web.libretro.com/";
 const SIGNUP_REQUESTS_KEY = "fuitsSignupRequests_v1";
 const APPROVED_USERS_KEY = "fuitsApprovedUsers_v1";
 const BANNED_USERS_KEY = "fuitsBannedUsers_v1";
+const FUIT_CREDITS_BASE_URL = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
+const DEFAULT_FUIT_CREDIT_SETTINGS = {
+  creditSymbol: "FUIT",
+  depositToken: "USDT",
+  depositNetwork: "Polygon",
+  treasuryWallet: "",
+  instructions: "Convert or buy USDT on Polygon, keep enough POL for gas, then send USDT to the admin wallet. FUIT Coin is issued only after admin approval."
+};
 function loadData() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
 }
@@ -171,6 +179,135 @@ function loadBannedUsers() {
 function saveBannedUsers(users) {
   try { localStorage.setItem(BANNED_USERS_KEY, JSON.stringify(users)); } catch {}
 }
+
+function extractFuitWalletAddress(value) {
+  const match = String(value || "").trim().match(/0x[a-fA-F0-9]{40}/);
+  return match ? match[0] : "";
+}
+
+function isValidFuitWalletAddress(value) {
+  return Boolean(extractFuitWalletAddress(value));
+}
+
+function formatFuitCreditAmount(value) {
+  const amount = Number(value) || 0;
+  return amount.toLocaleString(undefined, { maximumFractionDigits: 6 });
+}
+
+function getFuitQrImageUrl(value, size = 180) {
+  const data = String(value || "").trim();
+  if (!data) return "";
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(data)}`;
+}
+
+function FuitWalletInputWithScanner({ value, onChange, inputStyle, buttonStyle, placeholder = "Polygon wallet address" }) {
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanStatus, setScanStatus] = useState("");
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+
+  const stopScanner = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setScannerOpen(false);
+  }, []);
+
+  useEffect(() => () => stopScanner(), [stopScanner]);
+
+  useEffect(() => {
+    if (!scannerOpen || !streamRef.current || !videoRef.current) return undefined;
+    let cancelled = false;
+    let rafId = 0;
+    let detector = null;
+    try {
+      detector = new window.BarcodeDetector({ formats: ["qr_code"] });
+    } catch {
+      setScanStatus("QR scan is not available in this browser. Paste the wallet address.");
+      return undefined;
+    }
+
+    const video = videoRef.current;
+    video.srcObject = streamRef.current;
+    const scanFrame = async () => {
+      if (cancelled) return;
+      try {
+        if (video.readyState >= 2) {
+          const codes = await detector.detect(video);
+          const wallet = extractFuitWalletAddress(codes?.[0]?.rawValue || "");
+          if (wallet) {
+            onChange(wallet);
+            setScanStatus("Wallet QR scanned.");
+            stopScanner();
+            return;
+          }
+        }
+      } catch {}
+      rafId = window.requestAnimationFrame(scanFrame);
+    };
+    video.play().then(scanFrame).catch(() => {
+      setScanStatus("Camera could not start. Paste the wallet address.");
+      stopScanner();
+    });
+    return () => {
+      cancelled = true;
+      if (rafId) window.cancelAnimationFrame(rafId);
+    };
+  }, [scannerOpen, onChange, stopScanner]);
+
+  const startScanner = async () => {
+    setScanStatus("");
+    if (!("BarcodeDetector" in window)) {
+      setScanStatus("QR scan is not available in this browser. Paste the wallet address.");
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setScanStatus("Camera access is not available. Paste the wallet address.");
+      return;
+    }
+    try {
+      streamRef.current = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+      setScannerOpen(true);
+      setScanStatus("Point camera at the wallet QR code.");
+    } catch {
+      setScanStatus("Camera permission denied. Paste the wallet address.");
+    }
+  };
+
+  return (
+    <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", minWidth: 0 }}>
+        <button
+          type="button"
+          onClick={scannerOpen ? stopScanner : startScanner}
+          style={{ ...buttonStyle, whiteSpace: "nowrap" }}
+        >
+          {scannerOpen ? "Stop" : "Scan QR"}
+        </button>
+      </div>
+      <div style={{ color: "#94a3b8", fontSize: 11, fontWeight: 900, textTransform: "uppercase" }}>Manual Enter Address</div>
+      <input
+        value={value}
+        onChange={event => onChange(event.target.value)}
+        placeholder={placeholder}
+        autoComplete="off"
+        spellCheck={false}
+        style={{ ...inputStyle, minWidth: 0 }}
+      />
+      {scannerOpen && (
+        <video
+          ref={videoRef}
+          muted
+          playsInline
+          style={{ width: "100%", maxHeight: 220, objectFit: "cover", border: "1px solid rgba(191,219,254,.45)", background: "#020617" }}
+        />
+      )}
+      {scanStatus && <div style={{ color: scannerOpen ? "#bfdbfe" : "#94a3b8", fontSize: 11, fontWeight: 900 }}>{scanStatus}</div>}
+    </div>
+  );
+}
+
 function resizeProfilePicture(file) {
   return new Promise((resolve, reject) => {
     if (!file || !String(file.type || "").startsWith("image/")) {
@@ -6579,107 +6716,142 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
   );
 }
 
-function CreditHubPage({ onClose }) {
-  const ADMIN_PASSWORD = "FUCKNUTZ22!";
-  const FEE_RATE = 0.0005;
-  const SUPPORTED_COINS = ["USDC", "USDT", "POL", "SOL"];
-  const demoEvents = [
-    { id: "esp-001", league: "Esports", event: "CS2 - Falcons vs Liquid", market: "Prematch ML", odds: "+120", starts: "Tonight" },
-    { id: "esp-002", league: "Esports", event: "LoL - T1 vs Gen.G", market: "Prematch ML", odds: "-145", starts: "Tomorrow" },
-    { id: "spr-001", league: "Sports", event: "NBA Demo - Home vs Away", market: "Prematch spread", odds: "-110", starts: "Upcoming" }
-  ];
-
-  const loadCreditState = () => {
-    try {
-      return JSON.parse(localStorage.getItem("fuitCreditHubState_v1")) || null;
-    } catch {
-      return null;
-    }
-  };
-
-  const [walletAddress, setWalletAddress] = useState("");
-  const [adminUnlocked, setAdminUnlocked] = useState(false);
-  const [adminPass, setAdminPass] = useState("");
-  const [selectedCoin, setSelectedCoin] = useState("USDC");
+function FuitCoinPage({ onClose, loggedInUsername = "", approvedUsers = [] }) {
+  const loggedInUser = useMemo(() => approvedUsers.find(user =>
+    (user.username || "").toLowerCase() === String(loggedInUsername || "").toLowerCase()
+  ), [approvedUsers, loggedInUsername]);
+  const savedWalletAddress = loggedInUser?.walletAddress || "";
+  const [walletAddress, setWalletAddress] = useState(savedWalletAddress);
   const [depositAmount, setDepositAmount] = useState("");
-  const [depositTx, setDepositTx] = useState("");
-  const [withdrawAmount, setWithdrawAmount] = useState("");
-  const [withdrawCoin, setWithdrawCoin] = useState("USDC");
-  const [withdrawWallet, setWithdrawWallet] = useState("");
-  const [betAmount, setBetAmount] = useState("");
-  const [selectedEvent, setSelectedEvent] = useState(demoEvents[0]);
-  const [casinoAmount, setCasinoAmount] = useState("");
-  const [fuitMintAmount, setFuitMintAmount] = useState("");
-  const [state, setState] = useState(() => loadCreditState() || {
-    users: {},
-    deposits: [],
-    withdrawals: [],
-    bets: [],
-    casinoRounds: [],
-    fees: [],
-    fuitCoin: { supply: 0, backing: 0 },
-    house: { USDC: 0, USDT: 0, POL: 0, SOL: 0 }
+  const [depositTxHash, setDepositTxHash] = useState("");
+  const [depositNote, setDepositNote] = useState("");
+  const [status, setStatus] = useState("Loading FUIT Coin...");
+  const [summary, setSummary] = useState({
+    loading: true,
+    settings: DEFAULT_FUIT_CREDIT_SETTINGS,
+    user: {
+      username: loggedInUsername,
+      wallet: savedWalletAddress,
+      walletBlacklisted: false,
+      balance: 0,
+      issuedTotal: 0,
+      withdrawnTotal: 0,
+      deposits: []
+    }
   });
 
   useEffect(() => {
-    try { localStorage.setItem("fuitCreditHubState_v1", JSON.stringify(state)); } catch {}
-  }, [state]);
+    if (savedWalletAddress) setWalletAddress(current => current || savedWalletAddress);
+  }, [savedWalletAddress]);
 
-  const shortWallet = walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : "Guest";
-  const user = state.users[walletAddress] || { credits: 0, online: !!walletAddress, wallet: walletAddress };
-  const feeOf = (amount) => Number((Number(amount || 0) * FEE_RATE).toFixed(6));
-  const netOf = (amount) => Number((Number(amount || 0) - feeOf(amount)).toFixed(6));
-  const totalFees = state.fees.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-  const totalActiveCredits = Object.values(state.users).reduce((sum, item) => sum + Number(item.credits || 0), 0);
-  const potentialLiability = state.bets.filter(b => b.status === "open").reduce((sum, b) => sum + Number(b.potentialPayout || 0), 0);
+  const baseUrl = FUIT_CREDITS_BASE_URL ? FUIT_CREDITS_BASE_URL.replace(/\/+$/, "") : "";
+  const cleanUsername = String(loggedInUsername || loggedInUser?.username || "").trim();
+  const cleanWalletAddress = extractFuitWalletAddress(walletAddress);
+  const settings = { ...DEFAULT_FUIT_CREDIT_SETTINGS, ...(summary.settings || {}) };
+  const creditUser = summary.user || {};
+  const deposits = Array.isArray(creditUser.deposits) ? creditUser.deposits : [];
+  const treasuryWallet = settings.treasuryWallet || "";
+  const treasuryQrUrl = getFuitQrImageUrl(treasuryWallet, 210);
+  const walletQrUrl = getFuitQrImageUrl(cleanWalletAddress, 150);
 
-  const updateUserCredits = (address, creditDelta) => {
-    if (!address) return;
-    setState(prev => {
-      const existing = prev.users[address] || { wallet: address, credits: 0, online: true };
-      return {
-        ...prev,
-        users: {
-          ...prev.users,
-          [address]: {
-            ...existing,
-            wallet: address,
-            online: true,
-            credits: Math.max(0, Number(((Number(existing.credits || 0) + Number(creditDelta || 0))).toFixed(6)))
-          }
-        }
-      };
+  const postFuitCredits = useCallback(async payload => {
+    if (!baseUrl) throw new Error("FUITS Live TV URL is not set yet.");
+    const response = await fetch(`${baseUrl}/fuit-credits`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
     });
+    if (!response.ok) throw new Error(await response.text());
+    return response.json();
+  }, [baseUrl]);
+
+  const loadCreditSummary = useCallback(async (nextWallet = walletAddress) => {
+    try {
+      const validWallet = extractFuitWalletAddress(nextWallet);
+      const result = await postFuitCredits({
+        action: "summary",
+        username: cleanUsername,
+        wallet: validWallet || undefined
+      });
+      setSummary({ loading: false, ...result });
+      if (result.user?.wallet) setWalletAddress(result.user.wallet);
+      setStatus(result.user?.walletBlacklisted ? "This wallet is blacklisted for new deposits." : "FUIT Coin balance ready.");
+    } catch (err) {
+      setSummary(current => ({ ...current, loading: false }));
+      setStatus(err?.message || "Could not load FUIT Coin yet.");
+    }
+  }, [cleanUsername, postFuitCredits, walletAddress]);
+
+  useEffect(() => {
+    loadCreditSummary();
+  }, [loadCreditSummary]);
+
+  const saveWallet = async () => {
+    if (!cleanUsername) {
+      setStatus("Login username is missing.");
+      return;
+    }
+    if (!cleanWalletAddress) {
+      setStatus("Enter or scan a valid Polygon wallet address.");
+      return;
+    }
+    try {
+      setStatus("Saving wallet...");
+      const result = await postFuitCredits({
+        action: "saveWallet",
+        username: cleanUsername,
+        wallet: cleanWalletAddress
+      });
+      setSummary({ loading: false, ...result });
+      setStatus("Wallet saved for FUIT Coin tracking.");
+    } catch (err) {
+      setStatus(err?.message || "Could not save wallet.");
+    }
   };
 
-  const addFee = (source, amount, coin = "CREDITS") => {
-    const fee = feeOf(amount);
-    if (fee <= 0) return fee;
-    setState(prev => ({
-      ...prev,
-      fees: [{ id: `fee_${Date.now()}`, source, amount: fee, coin, time: new Date().toLocaleString() }, ...prev.fees]
-    }));
-    return fee;
+  const submitDeposit = async () => {
+    if (!cleanUsername) {
+      setStatus("Login username is missing.");
+      return;
+    }
+    if (!cleanWalletAddress) {
+      setStatus("Enter or scan your deposit wallet first.");
+      return;
+    }
+    if (!Number(depositAmount) || Number(depositAmount) <= 0) {
+      setStatus("Enter the USDT amount you deposited.");
+      return;
+    }
+    try {
+      setStatus("Submitting deposit for admin approval...");
+      const result = await postFuitCredits({
+        action: "submitDeposit",
+        username: cleanUsername,
+        wallet: cleanWalletAddress,
+        amount: depositAmount,
+        txHash: depositTxHash,
+        note: depositNote
+      });
+      setSummary({ loading: false, ...result });
+      setDepositAmount("");
+      setDepositTxHash("");
+      setDepositNote("");
+      setStatus("Deposit submitted. FUIT Coin will appear after admin approval.");
+    } catch (err) {
+      setStatus(err?.message || "Could not submit deposit.");
+    }
   };
 
   const connectWallet = async () => {
     try {
       if (!window.ethereum) {
-        alert("No browser wallet found. Install MetaMask or open this app inside Trust Wallet browser.");
+        setStatus("No browser wallet found. Open this page inside Trust Wallet or paste the address manually.");
         return;
       }
       const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
       const address = accounts?.[0] || "";
       if (!address) return;
       setWalletAddress(address);
-      setWithdrawWallet(address);
-      setState(prev => ({
-        ...prev,
-        users: {
-          ...prev.users,
-          [address]: { ...(prev.users[address] || { credits: 0 }), wallet: address, online: true, username: `${address.slice(0, 6)}...${address.slice(-4)}` }
-        }
-      }));
       try {
         await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x89" }] });
       } catch (switchError) {
@@ -6690,8 +6862,9 @@ function CreditHubPage({ onClose }) {
           });
         }
       }
+      setStatus("Wallet connected. Save it before submitting deposits.");
     } catch (err) {
-      alert(`Wallet connection failed: ${err?.message || err}`);
+      setStatus(`Wallet connection failed: ${err?.message || err}`);
     }
   };
 
@@ -6699,277 +6872,175 @@ function CreditHubPage({ onClose }) {
     window.open(`https://link.trustwallet.com/open_url?coin_id=966&url=${encodeURIComponent(window.location.href)}`, "_blank", "noopener,noreferrer");
   };
 
-  const submitDeposit = () => {
-    const amount = Number(depositAmount);
-    if (!walletAddress) return alert("Connect a wallet first.");
-    if (!amount || amount <= 0) return alert("Enter deposit amount.");
-    const fee = feeOf(amount);
-    setState(prev => ({
-      ...prev,
-      deposits: [{ id: `dep_${Date.now()}`, wallet: walletAddress, coin: selectedCoin, amount, tx: depositTx.trim(), fee, creditsToAward: netOf(amount), status: "pending", time: new Date().toLocaleString() }, ...prev.deposits]
-    }));
-    setDepositAmount("");
-    setDepositTx("");
+  const copyTreasuryWallet = async () => {
+    if (!treasuryWallet) return;
+    try {
+      await navigator.clipboard.writeText(treasuryWallet);
+      setStatus("Admin wallet copied.");
+    } catch {
+      setStatus("Admin wallet is shown on screen. Copy it manually.");
+    }
   };
 
-  const submitWithdrawal = () => {
-    const amount = Number(withdrawAmount);
-    if (!walletAddress) return alert("Connect a wallet first.");
-    if (!amount || amount <= 0) return alert("Enter withdrawal amount.");
-    if (amount > user.credits) return alert("Not enough credits.");
-    const fee = feeOf(amount);
-    updateUserCredits(walletAddress, -amount);
-    addFee("withdrawal_request", amount);
-    setState(prev => ({
-      ...prev,
-      withdrawals: [{ id: `wd_${Date.now()}`, wallet: walletAddress, coin: withdrawCoin, amount, fee, userReceives: netOf(amount), sendTo: withdrawWallet || walletAddress, status: "pending", time: new Date().toLocaleString() }, ...prev.withdrawals]
-    }));
-    setWithdrawAmount("");
+  const cardStyle = {
+    border: "1px solid rgba(148,163,184,.24)",
+    borderRadius: 8,
+    background: "rgba(15,23,42,.88)",
+    boxShadow: "0 14px 36px rgba(0,0,0,.28)",
+    padding: 16,
+    minWidth: 0
   };
-
-  const approveDeposit = (id) => {
-    const dep = state.deposits.find(d => d.id === id);
-    if (!dep || dep.status !== "pending") return;
-    updateUserCredits(dep.wallet, dep.creditsToAward);
-    addFee("deposit", dep.amount, dep.coin);
-    setState(prev => ({
-      ...prev,
-      house: { ...prev.house, [dep.coin]: Number(((prev.house[dep.coin] || 0) + Number(dep.amount || 0)).toFixed(6)) },
-      deposits: prev.deposits.map(d => d.id === id ? { ...d, status: "approved" } : d)
-    }));
+  const inputStyle = {
+    width: "100%",
+    boxSizing: "border-box",
+    border: "1px solid rgba(148,163,184,.35)",
+    borderRadius: 8,
+    background: "#020617",
+    color: "#f8fafc",
+    fontSize: 14,
+    fontWeight: 900,
+    padding: "11px 12px",
+    minWidth: 0
   };
-
-  const rejectDeposit = (id) => setState(prev => ({ ...prev, deposits: prev.deposits.map(d => d.id === id ? { ...d, status: "rejected" } : d) }));
-  const completeWithdrawal = (id) => setState(prev => ({ ...prev, withdrawals: prev.withdrawals.map(w => w.id === id ? { ...w, status: "paid" } : w) }));
-  const rejectWithdrawal = (id) => {
-    const wd = state.withdrawals.find(w => w.id === id);
-    if (wd && wd.status === "pending") updateUserCredits(wd.wallet, wd.amount);
-    setState(prev => ({ ...prev, withdrawals: prev.withdrawals.map(w => w.id === id ? { ...w, status: "rejected/refunded" } : w) }));
+  const buttonStyle = {
+    border: "1px solid #67e8f9",
+    borderRadius: 8,
+    background: "#67e8f9",
+    color: "#020617",
+    cursor: "pointer",
+    fontSize: 13,
+    fontWeight: 1000,
+    padding: "11px 13px",
+    textTransform: "uppercase"
   };
-
-  const placeBet = () => {
-    const amount = Number(betAmount);
-    if (!walletAddress) return alert("Connect wallet first.");
-    if (!amount || amount <= 0) return alert("Enter bet amount.");
-    if (amount > user.credits) return alert("Not enough credits.");
-    const fee = addFee("sportsbook_bet", amount);
-    updateUserCredits(walletAddress, -amount);
-    const stake = Number((amount - fee).toFixed(6));
-    const potentialPayout = Number((stake * 1.9).toFixed(6));
-    setState(prev => ({
-      ...prev,
-      bets: [{ id: `bet_${Date.now()}`, wallet: walletAddress, event: selectedEvent.event, market: selectedEvent.market, odds: selectedEvent.odds, stake, fee, potentialPayout, status: "open", time: new Date().toLocaleString() }, ...prev.bets]
-    }));
-    setBetAmount("");
+  const secondaryButtonStyle = {
+    ...buttonStyle,
+    borderColor: "rgba(148,163,184,.35)",
+    background: "rgba(15,23,42,.95)",
+    color: "#f8fafc"
   };
-
-  const settleBet = (id, result) => {
-    const bet = state.bets.find(b => b.id === id);
-    if (!bet || bet.status !== "open") return;
-    if (result === "win") updateUserCredits(bet.wallet, bet.potentialPayout);
-    if (result === "push") updateUserCredits(bet.wallet, bet.stake);
-    setState(prev => ({ ...prev, bets: prev.bets.map(b => b.id === id ? { ...b, status: result } : b) }));
+  const labelStyle = {
+    color: "#bfdbfe",
+    fontSize: 11,
+    fontWeight: 1000,
+    textTransform: "uppercase"
   };
-
-  const playCasinoDemo = (result) => {
-    const amount = Number(casinoAmount);
-    if (!walletAddress) return alert("Connect wallet first.");
-    if (!amount || amount <= 0) return alert("Enter casino wager amount.");
-    if (amount > user.credits) return alert("Not enough credits.");
-    const fee = addFee("casino_wager", amount);
-    const stake = Number((amount - fee).toFixed(6));
-    updateUserCredits(walletAddress, -amount);
-    if (result === "win") updateUserCredits(walletAddress, Number((stake * 2).toFixed(6)));
-    setState(prev => ({
-      ...prev,
-      casinoRounds: [{ id: `cas_${Date.now()}`, wallet: walletAddress, wager: stake, fee, result, payout: result === "win" ? stake * 2 : 0, time: new Date().toLocaleString() }, ...prev.casinoRounds]
-    }));
-    setCasinoAmount("");
-  };
-
-  const mintFuit = () => {
-    const amount = Number(fuitMintAmount);
-    if (!amount || amount <= 0) return alert("Enter FUIT amount.");
-    addFee("fuit_coin_mint", amount, "USDC");
-    setState(prev => ({
-      ...prev,
-      fuitCoin: { supply: Number((prev.fuitCoin.supply + amount).toFixed(6)), backing: Number((prev.fuitCoin.backing + amount).toFixed(6)) }
-    }));
-    setFuitMintAmount("");
-  };
-
-  const burnFuit = () => {
-    const amount = Number(fuitMintAmount);
-    if (!amount || amount <= 0) return alert("Enter FUIT amount.");
-    addFee("fuit_coin_burn", amount, "USDC");
-    setState(prev => ({
-      ...prev,
-      fuitCoin: { supply: Math.max(0, Number((prev.fuitCoin.supply - amount).toFixed(6))), backing: Math.max(0, Number((prev.fuitCoin.backing - amount).toFixed(6))) }
-    }));
-    setFuitMintAmount("");
-  };
-
-  const card = { background: "rgba(15,23,42,.92)", border: "1px solid rgba(148,163,184,.28)", borderRadius: 18, padding: 16, boxShadow: "0 12px 34px rgba(0,0,0,.35)", marginBottom: 14 };
-  const input = { width: "100%", boxSizing: "border-box", background: "#020617", color: "#f8fafc", border: "1px solid rgba(148,163,184,.35)", borderRadius: 12, padding: "11px 12px", marginTop: 8, marginBottom: 8, fontWeight: 800 };
-  const button = { border: "none", borderRadius: 12, padding: "11px 13px", fontWeight: 900, cursor: "pointer", background: "linear-gradient(135deg,#22c55e,#38bdf8)", color: "#04111d" };
-  const darkButton = { ...button, background: "rgba(255,255,255,.1)", color: "#f8fafc", border: "1px solid rgba(255,255,255,.18)" };
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#020617,#111827,#3b0764)", color: "#f8fafc", fontFamily: "system-ui", padding: 16, boxSizing: "border-box" }}>
-      <div style={{ maxWidth: 1120, margin: "0 auto" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 16 }}>
+    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#020617,#0f172a 50%,#1e1b4b)", color: "#f8fafc", fontFamily: "system-ui, sans-serif", padding: 18, boxSizing: "border-box" }}>
+      <div style={{ maxWidth: 1180, margin: "0 auto", display: "grid", gap: 14 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
           <div>
-            <div style={{ fontSize: 30, fontWeight: 1000, letterSpacing: .4 }}>FUIT Credit Hub</div>
-            <div style={{ color: "#cbd5e1", fontWeight: 800 }}>Credits sportsbook/casino + separate admin-only FUIT Coin vault</div>
+            <h1 style={{ margin: 0, fontSize: 30, fontWeight: 1000, letterSpacing: 0 }}>FUIT Coin</h1>
+            <div style={{ color: "#cbd5e1", fontSize: 14, fontWeight: 900, marginTop: 4 }}>
+              Admin-issued FUIT balance after Polygon USDT deposit approval.
+            </div>
           </div>
-          <button onClick={onClose} style={darkButton}>Back to Hours</button>
+          <button type="button" onClick={onClose} style={secondaryButtonStyle}>Back</button>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
-          <div style={card}>
-            <div style={{ fontSize: 18, fontWeight: 1000 }}>Wallet / Username</div>
-            <div style={{ color: "#94a3b8", marginTop: 4 }}>Username is based on connected wallet.</div>
-            <div style={{ marginTop: 12, fontSize: 24, fontWeight: 1000 }}>{shortWallet}</div>
-            <div style={{ color: "#86efac", marginTop: 4, fontWeight: 900 }}>{Number(user.credits || 0).toFixed(4)} Credits</div>
-            <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-              <button onClick={connectWallet} style={button}>Connect Polygon Wallet</button>
-              <button onClick={openTrustWallet} style={darkButton}>Trust Wallet</button>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 12 }}>
+          <div style={cardStyle}>
+            <div style={labelStyle}>Logged In</div>
+            <div style={{ fontSize: 22, fontWeight: 1000, overflowWrap: "anywhere", marginTop: 4 }}>{cleanUsername || "Unknown User"}</div>
+            <div style={{ color: "#bbf7d0", fontSize: 26, fontWeight: 1000, marginTop: 12 }}>
+              {formatFuitCreditAmount(creditUser.balance)} {settings.creditSymbol}
+            </div>
+            <div style={{ color: "#94a3b8", fontSize: 12, fontWeight: 800, marginTop: 4 }}>
+              Issued: {formatFuitCreditAmount(creditUser.issuedTotal)} / Withdrawn: {formatFuitCreditAmount(creditUser.withdrawnTotal)}
             </div>
           </div>
 
-          <div style={card}>
-            <div style={{ fontSize: 18, fontWeight: 1000 }}>0.05% Fee Rule</div>
-            <div style={{ color: "#cbd5e1", marginTop: 8, lineHeight: 1.5 }}>Fee applies to deposits, withdrawals, sportsbook wagers, casino wagers, and admin FUIT mint/burn actions.</div>
-            <div style={{ marginTop: 10, color: "#facc15", fontWeight: 1000 }}>Total fees: {totalFees.toFixed(6)}</div>
-          </div>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 14 }}>
-          <div style={card}>
-            <div style={{ fontSize: 20, fontWeight: 1000 }}>Deposit Request</div>
-            <select value={selectedCoin} onChange={e => setSelectedCoin(e.target.value)} style={input}>{SUPPORTED_COINS.map(c => <option key={c}>{c}</option>)}</select>
-            <input type="number" value={depositAmount} onChange={e => setDepositAmount(e.target.value)} placeholder="Amount deposited" style={input} />
-            <input value={depositTx} onChange={e => setDepositTx(e.target.value)} placeholder="TX hash / note" style={input} />
-            <div style={{ color: "#94a3b8", fontSize: 13, marginBottom: 8 }}>Credits after fee: {netOf(depositAmount).toFixed(6)}</div>
-            <button onClick={submitDeposit} style={button}>Submit Deposit For Admin Approval</button>
-          </div>
-
-          <div style={card}>
-            <div style={{ fontSize: 20, fontWeight: 1000 }}>Withdrawal Request</div>
-            <select value={withdrawCoin} onChange={e => setWithdrawCoin(e.target.value)} style={input}>{SUPPORTED_COINS.map(c => <option key={c}>{c}</option>)}</select>
-            <input type="number" value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)} placeholder="Credits to withdraw" style={input} />
-            <input value={withdrawWallet} onChange={e => setWithdrawWallet(e.target.value)} placeholder="Wallet to send to" style={input} />
-            <div style={{ color: "#94a3b8", fontSize: 13, marginBottom: 8 }}>User receives after fee: {netOf(withdrawAmount).toFixed(6)}</div>
-            <button onClick={submitWithdrawal} style={button}>Request Withdrawal</button>
-          </div>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 14 }}>
-          <div style={card}>
-            <div style={{ fontSize: 20, fontWeight: 1000 }}>Sportsbook Demo</div>
-            <div style={{ color: "#94a3b8", marginBottom: 8 }}>Prematch/esports layout. Odds API can replace these demo events later and should be cached every 20 minutes.</div>
-            <select value={selectedEvent.id} onChange={e => setSelectedEvent(demoEvents.find(x => x.id === e.target.value) || demoEvents[0])} style={input}>
-              {demoEvents.map(ev => <option key={ev.id} value={ev.id}>{ev.event} - {ev.odds}</option>)}
-            </select>
-            <input type="number" value={betAmount} onChange={e => setBetAmount(e.target.value)} placeholder="Bet credits" style={input} />
-            <div style={{ color: "#94a3b8", fontSize: 13, marginBottom: 8 }}>Stake after fee: {netOf(betAmount).toFixed(6)}</div>
-            <button onClick={placeBet} style={button}>Place Credit Bet</button>
-          </div>
-
-          <div style={card}>
-            <div style={{ fontSize: 20, fontWeight: 1000 }}>Casino Credits Demo</div>
-            <div style={{ color: "#94a3b8", marginBottom: 8 }}>Simple test controls so fee logic works on casino actions too.</div>
-            <input type="number" value={casinoAmount} onChange={e => setCasinoAmount(e.target.value)} placeholder="Casino wager credits" style={input} />
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button onClick={() => playCasinoDemo("win")} style={button}>Test Win</button>
-              <button onClick={() => playCasinoDemo("loss")} style={darkButton}>Test Loss</button>
+          <div style={cardStyle}>
+            <div style={labelStyle}>Deposit Coin</div>
+            <div style={{ fontSize: 22, fontWeight: 1000, marginTop: 4 }}>{settings.depositToken} on {settings.depositNetwork}</div>
+            <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 850, lineHeight: 1.45, marginTop: 8 }}>
+              In Trust Wallet, swap POL or another supported token to Polygon {settings.depositToken}, keep a little POL for gas, then send the {settings.depositToken} to the admin wallet.
             </div>
           </div>
-        </div>
 
-        <div style={card}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <div>
-              <div style={{ fontSize: 24, fontWeight: 1000 }}>Admin Area</div>
-              <div style={{ color: "#94a3b8" }}>Password protected admin controls. Password: saved in included TXT file.</div>
-            </div>
-            {!adminUnlocked ? (
-              <div style={{ display: "flex", gap: 8 }}>
-                <input type="password" value={adminPass} onChange={e => setAdminPass(e.target.value)} placeholder="Admin password" style={{ ...input, margin: 0, minWidth: 190 }} />
-                <button onClick={() => adminPass === ADMIN_PASSWORD ? setAdminUnlocked(true) : alert("Wrong password")} style={button}>Unlock</button>
-              </div>
-            ) : <button onClick={() => setAdminUnlocked(false)} style={darkButton}>Lock Admin</button>}
+          <div style={cardStyle}>
+            <div style={labelStyle}>Status</div>
+            <div style={{ color: creditUser.walletBlacklisted ? "#fecaca" : "#dbeafe", fontSize: 14, fontWeight: 900, lineHeight: 1.45, marginTop: 6 }}>{status}</div>
+            <button type="button" onClick={() => loadCreditSummary()} style={{ ...secondaryButtonStyle, marginTop: 12 }}>Refresh</button>
           </div>
-
-          {adminUnlocked && (
-            <div style={{ marginTop: 16 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 10, marginBottom: 14 }}>
-                <div style={card}><b>House USDC</b><br />{state.house.USDC.toFixed(4)}</div>
-                <div style={card}><b>House USDT</b><br />{state.house.USDT.toFixed(4)}</div>
-                <div style={card}><b>House POL</b><br />{state.house.POL.toFixed(4)}</div>
-                <div style={card}><b>House SOL</b><br />{state.house.SOL.toFixed(4)}</div>
-                <div style={card}><b>Active Credits</b><br />{totalActiveCredits.toFixed(4)}</div>
-                <div style={card}><b>Open Liability</b><br />{potentialLiability.toFixed(4)}</div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 14 }}>
-                <div style={card}>
-                  <div style={{ fontSize: 19, fontWeight: 1000 }}>Pending Deposits</div>
-                  {state.deposits.length === 0 && <div style={{ color: "#94a3b8" }}>No deposits yet.</div>}
-                  {state.deposits.map(d => <div key={d.id} style={{ borderTop: "1px solid rgba(255,255,255,.12)", paddingTop: 10, marginTop: 10 }}>
-                    <b>{d.coin} {d.amount}</b> -> award {d.creditsToAward} credits<br />
-                    <span style={{ color: "#94a3b8", fontSize: 12 }}>{d.wallet} - {d.status} - {d.tx || "no tx"}</span>
-                    {d.status === "pending" && <div style={{ display: "flex", gap: 8, marginTop: 8 }}><button onClick={() => approveDeposit(d.id)} style={button}>Approve</button><button onClick={() => rejectDeposit(d.id)} style={darkButton}>Reject</button></div>}
-                  </div>)}
-                </div>
-
-                <div style={card}>
-                  <div style={{ fontSize: 19, fontWeight: 1000 }}>Pending Withdrawals</div>
-                  {state.withdrawals.length === 0 && <div style={{ color: "#94a3b8" }}>No withdrawals yet.</div>}
-                  {state.withdrawals.map(w => <div key={w.id} style={{ borderTop: "1px solid rgba(255,255,255,.12)", paddingTop: 10, marginTop: 10 }}>
-                    <b>{w.coin} {w.userReceives}</b> after fee from {w.amount} credits<br />
-                    <span style={{ color: "#94a3b8", fontSize: 12 }}>{w.sendTo} - {w.status}</span>
-                    {w.status === "pending" && <div style={{ display: "flex", gap: 8, marginTop: 8 }}><button onClick={() => completeWithdrawal(w.id)} style={button}>Mark Paid</button><button onClick={() => rejectWithdrawal(w.id)} style={darkButton}>Reject/Refund</button></div>}
-                  </div>)}
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 14 }}>
-                <div style={card}>
-                  <div style={{ fontSize: 19, fontWeight: 1000 }}>Open Bets</div>
-                  {state.bets.length === 0 && <div style={{ color: "#94a3b8" }}>No bets yet.</div>}
-                  {state.bets.map(b => <div key={b.id} style={{ borderTop: "1px solid rgba(255,255,255,.12)", paddingTop: 10, marginTop: 10 }}>
-                    <b>{b.event}</b><br />Stake {b.stake} - payout {b.potentialPayout} - {b.status}
-                    {b.status === "open" && <div style={{ display: "flex", gap: 8, marginTop: 8 }}><button onClick={() => settleBet(b.id, "win")} style={button}>Win</button><button onClick={() => settleBet(b.id, "loss")} style={darkButton}>Loss</button><button onClick={() => settleBet(b.id, "push")} style={darkButton}>Push</button></div>}
-                  </div>)}
-                </div>
-
-                <div style={card}>
-                  <div style={{ fontSize: 19, fontWeight: 1000 }}>Users Online / Credits</div>
-                  {Object.values(state.users).length === 0 && <div style={{ color: "#94a3b8" }}>No wallet users yet.</div>}
-                  {Object.values(state.users).map(u => <div key={u.wallet} style={{ borderTop: "1px solid rgba(255,255,255,.12)", paddingTop: 10, marginTop: 10 }}>
-                    <b>{u.username || `${u.wallet.slice(0, 6)}...${u.wallet.slice(-4)}`}</b> <span style={{ color: "#22c55e" }}>- online</span><br />
-                    <span style={{ color: "#94a3b8", fontSize: 12 }}>{u.wallet}</span><br />
-                    Credits: {Number(u.credits || 0).toFixed(4)}
-                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}><button onClick={() => updateUserCredits(u.wallet, 100)} style={button}>+100</button><button onClick={() => updateUserCredits(u.wallet, -100)} style={darkButton}>-100</button></div>
-                  </div>)}
-                </div>
-              </div>
-
-              <div style={card}>
-                <div style={{ fontSize: 22, fontWeight: 1000 }}>Admin-Only FUIT Coin Vault</div>
-                <div style={{ color: "#94a3b8", marginTop: 5 }}>Separate from casino/sportsbook credits. 1 FUIT = 1 stablecoin backing. This is a local admin tracker until you deploy the real Polygon token contract.</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10, marginTop: 12 }}>
-                  <div style={card}><b>FUIT Supply</b><br />{state.fuitCoin.supply.toFixed(6)}</div>
-                  <div style={card}><b>Stable Backing</b><br />{state.fuitCoin.backing.toFixed(6)}</div>
-                  <div style={card}><b>Backing Ratio</b><br />{state.fuitCoin.supply > 0 ? `${((state.fuitCoin.backing / state.fuitCoin.supply) * 100).toFixed(2)}%` : "100%"}</div>
-                </div>
-                <input type="number" value={fuitMintAmount} onChange={e => setFuitMintAmount(e.target.value)} placeholder="FUIT amount" style={input} />
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button onClick={mintFuit} style={button}>Mint FUIT / Add Backing</button><button onClick={burnFuit} style={darkButton}>Burn FUIT / Remove Backing</button></div>
-              </div>
-            </div>
-          )}
         </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 12 }}>
+          <section style={cardStyle}>
+            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 1000 }}>Your Deposit Wallet</h2>
+            <div style={{ color: "#94a3b8", fontSize: 13, fontWeight: 850, lineHeight: 1.45, margin: "7px 0 12px" }}>
+              This wallet is how admin tracks your deposits and issues your FUIT Coin.
+            </div>
+            <FuitWalletInputWithScanner
+              value={walletAddress}
+              onChange={setWalletAddress}
+              inputStyle={inputStyle}
+              buttonStyle={buttonStyle}
+              placeholder="Manual Polygon wallet address"
+            />
+            {walletQrUrl && (
+              <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "150px minmax(0,1fr)", gap: 12, alignItems: "center" }}>
+                <img src={walletQrUrl} alt="Your wallet QR code" style={{ width: 150, height: 150, border: "1px solid rgba(148,163,184,.35)", background: "#fff" }} />
+                <div style={{ color: "#94a3b8", fontSize: 12, fontWeight: 800, overflowWrap: "anywhere" }}>{cleanWalletAddress}</div>
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+              <button type="button" onClick={saveWallet} style={buttonStyle}>Save Wallet</button>
+              <button type="button" onClick={connectWallet} style={secondaryButtonStyle}>Connect Wallet</button>
+              <button type="button" onClick={openTrustWallet} style={secondaryButtonStyle}>Trust Wallet</button>
+            </div>
+          </section>
+
+          <section style={cardStyle}>
+            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 1000 }}>Admin Receiving Wallet</h2>
+            {treasuryWallet ? (
+              <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
+                {treasuryQrUrl && <img src={treasuryQrUrl} alt="Admin receiving wallet QR code" style={{ width: 210, height: 210, border: "1px solid rgba(148,163,184,.35)", background: "#fff" }} />}
+                <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 900, overflowWrap: "anywhere" }}>{treasuryWallet}</div>
+                <button type="button" onClick={copyTreasuryWallet} style={{ ...secondaryButtonStyle, width: "fit-content" }}>Copy Admin Wallet</button>
+              </div>
+            ) : (
+              <div style={{ color: "#facc15", fontSize: 13, fontWeight: 900, lineHeight: 1.45, marginTop: 10 }}>
+                Admin wallet is not set yet. Wait for admin to add the Polygon USDT receiving wallet before sending funds.
+              </div>
+            )}
+            <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 850, lineHeight: 1.45, marginTop: 12 }}>{settings.instructions}</div>
+          </section>
+        </div>
+
+        <section style={cardStyle}>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 1000 }}>Report A Deposit</h2>
+          <div style={{ color: "#94a3b8", fontSize: 13, fontWeight: 850, lineHeight: 1.45, marginTop: 6 }}>
+            Report the transaction after you send {settings.depositToken} on {settings.depositNetwork}. FUIT stays pending until admin approves.
+          </div>
+          <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10 }}>
+            <input type="number" min="0" value={depositAmount} onChange={event => setDepositAmount(event.target.value)} placeholder={`${settings.depositToken} amount`} style={inputStyle} />
+            <input value={depositTxHash} onChange={event => setDepositTxHash(event.target.value)} placeholder="Transaction hash" style={inputStyle} />
+            <input value={depositNote} onChange={event => setDepositNote(event.target.value)} placeholder="Optional note" style={inputStyle} />
+          </div>
+          <button type="button" disabled={creditUser.walletBlacklisted} onClick={submitDeposit} style={{ ...buttonStyle, marginTop: 12, opacity: creditUser.walletBlacklisted ? .55 : 1 }}>
+            Submit For Admin Approval
+          </button>
+        </section>
+
+        <section style={cardStyle}>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 1000 }}>Deposit History</h2>
+          <div style={{ marginTop: 10, display: "grid", gap: 9 }}>
+            {!deposits.length && <div style={{ color: "#94a3b8", fontSize: 13, fontWeight: 900 }}>No deposits reported yet.</div>}
+            {deposits.map(deposit => (
+              <div key={deposit.id} style={{ border: "1px solid rgba(148,163,184,.2)", background: "rgba(2,6,23,.58)", borderRadius: 8, padding: 10, display: "grid", gap: 5 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                  <div style={{ color: "#f8fafc", fontWeight: 1000 }}>{formatFuitCreditAmount(deposit.amount)} {deposit.token || settings.depositToken}</div>
+                  <div style={{ color: deposit.status === "issued" ? "#bbf7d0" : deposit.status === "rejected" ? "#fecaca" : "#fef3c7", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>{deposit.status}</div>
+                </div>
+                <div style={{ color: "#94a3b8", fontSize: 12, fontWeight: 800, overflowWrap: "anywhere" }}>{deposit.txHash}</div>
+                {deposit.issuedAmount && <div style={{ color: "#bbf7d0", fontSize: 12, fontWeight: 900 }}>Issued: {formatFuitCreditAmount(deposit.issuedAmount)} {settings.creditSymbol}</div>}
+                {deposit.adminNote && <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 800 }}>{deposit.adminNote}</div>}
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
     </div>
   );
@@ -7022,6 +7093,29 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
   const [accessControlList, setAccessControlList] = useState("blacklistIp");
   const [accessControlNote, setAccessControlNote] = useState("");
   const [visibleAdminPasswords, setVisibleAdminPasswords] = useState({});
+  const [fuitCreditAdmin, setFuitCreditAdmin] = useState({
+    loading: true,
+    settings: DEFAULT_FUIT_CREDIT_SETTINGS,
+    wallets: {},
+    balances: {},
+    deposits: [],
+    ledger: [],
+    blacklistedWallets: [],
+    totals: { issued: 0, balance: 0, withdrawn: 0 },
+    pendingCount: 0
+  });
+  const [fuitCreditStatus, setFuitCreditStatus] = useState("Loading FUIT Coin ledger...");
+  const [fuitTreasuryWallet, setFuitTreasuryWallet] = useState("");
+  const [fuitInstructions, setFuitInstructions] = useState(DEFAULT_FUIT_CREDIT_SETTINGS.instructions);
+  const [fuitManualUsername, setFuitManualUsername] = useState("");
+  const [fuitManualWallet, setFuitManualWallet] = useState("");
+  const [fuitManualAmount, setFuitManualAmount] = useState("");
+  const [fuitManualNote, setFuitManualNote] = useState("");
+  const [fuitWithdrawUsername, setFuitWithdrawUsername] = useState("");
+  const [fuitWithdrawAmount, setFuitWithdrawAmount] = useState("");
+  const [fuitWithdrawNote, setFuitWithdrawNote] = useState("");
+  const [fuitBlacklistWallet, setFuitBlacklistWallet] = useState("");
+  const [fuitBlacklistNote, setFuitBlacklistNote] = useState("");
   const fuitsAdminBaseUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
   const sectionStyle = {
     background: "rgba(15,23,42,.92)",
@@ -7329,6 +7423,150 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
     if (!unlocked) return;
     loadAccessControl();
   }, [unlocked]);
+
+  const applyFuitCreditAdminResult = result => {
+    const settings = { ...DEFAULT_FUIT_CREDIT_SETTINGS, ...(result.settings || {}) };
+    setFuitCreditAdmin({
+      loading: false,
+      settings,
+      wallets: result.wallets && typeof result.wallets === "object" ? result.wallets : {},
+      balances: result.balances && typeof result.balances === "object" ? result.balances : {},
+      deposits: Array.isArray(result.deposits) ? result.deposits : [],
+      ledger: Array.isArray(result.ledger) ? result.ledger : [],
+      blacklistedWallets: Array.isArray(result.blacklistedWallets) ? result.blacklistedWallets : [],
+      totals: result.totals || { issued: 0, balance: 0, withdrawn: 0 },
+      pendingCount: Number(result.pendingCount) || 0
+    });
+    setFuitTreasuryWallet(settings.treasuryWallet || "");
+    setFuitInstructions(settings.instructions || DEFAULT_FUIT_CREDIT_SETTINGS.instructions);
+  };
+
+  const postAdminFuitCredits = async payload => {
+    if (!fuitsAdminBaseUrl) throw new Error("FUITS Live TV URL is not set yet.");
+    const response = await fetch(`${fuitsAdminBaseUrl.replace(/\/+$/, "")}/admin/fuit-credits`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password, ...payload })
+    });
+    if (!response.ok) throw new Error(await response.text());
+    const result = await response.json();
+    applyFuitCreditAdminResult(result);
+    return result;
+  };
+
+  const loadFuitCreditAdmin = async () => {
+    try {
+      setFuitCreditStatus("Loading FUIT Coin ledger...");
+      await postAdminFuitCredits({ action: "load" });
+      setFuitCreditStatus("FUIT Coin ledger ready.");
+    } catch (err) {
+      setFuitCreditAdmin(current => ({ ...current, loading: false }));
+      setFuitCreditStatus(err?.message || "Could not load FUIT Coin ledger.");
+    }
+  };
+
+  useEffect(() => {
+    if (!unlocked) return;
+    loadFuitCreditAdmin();
+  }, [unlocked]);
+
+  const saveFuitCreditSettings = async () => {
+    try {
+      setFuitCreditStatus("Saving admin deposit wallet...");
+      await postAdminFuitCredits({
+        action: "settings",
+        treasuryWallet: fuitTreasuryWallet,
+        instructions: fuitInstructions
+      });
+      setFuitCreditStatus("Admin deposit wallet saved. Users will deposit to this wallet.");
+    } catch (err) {
+      setFuitCreditStatus(err?.message || "Could not save admin deposit wallet.");
+    }
+  };
+
+  const issueFuitDeposit = async deposit => {
+    const amount = window.prompt("FUIT Coin amount to issue", String(deposit.amount || ""));
+    if (!amount) return;
+    const adminNote = window.prompt("Admin note for this issue", "") || "";
+    try {
+      setFuitCreditStatus("Issuing FUIT Coin for deposit...");
+      await postAdminFuitCredits({ action: "issueDeposit", depositId: deposit.id, amount, adminNote });
+      setFuitCreditStatus("FUIT Coin issued for approved deposit.");
+    } catch (err) {
+      setFuitCreditStatus(err?.message || "Could not issue FUIT Coin.");
+    }
+  };
+
+  const rejectFuitDeposit = async deposit => {
+    const adminNote = window.prompt("Reason or note for rejection", "") || "";
+    try {
+      setFuitCreditStatus("Rejecting deposit...");
+      await postAdminFuitCredits({ action: "rejectDeposit", depositId: deposit.id, adminNote });
+      setFuitCreditStatus("Deposit rejected.");
+    } catch (err) {
+      setFuitCreditStatus(err?.message || "Could not reject deposit.");
+    }
+  };
+
+  const manualIssueFuit = async () => {
+    try {
+      setFuitCreditStatus("Manually issuing FUIT Coin...");
+      await postAdminFuitCredits({
+        action: "manualIssue",
+        username: fuitManualUsername,
+        wallet: fuitManualWallet,
+        amount: fuitManualAmount,
+        note: fuitManualNote
+      });
+      setFuitManualUsername("");
+      setFuitManualWallet("");
+      setFuitManualAmount("");
+      setFuitManualNote("");
+      setFuitCreditStatus("Manual FUIT Coin issue saved.");
+    } catch (err) {
+      setFuitCreditStatus(err?.message || "Could not manually issue FUIT Coin.");
+    }
+  };
+
+  const withdrawFuitCredits = async () => {
+    try {
+      setFuitCreditStatus("Withdrawing FUIT Coin from user balance...");
+      await postAdminFuitCredits({
+        action: "withdrawCredits",
+        username: fuitWithdrawUsername,
+        amount: fuitWithdrawAmount,
+        note: fuitWithdrawNote
+      });
+      setFuitWithdrawUsername("");
+      setFuitWithdrawAmount("");
+      setFuitWithdrawNote("");
+      setFuitCreditStatus("FUIT Coin withdrawn from user balance.");
+    } catch (err) {
+      setFuitCreditStatus(err?.message || "Could not withdraw FUIT Coin.");
+    }
+  };
+
+  const blacklistFuitWallet = async () => {
+    try {
+      setFuitCreditStatus("Blacklisting FUIT wallet...");
+      await postAdminFuitCredits({ action: "blacklistWallet", wallet: fuitBlacklistWallet, note: fuitBlacklistNote });
+      setFuitBlacklistWallet("");
+      setFuitBlacklistNote("");
+      setFuitCreditStatus("Wallet blacklisted for FUIT Coin deposits.");
+    } catch (err) {
+      setFuitCreditStatus(err?.message || "Could not blacklist wallet.");
+    }
+  };
+
+  const unblacklistFuitWallet = async wallet => {
+    try {
+      setFuitCreditStatus("Removing FUIT wallet blacklist...");
+      await postAdminFuitCredits({ action: "unblacklistWallet", wallet });
+      setFuitCreditStatus("Wallet removed from FUIT blacklist.");
+    } catch (err) {
+      setFuitCreditStatus(err?.message || "Could not remove wallet blacklist.");
+    }
+  };
 
   const addAccessControlEntry = async (list = accessControlList, value = accessControlValue, note = accessControlNote) => {
     if (!String(value || "").trim()) {
@@ -7723,7 +7961,7 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
     { label: "Crypto Admin", password: "FUCKNUTZ22!" }
   ];
   const userManagementRows = [
-    { username: "MASTER", email: "", password: "FartAss!1", passwordKey: "masterUserManagement", profilePicture: "" },
+    { username: "MASTER", email: "", walletAddress: "", password: "FartAss!1", passwordKey: "masterUserManagement", profilePicture: "" },
     ...approvedUsers.map(user => ({
       ...user,
       passwordKey: `approvedUser_${user.id || user.username}`
@@ -7734,6 +7972,7 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
       id: request.id,
       username: request.username,
       email: request.email || "",
+      walletAddress: request.walletAddress || "",
       password: request.password || "",
       passwordKey: `signupInfo_${request.id}`,
       profilePicture: request.profilePicture || "",
@@ -7750,6 +7989,7 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
         id: user.id || user.username,
         username: user.username,
         email: user.email || "",
+        walletAddress: user.walletAddress || "",
         password: user.password || "",
         passwordKey: `signupInfo_${user.id || user.username}`,
         profilePicture: user.profilePicture || "",
@@ -8032,7 +8272,8 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
                         <div style={{ color: "#f8fafc", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", overflowWrap: "anywhere", lineHeight: 1.15 }}>{user.username}</div>
                       </div>
                       <div style={{ color: "#cbd5e1", fontSize: 11, fontWeight: 900, overflowWrap: "anywhere", lineHeight: 1.15, minWidth: 0 }}>
-                        {user.email || "No email yet"}
+                        <div>{user.email || "No email yet"}</div>
+                        {user.walletAddress && <div style={{ color: "#93c5fd", fontSize: 10, marginTop: 3 }}>Wallet: {user.walletAddress}</div>}
                       </div>
                       <div style={{
                         border: `1px solid ${isLoggedIn ? "rgba(34,197,94,.72)" : "rgba(148,163,184,.36)"}`,
@@ -8094,6 +8335,7 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
                             <div style={{ minWidth: 0 }}>
                               <div style={{ color: "#f8fafc", fontSize: 13, fontWeight: 1000, textTransform: "uppercase", overflowWrap: "anywhere" }}>{request.username}</div>
                               <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 900, overflowWrap: "anywhere" }}>{request.email}</div>
+                              {request.walletAddress && <div style={{ color: "#93c5fd", fontSize: 11, fontWeight: 900, overflowWrap: "anywhere" }}>Wallet: {request.walletAddress}</div>}
                             </div>
                           </div>
                           <div style={{
@@ -8183,7 +8425,10 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
                           </div>
                           <div style={{ color: "#f8fafc", fontSize: 11, fontWeight: 1000, textTransform: "uppercase", overflowWrap: "anywhere", lineHeight: 1.15, minWidth: 0 }}>{user.username}</div>
                         </div>
-                        <div style={{ color: "#cbd5e1", fontSize: 11, fontWeight: 900, overflowWrap: "anywhere", lineHeight: 1.15, minWidth: 0 }}>{user.email || "No email"}</div>
+                        <div style={{ color: "#cbd5e1", fontSize: 11, fontWeight: 900, overflowWrap: "anywhere", lineHeight: 1.15, minWidth: 0 }}>
+                          <div>{user.email || "No email"}</div>
+                          {user.walletAddress && <div style={{ color: "#93c5fd", fontSize: 10, marginTop: 3 }}>Wallet: {user.walletAddress}</div>}
+                        </div>
                         <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", minWidth: 0 }}>
                           <button
                             type="button"
@@ -8430,31 +8675,151 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
             </div>
           </section>
           <section style={sectionStyle}>
-            <h2 style={sectionTitleStyle}>FUIT COINS</h2>
-            <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
-              <div style={{ border: "1px solid rgba(34,197,94,.42)", background: "rgba(20,83,45,.34)", padding: 12, display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-                <div style={controlLabelStyle}>BALANCE</div>
-                <div style={{ color: "#bbf7d0", fontSize: 24, fontWeight: 1000 }}>0 FUIT COINS</div>
-              </div>
+            <h2 style={sectionTitleStyle}>FUIT COIN</h2>
+            <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>
+                <div style={{ border: "1px solid rgba(34,197,94,.42)", background: "rgba(20,83,45,.34)", padding: 12 }}>
+                  <div style={controlLabelStyle}>ACTIVE BALANCE</div>
+                  <div style={{ color: "#bbf7d0", fontSize: 24, fontWeight: 1000 }}>{formatFuitCreditAmount(fuitCreditAdmin.totals?.balance)} FUIT</div>
+                </div>
+                <div style={{ border: "1px solid rgba(96,165,250,.35)", background: "rgba(2,6,23,.72)", padding: 12 }}>
+                  <div style={controlLabelStyle}>TOTAL ISSUED</div>
+                  <div style={{ color: "#bfdbfe", fontSize: 24, fontWeight: 1000 }}>{formatFuitCreditAmount(fuitCreditAdmin.totals?.issued)} FUIT</div>
+                </div>
+                <div style={{ border: "1px solid rgba(250,204,21,.35)", background: "rgba(113,63,18,.32)", padding: 12 }}>
+                  <div style={controlLabelStyle}>PENDING DEPOSITS</div>
+                  <div style={{ color: "#fef3c7", fontSize: 24, fontWeight: 1000 }}>{fuitCreditAdmin.pendingCount || 0}</div>
+                </div>
+              </div>
+
+              <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 12, display: "grid", gap: 10 }}>
+                <div>
+                  <div style={controlLabelStyle}>ADMIN DEPOSIT WALLET</div>
+                  <div style={{ color: "#f8fafc", fontSize: 18, fontWeight: 1000 }}>Everyone deposits Polygon USDT to this wallet</div>
+                </div>
                 <input
-                  type="number"
-                  min="0"
-                  placeholder="Deposit USDT"
-                  style={{ ...adminInputStyle, minWidth: 0 }}
+                  value={fuitTreasuryWallet}
+                  onChange={event => setFuitTreasuryWallet(event.target.value)}
+                  placeholder="Admin Polygon wallet address"
+                  style={adminInputStyle}
                 />
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="Deposit USDC"
-                  style={{ ...adminInputStyle, minWidth: 0 }}
+                <textarea
+                  value={fuitInstructions}
+                  onChange={event => setFuitInstructions(event.target.value)}
+                  placeholder="Deposit instructions users will see"
+                  style={{ ...adminInputStyle, minHeight: 82, resize: "vertical" }}
                 />
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="Withdrawl FUIT Coin"
-                  style={{ ...adminInputStyle, minWidth: 0 }}
-                />
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button type="button" onClick={saveFuitCreditSettings} style={{ ...adminButtonStyle, width: "fit-content" }}>Save Admin Wallet</button>
+                  <button type="button" onClick={loadFuitCreditAdmin} style={{ ...adminButtonStyle, width: "fit-content", borderColor: "#94a3b8", background: "#94a3b8" }}>Refresh</button>
+                </div>
+                <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 800 }}>{fuitCreditStatus}</div>
+              </div>
+
+              <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 12, display: "grid", gap: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                  <div>
+                    <div style={controlLabelStyle}>USER DEPOSIT REPORTS</div>
+                    <div style={{ color: "#f8fafc", fontSize: 18, fontWeight: 1000 }}>Approve deposits, then issue FUIT Coin</div>
+                  </div>
+                  <div style={{ color: "#67e8f9", fontSize: 13, fontWeight: 1000 }}>
+                    {(fuitCreditAdmin.settings?.depositToken || "USDT")} on {(fuitCreditAdmin.settings?.depositNetwork || "Polygon")}
+                  </div>
+                </div>
+                {!(fuitCreditAdmin.deposits || []).length && (
+                  <div style={{ color: "#94a3b8", fontSize: 13, fontWeight: 900 }}>No FUIT deposits reported yet.</div>
+                )}
+                {(fuitCreditAdmin.deposits || []).slice(0, 80).map(deposit => (
+                  <div key={deposit.id} style={{ borderTop: "1px solid rgba(148,163,184,.18)", paddingTop: 9, display: "grid", gap: 6 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                      <div style={{ color: "#f8fafc", fontSize: 14, fontWeight: 1000, overflowWrap: "anywhere" }}>
+                        {deposit.username} - {formatFuitCreditAmount(deposit.amount)} {deposit.token || "USDT"}
+                      </div>
+                      <div style={{ color: deposit.status === "issued" ? "#bbf7d0" : deposit.status === "rejected" ? "#fecaca" : "#fef3c7", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>
+                        {deposit.status}
+                      </div>
+                    </div>
+                    <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 800, overflowWrap: "anywhere" }}>Wallet: {deposit.wallet}</div>
+                    <div style={{ color: "#94a3b8", fontSize: 12, fontWeight: 800, overflowWrap: "anywhere" }}>TX: {deposit.txHash}</div>
+                    {deposit.adminNote && <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 800 }}>Admin note: {deposit.adminNote}</div>}
+                    {deposit.status === "pending" && (
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button type="button" onClick={() => issueFuitDeposit(deposit)} style={{ ...adminButtonStyle, padding: "8px 10px", fontSize: 12 }}>Approve + Issue</button>
+                        <button type="button" onClick={() => rejectFuitDeposit(deposit)} style={{ ...adminButtonStyle, padding: "8px 10px", fontSize: 12, borderColor: "#fb7185", background: "#fb7185" }}>Reject</button>
+                        <button type="button" onClick={() => { setFuitManualUsername(deposit.username || ""); setFuitManualWallet(deposit.wallet || ""); setFuitManualAmount(String(deposit.amount || "")); }} style={{ ...adminButtonStyle, padding: "8px 10px", fontSize: 12, borderColor: "#94a3b8", background: "#94a3b8" }}>Use Below</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))", gap: 10 }}>
+                <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 12, display: "grid", gap: 8 }}>
+                  <div style={controlLabelStyle}>MANUAL ISSUE</div>
+                  <input value={fuitManualUsername} onChange={event => setFuitManualUsername(event.target.value)} placeholder="Username" style={adminInputStyle} />
+                  <input value={fuitManualWallet} onChange={event => setFuitManualWallet(event.target.value)} placeholder="User wallet address" style={adminInputStyle} />
+                  <input type="number" min="0" value={fuitManualAmount} onChange={event => setFuitManualAmount(event.target.value)} placeholder="FUIT amount" style={adminInputStyle} />
+                  <input value={fuitManualNote} onChange={event => setFuitManualNote(event.target.value)} placeholder="Note" style={adminInputStyle} />
+                  <button type="button" onClick={manualIssueFuit} style={adminButtonStyle}>Issue FUIT</button>
+                </div>
+                <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 12, display: "grid", gap: 8 }}>
+                  <div style={controlLabelStyle}>WITHDRAW / REMOVE BALANCE</div>
+                  <input value={fuitWithdrawUsername} onChange={event => setFuitWithdrawUsername(event.target.value)} placeholder="Username" style={adminInputStyle} />
+                  <input type="number" min="0" value={fuitWithdrawAmount} onChange={event => setFuitWithdrawAmount(event.target.value)} placeholder="FUIT amount" style={adminInputStyle} />
+                  <input value={fuitWithdrawNote} onChange={event => setFuitWithdrawNote(event.target.value)} placeholder="Note" style={adminInputStyle} />
+                  <button type="button" onClick={withdrawFuitCredits} style={{ ...adminButtonStyle, borderColor: "#facc15", background: "#facc15" }}>Withdraw FUIT</button>
+                </div>
+                <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 12, display: "grid", gap: 8 }}>
+                  <div style={controlLabelStyle}>BLACKLIST WALLET</div>
+                  <input value={fuitBlacklistWallet} onChange={event => setFuitBlacklistWallet(event.target.value)} placeholder="Wallet address" style={adminInputStyle} />
+                  <input value={fuitBlacklistNote} onChange={event => setFuitBlacklistNote(event.target.value)} placeholder="Note" style={adminInputStyle} />
+                  <button type="button" onClick={blacklistFuitWallet} style={{ ...adminButtonStyle, borderColor: "#fb7185", background: "#fb7185" }}>Blacklist Wallet</button>
+                </div>
+              </div>
+
+              <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 12, display: "grid", gap: 10 }}>
+                <div style={controlLabelStyle}>USER FUIT BALANCES</div>
+                {!Object.values(fuitCreditAdmin.balances || {}).length && (
+                  <div style={{ color: "#94a3b8", fontSize: 13, fontWeight: 900 }}>No FUIT balances yet.</div>
+                )}
+                {Object.values(fuitCreditAdmin.balances || {}).map(balance => (
+                  <div key={balance.username} style={{ borderTop: "1px solid rgba(148,163,184,.18)", paddingTop: 8, display: "grid", gap: 5 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                      <div style={{ color: "#f8fafc", fontSize: 14, fontWeight: 1000 }}>{balance.username}</div>
+                      <div style={{ color: "#bbf7d0", fontSize: 14, fontWeight: 1000 }}>{formatFuitCreditAmount(balance.balance)} FUIT</div>
+                    </div>
+                    <div style={{ color: "#94a3b8", fontSize: 12, fontWeight: 800, overflowWrap: "anywhere" }}>{balance.wallet || "No wallet saved"}</div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button type="button" onClick={() => { setFuitManualUsername(balance.username || ""); setFuitManualWallet(balance.wallet || ""); }} style={{ ...adminButtonStyle, padding: "7px 9px", fontSize: 11 }}>Issue More</button>
+                      <button type="button" onClick={() => { setFuitWithdrawUsername(balance.username || ""); setFuitWithdrawAmount(""); }} style={{ ...adminButtonStyle, padding: "7px 9px", fontSize: 11, borderColor: "#facc15", background: "#facc15" }}>Withdraw</button>
+                      {balance.wallet && <button type="button" onClick={() => setFuitBlacklistWallet(balance.wallet)} style={{ ...adminButtonStyle, padding: "7px 9px", fontSize: 11, borderColor: "#fb7185", background: "#fb7185" }}>Use For Blacklist</button>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 12, display: "grid", gap: 8 }}>
+                <div style={controlLabelStyle}>BLACKLISTED FUIT WALLETS</div>
+                {!(fuitCreditAdmin.blacklistedWallets || []).length && <div style={{ color: "#94a3b8", fontSize: 13, fontWeight: 900 }}>No wallets blacklisted.</div>}
+                {(fuitCreditAdmin.blacklistedWallets || []).map(item => (
+                  <div key={item.wallet} style={{ borderTop: "1px solid rgba(148,163,184,.18)", paddingTop: 8, display: "grid", gap: 4 }}>
+                    <div style={{ color: "#fecaca", fontSize: 12, fontWeight: 1000, overflowWrap: "anywhere" }}>{item.wallet}</div>
+                    {item.note && <div style={{ color: "#94a3b8", fontSize: 11, fontWeight: 800 }}>{item.note}</div>}
+                    <button type="button" onClick={() => unblacklistFuitWallet(item.wallet)} style={{ ...adminButtonStyle, width: "fit-content", padding: "7px 9px", fontSize: 11 }}>Unblacklist</button>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 12, display: "grid", gap: 8 }}>
+                <div style={controlLabelStyle}>RECENT FUIT LEDGER</div>
+                {!(fuitCreditAdmin.ledger || []).length && <div style={{ color: "#94a3b8", fontSize: 13, fontWeight: 900 }}>No ledger entries yet.</div>}
+                {(fuitCreditAdmin.ledger || []).slice(0, 25).map(item => (
+                  <div key={item.id} style={{ borderTop: "1px solid rgba(148,163,184,.18)", paddingTop: 8, display: "grid", gap: 3 }}>
+                    <div style={{ color: "#f8fafc", fontSize: 12, fontWeight: 1000 }}>{item.type} - {item.username} - {formatFuitCreditAmount(item.amount)} FUIT</div>
+                    <div style={{ color: "#94a3b8", fontSize: 11, fontWeight: 800, overflowWrap: "anywhere" }}>{item.wallet || item.txHash || item.createdAt}</div>
+                    {item.note && <div style={{ color: "#cbd5e1", fontSize: 11, fontWeight: 800 }}>{item.note}</div>}
+                  </div>
+                ))}
               </div>
             </div>
           </section>
@@ -8617,6 +8982,7 @@ function ProjectDropdown({ projects, activeId, onSelect, onManage }) {
 function LoginPage({ onLogin, approvedUsers, bannedUsers = [], onSignupRequest }) {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const [walletAddress, setWalletAddress] = useState("");
   const [password, setPassword] = useState("");
   const [profilePicture, setProfilePicture] = useState("");
   const [fullPhotoLibraryAccess, setFullPhotoLibraryAccess] = useState(false);
@@ -8636,6 +9002,10 @@ function LoginPage({ onLogin, approvedUsers, bannedUsers = [], onSignupRequest }
   };
   const updateEmail = value => {
     setEmail(value);
+    clearLoginFeedback();
+  };
+  const updateWalletAddress = value => {
+    setWalletAddress(value);
     clearLoginFeedback();
   };
   const updatePassword = value => {
@@ -8724,9 +9094,16 @@ function LoginPage({ onLogin, approvedUsers, bannedUsers = [], onSignupRequest }
       setError("Choose a profile picture from photos.");
       return;
     }
-    const message = onSignupRequest({ username: cleanUsername, email: cleanEmail, password, profilePicture, fullPhotoLibraryAccess: true });
+    const cleanWalletAddress = extractFuitWalletAddress(walletAddress);
+    if (!cleanWalletAddress) {
+      setSuccess("");
+      setError("Enter or scan a valid wallet address.");
+      return;
+    }
+    const message = onSignupRequest({ username: cleanUsername, email: cleanEmail, walletAddress: cleanWalletAddress, password, profilePicture, fullPhotoLibraryAccess: true });
     setUsername("");
     setEmail("");
+    setWalletAddress("");
     setPassword("");
     setProfilePicture("");
     setFullPhotoLibraryAccess(false);
@@ -8806,6 +9183,21 @@ function LoginPage({ onLogin, approvedUsers, bannedUsers = [], onSignupRequest }
             autoComplete="email"
             style={loginInputStyle}
           />
+        )}
+        {mode === "signup" && (
+          <div style={{ display: "grid", gap: 7 }}>
+            <div style={{ color: "#bfdbfe", fontSize: 11, fontWeight: 1000, textTransform: "uppercase" }}>Wallet For FUIT Coin</div>
+            <FuitWalletInputWithScanner
+              value={walletAddress}
+              onChange={updateWalletAddress}
+              inputStyle={loginInputStyle}
+              buttonStyle={{ ...loginPrimaryButtonStyle, padding: "10px 12px", width: "fit-content" }}
+              placeholder="Manual wallet address"
+            />
+            <div style={{ color: "#94a3b8", fontSize: 11, fontWeight: 800, lineHeight: 1.35 }}>
+              Scan QR or manually enter the wallet you will use for deposits and FUIT Coin.
+            </div>
+          </div>
         )}
         {mode === "signup" && (
           <div style={{ display: "grid", gap: 8 }}>
@@ -9001,6 +9393,7 @@ export default function App() {
         id: `signup_${Date.now()}`,
         username: cleanUsername,
         email: cleanEmail,
+        walletAddress: request.walletAddress || "",
         password: request.password,
         profilePicture: request.profilePicture || "",
         fullPhotoLibraryAccess: request.fullPhotoLibraryAccess === true,
@@ -9022,7 +9415,7 @@ export default function App() {
       if (alreadyApproved) return current;
       return [
         ...current,
-        { id: request.id, username: request.username, email: request.email, password: request.password, profilePicture: request.profilePicture || "", fullPhotoLibraryAccess: request.fullPhotoLibraryAccess === true }
+        { id: request.id, username: request.username, email: request.email, walletAddress: request.walletAddress || "", password: request.password, profilePicture: request.profilePicture || "", fullPhotoLibraryAccess: request.fullPhotoLibraryAccess === true }
       ];
     });
     setSignupRequests(current => current.map(item => item.id === requestId ? { ...item, status: "approved" } : item));
@@ -9291,8 +9684,8 @@ export default function App() {
   const totalWorked = calcTotalWorked(form);
   const totalPay = calcExactPay(totalWorked, hourlyRate);
 
-  if (view === "creditHub") {
-    return <CreditHubPage onClose={() => setView("week")} />;
+  if (view === "cryptoNfts" || view === "creditHub") {
+    return <FuitCoinPage onClose={() => setView("week")} loggedInUsername={loggedInUsername} approvedUsers={approvedUsers} />;
   }
 
   
@@ -9328,7 +9721,6 @@ export default function App() {
     science: "SCIENCE",
     userRequestsUploads: "USER REQUEST & UPLOADS",
     itemsServicesForSale: "ITEMS / SERVICES FOR SALE",
-    cryptoNfts: "CRYPTO + NFTS",
     foodCooking: "FOOD AND COOKING",
     dispatching: "DISPATCHING",
     systemUpgrades: "SYSTEM UPGRADES",
@@ -9376,26 +9768,6 @@ if (view === "gambling") {
             FUITS SPORTSBOOK + CASINO
           </div>
 
-          <button
-            onClick={() => setView("creditHub")}
-            style={{
-              width: "100%",
-              border: "none",
-              borderRadius: 16,
-              padding: "10px 12px",
-              marginBottom: 12,
-              background: "linear-gradient(135deg,#22c55e,#38bdf8)",
-              color: "#04111d",
-              cursor: "pointer",
-              fontSize: 13,
-              fontWeight: 1000,
-              letterSpacing: 1,
-              textTransform: "uppercase",
-              boxShadow: "0 8px 22px rgba(34,197,94,.3)"
-            }}
-          >
-            CREDIT HUB
-          </button>
           <div style={{
             borderRadius: 22,
             background: "linear-gradient(180deg, rgba(51,65,85,.92), rgba(15,23,42,.96))",

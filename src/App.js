@@ -2668,14 +2668,14 @@ function PokemonSidebar({ loggedInUsername = "" } = {}) {
           <div style={{
             borderRadius: 22,
             background: "linear-gradient(180deg, rgba(51,65,85,.92), rgba(15,23,42,.96))",
-            padding: 10,
+            padding: "var(--flive-gaming-stage-padding, 10px)",
             border: "2px solid rgba(248,250,252,.38)",
             boxShadow: "inset 0 0 24px rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.38)"
           }}>
             <div ref={emulatorFrameRef} className="pokemon-emulator-frame" tabIndex={0} style={{
               width: "100%",
               aspectRatio: "4 / 3",
-              minHeight: 220,
+              minHeight: "var(--flive-gaming-emulator-min-height, 220px)",
               borderRadius: 14,
               overflow: "hidden",
               background: "#020617",
@@ -2688,10 +2688,10 @@ function PokemonSidebar({ loggedInUsername = "" } = {}) {
                   display: "grid",
                   placeItems: "center",
                   color: "#cbd5e1",
-                  fontSize: 13,
+                  fontSize: "var(--flive-gaming-emulator-message-font-size, 13px)",
                   fontWeight: 900,
                   textAlign: "center",
-                  padding: 18
+                  padding: "var(--flive-gaming-emulator-message-padding, 18px)"
                 }}>
                   Add games to T:\FattysLiveTV\Games\Roms\{activeSystem}
                 </div>
@@ -2710,10 +2710,10 @@ function PokemonSidebar({ loggedInUsername = "" } = {}) {
                   display: "grid",
                   placeItems: "center",
                   color: "#f8fafc",
-                  fontSize: 13,
+                  fontSize: "var(--flive-gaming-emulator-message-font-size, 13px)",
                   fontWeight: 900,
                   textAlign: "center",
-                  padding: 18
+                  padding: "var(--flive-gaming-emulator-message-padding, 18px)"
                 }}>
                   <div>
                     <div style={{ color: "#facc15", marginBottom: 8 }}>Selected</div>
@@ -2743,12 +2743,13 @@ function PokemonSidebar({ loggedInUsername = "" } = {}) {
                       type="button"
                       onClick={() => startBrowserGame(activeGame)}
                       style={{
-                        marginTop: 14,
+                        marginTop: "var(--flive-gaming-start-margin-top, 14px)",
                         border: "none",
                         borderRadius: 999,
-                        padding: "10px 14px",
+                        padding: "var(--flive-gaming-start-padding, 10px 14px)",
                         background: "#22c55e",
                         color: "#052e16",
+                        fontSize: "var(--flive-gaming-start-font-size, 12px)",
                         fontWeight: 1000,
                         cursor: "pointer",
                         boxShadow: "0 10px 24px rgba(34,197,94,.28)"
@@ -9959,7 +9960,14 @@ if (view === "gambling") {
             --flive-scale: clamp(.32, min(.37, calc(100vw / 2350px), calc(100dvh / 1080px)), .37);
             --flive-panel-content-scale: .64;
             --flive-gaming-scale: .38;
-            --flive-gaming-content-scale: .48;
+            --flive-gaming-content-scale: .44;
+            --flive-gaming-stage-padding: 7px;
+            --flive-gaming-emulator-min-height: 180px;
+            --flive-gaming-emulator-message-padding: 12px;
+            --flive-gaming-emulator-message-font-size: 11px;
+            --flive-gaming-start-margin-top: 8px;
+            --flive-gaming-start-padding: 6px 9px;
+            --flive-gaming-start-font-size: 10px;
             --flive-menu-text-scale: .49;
             --flive-menu-width-scale: 1.00;
             --flive-menu-white-space: nowrap;

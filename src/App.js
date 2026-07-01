@@ -899,6 +899,7 @@ function PokemonSidebar({ loggedInUsername = "" } = {}) {
   const [selectedDiscIndex, setSelectedDiscIndex] = useState(0);
   const [stretchGame, setStretchGame] = useState(false);
   const [gameFullscreen, setGameFullscreen] = useState(false);
+  const gamingStackRef = useRef(null);
   const emulatorFrameRef = useRef(null);
   const emulatorHostRef = useRef(null);
   const retroarchPlayerRef = useRef(null);
@@ -907,6 +908,15 @@ function PokemonSidebar({ loggedInUsername = "" } = {}) {
   const gameCardRefs = useRef({});
   const gamepadKeysRef = useRef(new Set());
   const emulatorMenuOpenAllowedUntilRef = useRef(0);
+  const gamingScrollDragRef = useRef({
+    active: false,
+    dragging: false,
+    touchId: null,
+    startX: 0,
+    startY: 0,
+    lastY: 0,
+    blockClickUntil: 0
+  });
   const n64PerformanceMode = isN64Game(gameLaunch);
   const isInteractiveElement = (element) => {
     if (!element || element === document.body) return false;
@@ -940,6 +950,16 @@ function PokemonSidebar({ loggedInUsername = "" } = {}) {
     if (typeof point?.clientX !== "number" || typeof point?.clientY !== "number") return null;
     return { x: point.clientX, y: point.clientY };
   };
+
+  const isMobileLandscapeGamingScrollEnabled = useCallback(() => {
+    if (typeof window === "undefined") return false;
+
+    const query = "(hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 1100px) and (max-height: 560px)";
+    if (typeof window.matchMedia === "function") return window.matchMedia(query).matches;
+
+    const touchPoints = typeof navigator === "undefined" ? 0 : Number(navigator.maxTouchPoints || 0);
+    return touchPoints > 0 && window.innerWidth > window.innerHeight && window.innerWidth <= 1100 && window.innerHeight <= 560;
+  }, []);
 
   const getEmulatorEventNow = () => (
     typeof performance !== "undefined" ? performance.now() : Date.now()
@@ -1830,6 +1850,97 @@ function PokemonSidebar({ loggedInUsername = "" } = {}) {
   }, [gameLaunch, stretchGame]);
 
   useEffect(() => {
+    const stack = gamingStackRef.current;
+    if (!stack) return undefined;
+
+    const drag = gamingScrollDragRef.current;
+    const canDragScroll = () => (
+      !collapsed &&
+      isMobileLandscapeGamingScrollEnabled() &&
+      stack.scrollHeight > stack.clientHeight + 1
+    );
+    const resetDrag = () => {
+      drag.active = false;
+      drag.dragging = false;
+      drag.touchId = null;
+    };
+    const getTrackedTouch = (event) => {
+      const touches = Array.from(event.touches || []);
+      const changedTouches = Array.from(event.changedTouches || []);
+      const touch = drag.touchId == null
+        ? touches[0] || changedTouches[0]
+        : touches.find(item => item.identifier === drag.touchId) ||
+          changedTouches.find(item => item.identifier === drag.touchId);
+
+      if (!touch) return null;
+      return { id: touch.identifier, x: touch.clientX, y: touch.clientY };
+    };
+    const handleTouchStart = (event) => {
+      if (!canDragScroll()) return;
+
+      const touch = event.touches?.[0];
+      if (!touch) return;
+
+      drag.active = true;
+      drag.dragging = false;
+      drag.touchId = touch.identifier;
+      drag.startX = touch.clientX;
+      drag.startY = touch.clientY;
+      drag.lastY = touch.clientY;
+    };
+    const handleTouchMove = (event) => {
+      if (!drag.active || !canDragScroll()) return;
+
+      const point = getTrackedTouch(event);
+      if (!point) return;
+
+      const deltaX = point.x - drag.startX;
+      const deltaY = point.y - drag.startY;
+      const absoluteX = Math.abs(deltaX);
+      const absoluteY = Math.abs(deltaY);
+
+      if (!drag.dragging) {
+        if (absoluteX < 6 && absoluteY < 6) return;
+        if (absoluteY <= absoluteX) return;
+        drag.dragging = true;
+      }
+
+      stack.scrollTop -= point.y - drag.lastY;
+      drag.lastY = point.y;
+
+      if (event.cancelable) event.preventDefault();
+      event.stopPropagation();
+    };
+    const handleTouchEnd = () => {
+      if (drag.dragging) drag.blockClickUntil = Date.now() + 450;
+      resetDrag();
+    };
+    const handleClick = (event) => {
+      if (Date.now() > drag.blockClickUntil) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation?.();
+    };
+    const passiveCaptureOptions = { capture: true, passive: true };
+    const activeCaptureOptions = { capture: true, passive: false };
+
+    stack.addEventListener("touchstart", handleTouchStart, passiveCaptureOptions);
+    stack.addEventListener("touchmove", handleTouchMove, activeCaptureOptions);
+    stack.addEventListener("touchend", handleTouchEnd, passiveCaptureOptions);
+    stack.addEventListener("touchcancel", handleTouchEnd, passiveCaptureOptions);
+    stack.addEventListener("click", handleClick, true);
+
+    return () => {
+      stack.removeEventListener("touchstart", handleTouchStart, passiveCaptureOptions);
+      stack.removeEventListener("touchmove", handleTouchMove, activeCaptureOptions);
+      stack.removeEventListener("touchend", handleTouchEnd, passiveCaptureOptions);
+      stack.removeEventListener("touchcancel", handleTouchEnd, passiveCaptureOptions);
+      stack.removeEventListener("click", handleClick, true);
+    };
+  }, [collapsed, isMobileLandscapeGamingScrollEnabled]);
+
+  useEffect(() => {
     const handleFullscreenChange = () => {
       const fullscreenElement =
         document.fullscreenElement ||
@@ -1851,7 +1962,7 @@ function PokemonSidebar({ loggedInUsername = "" } = {}) {
   }, [gameFullscreen]);
 
   return (
-    <div className={`pokemon-desktop-stack${n64PerformanceMode ? " pokemon-n64-performance" : ""}`} style={{
+    <div ref={gamingStackRef} className={`pokemon-desktop-stack${n64PerformanceMode ? " pokemon-n64-performance" : ""}`} style={{
       position: "fixed",
       left: "calc(18px * var(--flive-scale, 1))",
       top: "calc(4px * var(--flive-scale, 1))",
@@ -10014,6 +10125,11 @@ if (view === "gambling") {
           }
           .music-library-desktop-sidebar {
             z-index: 7 !important;
+          }
+          .pokemon-desktop-stack {
+            touch-action: pan-y;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
           }
         }
         @media (min-width: 2100px) {

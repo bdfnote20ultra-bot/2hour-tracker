@@ -9978,10 +9978,10 @@ if (view === "gambling") {
             --flive-online-top-scale: 1.35;
             --flive-weather-top-scale: 2.35;
             --flive-schedule-right-scale: 1.29;
-            --flive-schedule-width-scale: 1.82;
-            --flive-schedule-content-scale: .46;
+            --flive-schedule-width-scale: 2.08;
+            --flive-schedule-content-scale: .44;
             --flive-schedule-bottom-scale: .75;
-            --flive-schedule-box-scale: .62;
+            --flive-schedule-box-scale: .58;
           }
           .fuits-online-indicator,
           .fuits-weather-panel {

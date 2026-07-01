@@ -4084,16 +4084,28 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     if (!video || !channel || !currentItem || !videoSrc || syncedVideoSrcRef.current === videoSrc) return;
 
     const syncTime = () => {
+      if (syncedVideoSrcRef.current === videoSrc) return;
       if (!Number.isFinite(video.duration)) return;
       syncVideoToLiveOffset(true);
       syncedVideoSrcRef.current = videoSrc;
       pendingTransitionStartRef.current = false;
     };
 
-    if (video.readyState >= 1) syncTime();
+    const mobileLandscapeProfile = isFuitsMobileLandscapeProfile();
+    const readyForSync = mobileLandscapeProfile ? video.readyState >= 2 : video.readyState >= 1;
+    if (readyForSync) syncTime();
     else {
-      video.addEventListener("loadedmetadata", syncTime, { once: true });
-      return () => video.removeEventListener("loadedmetadata", syncTime);
+      const primarySyncEvent = mobileLandscapeProfile ? "loadeddata" : "loadedmetadata";
+      video.addEventListener(primarySyncEvent, syncTime, { once: true });
+      if (mobileLandscapeProfile) {
+        video.addEventListener("canplay", syncTime, { once: true });
+      }
+      return () => {
+        video.removeEventListener(primarySyncEvent, syncTime);
+        if (mobileLandscapeProfile) {
+          video.removeEventListener("canplay", syncTime);
+        }
+      };
     }
   }, [channel, currentItem, currentOffsetSeconds, videoSrc, syncVideoToLiveOffset]);
 
@@ -4219,8 +4231,14 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
   const startChannelPlayback = useCallback(() => {
     const video = videoRef.current;
     if (!video || !videoSrc || liveAnnouncementOnline) return;
-    syncVideoToLiveOffset(true);
-    syncedVideoSrcRef.current = videoSrc;
+    if (isFuitsMobileLandscapeProfile() && video.readyState < 2) {
+      setVideoLoading(true);
+      return;
+    }
+    if (syncedVideoSrcRef.current !== videoSrc) {
+      syncVideoToLiveOffset(true);
+      syncedVideoSrcRef.current = videoSrc;
+    }
     pendingTransitionStartRef.current = false;
     playWhenBuffered();
     playCurrentVideo();
@@ -4601,10 +4619,14 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
               muted={playerMuted}
               autoPlay={!needsLargeVideoPreload}
               preload="auto"
-              onLoadedMetadata={() => {
+              onLoadedMetadata={event => {
                 setVideoLoading(false);
                 if (needsLargeVideoPreload) {
                   videoRef.current?.pause();
+                  return;
+                }
+                if (isFuitsMobileLandscapeProfile() && event.currentTarget.readyState < 2) {
+                  setVideoLoading(true);
                   return;
                 }
                 syncVideoToLiveOffset(true);
@@ -4628,11 +4650,18 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                   event.currentTarget.pause();
                   return;
                 }
+                if (isFuitsMobileLandscapeProfile()) {
+                  startChannelPlayback();
+                  return;
+                }
                 playWhenBuffered();
               }}
               onLoadedData={() => {
                 setVideoLoading(false);
                 setVideoError("");
+                if (isFuitsMobileLandscapeProfile()) {
+                  startChannelPlayback();
+                }
               }}
               onPlaying={() => {
                 const video = videoRef.current;
@@ -4642,7 +4671,9 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                 }
                 const playbackKey = `${channelId}:${currentItem?.id || ""}:${videoSrc}`;
                 if (video && currentItem && anchoredPlaybackKeyRef.current !== playbackKey) {
-                  syncVideoToLiveOffset(true);
+                  if (!isFuitsMobileLandscapeProfile()) {
+                    syncVideoToLiveOffset(true);
+                  }
                   anchoredPlaybackKeyRef.current = playbackKey;
                   pendingTransitionStartRef.current = false;
                   syncedVideoSrcRef.current = videoSrc;

@@ -9973,7 +9973,7 @@ if (view === "gambling") {
             --flive-menu-white-space: nowrap;
             --flive-menu-gap-scale: 1.16;
             --flive-menu-top-offset: -12px;
-            --flive-menu-left-offset: 20px;
+            --flive-menu-left-offset: 42px;
             --flive-wealth-extra-top-offset: 10px;
             --flive-ticker-top-scale: 1.44;
             --flive-center-width-scale: 1.06;

@@ -9967,7 +9967,7 @@ if (view === "gambling") {
             --flive-menu-top-offset: -12px;
             --flive-menu-left-offset: 20px;
             --flive-wealth-extra-top-offset: 10px;
-            --flive-ticker-top-scale: 2.12;
+            --flive-ticker-top-scale: 1.32;
             --flive-center-width-scale: 1.06;
             --flive-center-content-scale: .54;
             --flive-tv-width-scale: 1.18;

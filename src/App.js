@@ -9963,10 +9963,10 @@ if (view === "gambling") {
             --flive-menu-text-scale: .49;
             --flive-menu-width-scale: 1.00;
             --flive-menu-white-space: nowrap;
-            --flive-menu-gap-scale: 1.14;
+            --flive-menu-gap-scale: 1.16;
             --flive-menu-top-offset: -12px;
             --flive-menu-left-offset: 20px;
-            --flive-wealth-extra-top-offset: 8px;
+            --flive-wealth-extra-top-offset: 10px;
             --flive-ticker-top-scale: 2.12;
             --flive-center-width-scale: 1.06;
             --flive-center-content-scale: .54;
@@ -9976,9 +9976,9 @@ if (view === "gambling") {
             --flive-info-width-scale: 1.78;
             --flive-info-content-scale: .46;
             --flive-online-top-scale: 1.35;
-            --flive-weather-top-scale: 2.35;
+            --flive-weather-top-scale: 1.40;
             --flive-schedule-right-scale: 1.29;
-            --flive-schedule-width-scale: 2.08;
+            --flive-schedule-width-scale: 2.16;
             --flive-schedule-content-scale: .44;
             --flive-schedule-bottom-scale: .75;
             --flive-schedule-box-scale: .58;

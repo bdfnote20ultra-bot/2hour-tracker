@@ -5654,16 +5654,32 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
           .music-library-desktop-sidebar > .fuits-live-tv-panel {
             zoom: 1 !important;
             min-height: 0 !important;
-            overflow: hidden !important;
+            overflow: visible !important;
+            isolation: isolate;
           }
           .fuits-live-tv-scroll {
-            gap: 5px !important;
-            padding: 4px 1px 4px !important;
+            gap: 4px !important;
+            padding: 3px 1px 4px !important;
             align-items: stretch !important;
+            overflow-x: visible !important;
+            overflow-y: auto !important;
           }
           .fuits-live-tv-heading {
             font-size: 9px !important;
             line-height: 1.12 !important;
+          }
+          .fuits-live-tv-menu-wrap {
+            z-index: 24 !important;
+          }
+          .fuits-live-tv-menu {
+            position: static !important;
+            margin-top: 4px !important;
+            max-height: 118px !important;
+            overflow-y: auto !important;
+            border-radius: 9px !important;
+          }
+          .fuits-live-tv-menu button {
+            padding: 6px 8px !important;
           }
           .fuits-live-tv-panel button,
           .fuits-live-tv-panel select,
@@ -5678,9 +5694,30 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             border-radius: 9px !important;
           }
           .fuits-live-tv-panel select {
-            min-height: 24px !important;
+            min-height: 26px !important;
             padding: 4px 6px !important;
             border-radius: 8px !important;
+          }
+          .fuits-live-tv-channel-select {
+            position: relative;
+            z-index: 3;
+            margin-bottom: 2px !important;
+          }
+          .fuits-live-tv-channel-controls {
+            gap: 4px !important;
+            flex-wrap: nowrap !important;
+            justify-content: space-between !important;
+            position: relative;
+            z-index: 2;
+          }
+          .fuits-live-tv-channel-controls button {
+            flex: 1 1 0 !important;
+            min-width: 0 !important;
+            padding: 4px 5px !important;
+            white-space: normal !important;
+          }
+          .fuits-live-tv-channel-controls button:first-child {
+            flex: 0 0 42px !important;
           }
           .fuits-live-tv-panel .fuits-video-shell {
             display: block !important;
@@ -5688,31 +5725,54 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             height: 126px !important;
             min-height: 126px !important;
             flex: 0 0 126px !important;
-            transform: translateZ(0);
+            overflow: hidden !important;
+            contain: none !important;
+            backface-visibility: hidden;
+            transform: none !important;
+            -webkit-transform: none !important;
           }
-          .fuits-live-tv-panel .fuits-video-player {
+          .fuits-live-tv-panel .fuits-video-player,
+          .fuits-live-tv-panel .fuits-video-player-stretch {
             display: block !important;
             visibility: visible !important;
             opacity: 1 !important;
             width: 100% !important;
             height: 100% !important;
-            min-height: 126px !important;
-            transform: translateZ(0);
+            min-height: 0 !important;
+            background: #000 !important;
+            transform: none !important;
+            -webkit-transform: none !important;
+            backface-visibility: hidden;
+            will-change: auto !important;
+            touch-action: manipulation;
+          }
+          .fuits-live-tv-panel .fuits-video-player:fullscreen,
+          .fuits-live-tv-panel .fuits-video-player:-webkit-full-screen,
+          .fuits-live-tv-panel .fuits-video-player-stretch:fullscreen,
+          .fuits-live-tv-panel .fuits-video-player-stretch:-webkit-full-screen {
+            position: fixed !important;
+            inset: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            max-height: none !important;
+            object-fit: contain !important;
+            background: #000 !important;
+            z-index: 2147483647 !important;
           }
           .fuits-live-tv-panel .fuits-video-title {
-            min-height: 28px !important;
-            max-height: 36px !important;
-            padding: 4px 6px !important;
+            min-height: 24px !important;
+            max-height: 30px !important;
+            padding: 3px 6px !important;
             font-size: 8px !important;
             line-height: 1.12 !important;
             overflow-y: hidden !important;
           }
           .fuits-live-tv-panel .fuits-live-chat-frame {
             display: block !important;
-            flex: 0 0 82px !important;
-            height: 82px !important;
-            min-height: 82px !important;
-            max-height: 82px !important;
+            flex: 0 0 132px !important;
+            height: 132px !important;
+            min-height: 132px !important;
+            max-height: 132px !important;
             background: #020617 !important;
             color-scheme: dark;
           }
@@ -6060,8 +6120,8 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             }}>
               {activeLiveTvOption.heading}
             </div>
-            <div style={{ position: "relative", width: "100%" }}>
-              <button onClick={() => setLiveTvMenuOpen(open => !open)} style={{
+            <div className="fuits-live-tv-menu-wrap" style={{ position: "relative", width: "100%" }}>
+              <button className="fuits-live-tv-menu-button" onClick={() => setLiveTvMenuOpen(open => !open)} style={{
                 width: "100%",
                 border: "none",
                 background: `linear-gradient(135deg, ${accentColor}, #38bdf8)`,
@@ -6083,7 +6143,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
                 <span>{liveTvMenuOpen ? "^" : "v"}</span>
               </button>
               {liveTvMenuOpen && (
-                <div style={{
+                <div className="fuits-live-tv-menu" style={{
                   position: "absolute",
                   top: "calc(100% + 8px)",
                   left: 0,
@@ -6132,6 +6192,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
                   <>
                     {!activeLiveTvFixedChannel && (
                       <select
+                        className="fuits-live-tv-channel-select"
                         value={activeFuitsLiveTvChannel}
                         onChange={event => setActiveFuitsLiveTvChannel(event.target.value)}
                         style={{
@@ -6153,7 +6214,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
                         ))}
                       </select>
                     )}
-                    <div style={{ width: "100%", display: "flex", justifyContent: "flex-start", gap: 6, flexWrap: "wrap" }}>
+                    <div className="fuits-live-tv-channel-controls" style={{ width: "100%", display: "flex", justifyContent: "flex-start", gap: 6, flexWrap: "wrap" }}>
                       <button
                         type="button"
                         onClick={backFuitsChannelWithPassword}

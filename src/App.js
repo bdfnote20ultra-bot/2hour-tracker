@@ -4582,7 +4582,18 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
               .fuits-video-shell video::-webkit-media-controls-play-button,
               .fuits-video-player-stretch::-webkit-media-controls-play-button {
                 display: none !important;
+                -webkit-appearance: none !important;
+                opacity: 0 !important;
                 pointer-events: none !important;
+              }
+              @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 1100px) and (max-height: 560px) {
+                .fuits-video-shell video::-webkit-media-controls-start-playback-button,
+                .fuits-video-player-stretch::-webkit-media-controls-start-playback-button {
+                  display: none !important;
+                  -webkit-appearance: none !important;
+                  opacity: 0 !important;
+                  pointer-events: none !important;
+                }
               }
               @media (min-width: 900px) and (max-width: 1400px) and (max-height: 730px) {
                 .fuits-video-shell {

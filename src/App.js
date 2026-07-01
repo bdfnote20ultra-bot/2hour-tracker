@@ -5650,6 +5650,8 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
         bottom: "calc(26px * var(--flive-scale, 1) * var(--flive-schedule-bottom-scale, 1))",
         zIndex: 8,
         width: "calc(300px * var(--flive-scale, 1) * var(--flive-schedule-width-scale, 1))",
+        transform: "scale(var(--flive-schedule-box-scale, 1))",
+        transformOrigin: "right bottom",
         border: "1px solid rgba(250,204,21,.32)",
         borderRadius: "calc(14px * var(--flive-scale, 1))",
         background: "rgba(2,6,23,.9)",
@@ -9912,6 +9914,7 @@ if (view === "gambling") {
           --flive-schedule-width-scale: 1;
           --flive-schedule-content-scale: var(--flive-info-content-scale);
           --flive-schedule-bottom-scale: 1;
+          --flive-schedule-box-scale: 1;
         }
         @media (max-width: 1891px) {
           :root { --flive-scale: clamp(.34, min(calc(100vw / 1892px), calc(100vh / 907px)), 1); }
@@ -9978,6 +9981,7 @@ if (view === "gambling") {
             --flive-schedule-width-scale: .98;
             --flive-schedule-content-scale: .46;
             --flive-schedule-bottom-scale: .75;
+            --flive-schedule-box-scale: .62;
           }
           html,
           body,

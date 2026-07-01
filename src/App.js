@@ -9892,6 +9892,8 @@ if (view === "gambling") {
           --flive-gaming-scale: var(--flive-scale);
           --flive-gaming-content-scale: var(--flive-panel-content-scale);
           --flive-menu-text-scale: var(--flive-scale);
+          --flive-menu-width-scale: 1;
+          --flive-menu-white-space: normal;
           --flive-menu-gap-scale: 1;
           --flive-menu-top-offset: 0px;
           --flive-menu-left-offset: 0px;
@@ -9948,28 +9950,30 @@ if (view === "gambling") {
         }
         @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 1100px) and (max-height: 560px) {
           :root {
-            --flive-scale: clamp(.30, min(.45, calc(100vw / 1892px), calc(100vh / 907px)), .45);
-            --flive-scale: clamp(.30, min(.45, calc(100vw / 1892px), calc(100dvh / 907px)), .45);
-            --flive-panel-content-scale: .70;
-            --flive-gaming-scale: .56;
-            --flive-gaming-content-scale: .60;
-            --flive-menu-text-scale: .72;
-            --flive-menu-gap-scale: 1.35;
-            --flive-menu-top-offset: -16px;
-            --flive-menu-left-offset: 85px;
-            --flive-wealth-extra-top-offset: 20px;
+            --flive-scale: clamp(.32, min(.37, calc(100vw / 2350px), calc(100vh / 1080px)), .37);
+            --flive-scale: clamp(.32, min(.37, calc(100vw / 2350px), calc(100dvh / 1080px)), .37);
+            --flive-panel-content-scale: .64;
+            --flive-gaming-scale: .46;
+            --flive-gaming-content-scale: .54;
+            --flive-menu-text-scale: .58;
+            --flive-menu-width-scale: 1.24;
+            --flive-menu-white-space: nowrap;
+            --flive-menu-gap-scale: 1.17;
+            --flive-menu-top-offset: -22px;
+            --flive-menu-left-offset: -24px;
+            --flive-wealth-extra-top-offset: 16px;
             --flive-ticker-top-scale: 2.12;
-            --flive-center-width-scale: 1.35;
-            --flive-center-content-scale: .64;
-            --flive-tv-width-scale: 1.75;
-            --flive-tv-content-scale: .70;
-            --flive-info-right-scale: 1.66;
-            --flive-info-width-scale: 1.22;
-            --flive-info-content-scale: .88;
-            --flive-weather-top-scale: 1.75;
-            --flive-schedule-right-scale: 1.64;
-            --flive-schedule-width-scale: 1.24;
-            --flive-schedule-content-scale: .72;
+            --flive-center-width-scale: 1.12;
+            --flive-center-content-scale: .56;
+            --flive-tv-width-scale: 1.10;
+            --flive-tv-content-scale: .58;
+            --flive-info-right-scale: 1.25;
+            --flive-info-width-scale: 1.14;
+            --flive-info-content-scale: .62;
+            --flive-weather-top-scale: 1.45;
+            --flive-schedule-right-scale: 1.38;
+            --flive-schedule-width-scale: 1.12;
+            --flive-schedule-content-scale: .58;
           }
           html,
           body,
@@ -9986,6 +9990,9 @@ if (view === "gambling") {
             max-height: 100vh;
             max-height: 100dvh;
             overflow: hidden !important;
+          }
+          .music-library-desktop-sidebar {
+            z-index: 7 !important;
           }
         }
         @media (min-width: 2100px) {
@@ -10077,7 +10084,7 @@ if (view === "gambling") {
                   top: `calc((${link.top}px * var(--flive-scale, 1) * var(--flive-menu-gap-scale, 1)) + (var(--flive-menu-top-offset, 0px) * var(--flive-scale, 1)))`,
                   left: "calc((430px + var(--flive-menu-left-offset, 0px)) * var(--flive-scale, 1))",
                   zIndex: 20,
-                  width: "calc(430px * var(--flive-scale, 1))",
+                  width: "calc(430px * var(--flive-scale, 1) * var(--flive-menu-width-scale, 1))",
                   background: "transparent",
                   border: "none",
                   color: "#38bdf8",
@@ -10089,7 +10096,8 @@ if (view === "gambling") {
                   textTransform: "uppercase",
                   textShadow: "0 2px 10px rgba(56,189,248,.45)",
                   fontFamily: "system-ui",
-                  textAlign: "left"
+                  textAlign: "left",
+                  whiteSpace: "var(--flive-menu-white-space, normal)"
                 }}
               >
                 {link.label}
@@ -10101,7 +10109,7 @@ if (view === "gambling") {
             top: "calc((846px * var(--flive-scale, 1) * var(--flive-menu-gap-scale, 1)) + (var(--flive-menu-top-offset, 0px) * var(--flive-scale, 1)) + (var(--flive-wealth-extra-top-offset, 0px) * var(--flive-scale, 1)))",
             left: "calc((470px + var(--flive-menu-left-offset, 0px)) * var(--flive-scale, 1))",
             zIndex: 20,
-            width: "calc(430px * var(--flive-scale, 1))",
+            width: "calc(430px * var(--flive-scale, 1) * var(--flive-menu-width-scale, 1))",
             color: "#22c55e",
             textShadow: "0 2px 10px rgba(34,197,94,.45)",
             fontFamily: "system-ui",

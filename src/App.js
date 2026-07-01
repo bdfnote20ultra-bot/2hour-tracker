@@ -9973,9 +9973,9 @@ if (view === "gambling") {
             --flive-info-width-scale: 1.28;
             --flive-info-content-scale: .64;
             --flive-online-top-scale: 1.35;
-            --flive-weather-top-scale: 2.05;
-            --flive-schedule-right-scale: 1.48;
-            --flive-schedule-width-scale: 1.34;
+            --flive-weather-top-scale: 2.35;
+            --flive-schedule-right-scale: 1.29;
+            --flive-schedule-width-scale: 1.18;
             --flive-schedule-content-scale: .60;
             --flive-schedule-bottom-scale: .75;
           }

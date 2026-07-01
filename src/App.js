@@ -9970,13 +9970,13 @@ if (view === "gambling") {
             --flive-tv-width-scale: 1.18;
             --flive-tv-content-scale: .60;
             --flive-info-right-scale: 1.35;
-            --flive-info-width-scale: 1.28;
-            --flive-info-content-scale: .64;
+            --flive-info-width-scale: 1.05;
+            --flive-info-content-scale: .52;
             --flive-online-top-scale: 1.35;
             --flive-weather-top-scale: 2.35;
             --flive-schedule-right-scale: 1.29;
-            --flive-schedule-width-scale: 1.18;
-            --flive-schedule-content-scale: .60;
+            --flive-schedule-width-scale: .98;
+            --flive-schedule-content-scale: .46;
             --flive-schedule-bottom-scale: .75;
           }
           html,

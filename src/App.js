@@ -9955,8 +9955,8 @@ if (view === "gambling") {
             --flive-scale: clamp(.32, min(.37, calc(100vw / 2350px), calc(100vh / 1080px)), .37);
             --flive-scale: clamp(.32, min(.37, calc(100vw / 2350px), calc(100dvh / 1080px)), .37);
             --flive-panel-content-scale: .64;
-            --flive-gaming-scale: .31;
-            --flive-gaming-content-scale: .46;
+            --flive-gaming-scale: .34;
+            --flive-gaming-content-scale: .48;
             --flive-menu-text-scale: .49;
             --flive-menu-width-scale: 1.00;
             --flive-menu-white-space: nowrap;
@@ -9965,18 +9965,18 @@ if (view === "gambling") {
             --flive-menu-left-offset: 20px;
             --flive-wealth-extra-top-offset: 8px;
             --flive-ticker-top-scale: 2.12;
-            --flive-center-width-scale: .98;
+            --flive-center-width-scale: 1.06;
             --flive-center-content-scale: .54;
-            --flive-tv-width-scale: 1.10;
-            --flive-tv-content-scale: .58;
-            --flive-info-right-scale: 1.25;
-            --flive-info-width-scale: 1.20;
-            --flive-info-content-scale: .62;
+            --flive-tv-width-scale: 1.18;
+            --flive-tv-content-scale: .60;
+            --flive-info-right-scale: 1.35;
+            --flive-info-width-scale: 1.28;
+            --flive-info-content-scale: .64;
             --flive-online-top-scale: 1.35;
             --flive-weather-top-scale: 2.05;
-            --flive-schedule-right-scale: 1.38;
-            --flive-schedule-width-scale: 1.24;
-            --flive-schedule-content-scale: .58;
+            --flive-schedule-right-scale: 1.48;
+            --flive-schedule-width-scale: 1.34;
+            --flive-schedule-content-scale: .60;
             --flive-schedule-bottom-scale: .75;
           }
           html,

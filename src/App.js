@@ -3887,6 +3887,15 @@ const LARGE_FUITS_PRELOAD_CHUNK_BYTES = 4 * 1024 * 1024;
 const LARGE_FUITS_PRELOAD_PARALLEL_CHUNKS = 6;
 const FUITS_RESTART_PASSWORD = "FOOLIO";
 const FUITS_TRANSITION_BUFFER_SECONDS = 4;
+const FUITS_MOBILE_LANDSCAPE_QUERY = "(hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 1100px) and (max-height: 560px)";
+
+const isFuitsMobileLandscapeProfile = () => {
+  if (typeof window === "undefined") return false;
+  if (typeof window.matchMedia === "function") return window.matchMedia(FUITS_MOBILE_LANDSCAPE_QUERY).matches;
+
+  const touchPoints = typeof navigator === "undefined" ? 0 : Number(navigator.maxTouchPoints || 0);
+  return touchPoints > 0 && window.innerWidth > window.innerHeight && window.innerWidth <= 1100 && window.innerHeight <= 560;
+};
 
 const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 0, liveAnnouncementOnline = false, restartSignal = 0, onPlaybackAnchor }, ref) {
   const videoRef = useRef(null);
@@ -4284,6 +4293,39 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     video.muted = playerMuted;
     video.volume = playerVolume;
   }, [playerMuted, playerVolume]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return undefined;
+
+    let resetTimer = null;
+    const resetNativeFullscreenButton = () => {
+      if (!isFuitsMobileLandscapeProfile()) return;
+
+      stretchVideoRequestedRef.current = false;
+      setStretchVideoFullscreen(false);
+
+      const wasPaused = video.paused;
+      video.controls = false;
+      window.clearTimeout(resetTimer);
+      resetTimer = window.setTimeout(() => {
+        if (videoRef.current !== video) return;
+        video.controls = true;
+        video.setAttribute("playsinline", "");
+        video.setAttribute("webkit-playsinline", "");
+        if (!wasPaused) {
+          const playPromise = video.play();
+          if (playPromise?.catch) playPromise.catch(() => {});
+        }
+      }, 80);
+    };
+
+    video.addEventListener("webkitendfullscreen", resetNativeFullscreenButton);
+    return () => {
+      window.clearTimeout(resetTimer);
+      video.removeEventListener("webkitendfullscreen", resetNativeFullscreenButton);
+    };
+  }, []);
 
   useEffect(() => {
     const handleFullscreenChange = () => {

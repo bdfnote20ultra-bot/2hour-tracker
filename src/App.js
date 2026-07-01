@@ -4373,6 +4373,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
 
   useEffect(() => {
     const unmuteOnFirstPageClick = () => {
+      if (isFuitsMobileLandscapeProfile()) return;
       const video = videoRef.current;
       setPlayerMuted(false);
       setPlayerVolume(1);
@@ -4387,6 +4388,20 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     window.addEventListener("pointerdown", unmuteOnFirstPageClick, { once: true, capture: true });
     return () => window.removeEventListener("pointerdown", unmuteOnFirstPageClick, { capture: true });
   }, []);
+
+  const handleVideoVolumeChange = event => {
+    const video = event.currentTarget;
+    const nextMuted = video.muted;
+    const nextVolume = video.volume;
+    setPlayerMuted(nextMuted);
+    setPlayerVolume(nextVolume);
+
+    if (!isFuitsMobileLandscapeProfile() || nextMuted || nextVolume <= 0) return;
+
+    video.muted = false;
+    const playPromise = video.play();
+    if (playPromise?.catch) playPromise.catch(() => {});
+  };
 
   const retryVideo = () => {
     const video = videoRef.current;
@@ -4729,10 +4744,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
               onWaiting={showBufferingIfNeeded}
               onStalled={() => setVideoError("Stream stalled. The tunnel or source video is not sending data fast enough.")}
               onError={() => setVideoError("This video did not load. Try Next, Shuffle, or Retry.")}
-              onVolumeChange={event => {
-                setPlayerMuted(event.currentTarget.muted);
-                setPlayerVolume(event.currentTarget.volume);
-              }}
+              onVolumeChange={handleVideoVolumeChange}
               style={{
                 width: "100%",
                 height: "100%",

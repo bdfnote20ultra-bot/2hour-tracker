@@ -3184,6 +3184,7 @@ function PokemonSidebar({ loggedInUsername = "" } = {}) {
 function LiveChatBox({ title = "Live Chat", src, height = 250, minHeight = 250 }) {
   return (
     <iframe
+      className="fuits-live-chat-frame"
       title={title}
       src={src}
       allow="fullscreen"
@@ -5649,6 +5650,73 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             min-height: 0 !important;
           }
         }
+        @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 1100px) and (max-height: 560px) {
+          .music-library-desktop-sidebar > .fuits-live-tv-panel {
+            zoom: 1 !important;
+            min-height: 0 !important;
+            overflow: hidden !important;
+          }
+          .fuits-live-tv-scroll {
+            gap: 5px !important;
+            padding: 4px 1px 4px !important;
+            align-items: stretch !important;
+          }
+          .fuits-live-tv-heading {
+            font-size: 9px !important;
+            line-height: 1.12 !important;
+          }
+          .fuits-live-tv-panel button,
+          .fuits-live-tv-panel select,
+          .fuits-live-tv-panel a {
+            font-size: 8px !important;
+            line-height: 1.08 !important;
+            letter-spacing: .25px !important;
+          }
+          .fuits-live-tv-panel button,
+          .fuits-live-tv-panel a {
+            padding: 5px 7px !important;
+            border-radius: 9px !important;
+          }
+          .fuits-live-tv-panel select {
+            min-height: 24px !important;
+            padding: 4px 6px !important;
+            border-radius: 8px !important;
+          }
+          .fuits-live-tv-panel .fuits-video-shell {
+            display: block !important;
+            visibility: visible !important;
+            height: 126px !important;
+            min-height: 126px !important;
+            flex: 0 0 126px !important;
+            transform: translateZ(0);
+          }
+          .fuits-live-tv-panel .fuits-video-player {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            width: 100% !important;
+            height: 100% !important;
+            min-height: 126px !important;
+            transform: translateZ(0);
+          }
+          .fuits-live-tv-panel .fuits-video-title {
+            min-height: 28px !important;
+            max-height: 36px !important;
+            padding: 4px 6px !important;
+            font-size: 8px !important;
+            line-height: 1.12 !important;
+            overflow-y: hidden !important;
+          }
+          .fuits-live-tv-panel .fuits-live-chat-frame {
+            display: block !important;
+            flex: 0 0 82px !important;
+            height: 82px !important;
+            min-height: 82px !important;
+            max-height: 82px !important;
+            background: #020617 !important;
+            color-scheme: dark;
+          }
+        }
         .music-library-desktop-sidebar button:hover { transform: translateY(-1px); }
         @keyframes fuits-live-pulse {
           0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(239,68,68,.62); }
@@ -5939,7 +6007,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
       </div>
 
       {activeMediaMenu === "liveTv" ? (
-        <div style={{
+        <div className="fuits-live-tv-panel" style={{
           flex: 1,
           border: "none",
           borderRadius: 0,
@@ -5969,7 +6037,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             </button>
           </div>
           )}
-          <div style={{
+          <div className="fuits-live-tv-scroll" style={{
             flex: 1,
             padding: "12px 2px 0",
             display: "flex",
@@ -5984,7 +6052,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             paddingRight: 2,
             paddingBottom: 6
           }}>
-            <div style={{
+            <div className="fuits-live-tv-heading" style={{
               color: "#cbd5e1",
               fontSize: 13,
               fontWeight: 800,

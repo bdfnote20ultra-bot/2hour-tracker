@@ -9958,7 +9958,7 @@ if (view === "gambling") {
             --flive-scale: clamp(.32, min(.37, calc(100vw / 2350px), calc(100vh / 1080px)), .37);
             --flive-scale: clamp(.32, min(.37, calc(100vw / 2350px), calc(100dvh / 1080px)), .37);
             --flive-panel-content-scale: .64;
-            --flive-gaming-scale: .34;
+            --flive-gaming-scale: .38;
             --flive-gaming-content-scale: .48;
             --flive-menu-text-scale: .49;
             --flive-menu-width-scale: 1.00;

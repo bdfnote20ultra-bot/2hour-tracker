@@ -3911,6 +3911,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
   const seekingLockRef = useRef(false);
   const programmaticSeekUntilRef = useRef(0);
   const playbackStartedRef = useRef(false);
+  const lastMobileAudioToggleAtRef = useRef(0);
   const channelSwitchPendingRef = useRef(false);
   const previousChannelIdRef = useRef(channelId);
   const [preloadedLargeVideoKey, setPreloadedLargeVideoKey] = useState("");
@@ -4259,7 +4260,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     video.volume = playerVolume;
 
     if (loadedVideoSrcRef.current === videoSrc) {
-      playCurrentVideo();
+      if (!isFuitsMobileLandscapeProfile()) playCurrentVideo();
       return;
     }
 
@@ -4399,6 +4400,36 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     if (!isFuitsMobileLandscapeProfile() || nextMuted || nextVolume <= 0) return;
 
     video.muted = false;
+    const playPromise = video.play();
+    if (playPromise?.catch) playPromise.catch(() => {});
+  };
+
+  const toggleMobileLandscapeAudio = event => {
+    if (!isFuitsMobileLandscapeProfile()) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const now = Date.now();
+    if (now - lastMobileAudioToggleAtRef.current < 350) return;
+    lastMobileAudioToggleAtRef.current = now;
+
+    const video = videoRef.current;
+    if (!video) return;
+
+    const currentlyAudible = !video.muted && !playerMuted && (Number(video.volume) || playerVolume) > 0;
+    const nextMuted = currentlyAudible;
+    video.muted = nextMuted;
+    video.defaultMuted = nextMuted;
+    video.volume = 1;
+    setPlayerMuted(nextMuted);
+    setPlayerVolume(1);
+
+    if (nextMuted) return;
+
+    if (!video.paused && !video.ended) {
+      try { video.pause(); } catch {}
+    }
+
     const playPromise = video.play();
     if (playPromise?.catch) playPromise.catch(() => {});
   };
@@ -4601,6 +4632,9 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                 opacity: 0 !important;
                 pointer-events: none !important;
               }
+              .fuits-mobile-landscape-audio-hitbox {
+                display: none;
+              }
               @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 1100px) and (max-height: 560px) {
                 .fuits-video-shell video::-webkit-media-controls-start-playback-button,
                 .fuits-video-player-stretch::-webkit-media-controls-start-playback-button {
@@ -4608,6 +4642,22 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                   -webkit-appearance: none !important;
                   opacity: 0 !important;
                   pointer-events: none !important;
+                }
+                .fuits-mobile-landscape-audio-hitbox {
+                  display: block;
+                  position: absolute;
+                  left: 0;
+                  bottom: 0;
+                  width: 96px;
+                  height: 44px;
+                  z-index: 7;
+                  border: 0;
+                  padding: 0;
+                  margin: 0;
+                  background: transparent;
+                  color: transparent;
+                  touch-action: manipulation;
+                  cursor: pointer;
                 }
               }
               @media (min-width: 900px) and (max-width: 1400px) and (max-height: 730px) {
@@ -4753,6 +4803,13 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                 display: "block",
                 objectFit: stretchVideoFullscreen ? "fill" : "contain"
               }}
+            />
+            <button
+              type="button"
+              className="fuits-mobile-landscape-audio-hitbox"
+              aria-label={playerMuted ? "Unmute video" : "Mute video"}
+              onPointerUp={toggleMobileLandscapeAudio}
+              onClick={toggleMobileLandscapeAudio}
             />
             {needsLargeVideoPreload && (
               <div style={{

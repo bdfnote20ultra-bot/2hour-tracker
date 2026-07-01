@@ -9035,19 +9035,19 @@ function ProjectDropdown({ projects, activeId, onSelect, onManage }) {
       <button
         onClick={() => setOpen(o => !o)}
         style={{
-          display: "flex", alignItems: "center", gap: 8,
+          display: "flex", alignItems: "center", gap: "var(--flive-project-button-gap, 8px)",
           background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)",
-          borderRadius: 10, padding: "7px 12px",
-          color: "#F7F5F2", cursor: "pointer", fontSize: 13,
+          borderRadius: "var(--flive-project-button-radius, 10px)", padding: "var(--flive-project-button-padding, 7px 12px)",
+          color: "#F7F5F2", cursor: "pointer", fontSize: "var(--flive-project-button-font-size, 13px)",
           fontFamily: "system-ui", transition: "background 0.15s",
-          maxWidth: 200,
+          maxWidth: "var(--flive-project-button-max-width, 200px)",
         }}
       >
-        <span style={{ width: 8, height: 8, borderRadius: "50%", background: active?.color || "#A8D5A2", flexShrink: 0 }} />
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 140 }}>
+        <span style={{ width: "var(--flive-project-dot-size, 8px)", height: "var(--flive-project-dot-size, 8px)", borderRadius: "50%", background: active?.color || "#A8D5A2", flexShrink: 0 }} />
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "var(--flive-project-label-max-width, 140px)" }}>
           {active?.name || "Select project"}
         </span>
-        <span style={{ color: "#888", fontSize: 10, marginLeft: 2 }}>{open ? "^" : "v"}</span>
+        <span style={{ color: "#888", fontSize: "var(--flive-project-caret-font-size, 10px)", marginLeft: 2 }}>{open ? "^" : "v"}</span>
       </button>
       {open && (
         <div style={{
@@ -9522,14 +9522,14 @@ export default function App() {
   const headerMutedColor = darkHeaderThemes.includes(theme.id) ? "#E5E7EB" : vibrantMutedColor;
   const statValueColor = isDarkTheme || theme.id === "custom" ? "#FFFFFF" : "#111827";
   const vibrantLabelStyle = {
-    fontSize: 11, color: vibrantLabelColor, letterSpacing: 1.1, textTransform: "uppercase",
+    fontSize: "var(--flive-center-stat-label-font-size, 11px)", color: vibrantLabelColor, letterSpacing: 1.1, textTransform: "uppercase",
     fontFamily: "system-ui", fontWeight: 900, textShadow: readableTextShadow
   };
   const vibrantSmallStyle = {
-    fontSize: 11, color: vibrantMutedColor, fontFamily: "system-ui", fontWeight: 800, textShadow: readableTextShadow
+    fontSize: "var(--flive-center-stat-small-font-size, 11px)", color: vibrantMutedColor, fontFamily: "system-ui", fontWeight: 800, textShadow: readableTextShadow
   };
   const statValueStyle = {
-    fontSize: 24, fontWeight: 900, color: statValueColor, marginTop: 2, fontFamily: "Georgia, serif", textShadow: readableTextShadow
+    fontSize: "var(--flive-center-stat-value-font-size, 24px)", fontWeight: 900, color: statValueColor, marginTop: "var(--flive-center-stat-value-margin-top, 2px)", fontFamily: "Georgia, serif", textShadow: readableTextShadow
   };
   const loginUser = username => {
     const cleanUsername = username || "MASTER";
@@ -9633,7 +9633,7 @@ export default function App() {
   };
 
   const miniStatValueStyle = {
-    fontSize: 18, fontWeight: 900, color: statValueColor, marginTop: 2, fontFamily: "Georgia, serif", textShadow: readableTextShadow
+    fontSize: "var(--flive-center-mini-stat-value-font-size, 18px)", fontWeight: 900, color: statValueColor, marginTop: "var(--flive-center-stat-value-margin-top, 2px)", fontFamily: "Georgia, serif", textShadow: readableTextShadow
   };
   const glassStyle = theme.id === "custom" ? { backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" } : {};
 
@@ -10197,6 +10197,39 @@ if (view === "gambling") {
             --flive-ticker-top-scale: 1.44;
             --flive-center-width-scale: 1.06;
             --flive-center-content-scale: .54;
+            --flive-center-header-padding: 8px 12px 7px;
+            --flive-center-header-row-margin-bottom: 3px;
+            --flive-project-button-gap: 5px;
+            --flive-project-button-padding: 4px 7px;
+            --flive-project-button-radius: 8px;
+            --flive-project-button-font-size: 10px;
+            --flive-project-button-max-width: 138px;
+            --flive-project-dot-size: 6px;
+            --flive-project-label-max-width: 96px;
+            --flive-project-caret-font-size: 8px;
+            --flive-center-settings-font-size: 13px;
+            --flive-center-soundtrack-margin: -1px 0 3px;
+            --flive-center-soundtrack-gap: 4px;
+            --flive-center-soundtrack-padding: 4px 9px;
+            --flive-center-soundtrack-font-size: 10px;
+            --flive-center-logo-margin: -4px 0 3px;
+            --flive-center-logo-max-width: 190px;
+            --flive-center-logo-max-height: 38px;
+            --flive-center-week-margin-bottom: 4px;
+            --flive-center-week-arrow-font-size: 14px;
+            --flive-center-week-arrow-padding: 1px 5px;
+            --flive-center-week-title-font-size: 10px;
+            --flive-center-week-date-font-size: 9px;
+            --flive-center-stats-margin-top: 4px;
+            --flive-center-stats-padding: 5px 7px;
+            --flive-center-stats-gap: 4px;
+            --flive-center-stat-label-font-size: 7.5px;
+            --flive-center-stat-small-font-size: 7.5px;
+            --flive-center-stat-value-font-size: 14px;
+            --flive-center-mini-stat-value-font-size: 11px;
+            --flive-center-stat-value-margin-top: 0px;
+            --flive-center-stats-detail-margin-top: 4px;
+            --flive-center-stats-detail-padding-top: 4px;
             --flive-tv-width-scale: 1.18;
             --flive-tv-content-scale: .60;
             --flive-info-right-scale: 1.35;
@@ -10496,8 +10529,8 @@ if (view === "gambling") {
         </div>
       )}
       {/* Header */}
-      <div style={{ background: theme.headerBg, color: theme.headerText, padding: "52px 24px 16px", position: "sticky", top: 0, zIndex: 10, ...glassStyle }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+      <div style={{ background: theme.headerBg, color: theme.headerText, padding: "var(--flive-center-header-padding, 52px 24px 16px)", position: "sticky", top: 0, zIndex: 10, ...glassStyle }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--flive-center-header-row-margin-bottom, 16px)" }}>
           <ProjectDropdown
             projects={projects}
             activeId={activeProjectId}
@@ -10506,29 +10539,29 @@ if (view === "gambling") {
           />
           <button
             onClick={() => setView(view === "settings" ? "week" : "settings")}
-            style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, textShadow: readableTextShadow }}
+            style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: "var(--flive-center-settings-font-size, 22px)", fontWeight: 900, textShadow: readableTextShadow }}
           >
             {view === "settings" ? "X" : "Settings"}
           </button>
         </div>
         {view === "week" && (
           <>
-            <div style={{ display: "flex", justifyContent: "center", margin: "-4px 0 10px" }}>
+            <div style={{ display: "flex", justifyContent: "center", margin: "var(--flive-center-soundtrack-margin, -4px 0 10px)" }}>
               <button
                 onClick={toggleMusic}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: 8,
-                  padding: "9px 16px",
+                  gap: "var(--flive-center-soundtrack-gap, 8px)",
+                  padding: "var(--flive-center-soundtrack-padding, 9px 16px)",
                   borderRadius: 999,
                   border: `2px solid ${accentColor}`,
                   background: isMusicPlaying ? accentColor : "rgba(0,0,0,0.35)",
                   color: isMusicPlaying ? "#111827" : headerLabelColor,
                   boxShadow: isMusicPlaying ? `0 0 18px ${accentColor}77` : theme.shadow,
                   cursor: "pointer",
-                  fontSize: 13,
+                  fontSize: "var(--flive-center-soundtrack-font-size, 13px)",
                   fontFamily: "system-ui",
                   fontWeight: 900,
                   letterSpacing: 0.5,
@@ -10539,34 +10572,34 @@ if (view === "gambling") {
                 {isMusicPlaying ? "Pause Soundtrack" : "Play Soundtrack"}
               </button>
             </div>
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", margin: "-6px 0 14px" }}>
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", margin: "var(--flive-center-logo-margin, -6px 0 14px)" }}>
               <img
                 src={`${process.env.PUBLIC_URL}/fury-dispatch-logo.png`}
                 alt="Fuit Music"
                 style={{
                   width: "100%",
-                  maxWidth: 370,
-                  maxHeight: 150,
+                  maxWidth: "var(--flive-center-logo-max-width, 370px)",
+                  maxHeight: "var(--flive-center-logo-max-height, 150px)",
                   objectFit: "contain",
                   display: "block",
                   filter: isDarkTheme || theme.id === "custom" ? "drop-shadow(0 10px 22px rgba(0,0,0,0.75))" : "drop-shadow(0 8px 18px rgba(0,0,0,0.28))"
                 }}
               />
             </div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <button onClick={() => setWeekOffset(w => w - 1)} style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, padding: "4px 8px" }}>{"<"}</button>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--flive-center-week-margin-bottom, 12px)" }}>
+              <button onClick={() => setWeekOffset(w => w - 1)} style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: "var(--flive-center-week-arrow-font-size, 22px)", fontWeight: 900, padding: "var(--flive-center-week-arrow-padding, 4px 8px)" }}>{"<"}</button>
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 13, color: headerLabelColor, fontFamily: "system-ui", fontWeight: 900, textShadow: readableTextShadow }}>
+                <div style={{ fontSize: "var(--flive-center-week-title-font-size, 13px)", color: headerLabelColor, fontFamily: "system-ui", fontWeight: 900, textShadow: readableTextShadow }}>
                   {weekOffset === 0 ? "This Week" : weekOffset === -1 ? "Last Week" : `${Math.abs(weekOffset)}w ${weekOffset < 0 ? "ago" : "ahead"}`}
                 </div>
-                <div style={{ fontSize: 12, color: headerMutedColor, fontFamily: "system-ui", fontWeight: 800, textShadow: readableTextShadow }}>
+                <div style={{ fontSize: "var(--flive-center-week-date-font-size, 12px)", color: headerMutedColor, fontFamily: "system-ui", fontWeight: 800, textShadow: readableTextShadow }}>
                   {formatDate(weekDates[0])} - {formatDate(weekDates[6])}
                 </div>
               </div>
-              <button onClick={() => setWeekOffset(w => w + 1)} style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: 22, fontWeight: 900, padding: "4px 8px" }}>{">"}</button>
+              <button onClick={() => setWeekOffset(w => w + 1)} style={{ background: "none", border: "none", color: headerLabelColor, cursor: "pointer", fontSize: "var(--flive-center-week-arrow-font-size, 22px)", fontWeight: 900, padding: "var(--flive-center-week-arrow-padding, 4px 8px)" }}>{">"}</button>
             </div>
-            <div style={{ marginTop: 14, background: theme.statsBg, borderRadius: 12, padding: "14px 16px", boxShadow: theme.shadow, border: `1px solid ${theme.line}`, ...glassStyle }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+            <div style={{ marginTop: "var(--flive-center-stats-margin-top, 14px)", background: theme.statsBg, borderRadius: 12, padding: "var(--flive-center-stats-padding, 14px 16px)", boxShadow: theme.shadow, border: `1px solid ${theme.line}`, ...glassStyle }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "var(--flive-center-stats-gap, 12px)" }}>
                 <div>
                   <div style={vibrantLabelStyle}>Total Hours</div>
                   <div style={statValueStyle}>{minutesToHHMM(totalWeekMins)}</div>
@@ -10598,12 +10631,12 @@ if (view === "gambling") {
               </div>
 
               <div style={{
-                marginTop: 14,
-                paddingTop: 12,
+                marginTop: "var(--flive-center-stats-detail-margin-top, 14px)",
+                paddingTop: "var(--flive-center-stats-detail-padding-top, 12px)",
                 borderTop: `2px solid ${theme.line}`,
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr 1fr",
-                gap: 12,
+                gap: "var(--flive-center-stats-gap, 12px)",
                 alignItems: "center"
               }}>
                 <div>

@@ -9946,6 +9946,48 @@ if (view === "gambling") {
         @media (max-width: 820px) and (max-height: 760px) {
           :root { --flive-scale: .30; --flive-panel-content-scale: .64; --flive-gaming-scale: .44; --flive-gaming-content-scale: .54; --flive-menu-text-scale: .58; --flive-menu-gap-scale: 1.30; --flive-menu-top-offset: -10px; --flive-menu-left-offset: 62px; --flive-wealth-extra-top-offset: 16px; --flive-ticker-top-scale: 2.12; --flive-center-width-scale: 1.30; --flive-center-content-scale: .58; --flive-tv-width-scale: 1.46; --flive-tv-content-scale: .64; --flive-info-right-scale: 1.46; --flive-info-width-scale: 1.16; --flive-info-content-scale: .82; --flive-weather-top-scale: 1.75; --flive-schedule-right-scale: 1.44; --flive-schedule-width-scale: 1.12; --flive-schedule-content-scale: .66; }
         }
+        @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 1100px) and (max-height: 560px) {
+          :root {
+            --flive-scale: clamp(.30, min(.45, calc(100vw / 1892px), calc(100vh / 907px)), .45);
+            --flive-scale: clamp(.30, min(.45, calc(100vw / 1892px), calc(100dvh / 907px)), .45);
+            --flive-panel-content-scale: .70;
+            --flive-gaming-scale: .56;
+            --flive-gaming-content-scale: .60;
+            --flive-menu-text-scale: .72;
+            --flive-menu-gap-scale: 1.35;
+            --flive-menu-top-offset: -16px;
+            --flive-menu-left-offset: 85px;
+            --flive-wealth-extra-top-offset: 20px;
+            --flive-ticker-top-scale: 2.12;
+            --flive-center-width-scale: 1.35;
+            --flive-center-content-scale: .64;
+            --flive-tv-width-scale: 1.75;
+            --flive-tv-content-scale: .70;
+            --flive-info-right-scale: 1.66;
+            --flive-info-width-scale: 1.22;
+            --flive-info-content-scale: .88;
+            --flive-weather-top-scale: 1.75;
+            --flive-schedule-right-scale: 1.64;
+            --flive-schedule-width-scale: 1.24;
+            --flive-schedule-content-scale: .72;
+          }
+          html,
+          body,
+          #root {
+            width: 100vw;
+            min-height: 100vh;
+            min-height: 100dvh;
+            overflow: hidden;
+            background: #000;
+          }
+          .flive-center-shell {
+            min-height: 100vh !important;
+            min-height: 100dvh !important;
+            max-height: 100vh;
+            max-height: 100dvh;
+            overflow: hidden !important;
+          }
+        }
         @media (min-width: 2100px) {
           :root { --flive-scale: min(calc(100vw / 1892px), calc(100vh / 907px), 2.15); }
         }

@@ -9739,6 +9739,16 @@ export default function App() {
   const backgroundRef = useRef(null);
   const musicRef = useRef(null);
   const audioFileRef = useRef(null);
+  const centerShellRef = useRef(null);
+  const centerScrollDragRef = useRef({
+    active: false,
+    dragging: false,
+    touchId: null,
+    startX: 0,
+    startY: 0,
+    lastY: 0,
+    blockClickUntil: 0
+  });
 
   useEffect(() => {
     if (musicRef.current) musicRef.current.volume = Number(musicSettings.volume ?? 0.35);
@@ -9752,6 +9762,104 @@ export default function App() {
     setIsMusicPlaying(false);
     setMusicNeedsTap(false);
   }, [activeMusicSrc]);
+
+  useEffect(() => {
+    const shell = centerShellRef.current;
+    if (!shell) return undefined;
+
+    const drag = centerScrollDragRef.current;
+    const isMobileLandscape = () => {
+      const query = "(hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 1100px) and (max-height: 560px)";
+      if (typeof window.matchMedia === "function") return window.matchMedia(query).matches;
+
+      const touchPoints = typeof navigator === "undefined" ? 0 : Number(navigator.maxTouchPoints || 0);
+      return touchPoints > 0 && window.innerWidth > window.innerHeight && window.innerWidth <= 1100 && window.innerHeight <= 560;
+    };
+    const canDragScroll = () => (
+      view === "week" &&
+      isMobileLandscape() &&
+      shell.scrollHeight > shell.clientHeight + 1
+    );
+    const resetDrag = () => {
+      drag.active = false;
+      drag.dragging = false;
+      drag.touchId = null;
+    };
+    const getTrackedTouch = (event) => {
+      const touches = Array.from(event.touches || []);
+      const changedTouches = Array.from(event.changedTouches || []);
+      const touch = drag.touchId == null
+        ? touches[0] || changedTouches[0]
+        : touches.find(item => item.identifier === drag.touchId) ||
+          changedTouches.find(item => item.identifier === drag.touchId);
+
+      if (!touch) return null;
+      return { x: touch.clientX, y: touch.clientY };
+    };
+    const handleTouchStart = (event) => {
+      if (!canDragScroll()) return;
+
+      const touch = event.touches?.[0];
+      if (!touch) return;
+
+      drag.active = true;
+      drag.dragging = false;
+      drag.touchId = touch.identifier;
+      drag.startX = touch.clientX;
+      drag.startY = touch.clientY;
+      drag.lastY = touch.clientY;
+    };
+    const handleTouchMove = (event) => {
+      if (!drag.active || !canDragScroll()) return;
+
+      const point = getTrackedTouch(event);
+      if (!point) return;
+
+      const deltaX = point.x - drag.startX;
+      const deltaY = point.y - drag.startY;
+      const absoluteX = Math.abs(deltaX);
+      const absoluteY = Math.abs(deltaY);
+
+      if (!drag.dragging) {
+        if (absoluteX < 6 && absoluteY < 6) return;
+        if (absoluteY <= absoluteX) return;
+        drag.dragging = true;
+      }
+
+      shell.scrollTop -= point.y - drag.lastY;
+      drag.lastY = point.y;
+
+      if (event.cancelable) event.preventDefault();
+      event.stopPropagation();
+    };
+    const handleTouchEnd = () => {
+      if (drag.dragging) drag.blockClickUntil = Date.now() + 450;
+      resetDrag();
+    };
+    const handleClick = (event) => {
+      if (Date.now() > drag.blockClickUntil) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation?.();
+    };
+    const passiveCaptureOptions = { capture: true, passive: true };
+    const activeCaptureOptions = { capture: true, passive: false };
+
+    shell.addEventListener("touchstart", handleTouchStart, passiveCaptureOptions);
+    shell.addEventListener("touchmove", handleTouchMove, activeCaptureOptions);
+    shell.addEventListener("touchend", handleTouchEnd, passiveCaptureOptions);
+    shell.addEventListener("touchcancel", handleTouchEnd, passiveCaptureOptions);
+    shell.addEventListener("click", handleClick, true);
+
+    return () => {
+      shell.removeEventListener("touchstart", handleTouchStart, passiveCaptureOptions);
+      shell.removeEventListener("touchmove", handleTouchMove, activeCaptureOptions);
+      shell.removeEventListener("touchend", handleTouchEnd, passiveCaptureOptions);
+      shell.removeEventListener("touchcancel", handleTouchEnd, passiveCaptureOptions);
+      shell.removeEventListener("click", handleClick, true);
+    };
+  }, [loggedInUsername, view]);
 
   if (!loggedInUsername) {
     return <LoginPage onLogin={loginUser} approvedUsers={approvedUsers} bannedUsers={bannedUsers} onSignupRequest={submitSignupRequest} />;
@@ -10121,7 +10229,11 @@ if (view === "gambling") {
             min-height: 100dvh !important;
             max-height: 100vh;
             max-height: 100dvh;
-            overflow: hidden !important;
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
+            touch-action: pan-y;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
           }
           .music-library-desktop-sidebar {
             z-index: 7 !important;
@@ -10262,7 +10374,7 @@ if (view === "gambling") {
         </>
       )}
       {view === "week" && <MusicLibrarySidebar accentColor={accentColor} loggedInUsername={loggedInUsername} approvedUsers={approvedUsers} onLogout={logoutUser} />}
-      <div className="flive-center-shell" style={{ minHeight: "100vh", background: pageBackground, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed", fontFamily: theme.font, width: "calc(480px * var(--flive-scale, 1) * var(--flive-center-width-scale, 1))", maxWidth: "100vw", margin: "0 auto", color: appTextColor, transition: "background 0.25s ease, color 0.25s ease", position: "relative", zIndex: 5, overflowX: "hidden" }}>
+      <div ref={centerShellRef} className="flive-center-shell" style={{ minHeight: "100vh", background: pageBackground, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed", fontFamily: theme.font, width: "calc(480px * var(--flive-scale, 1) * var(--flive-center-width-scale, 1))", maxWidth: "100vw", margin: "0 auto", color: appTextColor, transition: "background 0.25s ease, color 0.25s ease", position: "relative", zIndex: 5, overflowX: "hidden" }}>
       {activeMusicSrc && <audio ref={musicRef} src={activeMusicSrc} loop playsInline onPlay={() => setIsMusicPlaying(true)} onPause={() => setIsMusicPlaying(false)} onEnded={() => setIsMusicPlaying(false)} />}
       {inAppBrowserOpen && (
         <div

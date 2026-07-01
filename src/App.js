@@ -5547,7 +5547,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
       <div className="fuits-online-indicator" style={{
         position: "fixed",
         right: "calc(430px * var(--flive-scale, 1) * var(--flive-info-right-scale, 1))",
-        top: "calc(18px * var(--flive-scale, 1))",
+        top: "calc(18px * var(--flive-scale, 1) * var(--flive-online-top-scale, 1))",
         zIndex: 8,
         width: "calc(220px * var(--flive-scale, 1) * var(--flive-info-width-scale, 1))",
         border: "1px solid rgba(239,68,68,.28)",
@@ -5647,7 +5647,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
       <div className="fuits-schedule-panel" style={{
         position: "fixed",
         right: "calc(390px * var(--flive-scale, 1) * var(--flive-schedule-right-scale, var(--flive-info-right-scale, 1)))",
-        bottom: "calc(26px * var(--flive-scale, 1))",
+        bottom: "calc(26px * var(--flive-scale, 1) * var(--flive-schedule-bottom-scale, 1))",
         zIndex: 8,
         width: "calc(300px * var(--flive-scale, 1) * var(--flive-schedule-width-scale, 1))",
         border: "1px solid rgba(250,204,21,.32)",
@@ -9906,10 +9906,12 @@ if (view === "gambling") {
           --flive-info-right-scale: 1;
           --flive-info-width-scale: 1;
           --flive-info-content-scale: var(--flive-panel-content-scale);
+          --flive-online-top-scale: 1;
           --flive-weather-top-scale: 1;
           --flive-schedule-right-scale: var(--flive-info-right-scale);
           --flive-schedule-width-scale: 1;
           --flive-schedule-content-scale: var(--flive-info-content-scale);
+          --flive-schedule-bottom-scale: 1;
         }
         @media (max-width: 1891px) {
           :root { --flive-scale: clamp(.34, min(calc(100vw / 1892px), calc(100vh / 907px)), 1); }
@@ -9953,27 +9955,29 @@ if (view === "gambling") {
             --flive-scale: clamp(.32, min(.37, calc(100vw / 2350px), calc(100vh / 1080px)), .37);
             --flive-scale: clamp(.32, min(.37, calc(100vw / 2350px), calc(100dvh / 1080px)), .37);
             --flive-panel-content-scale: .64;
-            --flive-gaming-scale: .46;
-            --flive-gaming-content-scale: .54;
-            --flive-menu-text-scale: .58;
-            --flive-menu-width-scale: 1.24;
+            --flive-gaming-scale: .31;
+            --flive-gaming-content-scale: .46;
+            --flive-menu-text-scale: .52;
+            --flive-menu-width-scale: 1.05;
             --flive-menu-white-space: nowrap;
-            --flive-menu-gap-scale: 1.17;
-            --flive-menu-top-offset: -22px;
-            --flive-menu-left-offset: -24px;
+            --flive-menu-gap-scale: 1.22;
+            --flive-menu-top-offset: -25px;
+            --flive-menu-left-offset: -8px;
             --flive-wealth-extra-top-offset: 16px;
             --flive-ticker-top-scale: 2.12;
-            --flive-center-width-scale: 1.12;
-            --flive-center-content-scale: .56;
+            --flive-center-width-scale: 1.00;
+            --flive-center-content-scale: .54;
             --flive-tv-width-scale: 1.10;
             --flive-tv-content-scale: .58;
             --flive-info-right-scale: 1.25;
             --flive-info-width-scale: 1.14;
             --flive-info-content-scale: .62;
-            --flive-weather-top-scale: 1.45;
+            --flive-online-top-scale: 1.35;
+            --flive-weather-top-scale: 2.05;
             --flive-schedule-right-scale: 1.38;
             --flive-schedule-width-scale: 1.12;
             --flive-schedule-content-scale: .58;
+            --flive-schedule-bottom-scale: .75;
           }
           html,
           body,

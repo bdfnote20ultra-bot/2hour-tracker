@@ -3888,6 +3888,17 @@ const LARGE_FUITS_PRELOAD_PARALLEL_CHUNKS = 6;
 const FUITS_RESTART_PASSWORD = "FOOLIO";
 const FUITS_TRANSITION_BUFFER_SECONDS = 4;
 const FUITS_MOBILE_LANDSCAPE_QUERY = "(hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 1100px) and (max-height: 560px)";
+const FUITS_SILK_JELLYFIN_KEEPALIVE_MS = 12 * 60 * 1000;
+
+const getFuitsFullscreenElement = () => {
+  if (typeof document === "undefined") return null;
+  return (
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.msFullscreenElement ||
+    null
+  );
+};
 
 const isFuitsMobileLandscapeProfile = () => {
   if (typeof window === "undefined") return false;
@@ -3918,6 +3929,31 @@ const isFuitsMobilePortraitGateProfile = () => {
 
   const touchPoints = typeof navigator === "undefined" ? 0 : Number(navigator.maxTouchPoints || 0);
   return touchPoints > 0 && window.innerHeight >= window.innerWidth && window.innerWidth <= 820;
+};
+
+const getFuitsAmazonSilkProfile = () => {
+  if (typeof navigator === "undefined") {
+    return { active: false, isSilk: false, isFireTv: false, mode: "", version: "", deviceModel: "" };
+  }
+
+  const userAgent = navigator.userAgent || "";
+  const silkMatch = /(?:; ([^;)]+) Build\/.*)?\bSilk\/([0-9._-]+)\b(.*\bMobile Safari\b)?/i.exec(userAgent);
+  const fireTvModelMatch = /\b(AFT[A-Z0-9]+)\b/i.exec(userAgent);
+  const kindleModelMatch = /\b(KF[A-Z0-9]+)\b/i.exec(userAgent);
+  const isAmazonWebAppPlatform = /AmazonWebAppPlatform|cordova-amazon-fireos/i.test(userAgent);
+  const isSilk = Boolean(silkMatch) || /Silk-Accelerated=/i.test(userAgent);
+  const isFireTv = Boolean(fireTvModelMatch || isAmazonWebAppPlatform);
+  const deviceModel = (fireTvModelMatch?.[1] || silkMatch?.[1] || kindleModelMatch?.[1] || "").trim();
+  const mode = silkMatch ? (silkMatch[3] ? "mobile" : "default") : "";
+
+  return {
+    active: isSilk || isFireTv,
+    isSilk,
+    isFireTv,
+    mode,
+    version: silkMatch?.[2] || "",
+    deviceModel
+  };
 };
 
 const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 0, liveAnnouncementOnline = false, restartSignal = 0, onPlaybackAnchor, onStretchFullscreenChange }, ref) {
@@ -5093,6 +5129,7 @@ const getFuitsLiveDeviceId = () => {
 
 const getFuitsLiveDeviceProfile = () => {
   const userAgent = navigator.userAgent || "";
+  const amazonSilkProfile = getFuitsAmazonSilkProfile();
   const platform = navigator.userAgentData?.platform || navigator.platform || "unknown";
   const brands = Array.isArray(navigator.userAgentData?.brands)
     ? navigator.userAgentData.brands.map(brand => `${brand.brand} ${brand.version}`).join(", ")
@@ -5111,11 +5148,15 @@ const getFuitsLiveDeviceProfile = () => {
   const isMac = /Macintosh|Mac OS/i.test(userAgent) || /Mac/i.test(platform);
   const isMobileSized = Math.min(width, height) <= 520 || Math.min(viewportWidth, viewportHeight) <= 520;
   const isTabletSized = Math.min(width, height) > 520 && Math.min(width, height) <= 950 && touchPoints > 0;
-  const deviceType = isIpad || isTabletSized ? "Tablet" : (mobileHint || isAndroid || isIphone || isMobileSized ? "Mobile" : "Desktop/Laptop");
-  const os = isIphone || isIpad ? "iOS/iPadOS" : isAndroid ? "Android" : isWindows ? "Windows" : isMac ? "macOS" : platform;
-  const browser = /Edg\//i.test(userAgent) ? "Edge" : /OPR\//i.test(userAgent) ? "Opera" : /Firefox\//i.test(userAgent) ? "Firefox" : /Chrome\//i.test(userAgent) ? "Chrome" : /Safari\//i.test(userAgent) ? "Safari" : "Unknown browser";
+  const deviceType = amazonSilkProfile.isFireTv ? "TV" : isIpad || isTabletSized ? "Tablet" : (mobileHint || isAndroid || isIphone || isMobileSized ? "Mobile" : "Desktop/Laptop");
+  const os = amazonSilkProfile.active ? "Fire OS / Amazon Web" : isIphone || isIpad ? "iOS/iPadOS" : isAndroid ? "Android" : isWindows ? "Windows" : isMac ? "macOS" : platform;
+  const browser = amazonSilkProfile.isSilk
+    ? `Amazon Silk${amazonSilkProfile.version ? ` ${amazonSilkProfile.version}` : ""}`
+    : amazonSilkProfile.active
+      ? "Amazon Fire TV Web"
+      : /Edg\//i.test(userAgent) ? "Edge" : /OPR\//i.test(userAgent) ? "Opera" : /Firefox\//i.test(userAgent) ? "Firefox" : /Chrome\//i.test(userAgent) ? "Chrome" : /Safari\//i.test(userAgent) ? "Safari" : "Unknown browser";
   const modelMatch = userAgent.match(/Android[^;]*;\s*([^;)]+)\)/i);
-  const modelHint = isIphone ? "iPhone" : isIpad ? "iPad" : modelMatch?.[1]?.replace(/\s+Build\/.*/i, "").trim() || "";
+  const modelHint = amazonSilkProfile.deviceModel || (isIphone ? "iPhone" : isIpad ? "iPad" : modelMatch?.[1]?.replace(/\s+Build\/.*/i, "").trim() || "");
 
   return {
     deviceType,
@@ -5128,7 +5169,8 @@ const getFuitsLiveDeviceProfile = () => {
     viewport: `${viewportWidth}x${viewportHeight}`,
     pixelRatio,
     touchPoints,
-    mobileHint
+    mobileHint,
+    amazonSilkProfile: amazonSilkProfile.active ? amazonSilkProfile : null
   };
 };
 
@@ -5188,12 +5230,15 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
   const [fuitsSchedule, setFuitsSchedule] = useState({ channelLabel: "", items: [], loading: true });
   const [fuitsPlaybackAnchor, setFuitsPlaybackAnchor] = useState(null);
   const [fuitsStretchFullscreenActive, setFuitsStretchFullscreenActive] = useState(false);
+  const [jellyfinSilkFullscreenActive, setJellyfinSilkFullscreenActive] = useState(false);
   const [openMusicSections, setOpenMusicSections] = useState({ videos: false, music: false });
   const [zoomedDonationQr, setZoomedDonationQr] = useState(null);
   const jellyfinFrameRef = useRef(null);
   const adultSwimFrameRef = useRef(null);
   const fuitsLiveTvPlayerRef = useRef(null);
   const fuitsScheduleDataRef = useRef(null);
+  const jellyfinSilkWakeLockRef = useRef(null);
+  const amazonSilkProfile = useMemo(() => getFuitsAmazonSilkProfile(), []);
   const loggedInUserProfile = approvedUsers.find(user =>
     (user.username || "").toUpperCase() === String(loggedInUsername || "").toUpperCase()
   );
@@ -5696,6 +5741,99 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
   const fuitsLiveTvVideoUrl = getFuitsLiveTvUrl("/embed/video");
   const fuitsLiveTvChatUrl = getFuitsLiveTvUrl("/chat-only");
 
+  const releaseJellyfinSilkWakeLock = useCallback(() => {
+    const wakeLock = jellyfinSilkWakeLockRef.current;
+    jellyfinSilkWakeLockRef.current = null;
+    try {
+      if (wakeLock && !wakeLock.released) {
+        const releaseResult = wakeLock.release?.();
+        if (releaseResult?.catch) releaseResult.catch(() => {});
+      }
+    } catch {}
+  }, []);
+
+  const requestJellyfinSilkWakeLock = useCallback(async () => {
+    if (!amazonSilkProfile.active || typeof navigator === "undefined" || typeof document === "undefined") return;
+    if (document.visibilityState === "hidden") return;
+
+    const currentWakeLock = jellyfinSilkWakeLockRef.current;
+    if (currentWakeLock && !currentWakeLock.released) return;
+
+    try {
+      const wakeLock = await navigator.wakeLock?.request?.("screen");
+      if (!wakeLock) return;
+      jellyfinSilkWakeLockRef.current = wakeLock;
+      wakeLock.addEventListener?.("release", () => {
+        if (jellyfinSilkWakeLockRef.current === wakeLock) {
+          jellyfinSilkWakeLockRef.current = null;
+        }
+      });
+    } catch {}
+  }, [amazonSilkProfile.active]);
+
+  const sendJellyfinSilkKeepAlive = useCallback(() => {
+    if (!amazonSilkProfile.active || activeLiveTvOption.id !== "jellyfin") return;
+    requestJellyfinSilkWakeLock();
+
+    try {
+      document.documentElement?.setAttribute("data-fuits-silk-jellyfin-keepalive", String(Date.now()));
+    } catch {}
+
+    try {
+      const src = jellyfinFrameRef.current?.src || activeLiveTvOption.url || "";
+      if (!src || typeof window === "undefined") return;
+      const pingUrl = new URL(src, window.location.href);
+      pingUrl.pathname = "/System/Ping";
+      pingUrl.search = "";
+      pingUrl.searchParams.set("fuitsSilkKeepAwake", String(Date.now()));
+      fetch(pingUrl.href, { method: "GET", mode: "no-cors", cache: "no-store", keepalive: true }).catch(() => {});
+    } catch {}
+  }, [activeLiveTvOption.id, activeLiveTvOption.url, amazonSilkProfile.active, requestJellyfinSilkWakeLock]);
+
+  useEffect(() => {
+    if (!amazonSilkProfile.active || !jellyfinSilkFullscreenActive) return undefined;
+
+    let cancelled = false;
+    const frame = jellyfinFrameRef.current;
+    const keepAlive = () => {
+      if (cancelled) return;
+      const fullscreenElement = getFuitsFullscreenElement();
+      if (fullscreenElement && frame && fullscreenElement !== frame) {
+        setJellyfinSilkFullscreenActive(false);
+        return;
+      }
+      sendJellyfinSilkKeepAlive();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") keepAlive();
+      else releaseJellyfinSilkWakeLock();
+    };
+    const handleFullscreenChange = () => {
+      const fullscreenElement = getFuitsFullscreenElement();
+      if (!fullscreenElement || (frame && fullscreenElement !== frame)) {
+        setJellyfinSilkFullscreenActive(false);
+        return;
+      }
+      keepAlive();
+    };
+
+    keepAlive();
+    const keepAliveTimer = window.setInterval(keepAlive, FUITS_SILK_JELLYFIN_KEEPALIVE_MS);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    document.addEventListener("MSFullscreenChange", handleFullscreenChange);
+    return () => {
+      cancelled = true;
+      window.clearInterval(keepAliveTimer);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+      document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
+      releaseJellyfinSilkWakeLock();
+    };
+  }, [amazonSilkProfile.active, jellyfinSilkFullscreenActive, releaseJellyfinSilkWakeLock, sendJellyfinSilkKeepAlive]);
+
   const runFuitsOwnerCommand = async (command) => {
     if (!fuitsLiveTvChannelUrl) return;
     const password = window.prompt(`${command.label} password`);
@@ -5839,19 +5977,30 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
     allCustomTvItems[0] ||
     null;
 
-  const openFrameFullscreen = (frame) => {
-    if (!frame) return;
+  const openFrameFullscreen = async (frame) => {
+    if (!frame) return false;
     const requestFullscreen =
       frame.requestFullscreen ||
       frame.webkitRequestFullscreen ||
       frame.msRequestFullscreen;
     if (requestFullscreen) {
-      requestFullscreen.call(frame);
+      try {
+        const fullscreenResult = requestFullscreen.call(frame);
+        if (fullscreenResult?.then) await fullscreenResult;
+        return true;
+      } catch {
+        return false;
+      }
     }
+    return false;
   };
 
-  const openJellyfinFullscreen = () => {
-    openFrameFullscreen(jellyfinFrameRef.current);
+  const openJellyfinFullscreen = async () => {
+    const fullscreenStarted = await openFrameFullscreen(jellyfinFrameRef.current);
+    if (amazonSilkProfile.active && fullscreenStarted) {
+      setJellyfinSilkFullscreenActive(true);
+      sendJellyfinSilkKeepAlive();
+    }
   };
 
   const openAdultSwimFullscreen = () => {
@@ -5859,7 +6008,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
   };
 
   return (
-    <aside className={`music-library-desktop-sidebar${fuitsStretchFullscreenActive ? " fuits-live-tv-stretching-fullscreen" : ""}`} style={{
+    <aside className={`music-library-desktop-sidebar${amazonSilkProfile.active ? " fuits-amazon-silk-profile" : ""}${fuitsStretchFullscreenActive ? " fuits-live-tv-stretching-fullscreen" : ""}${jellyfinSilkFullscreenActive ? " fuits-jellyfin-silk-fullscreen-active" : ""}`} style={{
       position: "fixed",
       right: "calc(18px * var(--flive-scale, 1))",
       top: "calc(18px * var(--flive-scale, 1))",

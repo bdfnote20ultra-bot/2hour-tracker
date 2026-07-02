@@ -5888,6 +5888,13 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             position: relative;
             z-index: 3;
             margin-bottom: 2px !important;
+            box-sizing: border-box !important;
+            min-height: 34px !important;
+            height: 34px !important;
+            padding: 7px 30px 7px 10px !important;
+            font-size: 11px !important;
+            line-height: 1.25 !important;
+            letter-spacing: .35px !important;
           }
           .fuits-live-tv-channel-controls {
             gap: 4px !important;

@@ -3897,6 +3897,29 @@ const isFuitsMobileLandscapeProfile = () => {
   return touchPoints > 0 && window.innerWidth > window.innerHeight && window.innerWidth <= 1100 && window.innerHeight <= 560;
 };
 
+const FUITS_MOBILE_PORTRAIT_GATE_QUERY = "(hover: none) and (pointer: coarse) and (orientation: portrait) and (max-width: 820px)";
+
+const isFuitsPhoneSafariProfile = () => {
+  if (typeof navigator === "undefined") return false;
+
+  const userAgent = navigator.userAgent || "";
+  const vendor = navigator.vendor || "";
+  const touchPoints = Number(navigator.maxTouchPoints || 0);
+  const isPhone = /iPhone|iPod/i.test(userAgent);
+  const isSafari = /Safari/i.test(userAgent) && /Apple/i.test(vendor) && !/CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo|SamsungBrowser|Chrome|Chromium/i.test(userAgent);
+
+  return isPhone && isSafari && touchPoints > 0;
+};
+
+const isFuitsMobilePortraitGateProfile = () => {
+  if (typeof window === "undefined") return false;
+  if (!isFuitsPhoneSafariProfile()) return false;
+  if (typeof window.matchMedia === "function") return window.matchMedia(FUITS_MOBILE_PORTRAIT_GATE_QUERY).matches;
+
+  const touchPoints = typeof navigator === "undefined" ? 0 : Number(navigator.maxTouchPoints || 0);
+  return touchPoints > 0 && window.innerHeight >= window.innerWidth && window.innerWidth <= 820;
+};
+
 const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 0, liveAnnouncementOnline = false, restartSignal = 0, onPlaybackAnchor }, ref) {
   const videoRef = useRef(null);
   const videoShellRef = useRef(null);
@@ -9687,6 +9710,88 @@ function LoginPage({ onLogin, approvedUsers, bannedUsers = [], onSignupRequest }
   );
 }
 
+function MobileLandscapeGate({ onEnter }) {
+  return (
+    <div style={{
+      minHeight: "100vh",
+      minHeight: "100dvh",
+      width: "100vw",
+      background: "radial-gradient(circle at 50% 0%, #0f766e 0%, #020617 54%, #000 100%)",
+      color: "#f8fafc",
+      fontFamily: "system-ui, sans-serif",
+      display: "grid",
+      placeItems: "center",
+      padding: 20,
+      boxSizing: "border-box",
+      textAlign: "center",
+      overflow: "hidden"
+    }}>
+      <div style={{
+        width: "min(100%, 390px)",
+        display: "grid",
+        justifyItems: "center",
+        gap: 16
+      }}>
+        <div aria-hidden="true" style={{
+          width: 96,
+          height: 58,
+          border: "4px solid #67e8f9",
+          borderRadius: 12,
+          boxShadow: "0 0 28px rgba(103,232,249,.52)",
+          transform: "rotate(90deg)",
+          position: "relative"
+        }}>
+          <div style={{
+            position: "absolute",
+            left: 10,
+            right: 10,
+            bottom: -14,
+            height: 4,
+            borderRadius: 999,
+            background: "#fef08a"
+          }} />
+        </div>
+        <div style={{
+          color: "#fef08a",
+          fontSize: 24,
+          fontWeight: 1000,
+          lineHeight: 1.05,
+          textTransform: "uppercase"
+        }}>
+          Rotate For FUITS TV
+        </div>
+        <div style={{
+          color: "#cbd5e1",
+          fontSize: 13,
+          fontWeight: 850,
+          lineHeight: 1.4,
+          maxWidth: 310
+        }}>
+          Turn your phone sideways, then press the button to open the landscape mobile view.
+        </div>
+        <button
+          type="button"
+          onClick={onEnter}
+          style={{
+            border: "1px solid #67e8f9",
+            borderRadius: 10,
+            background: "#67e8f9",
+            color: "#020617",
+            cursor: "pointer",
+            padding: "13px 18px",
+            fontSize: 13,
+            fontWeight: 1000,
+            textTransform: "uppercase",
+            boxShadow: "0 12px 34px rgba(103,232,249,.34)"
+          }}
+        >
+          Enter Landscape
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [loggedInUsername, setLoggedInUsername] = useState(() => {
     try { return localStorage.getItem("fuitsLoggedInUsername") || ""; } catch { return ""; }
@@ -9716,6 +9821,7 @@ export default function App() {
   const [approvedUsers, setApprovedUsers] = useState(loadApprovedUsers);
   const [bannedUsers, setBannedUsers] = useState(loadBannedUsers);
   const [mainFuitWealth, setMainFuitWealth] = useState({ loading: true, balance: 0, symbol: "FUIT" });
+  const [showMobileLandscapeGate, setShowMobileLandscapeGate] = useState(() => isFuitsMobilePortraitGateProfile());
   const weekDates = getWeekDates(weekOffset);
   const loggedInApprovedUser = useMemo(() => approvedUsers.find(user =>
     (user.username || "").toLowerCase() === String(loggedInUsername || "").toLowerCase()
@@ -9732,6 +9838,34 @@ export default function App() {
   useEffect(() => { saveSignupRequests(signupRequests); }, [signupRequests]);
   useEffect(() => { saveApprovedUsers(approvedUsers); }, [approvedUsers]);
   useEffect(() => { saveBannedUsers(bannedUsers); }, [bannedUsers]);
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    if (!isFuitsPhoneSafariProfile()) {
+      setShowMobileLandscapeGate(false);
+      return undefined;
+    }
+
+    const updateGate = () => setShowMobileLandscapeGate(isFuitsMobilePortraitGateProfile());
+    const portraitQuery = typeof window.matchMedia === "function" ? window.matchMedia(FUITS_MOBILE_PORTRAIT_GATE_QUERY) : null;
+    const landscapeQuery = typeof window.matchMedia === "function" ? window.matchMedia(FUITS_MOBILE_LANDSCAPE_QUERY) : null;
+
+    updateGate();
+    if (portraitQuery?.addEventListener) portraitQuery.addEventListener("change", updateGate);
+    else if (portraitQuery?.addListener) portraitQuery.addListener(updateGate);
+    if (landscapeQuery?.addEventListener) landscapeQuery.addEventListener("change", updateGate);
+    else if (landscapeQuery?.addListener) landscapeQuery.addListener(updateGate);
+    window.addEventListener("resize", updateGate);
+    window.addEventListener("orientationchange", updateGate);
+
+    return () => {
+      if (portraitQuery?.removeEventListener) portraitQuery.removeEventListener("change", updateGate);
+      else if (portraitQuery?.removeListener) portraitQuery.removeListener(updateGate);
+      if (landscapeQuery?.removeEventListener) landscapeQuery.removeEventListener("change", updateGate);
+      else if (landscapeQuery?.removeListener) landscapeQuery.removeListener(updateGate);
+      window.removeEventListener("resize", updateGate);
+      window.removeEventListener("orientationchange", updateGate);
+    };
+  }, []);
   useEffect(() => {
     if (!loggedInUsername) {
       setMainFuitWealth({ loading: false, balance: 0, symbol: "FUIT" });
@@ -10142,6 +10276,41 @@ export default function App() {
       shell.removeEventListener("click", handleClick, true);
     };
   }, [loggedInUsername, view]);
+
+  const enterMobileLandscapeGate = useCallback(async () => {
+    if (typeof window === "undefined") return;
+
+    const page = document.documentElement;
+    const fullscreenElement =
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.msFullscreenElement;
+
+    try {
+      if (!fullscreenElement) {
+        const requestFullscreen =
+          page.requestFullscreen ||
+          page.webkitRequestFullscreen ||
+          page.msRequestFullscreen;
+        const fullscreenResult = requestFullscreen?.call(page);
+        if (fullscreenResult?.then) await fullscreenResult;
+      }
+    } catch {}
+
+    try {
+      const lockResult = window.screen?.orientation?.lock?.("landscape");
+      if (lockResult?.then) await lockResult;
+    } catch {}
+
+    const updateGate = () => setShowMobileLandscapeGate(isFuitsMobilePortraitGateProfile());
+    updateGate();
+    window.setTimeout(updateGate, 250);
+    window.setTimeout(updateGate, 800);
+  }, []);
+
+  if (showMobileLandscapeGate) {
+    return <MobileLandscapeGate onEnter={enterMobileLandscapeGate} />;
+  }
 
   if (!loggedInUsername) {
     return <LoginPage onLogin={loginUser} approvedUsers={approvedUsers} bannedUsers={bannedUsers} onSignupRequest={submitSignupRequest} />;

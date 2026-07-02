@@ -5490,6 +5490,18 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
   const [liveFuitsLiveTvChannels, setLiveFuitsLiveTvChannels] = useState(fuitsLiveTvChannels);
   const activeLiveTvOption = liveTvOptions.find(option => option.id === activeLiveTv) || liveTvOptions[0];
   const activeLiveTvFixedChannel = Boolean(activeLiveTvOption.defaultChannel);
+  const activeFuitsLiveTvChannelLabel = (
+    liveFuitsLiveTvChannels.find(channel => channel.id === activeFuitsLiveTvChannel) ||
+    fuitsLiveTvChannels.find(channel => channel.id === activeFuitsLiveTvChannel)
+  )?.label || activeFuitsLiveTvChannel;
+  const activeFuitsLiveTvChannelNameLength = activeFuitsLiveTvChannelLabel.length;
+  const activeFuitsLiveTvChannelSelectFontSize =
+    activeFuitsLiveTvChannelNameLength > 34 ? 8 :
+    activeFuitsLiveTvChannelNameLength > 26 ? 9 :
+    activeFuitsLiveTvChannelNameLength > 18 ? 10 : 11;
+  const activeFuitsLiveTvChannelSelectHeight =
+    activeFuitsLiveTvChannelNameLength > 34 ? 72 :
+    activeFuitsLiveTvChannelNameLength > 22 ? 64 : 58;
   const musicViewOptions = [
     { id: "library", label: "Music Library" },
     { id: "radio", label: "FUIT RADIO WORLD" },
@@ -5826,6 +5838,9 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             min-height: 0 !important;
           }
         }
+        .fuits-live-tv-channel-select-display {
+          display: none;
+        }
         @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 1100px) and (max-height: 560px) {
           .music-library-desktop-sidebar {
             overflow: visible !important;
@@ -5884,23 +5899,20 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             padding: 4px 6px !important;
             border-radius: 8px !important;
           }
-          .fuits-live-tv-panel .fuits-live-tv-channel-select {
+          .fuits-live-tv-panel .fuits-live-tv-channel-select-wrap {
             box-sizing: border-box !important;
             display: block !important;
+            position: relative !important;
             width: 100% !important;
-            flex: 0 0 58px !important;
+            flex: 0 0 var(--fuits-channel-select-height, 58px) !important;
             align-self: stretch !important;
-            min-height: 58px !important;
-            height: 58px !important;
+            min-height: var(--fuits-channel-select-height, 58px) !important;
+            height: var(--fuits-channel-select-height, 58px) !important;
             max-height: none !important;
-            block-size: 58px !important;
-            min-block-size: 58px !important;
-            font-size: 16px !important;
-            line-height: normal !important;
-            letter-spacing: .45px !important;
+            block-size: var(--fuits-channel-select-height, 58px) !important;
+            min-block-size: var(--fuits-channel-select-height, 58px) !important;
             border: 2px solid rgba(148,163,184,.42) !important;
             border-radius: 13px !important;
-            padding: 0 48px 0 16px !important;
             background-color: #020617 !important;
             background-image:
               linear-gradient(45deg, transparent 50%, #f8fafc 50%),
@@ -5912,15 +5924,43 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
               calc(100% - 40px) 50% !important;
             background-size: 8px 8px, 8px 8px, 1px 28px !important;
             background-repeat: no-repeat !important;
-            appearance: none !important;
-            -webkit-appearance: none !important;
-            -webkit-text-size-adjust: 100%;
-          }
-          .fuits-live-tv-panel .fuits-live-tv-channel-select {
-            position: relative;
             z-index: 3;
             margin-bottom: 4px !important;
-            text-align-last: left;
+            overflow: hidden !important;
+          }
+          .fuits-live-tv-panel .fuits-live-tv-channel-select-display {
+            box-sizing: border-box !important;
+            display: flex !important;
+            align-items: center !important;
+            width: 100% !important;
+            min-height: 100% !important;
+            padding: 4px 48px 4px 14px !important;
+            color: #f8fafc !important;
+            font-size: var(--fuits-channel-select-font-size, 11px) !important;
+            font-weight: 1000 !important;
+            line-height: 1.08 !important;
+            letter-spacing: 0 !important;
+            text-align: left !important;
+            text-transform: uppercase !important;
+            white-space: normal !important;
+            overflow-wrap: anywhere !important;
+            word-break: break-word !important;
+            pointer-events: none !important;
+          }
+          .fuits-live-tv-panel .fuits-live-tv-channel-select {
+            position: absolute !important;
+            inset: 0 !important;
+            z-index: 4 !important;
+            width: 100% !important;
+            height: 100% !important;
+            min-height: 100% !important;
+            margin: 0 !important;
+            border: 0 !important;
+            opacity: 0 !important;
+            cursor: pointer !important;
+            font-size: 16px !important;
+            appearance: none !important;
+            -webkit-appearance: none !important;
           }
           .fuits-live-tv-panel .fuits-live-tv-channel-select option {
             font-size: 16px !important;
@@ -6414,28 +6454,41 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
                 ) : (
                   <>
                     {!activeLiveTvFixedChannel && (
-                      <select
-                        className="fuits-live-tv-channel-select"
-                        value={activeFuitsLiveTvChannel}
-                        onChange={event => setActiveFuitsLiveTvChannel(event.target.value)}
+                      <div
+                        className="fuits-live-tv-channel-select-wrap"
                         style={{
                           width: "100%",
-                          border: "1px solid rgba(148,163,184,.28)",
-                          borderRadius: 12,
-                          background: "#020617",
-                          color: "#f8fafc",
-                          padding: "7px 9px",
-                          outline: "none",
-                          fontSize: 11,
-                          fontWeight: 1000,
-                          textTransform: "uppercase",
-                          letterSpacing: .7
+                          "--fuits-channel-select-font-size": `${activeFuitsLiveTvChannelSelectFontSize}px`,
+                          "--fuits-channel-select-height": `${activeFuitsLiveTvChannelSelectHeight}px`
                         }}
                       >
-                        {liveFuitsLiveTvChannels.map(channel => (
-                          <option key={channel.id} value={channel.id}>{channel.label}</option>
-                        ))}
-                      </select>
+                        <span className="fuits-live-tv-channel-select-display" aria-hidden="true">
+                          {activeFuitsLiveTvChannelLabel}
+                        </span>
+                        <select
+                          className="fuits-live-tv-channel-select"
+                          value={activeFuitsLiveTvChannel}
+                          onChange={event => setActiveFuitsLiveTvChannel(event.target.value)}
+                          aria-label="Choose FUITS Live TV playlist"
+                          style={{
+                            width: "100%",
+                            border: "1px solid rgba(148,163,184,.28)",
+                            borderRadius: 12,
+                            background: "#020617",
+                            color: "#f8fafc",
+                            padding: "7px 9px",
+                            outline: "none",
+                            fontSize: 11,
+                            fontWeight: 1000,
+                            textTransform: "uppercase",
+                            letterSpacing: .7
+                          }}
+                        >
+                          {liveFuitsLiveTvChannels.map(channel => (
+                            <option key={channel.id} value={channel.id}>{channel.label}</option>
+                          ))}
+                        </select>
+                      </div>
                     )}
                     <div className="fuits-live-tv-channel-controls" style={{ width: "100%", display: "flex", justifyContent: "flex-start", gap: 6, flexWrap: "wrap" }}>
                       <button

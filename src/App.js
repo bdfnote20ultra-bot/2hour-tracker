@@ -3920,7 +3920,7 @@ const isFuitsMobilePortraitGateProfile = () => {
   return touchPoints > 0 && window.innerHeight >= window.innerWidth && window.innerWidth <= 820;
 };
 
-const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 0, liveAnnouncementOnline = false, restartSignal = 0, onPlaybackAnchor }, ref) {
+const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, channelId = "channel-a", startupBufferSeconds = 0, liveAnnouncementOnline = false, restartSignal = 0, onPlaybackAnchor, onStretchFullscreenChange }, ref) {
   const videoRef = useRef(null);
   const videoShellRef = useRef(null);
   const loadedVideoSrcRef = useRef("");
@@ -4397,6 +4397,11 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
       document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
     };
   }, []);
+
+  useEffect(() => {
+    onStretchFullscreenChange?.(stretchVideoFullscreen);
+    return () => onStretchFullscreenChange?.(false);
+  }, [onStretchFullscreenChange, stretchVideoFullscreen]);
 
   useEffect(() => {
     const unmuteOnFirstPageClick = () => {
@@ -5182,6 +5187,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
   const [localForecast, setLocalForecast] = useState({ status: "asking", days: [] });
   const [fuitsSchedule, setFuitsSchedule] = useState({ channelLabel: "", items: [], loading: true });
   const [fuitsPlaybackAnchor, setFuitsPlaybackAnchor] = useState(null);
+  const [fuitsStretchFullscreenActive, setFuitsStretchFullscreenActive] = useState(false);
   const [openMusicSections, setOpenMusicSections] = useState({ videos: false, music: false });
   const [zoomedDonationQr, setZoomedDonationQr] = useState(null);
   const jellyfinFrameRef = useRef(null);
@@ -5853,7 +5859,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
   };
 
   return (
-    <aside className="music-library-desktop-sidebar" style={{
+    <aside className={`music-library-desktop-sidebar${fuitsStretchFullscreenActive ? " fuits-live-tv-stretching-fullscreen" : ""}`} style={{
       position: "fixed",
       right: "calc(18px * var(--flive-scale, 1))",
       top: "calc(18px * var(--flive-scale, 1))",
@@ -5923,6 +5929,22 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
         @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 1100px) and (max-height: 560px) {
           .music-library-desktop-sidebar {
             overflow: visible !important;
+          }
+          .music-library-desktop-sidebar.fuits-live-tv-stretching-fullscreen {
+            z-index: 2147483646 !important;
+            overflow: visible !important;
+            isolation: isolate;
+          }
+          .music-library-desktop-sidebar.fuits-live-tv-stretching-fullscreen > .fuits-live-tv-panel {
+            position: relative !important;
+            z-index: 2147483646 !important;
+            isolation: isolate;
+          }
+          .music-library-desktop-sidebar.fuits-live-tv-stretching-fullscreen > .fuits-online-indicator,
+          .music-library-desktop-sidebar.fuits-live-tv-stretching-fullscreen > .fuits-weather-panel,
+          .music-library-desktop-sidebar.fuits-live-tv-stretching-fullscreen > .fuits-schedule-panel {
+            display: none !important;
+            pointer-events: none !important;
           }
           .music-library-desktop-sidebar > .fuits-live-tv-panel {
             zoom: 1 !important;
@@ -6624,6 +6646,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
                       liveAnnouncementOnline={owncastOnline}
                       restartSignal={playlistRestartSignal}
                       onPlaybackAnchor={setFuitsPlaybackAnchor}
+                      onStretchFullscreenChange={setFuitsStretchFullscreenActive}
                     />
                     {renderFuitsOwnerControls()}
                 <LiveChatBox

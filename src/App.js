@@ -5500,8 +5500,9 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
     activeFuitsLiveTvChannelNameLength > 26 ? 9 :
     activeFuitsLiveTvChannelNameLength > 18 ? 10 : 11;
   const activeFuitsLiveTvChannelSelectHeight =
-    activeFuitsLiveTvChannelNameLength > 34 ? 72 :
-    activeFuitsLiveTvChannelNameLength > 22 ? 64 : 58;
+    activeFuitsLiveTvChannelNameLength > 34 ? 38 :
+    activeFuitsLiveTvChannelNameLength > 26 ? 36 :
+    activeFuitsLiveTvChannelNameLength > 18 ? 34 : 30;
   const musicViewOptions = [
     { id: "library", label: "Music Library" },
     { id: "radio", label: "FUIT RADIO WORLD" },
@@ -5911,21 +5912,21 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             max-height: none !important;
             block-size: var(--fuits-channel-select-height, 58px) !important;
             min-block-size: var(--fuits-channel-select-height, 58px) !important;
-            border: 2px solid rgba(148,163,184,.42) !important;
-            border-radius: 13px !important;
+            border: 1px solid rgba(148,163,184,.42) !important;
+            border-radius: 9px !important;
             background-color: #020617 !important;
             background-image:
               linear-gradient(45deg, transparent 50%, #f8fafc 50%),
               linear-gradient(135deg, #f8fafc 50%, transparent 50%),
               linear-gradient(to right, rgba(148,163,184,.28), rgba(148,163,184,.28)) !important;
             background-position:
-              calc(100% - 25px) 50%,
-              calc(100% - 17px) 50%,
-              calc(100% - 40px) 50% !important;
-            background-size: 8px 8px, 8px 8px, 1px 28px !important;
+              calc(100% - 22px) 50%,
+              calc(100% - 15px) 50%,
+              calc(100% - 35px) 50% !important;
+            background-size: 7px 7px, 7px 7px, 1px 18px !important;
             background-repeat: no-repeat !important;
             z-index: 3;
-            margin-bottom: 4px !important;
+            margin-bottom: 3px !important;
             overflow: hidden !important;
           }
           .fuits-live-tv-panel .fuits-live-tv-channel-select-display {
@@ -5934,7 +5935,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             align-items: center !important;
             width: 100% !important;
             min-height: 100% !important;
-            padding: 4px 48px 4px 14px !important;
+            padding: 2px 42px 2px 12px !important;
             color: #f8fafc !important;
             font-size: var(--fuits-channel-select-font-size, 11px) !important;
             font-weight: 1000 !important;

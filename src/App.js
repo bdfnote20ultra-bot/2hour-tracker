@@ -5925,7 +5925,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
   ];
 
   const renderFuitsOwnerControls = () => (
-    <div style={{
+    <div className="fuits-owner-controls" style={{
       display: "grid",
       gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
       gap: 6,
@@ -5934,6 +5934,8 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
     }}>
       {fuitsOwnerCommands.map(command => (
         <button
+          type="button"
+          className="fuits-owner-control-button"
           key={command.label}
           onClick={() => command.localAction ? command.localAction() : runFuitsOwnerCommand(command)}
           style={{
@@ -6143,6 +6145,24 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
           .fuits-live-tv-panel a {
             padding: 5px 7px !important;
             border-radius: 9px !important;
+          }
+          .fuits-live-tv-panel .fuits-owner-controls {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 6px !important;
+            margin-top: 7px !important;
+          }
+          .fuits-live-tv-panel .fuits-owner-control-button {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            min-width: 0 !important;
+            min-height: 28px !important;
+            padding: 7px 6px !important;
+            font-size: 10px !important;
+            line-height: 1.05 !important;
+            letter-spacing: 0 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
           }
           .fuits-live-tv-panel select {
             min-height: 26px !important;

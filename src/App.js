@@ -6156,13 +6156,17 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             align-items: center !important;
             justify-content: center !important;
             min-width: 0 !important;
-            min-height: 28px !important;
-            padding: 7px 6px !important;
+            min-height: 32px !important;
+            height: auto !important;
+            padding: 8px 6px !important;
             font-size: 10px !important;
-            line-height: 1.05 !important;
+            line-height: 1.12 !important;
             letter-spacing: 0 !important;
-            white-space: nowrap !important;
-            overflow: hidden !important;
+            text-align: center !important;
+            white-space: normal !important;
+            overflow: visible !important;
+            overflow-wrap: anywhere !important;
+            word-break: normal !important;
           }
           .fuits-live-tv-panel select {
             min-height: 26px !important;

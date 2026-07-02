@@ -5884,20 +5884,28 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             padding: 4px 6px !important;
             border-radius: 8px !important;
           }
-          .fuits-live-tv-channel-select {
+          .fuits-live-tv-panel .fuits-live-tv-channel-select {
             box-sizing: border-box !important;
-            min-height: 40px !important;
-            height: 40px !important;
-            font-size: 13px !important;
-            line-height: 40px !important;
-            letter-spacing: .35px !important;
-            border-radius: 9px !important;
-            padding: 0 34px 0 12px !important;
+            display: block !important;
+            width: 100% !important;
+            min-height: 48px !important;
+            height: 48px !important;
+            font-size: 16px !important;
+            line-height: normal !important;
+            letter-spacing: .45px !important;
+            border-radius: 11px !important;
+            padding: 0 42px 0 16px !important;
+            -webkit-text-size-adjust: 100%;
           }
-          .fuits-live-tv-channel-select {
+          .fuits-live-tv-panel .fuits-live-tv-channel-select {
             position: relative;
             z-index: 3;
-            margin-bottom: 2px !important;
+            margin-bottom: 4px !important;
+            text-align-last: left;
+          }
+          .fuits-live-tv-panel .fuits-live-tv-channel-select option {
+            font-size: 16px !important;
+            font-weight: 1000 !important;
           }
           .fuits-live-tv-channel-controls {
             gap: 4px !important;

@@ -4382,7 +4382,10 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
         return;
       }
 
-      setStretchVideoFullscreen(Boolean(stretchVideoRequestedRef.current && fullscreenElement === videoRef.current));
+      const stretchFullscreenElement =
+        fullscreenElement === videoRef.current ||
+        (isFuitsMobileLandscapeProfile() && fullscreenElement === videoShellRef.current);
+      setStretchVideoFullscreen(Boolean(stretchVideoRequestedRef.current && stretchFullscreenElement));
     };
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
@@ -4467,21 +4470,35 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     if (playPromise?.catch) playPromise.catch(() => {});
   };
 
-  const stretchVideoToFullscreen = useCallback(async () => {
-    const video = videoRef.current;
-
+  const exitStretchVideoFullscreen = useCallback(async () => {
     const fullscreenElement =
       document.fullscreenElement ||
       document.webkitFullscreenElement ||
       document.msFullscreenElement;
+
     if (fullscreenElement) {
       const exitFullscreen =
         document.exitFullscreen ||
         document.webkitExitFullscreen ||
         document.msExitFullscreen;
       try { await exitFullscreen?.call(document); } catch {}
-      stretchVideoRequestedRef.current = false;
-      setStretchVideoFullscreen(false);
+    }
+
+    stretchVideoRequestedRef.current = false;
+    setStretchVideoFullscreen(false);
+  }, []);
+
+  const stretchVideoToFullscreen = useCallback(async () => {
+    const video = videoRef.current;
+    const shell = videoShellRef.current;
+    const mobileLandscapeProfile = isFuitsMobileLandscapeProfile();
+
+    const fullscreenElement =
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.msFullscreenElement;
+    if (fullscreenElement || stretchVideoFullscreen) {
+      await exitStretchVideoFullscreen();
       return;
     }
 
@@ -4496,22 +4513,27 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     const playPromise = video.play();
     if (playPromise?.catch) playPromise.catch(() => {});
 
+    const fullscreenTarget = mobileLandscapeProfile ? (shell || video) : video;
     const requestFullscreen =
-      video.requestFullscreen ||
-      video.webkitRequestFullscreen ||
-      video.msRequestFullscreen;
+      fullscreenTarget?.requestFullscreen ||
+      fullscreenTarget?.webkitRequestFullscreen ||
+      fullscreenTarget?.msRequestFullscreen;
     if (!requestFullscreen) {
-      stretchVideoRequestedRef.current = false;
-      setStretchVideoFullscreen(false);
+      if (!mobileLandscapeProfile) {
+        stretchVideoRequestedRef.current = false;
+        setStretchVideoFullscreen(false);
+      }
       return;
     }
     try {
-      await requestFullscreen.call(video);
+      await requestFullscreen.call(fullscreenTarget);
     } catch {
-      stretchVideoRequestedRef.current = false;
-      setStretchVideoFullscreen(false);
+      if (!mobileLandscapeProfile) {
+        stretchVideoRequestedRef.current = false;
+        setStretchVideoFullscreen(false);
+      }
     }
-  }, []);
+  }, [exitStretchVideoFullscreen, stretchVideoFullscreen]);
 
   useImperativeHandle(ref, () => ({
     stretchVideoToFullscreen
@@ -4615,7 +4637,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
           ) : (
           <div
             ref={videoShellRef}
-            className="fuits-video-shell"
+            className={`fuits-video-shell${stretchVideoFullscreen ? " fuits-video-shell-stretching" : ""}`}
             style={{
               position: "relative",
               background: "#000",
@@ -4629,6 +4651,13 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                 width: 100vw !important;
                 height: 100vh !important;
                 background: #000 !important;
+              }
+              .fuits-video-shell:fullscreen .fuits-video-player-stretch,
+              .fuits-video-shell:-webkit-full-screen .fuits-video-player-stretch {
+                width: 100vw !important;
+                height: 100vh !important;
+                max-height: none !important;
+                object-fit: fill !important;
               }
               .fuits-video-player:fullscreen,
               .fuits-video-player:-webkit-full-screen {
@@ -4658,7 +4687,28 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
               .fuits-mobile-landscape-audio-hitbox {
                 display: none;
               }
+              .fuits-mobile-landscape-stretch-exit {
+                display: none;
+              }
               @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 1100px) and (max-height: 560px) {
+                .fuits-video-shell.fuits-video-shell-stretching {
+                  position: fixed !important;
+                  inset: 0 !important;
+                  width: 100vw !important;
+                  height: 100vh !important;
+                  height: 100dvh !important;
+                  max-height: none !important;
+                  z-index: 2147483647 !important;
+                  border-radius: 0 !important;
+                  background: #000 !important;
+                }
+                .fuits-video-shell.fuits-video-shell-stretching .fuits-video-player-stretch {
+                  width: 100vw !important;
+                  height: 100vh !important;
+                  height: 100dvh !important;
+                  max-height: none !important;
+                  object-fit: fill !important;
+                }
                 .fuits-video-shell video::-webkit-media-controls-start-playback-button,
                 .fuits-video-player-stretch::-webkit-media-controls-start-playback-button {
                   display: none !important;
@@ -4681,6 +4731,26 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                   color: transparent;
                   touch-action: manipulation;
                   cursor: pointer;
+                }
+                .fuits-video-shell.fuits-video-shell-stretching .fuits-mobile-landscape-stretch-exit {
+                  display: grid;
+                  place-items: center;
+                  position: absolute;
+                  top: 7px;
+                  right: 7px;
+                  width: 32px;
+                  height: 32px;
+                  z-index: 9;
+                  border: 1px solid rgba(255,255,255,.35);
+                  border-radius: 999px;
+                  padding: 0;
+                  background: rgba(2,6,23,.72);
+                  color: #fff;
+                  font-size: 18px;
+                  font-weight: 1000;
+                  line-height: 1;
+                  cursor: pointer;
+                  touch-action: manipulation;
                 }
               }
               @media (min-width: 900px) and (max-width: 1400px) and (max-height: 730px) {
@@ -4834,6 +4904,14 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
               onPointerUp={toggleMobileLandscapeAudio}
               onClick={toggleMobileLandscapeAudio}
             />
+            <button
+              type="button"
+              className="fuits-mobile-landscape-stretch-exit"
+              aria-label="Exit stretch fullscreen"
+              onClick={exitStretchVideoFullscreen}
+            >
+              x
+            </button>
             {needsLargeVideoPreload && (
               <div style={{
                 position: "absolute",
@@ -6011,7 +6089,16 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             touch-action: manipulation;
           }
           .fuits-live-tv-panel .fuits-video-player:fullscreen,
-          .fuits-live-tv-panel .fuits-video-player:-webkit-full-screen,
+          .fuits-live-tv-panel .fuits-video-player:-webkit-full-screen {
+            position: fixed !important;
+            inset: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            max-height: none !important;
+            object-fit: contain !important;
+            background: #000 !important;
+            z-index: 2147483647 !important;
+          }
           .fuits-live-tv-panel .fuits-video-player-stretch:fullscreen,
           .fuits-live-tv-panel .fuits-video-player-stretch:-webkit-full-screen {
             position: fixed !important;
@@ -6019,7 +6106,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             width: 100vw !important;
             height: 100vh !important;
             max-height: none !important;
-            object-fit: contain !important;
+            object-fit: fill !important;
             background: #000 !important;
             z-index: 2147483647 !important;
           }

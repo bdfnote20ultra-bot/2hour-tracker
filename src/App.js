@@ -5827,6 +5827,9 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
           }
         }
         @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 1100px) and (max-height: 560px) {
+          .music-library-desktop-sidebar {
+            overflow: visible !important;
+          }
           .music-library-desktop-sidebar > .fuits-live-tv-panel {
             zoom: 1 !important;
             min-height: 0 !important;
@@ -5845,17 +5848,24 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             line-height: 1.12 !important;
           }
           .fuits-live-tv-menu-wrap {
-            z-index: 24 !important;
+            z-index: 80 !important;
           }
           .fuits-live-tv-menu {
             position: static !important;
             margin-top: 4px !important;
-            max-height: 118px !important;
+            max-height: min(230px, calc(100dvh - 126px)) !important;
             overflow-y: auto !important;
             border-radius: 9px !important;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
           }
           .fuits-live-tv-menu button {
-            padding: 6px 8px !important;
+            min-height: 28px !important;
+            padding: 7px 9px !important;
+            white-space: normal !important;
+            overflow-wrap: anywhere !important;
+            line-height: 1.2 !important;
+            text-align: left !important;
           }
           .fuits-live-tv-panel button,
           .fuits-live-tv-panel select,

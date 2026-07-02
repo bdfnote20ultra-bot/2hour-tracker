@@ -5888,13 +5888,32 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             box-sizing: border-box !important;
             display: block !important;
             width: 100% !important;
-            min-height: 48px !important;
-            height: 48px !important;
+            flex: 0 0 58px !important;
+            align-self: stretch !important;
+            min-height: 58px !important;
+            height: 58px !important;
+            max-height: none !important;
+            block-size: 58px !important;
+            min-block-size: 58px !important;
             font-size: 16px !important;
             line-height: normal !important;
             letter-spacing: .45px !important;
-            border-radius: 11px !important;
-            padding: 0 42px 0 16px !important;
+            border: 2px solid rgba(148,163,184,.42) !important;
+            border-radius: 13px !important;
+            padding: 0 48px 0 16px !important;
+            background-color: #020617 !important;
+            background-image:
+              linear-gradient(45deg, transparent 50%, #f8fafc 50%),
+              linear-gradient(135deg, #f8fafc 50%, transparent 50%),
+              linear-gradient(to right, rgba(148,163,184,.28), rgba(148,163,184,.28)) !important;
+            background-position:
+              calc(100% - 25px) 50%,
+              calc(100% - 17px) 50%,
+              calc(100% - 40px) 50% !important;
+            background-size: 8px 8px, 8px 8px, 1px 28px !important;
+            background-repeat: no-repeat !important;
+            appearance: none !important;
+            -webkit-appearance: none !important;
             -webkit-text-size-adjust: 100%;
           }
           .fuits-live-tv-panel .fuits-live-tv-channel-select {

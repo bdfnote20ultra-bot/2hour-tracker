@@ -11842,6 +11842,7 @@ if (view === "gambling") {
             --flive-gaming-scale: .66;
             --flive-gaming-stack-height-scale: 1;
             --flive-gaming-content-scale: .74;
+            --flive-center-shell-height-scale: .5;
             --flive-gaming-stage-padding: 8px;
             --flive-gaming-emulator-min-height: 170px;
             --flive-gaming-emulator-message-padding: 12px;
@@ -11849,6 +11850,15 @@ if (view === "gambling") {
             --flive-gaming-start-margin-top: 6px;
             --flive-gaming-start-padding: 7px 12px;
             --flive-gaming-start-font-size: 12px;
+          }
+          .flive-center-shell {
+            min-height: calc(100vh * var(--flive-center-shell-height-scale, 1)) !important;
+            min-height: calc(100dvh * var(--flive-center-shell-height-scale, 1)) !important;
+            height: calc(100vh * var(--flive-center-shell-height-scale, 1)) !important;
+            height: calc(100dvh * var(--flive-center-shell-height-scale, 1)) !important;
+            max-height: calc(100vh * var(--flive-center-shell-height-scale, 1)) !important;
+            max-height: calc(100dvh * var(--flive-center-shell-height-scale, 1)) !important;
+            overflow-y: hidden !important;
           }
         }
         @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 1100px) and (max-height: 560px) {

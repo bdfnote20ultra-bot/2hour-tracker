@@ -3245,7 +3245,13 @@ function LiveChatBox({ title = "Live Chat", src, height = 250, minHeight = 250 }
     };
 
     const handleMessage = async event => {
-      if (event.source !== frame.contentWindow || event.data?.type !== "FUITS_CHAT_FULLSCREEN_TOGGLE") return;
+      if (event.data?.type !== "FUITS_CHAT_FULLSCREEN_TOGGLE") return;
+      let frameOrigin = "";
+      try {
+        frameOrigin = new URL(frame.src || src || "", window.location.href).origin;
+      } catch {}
+      const fromFrame = event.source === frame.contentWindow || (frameOrigin && event.origin === frameOrigin);
+      if (!fromFrame) return;
 
       const targetOrigin = event.origin || "*";
       const fullscreenElement = getFuitsFullscreenElement();
@@ -3279,7 +3285,7 @@ function LiveChatBox({ title = "Live Chat", src, height = 250, minHeight = 250 }
       document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
       document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
     };
-  }, [postFullscreenState, softFullscreen]);
+  }, [postFullscreenState, softFullscreen, src]);
 
   return (
     <iframe

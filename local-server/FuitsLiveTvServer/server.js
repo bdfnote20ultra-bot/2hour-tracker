@@ -4515,10 +4515,18 @@ function pageHtml() {
       line-height: 1;
       flex: 0 0 auto;
     }
+    body.chat-soft-fullscreen-active {
+      overflow: hidden;
+    }
     .chat:fullscreen,
-    .chat:-webkit-full-screen {
+    .chat:-webkit-full-screen,
+    .chat.chat-soft-fullscreen-active {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
       width: 100vw;
       height: 100vh;
+      height: 100dvh;
       margin: 0;
       border-radius: 0;
       display: grid;
@@ -4526,13 +4534,15 @@ function pageHtml() {
       background: #050816;
     }
     .chat:fullscreen .chat-log,
-    .chat:-webkit-full-screen .chat-log {
+    .chat:-webkit-full-screen .chat-log,
+    .chat.chat-soft-fullscreen-active .chat-log {
       height: auto;
       font-size: 16px;
       padding: 12px;
     }
     .chat:fullscreen .chat-form,
-    .chat:-webkit-full-screen .chat-form {
+    .chat:-webkit-full-screen .chat-form,
+    .chat.chat-soft-fullscreen-active .chat-form {
       padding: 10px;
     }
     .chat-gif {
@@ -4837,8 +4847,60 @@ function pageHtml() {
     let livePlayerStarted = false;
     let activeChannelId = new URLSearchParams(window.location.search).get("channel") || localStorage.getItem("fuitsLiveTvChannel") || "channel-a";
     let stretchFullscreenTarget = null;
+    let chatSoftFullscreenActive = false;
     let soundUnlocked = localStorage.getItem("fuitsLiveTvSoundUnlocked") === "1";
     chatName.value = localStorage.getItem("fuitsLiveTvChatName") || "";
+
+    function getPageFullscreenElement() {
+      return document.fullscreenElement || document.webkitFullscreenElement || document.webkitFullScreenElement || document.msFullscreenElement || null;
+    }
+
+    async function requestPageElementFullscreen(element) {
+      const requestFullscreen =
+        element.requestFullscreen ||
+        element.webkitRequestFullscreen ||
+        element.webkitRequestFullScreen ||
+        element.msRequestFullscreen;
+      if (!requestFullscreen) return false;
+      try {
+        const result = requestFullscreen.call(element);
+        if (result?.then) await result;
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    async function exitPageFullscreen() {
+      const exitFullscreen =
+        document.exitFullscreen ||
+        document.webkitExitFullscreen ||
+        document.webkitCancelFullScreen ||
+        document.msExitFullscreen;
+      if (!exitFullscreen) return false;
+      try {
+        const result = exitFullscreen.call(document);
+        if (result?.then) await result;
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function setChatSoftFullscreenActive(active) {
+      chatSoftFullscreenActive = Boolean(active);
+      document.body.classList.toggle("chat-soft-fullscreen-active", chatSoftFullscreenActive);
+      chatSection.classList.toggle("chat-soft-fullscreen-active", chatSoftFullscreenActive);
+      chatFullscreenButton.textContent = chatSoftFullscreenActive ? "Exit" : "Full";
+    }
+
+    function isChatFullscreenActive() {
+      return chatSoftFullscreenActive || getPageFullscreenElement() === chatSection;
+    }
+
+    function updateChatFullscreenUi() {
+      chatFullscreenButton.textContent = isChatFullscreenActive() ? "Exit" : "Full";
+    }
 
     function updateChatNameUi() {
       const savedName = localStorage.getItem("fuitsLiveTvChatName") || "";
@@ -5411,21 +5473,35 @@ function pageHtml() {
       switchChannel(channelSelect.value);
     });
     chatFullscreenButton.addEventListener("click", async () => {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen().catch(() => {});
+      if (chatSoftFullscreenActive) {
+        setChatSoftFullscreenActive(false);
         return;
       }
-      if (chatSection.requestFullscreen) {
-        await chatSection.requestFullscreen().catch(() => {});
+      if (getPageFullscreenElement()) {
+        await exitPageFullscreen();
+        updateChatFullscreenUi();
+        return;
       }
+      const nativeStarted = await requestPageElementFullscreen(chatSection);
+      window.setTimeout(() => {
+        if (getPageFullscreenElement() !== chatSection) {
+          setChatSoftFullscreenActive(true);
+          return;
+        }
+        updateChatFullscreenUi();
+      }, nativeStarted ? 120 : 0);
     });
-    document.addEventListener("fullscreenchange", () => {
-      chatFullscreenButton.textContent = document.fullscreenElement === chatSection ? "Exit" : "Full";
-      if (document.fullscreenElement !== stretchFullscreenTarget) {
+    function handleFullscreenChange() {
+      if (getPageFullscreenElement() === chatSection) setChatSoftFullscreenActive(false);
+      updateChatFullscreenUi();
+      if (getPageFullscreenElement() !== stretchFullscreenTarget) {
         stretchFullscreenTarget = null;
       }
       updateStretchMode();
-    });
+    }
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    document.addEventListener("MSFullscreenChange", handleFullscreenChange);
     document.querySelectorAll(".donate-qr-button").forEach(button => {
       button.addEventListener("click", () => {
         qrModalImage.src = button.dataset.qrSrc;
@@ -5631,6 +5707,22 @@ function chatOnlyHtml() {
     button {
       cursor: pointer;
     }
+    body.chat-soft-fullscreen-active {
+      overflow: hidden;
+    }
+    .chat.chat-soft-fullscreen-active {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      max-height: none;
+      margin: 0;
+      border-radius: 0;
+      grid-template-rows: auto 1fr auto;
+      background: #020617;
+    }
     @media (max-width: 520px) {
       .chat-form {
         grid-template-columns: 1fr;
@@ -5652,7 +5744,11 @@ function chatOnlyHtml() {
       grid-template-rows: auto minmax(185px, 1fr) auto;
     }
     body.mobile-landscape-chat .chat:fullscreen,
-    body.mobile-landscape-chat .chat:-webkit-full-screen {
+    body.mobile-landscape-chat .chat:-webkit-full-screen,
+    body.mobile-landscape-chat .chat.chat-soft-fullscreen-active {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
       width: 100vw;
       height: 100vh;
       height: 100dvh;
@@ -5783,6 +5879,8 @@ function chatOnlyHtml() {
     const mobileLandscapeChat = chatLayout === "mobile-landscape";
     let latestChatMessages = [];
     let parentFullscreenActive = false;
+    let localFullscreenActive = false;
+    let parentFullscreenRequestTimer = null;
     document.body.classList.toggle("adult-relax-grid", adultRelaxGrid);
     document.body.classList.toggle("mobile-landscape-chat", mobileLandscapeChat);
     function syncMobileLandscapeChatHeight() {
@@ -5814,8 +5912,21 @@ function chatOnlyHtml() {
       }
     }
 
+    function clearParentFullscreenRequestTimer() {
+      if (!parentFullscreenRequestTimer) return;
+      window.clearTimeout(parentFullscreenRequestTimer);
+      parentFullscreenRequestTimer = null;
+    }
+
+    function setLocalFullscreenActive(active) {
+      localFullscreenActive = Boolean(active);
+      document.body.classList.toggle("chat-soft-fullscreen-active", localFullscreenActive);
+      chatSection.classList.toggle("chat-soft-fullscreen-active", localFullscreenActive);
+      updateFullscreenUi();
+    }
+
     function isChatFullscreenActive() {
-      return parentFullscreenActive || getFullscreenElement() === chatSection;
+      return parentFullscreenActive || localFullscreenActive || getFullscreenElement() === chatSection;
     }
 
     async function requestElementFullscreen(element) {
@@ -5867,7 +5978,7 @@ function chatOnlyHtml() {
     function renderChat(messages) {
       latestChatMessages = Array.isArray(messages) ? messages : [];
       chatLog.innerHTML = "";
-      if (!latestChatMessages.length && (!adultRelaxGrid || document.fullscreenElement !== chatSection)) {
+      if (!latestChatMessages.length && (!adultRelaxGrid || !isChatFullscreenActive())) {
         const emptyMessage = document.createElement("div");
         emptyMessage.className = "chat-message";
         emptyMessage.textContent = "No messages yet.";
@@ -5892,7 +6003,7 @@ function chatOnlyHtml() {
         }
         chatLog.appendChild(row);
       });
-      if (adultRelaxGrid && document.fullscreenElement === chatSection) {
+      if (adultRelaxGrid && isChatFullscreenActive()) {
         for (let slot = latestChatMessages.length; slot < 8; slot += 1) {
           const emptySlot = document.createElement("div");
           emptySlot.className = "chat-message empty-slot";
@@ -5960,12 +6071,18 @@ function chatOnlyHtml() {
     });
     window.addEventListener("message", event => {
       if (event.data?.type !== "FUITS_CHAT_FULLSCREEN_STATE") return;
+      clearParentFullscreenRequestTimer();
       parentFullscreenActive = Boolean(event.data.active);
+      if (parentFullscreenActive) setLocalFullscreenActive(false);
       updateFullscreenUi();
     });
     chatFullscreenButton.addEventListener("click", async () => {
       if (parentFullscreenActive) {
         requestParentFullscreenToggle();
+        return;
+      }
+      if (localFullscreenActive) {
+        setLocalFullscreenActive(false);
         return;
       }
       if (getFullscreenElement()) {
@@ -5975,13 +6092,21 @@ function chatOnlyHtml() {
       }
       if (requestParentFullscreenToggle()) {
         chatFullscreenButton.textContent = "Exit";
-        window.setTimeout(() => {
-          if (!parentFullscreenActive && getFullscreenElement() !== chatSection) updateFullscreenUi();
-        }, 900);
+        clearParentFullscreenRequestTimer();
+        parentFullscreenRequestTimer = window.setTimeout(() => {
+          parentFullscreenRequestTimer = null;
+          if (!parentFullscreenActive && getFullscreenElement() !== chatSection) setLocalFullscreenActive(true);
+        }, 300);
         return;
       }
-      await requestElementFullscreen(chatSection);
-      updateFullscreenUi();
+      const nativeStarted = await requestElementFullscreen(chatSection);
+      window.setTimeout(() => {
+        if (getFullscreenElement() !== chatSection) {
+          setLocalFullscreenActive(true);
+          return;
+        }
+        updateFullscreenUi();
+      }, nativeStarted ? 120 : 0);
     });
     document.addEventListener("fullscreenchange", updateFullscreenUi);
     document.addEventListener("webkitfullscreenchange", updateFullscreenUi);

@@ -2004,12 +2004,13 @@ function PokemonSidebar({ loggedInUsername = "" } = {}) {
         @media (hover: hover) and (pointer: fine) and (max-width: 1400px) and (max-height: 790px) {
           .pokemon-desktop-stack {
             bottom: auto !important;
-            --flive-gaming-stack-target-height: calc(
+            --flive-gaming-stack-base-height: calc(
               (846px * var(--flive-scale, 1) * var(--flive-menu-gap-scale, 1)) +
               (var(--flive-menu-top-offset, 0px) * var(--flive-scale, 1)) +
               (var(--flive-wealth-extra-top-offset, 0px) * var(--flive-scale, 1)) +
               (46.2px * var(--flive-menu-text-scale, var(--flive-scale, 1)))
             );
+            --flive-gaming-stack-target-height: calc(var(--flive-gaming-stack-base-height) * var(--flive-gaming-stack-height-scale, 1));
             height: var(--flive-gaming-stack-target-height) !important;
             height: min(var(--flive-gaming-stack-target-height), calc(100vh - (12px * var(--flive-scale, 1)))) !important;
             height: min(var(--flive-gaming-stack-target-height), calc(100dvh - (12px * var(--flive-scale, 1)))) !important;
@@ -11837,6 +11838,7 @@ if (view === "gambling") {
         @media (hover: hover) and (pointer: fine) and (max-width: 1400px) and (max-height: 790px) {
           :root {
             --flive-gaming-scale: .46;
+            --flive-gaming-stack-height-scale: .75;
             --flive-gaming-content-scale: .40;
             --flive-gaming-stage-padding: 4px;
             --flive-gaming-emulator-min-height: 118px;

@@ -5639,7 +5639,13 @@ function chatOnlyHtml() {
       gap: 6px;
       padding: 5px 6px;
     }
+    body.mobile-landscape-chat {
+      overflow: hidden;
+    }
     body.mobile-landscape-chat .chat {
+      height: var(--mobile-landscape-chat-height, 100vh);
+      max-height: var(--mobile-landscape-chat-height, 100vh);
+      min-height: 0;
       grid-template-rows: auto minmax(185px, 1fr) auto;
     }
     body.mobile-landscape-chat .chat-log {
@@ -5765,6 +5771,15 @@ function chatOnlyHtml() {
     let latestChatMessages = [];
     document.body.classList.toggle("adult-relax-grid", adultRelaxGrid);
     document.body.classList.toggle("mobile-landscape-chat", mobileLandscapeChat);
+    function syncMobileLandscapeChatHeight() {
+      if (!mobileLandscapeChat) return;
+      const height = Math.max(0, Math.floor(window.innerHeight || document.documentElement.clientHeight || 0));
+      if (height) document.documentElement.style.setProperty("--mobile-landscape-chat-height", height + "px");
+    }
+    syncMobileLandscapeChatHeight();
+    window.addEventListener("resize", syncMobileLandscapeChatHeight);
+    window.addEventListener("orientationchange", syncMobileLandscapeChatHeight);
+    window.visualViewport?.addEventListener?.("resize", syncMobileLandscapeChatHeight);
     chatName.value = localStorage.getItem("fuitsLiveTvChatName") || "";
 
     function updateChatNameUi() {

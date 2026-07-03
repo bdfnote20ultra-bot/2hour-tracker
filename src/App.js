@@ -6759,23 +6759,68 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
           }
         }
         @media (min-width: 900px) and (max-width: 1400px) and (max-height: 730px) {
+          .music-library-desktop-sidebar > :not(style):not(.fuits-online-indicator):not(.fuits-weather-panel):not(.fuits-schedule-panel) {
+            zoom: var(--flive-tv-content-scale, var(--flive-panel-content-scale, 1)) !important;
+          }
+          .music-library-desktop-sidebar button {
+            padding: var(--flive-tv-button-padding, 5px 7px) !important;
+            border-radius: var(--flive-tv-button-radius, 9px) !important;
+            font-size: var(--flive-tv-button-font-size, 9px) !important;
+            line-height: var(--flive-tv-button-line-height, 1.08) !important;
+            letter-spacing: var(--flive-tv-button-letter-spacing, .25px) !important;
+          }
+          .fuits-live-tv-scroll {
+            gap: var(--flive-tv-scroll-gap, 10px) !important;
+            padding: var(--flive-tv-scroll-padding, 12px 2px 6px) !important;
+          }
+          .fuits-live-tv-heading {
+            font-size: var(--flive-tv-heading-font-size, 13px) !important;
+            line-height: var(--flive-tv-heading-line-height, 1.45) !important;
+          }
+          .fuits-live-tv-channel-controls {
+            gap: var(--flive-tv-channel-controls-gap, 6px) !important;
+          }
+          .fuits-live-tv-panel .fuits-live-tv-channel-select-wrap {
+            flex: 0 0 var(--flive-tv-channel-select-height, 58px) !important;
+            min-height: var(--flive-tv-channel-select-height, 58px) !important;
+            height: var(--flive-tv-channel-select-height, 58px) !important;
+            block-size: var(--flive-tv-channel-select-height, 58px) !important;
+            min-block-size: var(--flive-tv-channel-select-height, 58px) !important;
+          }
+          .fuits-live-tv-panel .fuits-live-tv-channel-select-display {
+            padding: var(--flive-tv-channel-select-display-padding, 2px 42px 2px 12px) !important;
+            font-size: var(--flive-tv-channel-select-font-size, 11px) !important;
+            line-height: var(--flive-tv-channel-select-line-height, 1.08) !important;
+          }
+          .fuits-live-tv-panel .fuits-owner-controls {
+            gap: var(--flive-tv-owner-controls-gap, 6px) !important;
+            margin-top: var(--flive-tv-owner-controls-margin-top, 7px) !important;
+          }
+          .fuits-live-tv-panel .fuits-owner-control-button {
+            min-height: var(--flive-tv-owner-button-min-height, 32px) !important;
+            padding: var(--flive-tv-owner-button-padding, 8px 6px) !important;
+            font-size: var(--flive-tv-owner-button-font-size, 10px) !important;
+            line-height: var(--flive-tv-owner-button-line-height, 1.12) !important;
+          }
           .fuits-video-title {
             box-sizing: border-box !important;
-            min-height: 56px !important;
-            max-height: 76px !important;
-            padding: 7px 8px 10px !important;
+            min-height: var(--flive-tv-video-title-min-height, 56px) !important;
+            max-height: var(--flive-tv-video-title-max-height, 76px) !important;
+            padding: var(--flive-tv-video-title-padding, 7px 8px 10px) !important;
             color: #f8fafc !important;
-            font-size: 13px !important;
+            font-size: var(--flive-tv-video-title-font-size, 13px) !important;
             font-weight: 1000 !important;
-            line-height: 1.2 !important;
-            overflow-y: visible !important;
+            line-height: var(--flive-tv-video-title-line-height, 1.2) !important;
+            overflow-y: var(--flive-tv-video-title-overflow, visible) !important;
             margin-bottom: 2px !important;
             text-shadow: 0 1px 3px rgba(0,0,0,.9) !important;
           }
-          iframe[title="FUITS Live TV Chat"] {
-            flex: 1 1 auto !important;
-            height: auto !important;
-            min-height: 0 !important;
+          iframe[title="FUITS Live TV Chat"],
+          .fuits-live-tv-panel .fuits-live-chat-frame {
+            flex: var(--flive-tv-chat-flex, 1 1 auto) !important;
+            height: var(--flive-tv-chat-height, auto) !important;
+            min-height: var(--flive-tv-chat-min-height, 0) !important;
+            max-height: var(--flive-tv-chat-max-height, none) !important;
           }
         }
         @media (min-width: 1401px) and (max-height: 1040px) {
@@ -11878,17 +11923,38 @@ if (view === "gambling") {
             --flive-gaming-detail-button-margin: 7px;
             --flive-gaming-detail-button-padding: 5px 8px;
             --flive-gaming-detail-button-font-size: 11px;
-            --flive-tv-video-shell-height: 138px;
-            --flive-tv-video-title-min-height: 34px;
-            --flive-tv-video-title-max-height: 42px;
-            --flive-tv-video-title-padding: 4px 7px 5px;
-            --flive-tv-video-title-font-size: 10px;
-            --flive-tv-video-title-line-height: 1.12;
+            --flive-tv-content-scale: .60;
+            --flive-tv-button-padding: 4px 6px;
+            --flive-tv-button-radius: 8px;
+            --flive-tv-button-font-size: 8px;
+            --flive-tv-button-line-height: 1.05;
+            --flive-tv-button-letter-spacing: .12px;
+            --flive-tv-scroll-gap: 5px;
+            --flive-tv-scroll-padding: 4px 1px 4px;
+            --flive-tv-heading-font-size: 9px;
+            --flive-tv-heading-line-height: 1.14;
+            --flive-tv-channel-controls-gap: 4px;
+            --flive-tv-channel-select-height: 36px;
+            --flive-tv-channel-select-display-padding: 1px 34px 1px 9px;
+            --flive-tv-channel-select-font-size: 8px;
+            --flive-tv-channel-select-line-height: 1.04;
+            --flive-tv-owner-controls-gap: 4px;
+            --flive-tv-owner-controls-margin-top: 4px;
+            --flive-tv-owner-button-min-height: 22px;
+            --flive-tv-owner-button-padding: 5px 4px;
+            --flive-tv-owner-button-font-size: 8px;
+            --flive-tv-owner-button-line-height: 1.04;
+            --flive-tv-video-shell-height: 118px;
+            --flive-tv-video-title-min-height: 24px;
+            --flive-tv-video-title-max-height: 30px;
+            --flive-tv-video-title-padding: 3px 5px;
+            --flive-tv-video-title-font-size: 8px;
+            --flive-tv-video-title-line-height: 1.08;
             --flive-tv-video-title-overflow: hidden;
-            --flive-tv-chat-flex: 0 0 230px;
-            --flive-tv-chat-height: 230px;
-            --flive-tv-chat-min-height: 230px;
-            --flive-tv-chat-max-height: 230px;
+            --flive-tv-chat-flex: 0 0 430px;
+            --flive-tv-chat-height: 430px;
+            --flive-tv-chat-min-height: 430px;
+            --flive-tv-chat-max-height: 430px;
             --flive-ticker-top-scale: 1.54;
             --flive-weather-top-scale: 1.64;
             --flive-center-header-padding: 12px 14px 8px;

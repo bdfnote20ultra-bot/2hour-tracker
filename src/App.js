@@ -6315,10 +6315,10 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
           }
           .fuits-live-tv-panel .fuits-live-chat-frame {
             display: block !important;
-            flex: 0 0 132px !important;
-            height: 132px !important;
-            min-height: 132px !important;
-            max-height: 132px !important;
+            flex: 0 0 clamp(170px, 36dvh, 210px) !important;
+            height: clamp(170px, 36dvh, 210px) !important;
+            min-height: 170px !important;
+            max-height: 210px !important;
             background: #020617 !important;
             color-scheme: dark;
           }

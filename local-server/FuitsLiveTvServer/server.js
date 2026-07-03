@@ -5509,7 +5509,9 @@ function chatOnlyHtml() {
     }
     .chat-head {
       display: flex;
+      align-items: flex-start;
       justify-content: space-between;
+      flex-wrap: wrap;
       gap: 8px;
       padding: 6px 8px;
       border-bottom: 1px solid rgba(148, 163, 184, .18);
@@ -5526,7 +5528,10 @@ function chatOnlyHtml() {
     }
     .chat-message {
       color: #e2e8f0;
+      min-width: 0;
+      line-height: 1.25;
       overflow-wrap: anywhere;
+      word-break: break-word;
     }
     .chat-name {
       color: #93c5fd;
@@ -5547,13 +5552,14 @@ function chatOnlyHtml() {
       align-items: center;
       gap: 8px;
       min-width: 0;
-      overflow: hidden;
+      overflow: visible;
     }
     #chatSavedName {
       min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      overflow: visible;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
     .name-change {
       padding: 0;
@@ -5566,10 +5572,11 @@ function chatOnlyHtml() {
     .chat-actions {
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
       gap: 8px;
       min-width: 0;
-      max-width: 70%;
-      overflow: hidden;
+      max-width: 100%;
+      overflow: visible;
     }
     .chat-full-button {
       padding: 3px 6px;
@@ -5624,9 +5631,13 @@ function chatOnlyHtml() {
       padding: 7px 8px;
       font-weight: 800;
       font-size: 12px;
+      line-height: 1.2;
     }
     button {
       cursor: pointer;
+      min-height: 32px;
+      white-space: normal;
+      overflow-wrap: anywhere;
     }
     @media (max-width: 520px) {
       .chat-form {

@@ -11839,8 +11839,8 @@ if (view === "gambling") {
         @media (hover: hover) and (pointer: fine) and (max-width: 1400px) and (max-height: 790px),
           (hover: hover) and (pointer: fine) and (min-device-width: 900px) and (max-device-height: 820px) {
           :root {
-            --flive-gaming-scale: .575;
-            --flive-gaming-stack-height-scale: .9375;
+            --flive-gaming-scale: .61;
+            --flive-gaming-stack-height-scale: 1;
             --flive-gaming-content-scale: .50;
             --flive-gaming-stage-padding: 5px;
             --flive-gaming-emulator-min-height: 148px;

@@ -11839,16 +11839,16 @@ if (view === "gambling") {
         @media (hover: hover) and (pointer: fine) and (max-width: 1400px) and (max-height: 790px),
           (hover: hover) and (pointer: fine) and (min-device-width: 900px) and (max-device-height: 820px) {
           :root {
-            --flive-gaming-scale: .46;
-            --flive-gaming-stack-height-scale: .75;
-            --flive-gaming-content-scale: .40;
-            --flive-gaming-stage-padding: 4px;
-            --flive-gaming-emulator-min-height: 118px;
-            --flive-gaming-emulator-message-padding: 7px;
-            --flive-gaming-emulator-message-font-size: 9px;
-            --flive-gaming-start-margin-top: 3px;
-            --flive-gaming-start-padding: 4px 7px;
-            --flive-gaming-start-font-size: 8px;
+            --flive-gaming-scale: .575;
+            --flive-gaming-stack-height-scale: .9375;
+            --flive-gaming-content-scale: .50;
+            --flive-gaming-stage-padding: 5px;
+            --flive-gaming-emulator-min-height: 148px;
+            --flive-gaming-emulator-message-padding: 9px;
+            --flive-gaming-emulator-message-font-size: 11px;
+            --flive-gaming-start-margin-top: 4px;
+            --flive-gaming-start-padding: 5px 9px;
+            --flive-gaming-start-font-size: 10px;
           }
         }
         @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 1100px) and (max-height: 560px) {

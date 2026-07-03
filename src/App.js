@@ -5798,6 +5798,8 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
   }
   const fuitsLiveTvChatQuery = fuitsLiveTvChatParams.toString();
   const fuitsLiveTvChatSrc = `${fuitsLiveTvChatUrl || `${fuitsLiveTvChannelUrl}/chat-only`}${fuitsLiveTvChatQuery ? `?${fuitsLiveTvChatQuery}` : ""}`;
+  const fuitsLiveTvChatFrameHeight = fuitsMobileLandscapeProfileActive ? 380 : 260;
+  const fuitsLiveTvCompactChatFrameHeight = fuitsMobileLandscapeProfileActive ? 380 : 250;
 
   const releaseJellyfinSilkWakeLock = useCallback(() => {
     const wakeLock = jellyfinSilkWakeLockRef.current;
@@ -6883,8 +6885,8 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
                 <LiveChatBox
                   title="FUITS Live TV Chat"
                   src={fuitsLiveTvChatSrc}
-                  height={260}
-                  minHeight={260}
+                  height={fuitsLiveTvChatFrameHeight}
+                  minHeight={fuitsLiveTvChatFrameHeight}
                 />
                   </>
                 )}
@@ -7053,8 +7055,8 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
                     src={fuitsLiveTvChatSrc}
-                    height={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
-                    minHeight={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
+                    height={activeLiveTvOption.id === "jellyfin" ? fuitsLiveTvChatFrameHeight : fuitsLiveTvCompactChatFrameHeight}
+                    minHeight={activeLiveTvOption.id === "jellyfin" ? fuitsLiveTvChatFrameHeight : fuitsLiveTvCompactChatFrameHeight}
                   />
                 )}
               </>
@@ -7088,8 +7090,8 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
                     src={fuitsLiveTvChatSrc}
-                    height={250}
-                    minHeight={250}
+                    height={fuitsLiveTvCompactChatFrameHeight}
+                    minHeight={fuitsLiveTvCompactChatFrameHeight}
                   />
                 )}
                 {(activeLiveTvOption.id === "southpark" || activeLiveTvOption.id === "youtube" || activeLiveTvOption.id === "fuit") && (
@@ -7507,8 +7509,8 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
           <LiveChatBox
             title="FUITS Music Live Chat"
             src={fuitsLiveTvChatSrc}
-            height={250}
-            minHeight={250}
+            height={fuitsLiveTvCompactChatFrameHeight}
+            minHeight={fuitsLiveTvCompactChatFrameHeight}
           />
         </div>
       )}

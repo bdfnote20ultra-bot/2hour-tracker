@@ -5639,7 +5639,11 @@ function chatOnlyHtml() {
       gap: 6px;
       padding: 5px 6px;
     }
+    body.mobile-landscape-chat .chat {
+      grid-template-rows: auto minmax(185px, 1fr) auto;
+    }
     body.mobile-landscape-chat .chat-log {
+      min-height: 185px;
       padding: 5px 6px;
       gap: 3px;
       font-size: 11px;

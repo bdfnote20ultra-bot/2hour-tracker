@@ -11849,7 +11849,7 @@ if (view === "gambling") {
             --flive-gaming-start-margin-top: 6px;
             --flive-gaming-start-padding: 7px 12px;
             --flive-gaming-start-font-size: 12px;
-            --flive-ticker-top-scale: 2.24;
+            --flive-ticker-top-scale: 2.14;
             --flive-center-header-padding: 12px 14px 8px;
             --flive-center-header-row-margin-bottom: 4px;
             --flive-project-button-gap: 5px;

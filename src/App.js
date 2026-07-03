@@ -5680,6 +5680,8 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
   const [fuitsStretchFullscreenActive, setFuitsStretchFullscreenActive] = useState(false);
   const [fuitsMobileLandscapeProfileActive, setFuitsMobileLandscapeProfileActive] = useState(() => isFuitsMobileLandscapeProfile());
   const [jellyfinSilkFullscreenActive, setJellyfinSilkFullscreenActive] = useState(false);
+  const [jellyfinNativeFullscreenActive, setJellyfinNativeFullscreenActive] = useState(false);
+  const [jellyfinSoftFullscreenActive, setJellyfinSoftFullscreenActive] = useState(false);
   const [openMusicSections, setOpenMusicSections] = useState({ videos: false, music: false });
   const [zoomedDonationQr, setZoomedDonationQr] = useState(null);
   const jellyfinFrameRef = useRef(null);
@@ -6259,6 +6261,26 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
     } catch {}
   }, [amazonSilkProfile.active]);
 
+  const exitJellyfinFullscreen = useCallback(async () => {
+    setJellyfinSoftFullscreenActive(false);
+    setJellyfinNativeFullscreenActive(false);
+    setJellyfinSilkFullscreenActive(false);
+
+    const fullscreenElement = getFuitsFullscreenElement();
+    if (fullscreenElement !== jellyfinFrameRef.current) return;
+
+    const exitFullscreen =
+      document.exitFullscreen ||
+      document.webkitExitFullscreen ||
+      document.webkitCancelFullScreen ||
+      document.msExitFullscreen;
+
+    try {
+      const exitResult = exitFullscreen?.call(document);
+      if (exitResult?.then) await exitResult;
+    } catch {}
+  }, []);
+
   const sendJellyfinSilkKeepAlive = useCallback(() => {
     if (!amazonSilkProfile.active || activeLiveTvOption.id !== "jellyfin") return;
     requestJellyfinSilkWakeLock();
@@ -6321,6 +6343,47 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
       releaseJellyfinSilkWakeLock();
     };
   }, [amazonSilkProfile.active, jellyfinSilkFullscreenActive, releaseJellyfinSilkWakeLock, sendJellyfinSilkKeepAlive]);
+
+  useEffect(() => {
+    if (!jellyfinSoftFullscreenActive || typeof document === "undefined") return undefined;
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    document.body.classList.add("fuits-jellyfin-soft-fullscreen-active");
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.classList.remove("fuits-jellyfin-soft-fullscreen-active");
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, [jellyfinSoftFullscreenActive]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+
+    const handleFullscreenChange = () => {
+      const frameIsFullscreen = getFuitsFullscreenElement() === jellyfinFrameRef.current;
+      setJellyfinNativeFullscreenActive(frameIsFullscreen);
+      if (frameIsFullscreen) setJellyfinSoftFullscreenActive(false);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    document.addEventListener("MSFullscreenChange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+      document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if ((!fuitsMobileLandscapeProfileActive || activeLiveTvOption.id !== "jellyfin") && jellyfinSoftFullscreenActive) {
+      setJellyfinSoftFullscreenActive(false);
+    }
+  }, [activeLiveTvOption.id, fuitsMobileLandscapeProfileActive, jellyfinSoftFullscreenActive]);
 
   const runFuitsOwnerCommand = async (command) => {
     if (!fuitsLiveTvChannelUrl) return;
@@ -6486,19 +6549,41 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
   };
 
   const openJellyfinFullscreen = async () => {
-    const fullscreenStarted = await openFrameFullscreen(jellyfinFrameRef.current);
-    if (amazonSilkProfile.active && fullscreenStarted) {
-      setJellyfinSilkFullscreenActive(true);
-      sendJellyfinSilkKeepAlive();
+    const frame = jellyfinFrameRef.current;
+    if (!frame) return;
+
+    const fullscreenElement = getFuitsFullscreenElement();
+    if (jellyfinSoftFullscreenActive || fullscreenElement === frame) {
+      await exitJellyfinFullscreen();
+      return;
     }
+
+    const fullscreenStarted = await openFrameFullscreen(frame);
+    window.setTimeout(() => {
+      const frameIsFullscreen = getFuitsFullscreenElement() === frame;
+      setJellyfinNativeFullscreenActive(frameIsFullscreen);
+      if (frameIsFullscreen) {
+        if (amazonSilkProfile.active) {
+          setJellyfinSilkFullscreenActive(true);
+          sendJellyfinSilkKeepAlive();
+        }
+        return;
+      }
+
+      if (fuitsMobileLandscapeProfileActive) {
+        setJellyfinSoftFullscreenActive(true);
+      }
+    }, fullscreenStarted ? 120 : 0);
   };
 
   const openAdultSwimFullscreen = () => {
     openFrameFullscreen(adultSwimFrameRef.current);
   };
 
+  const jellyfinFullscreenActive = jellyfinSoftFullscreenActive || jellyfinNativeFullscreenActive || jellyfinSilkFullscreenActive;
+
   return (
-    <aside className={`music-library-desktop-sidebar${amazonSilkProfile.active ? " fuits-amazon-silk-profile" : ""}${fuitsStretchFullscreenActive ? " fuits-live-tv-stretching-fullscreen" : ""}${jellyfinSilkFullscreenActive ? " fuits-jellyfin-silk-fullscreen-active" : ""}`} style={{
+    <aside className={`music-library-desktop-sidebar${amazonSilkProfile.active ? " fuits-amazon-silk-profile" : ""}${fuitsStretchFullscreenActive ? " fuits-live-tv-stretching-fullscreen" : ""}${jellyfinSilkFullscreenActive ? " fuits-jellyfin-silk-fullscreen-active" : ""}${jellyfinSoftFullscreenActive ? " fuits-jellyfin-soft-fullscreen-active" : ""}`} style={{
       position: "fixed",
       right: "calc(18px * var(--flive-scale, 1))",
       top: "calc(18px * var(--flive-scale, 1))",
@@ -6614,6 +6699,22 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
           body.adult-relax-room-soft-fullscreen-active .music-library-desktop-sidebar > .fuits-online-indicator,
           body.adult-relax-room-soft-fullscreen-active .music-library-desktop-sidebar > .fuits-weather-panel,
           body.adult-relax-room-soft-fullscreen-active .music-library-desktop-sidebar > .fuits-schedule-panel {
+            display: none !important;
+            pointer-events: none !important;
+          }
+          body.fuits-jellyfin-soft-fullscreen-active .music-library-desktop-sidebar {
+            z-index: 2147483647 !important;
+            overflow: visible !important;
+            isolation: isolate;
+          }
+          body.fuits-jellyfin-soft-fullscreen-active .music-library-desktop-sidebar > .fuits-live-tv-panel {
+            position: relative !important;
+            z-index: 2147483647 !important;
+            isolation: isolate;
+          }
+          body.fuits-jellyfin-soft-fullscreen-active .music-library-desktop-sidebar > .fuits-online-indicator,
+          body.fuits-jellyfin-soft-fullscreen-active .music-library-desktop-sidebar > .fuits-weather-panel,
+          body.fuits-jellyfin-soft-fullscreen-active .music-library-desktop-sidebar > .fuits-schedule-panel {
             display: none !important;
             pointer-events: none !important;
           }
@@ -6860,6 +6961,50 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
           margin: 0 !important;
           border-radius: 0 !important;
           background: #020617 !important;
+        }
+        .fuits-jellyfin-frame:fullscreen,
+        .fuits-jellyfin-frame:-webkit-full-screen,
+        .fuits-jellyfin-frame.fuits-jellyfin-frame-soft-fullscreen {
+          position: fixed !important;
+          inset: 0 !important;
+          z-index: 2147483646 !important;
+          display: block !important;
+          flex: none !important;
+          width: 100vw !important;
+          height: 100vh !important;
+          height: 100dvh !important;
+          min-height: 100vh !important;
+          min-height: 100dvh !important;
+          max-height: none !important;
+          margin: 0 !important;
+          border: 0 !important;
+          border-radius: 0 !important;
+          background: #020617 !important;
+        }
+        .fuits-jellyfin-soft-exit {
+          display: none;
+        }
+        @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 1100px) and (max-height: 560px) {
+          .fuits-jellyfin-soft-exit {
+            position: fixed !important;
+            top: max(8px, env(safe-area-inset-top, 0px)) !important;
+            right: max(8px, env(safe-area-inset-right, 0px)) !important;
+            z-index: 2147483647 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            min-height: 34px !important;
+            padding: 7px 10px !important;
+            border: 1px solid rgba(248,250,252,.38) !important;
+            border-radius: 9px !important;
+            background: rgba(2,6,23,.92) !important;
+            color: #f8fafc !important;
+            font-size: 10px !important;
+            font-weight: 1000 !important;
+            line-height: 1 !important;
+            text-transform: uppercase !important;
+            box-shadow: 0 10px 28px rgba(0,0,0,.45) !important;
+          }
         }
         .music-library-desktop-sidebar button:hover { transform: translateY(-1px); }
         @keyframes fuits-live-pulse {
@@ -7496,7 +7641,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
                       padding: "7px 9px"
                     }}
                   >
-                    FULLSCREEN JELLYFIN
+                    {jellyfinFullscreenActive ? "EXIT JELLYFIN FULLSCREEN" : "FULLSCREEN JELLYFIN"}
                   </button>
                 )}
                 {activeLiveTvOption.id === "athf" && (
@@ -7519,6 +7664,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
                 )}
                 <iframe
                   ref={activeLiveTvOption.id === "jellyfin" ? jellyfinFrameRef : activeLiveTvOption.id === "athf" ? adultSwimFrameRef : null}
+                  className={activeLiveTvOption.id === "jellyfin" ? `fuits-jellyfin-frame${jellyfinSoftFullscreenActive ? " fuits-jellyfin-frame-soft-fullscreen" : ""}` : undefined}
                   title={activeLiveTvOption.label}
                   src={activeLiveTvOption.url}
                   allow="fullscreen; autoplay; encrypted-media; picture-in-picture"
@@ -7533,6 +7679,15 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
                     background: "#020617"
                   }}
                 />
+                {activeLiveTvOption.id === "jellyfin" && jellyfinSoftFullscreenActive && (
+                  <button
+                    type="button"
+                    className="fuits-jellyfin-soft-exit"
+                    onClick={exitJellyfinFullscreen}
+                  >
+                    Exit Fullscreen
+                  </button>
+                )}
                 {(activeLiveTvOption.id === "jellyfin" || activeLiveTvOption.id === "athf") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}

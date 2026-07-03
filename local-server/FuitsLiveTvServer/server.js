@@ -5782,6 +5782,7 @@ function chatOnlyHtml() {
     const adultRelaxGrid = chatLayout === "adult-relax";
     const mobileLandscapeChat = chatLayout === "mobile-landscape";
     let latestChatMessages = [];
+    let parentFullscreenActive = false;
     document.body.classList.toggle("adult-relax-grid", adultRelaxGrid);
     document.body.classList.toggle("mobile-landscape-chat", mobileLandscapeChat);
     function syncMobileLandscapeChatHeight() {
@@ -5797,6 +5798,24 @@ function chatOnlyHtml() {
 
     function getFullscreenElement() {
       return document.fullscreenElement || document.webkitFullscreenElement || document.webkitFullScreenElement || document.msFullscreenElement || null;
+    }
+
+    function hasParentFrame() {
+      return window.parent && window.parent !== window;
+    }
+
+    function requestParentFullscreenToggle() {
+      if (!hasParentFrame()) return false;
+      try {
+        window.parent.postMessage({ type: "FUITS_CHAT_FULLSCREEN_TOGGLE" }, "*");
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function isChatFullscreenActive() {
+      return parentFullscreenActive || getFullscreenElement() === chatSection;
     }
 
     async function requestElementFullscreen(element) {
@@ -5832,8 +5851,7 @@ function chatOnlyHtml() {
     }
 
     function updateFullscreenUi() {
-      const fullscreenElement = getFullscreenElement();
-      chatFullscreenButton.textContent = fullscreenElement === chatSection ? "Exit" : "Full";
+      chatFullscreenButton.textContent = isChatFullscreenActive() ? "Exit" : "Full";
       if (mobileLandscapeChat) syncMobileLandscapeChatHeight();
       renderChat(latestChatMessages);
     }
@@ -5940,9 +5958,26 @@ function chatOnlyHtml() {
       chatName.focus();
       updateChatNameUi();
     });
+    window.addEventListener("message", event => {
+      if (event.data?.type !== "FUITS_CHAT_FULLSCREEN_STATE") return;
+      parentFullscreenActive = Boolean(event.data.active);
+      updateFullscreenUi();
+    });
     chatFullscreenButton.addEventListener("click", async () => {
+      if (parentFullscreenActive) {
+        requestParentFullscreenToggle();
+        return;
+      }
       if (getFullscreenElement()) {
         await exitFullscreen();
+        updateFullscreenUi();
+        return;
+      }
+      if (requestParentFullscreenToggle()) {
+        chatFullscreenButton.textContent = "Exit";
+        window.setTimeout(() => {
+          if (!parentFullscreenActive && getFullscreenElement() !== chatSection) updateFullscreenUi();
+        }, 900);
         return;
       }
       await requestElementFullscreen(chatSection);

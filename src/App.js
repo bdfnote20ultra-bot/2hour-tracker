@@ -3182,19 +3182,123 @@ function PokemonSidebar({ loggedInUsername = "" } = {}) {
 }
 
 function LiveChatBox({ title = "Live Chat", src, height = 250, minHeight = 250 }) {
+  const frameRef = useRef(null);
+  const [softFullscreen, setSoftFullscreen] = useState(false);
+
+  const postFullscreenState = useCallback((active, targetOrigin = "*") => {
+    const frame = frameRef.current;
+    try {
+      frame?.contentWindow?.postMessage({ type: "FUITS_CHAT_FULLSCREEN_STATE", active }, targetOrigin || "*");
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (!softFullscreen || typeof document === "undefined") return undefined;
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    document.body.classList.add("fuits-chat-soft-fullscreen-active");
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.classList.remove("fuits-chat-soft-fullscreen-active");
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, [softFullscreen]);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame || typeof window === "undefined" || typeof document === "undefined") return undefined;
+
+    const requestFrameFullscreen = async () => {
+      const requestFullscreen =
+        frame.requestFullscreen ||
+        frame.webkitRequestFullscreen ||
+        frame.webkitRequestFullScreen ||
+        frame.msRequestFullscreen;
+      if (!requestFullscreen) return false;
+      try {
+        const result = requestFullscreen.call(frame);
+        if (result?.then) await result;
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    const exitFrameFullscreen = async () => {
+      const exitFullscreen =
+        document.exitFullscreen ||
+        document.webkitExitFullscreen ||
+        document.webkitCancelFullScreen ||
+        document.msExitFullscreen;
+      if (!exitFullscreen) return false;
+      try {
+        const result = exitFullscreen.call(document);
+        if (result?.then) await result;
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    const handleMessage = async event => {
+      if (event.source !== frame.contentWindow || event.data?.type !== "FUITS_CHAT_FULLSCREEN_TOGGLE") return;
+
+      const targetOrigin = event.origin || "*";
+      const fullscreenElement = getFuitsFullscreenElement();
+      if (softFullscreen || fullscreenElement === frame) {
+        setSoftFullscreen(false);
+        if (fullscreenElement === frame) await exitFrameFullscreen();
+        postFullscreenState(false, targetOrigin);
+        return;
+      }
+
+      const nativeStarted = await requestFrameFullscreen();
+      window.setTimeout(() => {
+        if (!nativeStarted || getFuitsFullscreenElement() !== frame) {
+          setSoftFullscreen(true);
+        }
+        postFullscreenState(true, targetOrigin);
+      }, 80);
+    };
+
+    const handleFullscreenChange = () => {
+      postFullscreenState(softFullscreen || getFuitsFullscreenElement() === frame);
+    };
+
+    window.addEventListener("message", handleMessage);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    document.addEventListener("MSFullscreenChange", handleFullscreenChange);
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+      document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
+    };
+  }, [postFullscreenState, softFullscreen]);
+
   return (
     <iframe
-      className="fuits-live-chat-frame"
+      ref={frameRef}
+      className={`fuits-live-chat-frame${softFullscreen ? " fuits-live-chat-frame-soft-fullscreen" : ""}`}
       title={title}
       src={src}
       allow="fullscreen"
       allowFullScreen
       style={{
-        width: "100%",
-        height,
-        minHeight,
+        position: softFullscreen ? "fixed" : undefined,
+        inset: softFullscreen ? 0 : undefined,
+        zIndex: softFullscreen ? 2147483647 : undefined,
+        width: softFullscreen ? "100vw" : "100%",
+        height: softFullscreen ? "100dvh" : height,
+        minHeight: softFullscreen ? "100dvh" : minHeight,
+        maxHeight: softFullscreen ? "none" : undefined,
         border: "1px solid rgba(148,163,184,.22)",
-        borderRadius: 14,
+        borderRadius: softFullscreen ? 0 : 14,
         background: "#020617"
       }}
     />
@@ -6157,6 +6261,22 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             display: none !important;
             pointer-events: none !important;
           }
+          body.fuits-chat-soft-fullscreen-active .music-library-desktop-sidebar {
+            z-index: 2147483647 !important;
+            overflow: visible !important;
+            isolation: isolate;
+          }
+          body.fuits-chat-soft-fullscreen-active .music-library-desktop-sidebar > .fuits-live-tv-panel {
+            position: relative !important;
+            z-index: 2147483647 !important;
+            isolation: isolate;
+          }
+          body.fuits-chat-soft-fullscreen-active .music-library-desktop-sidebar > .fuits-online-indicator,
+          body.fuits-chat-soft-fullscreen-active .music-library-desktop-sidebar > .fuits-weather-panel,
+          body.fuits-chat-soft-fullscreen-active .music-library-desktop-sidebar > .fuits-schedule-panel {
+            display: none !important;
+            pointer-events: none !important;
+          }
           .music-library-desktop-sidebar > .fuits-live-tv-panel {
             zoom: 1 !important;
             min-height: 0 !important;
@@ -6382,6 +6502,24 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             background: #020617 !important;
             color-scheme: dark;
           }
+        }
+        .fuits-live-chat-frame:fullscreen,
+        .fuits-live-chat-frame:-webkit-full-screen,
+        .fuits-live-chat-frame.fuits-live-chat-frame-soft-fullscreen {
+          position: fixed !important;
+          inset: 0 !important;
+          z-index: 2147483647 !important;
+          display: block !important;
+          flex: none !important;
+          width: 100vw !important;
+          height: 100vh !important;
+          height: 100dvh !important;
+          min-height: 100vh !important;
+          min-height: 100dvh !important;
+          max-height: none !important;
+          margin: 0 !important;
+          border-radius: 0 !important;
+          background: #020617 !important;
         }
         .music-library-desktop-sidebar button:hover { transform: translateY(-1px); }
         @keyframes fuits-live-pulse {

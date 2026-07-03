@@ -5593,13 +5593,15 @@ function chatOnlyHtml() {
       margin-top: 4px;
     }
     .gif-field {
-      display: flex;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
       align-items: center;
       gap: 6px;
       min-width: 0;
     }
     .gif-field select {
-      flex: 1;
+      width: 100%;
+      min-width: 0;
     }
     .gif-preview {
       width: 30px;
@@ -5639,9 +5641,49 @@ function chatOnlyHtml() {
       white-space: normal;
       overflow-wrap: anywhere;
     }
+    #chatName,
+    #chatGif {
+      text-align: center;
+    }
+    #chatGif {
+      text-align-last: center;
+    }
     @media (max-width: 520px) {
       .chat-form {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr) minmax(54px, .75fr);
+        gap: 4px;
+        padding: 5px;
+      }
+      .chat-form.needs-name {
+        grid-template-columns: minmax(60px, .9fr) minmax(54px, .8fr);
+      }
+      input,
+      select,
+      button {
+        min-height: 34px;
+        padding: 6px 5px;
+        font-size: 11px;
+      }
+      #chatName {
+        grid-column: 1;
+      }
+      #chatMessage {
+        grid-column: 1;
+      }
+      .chat-form.needs-name #chatMessage {
+        grid-row: 2;
+      }
+      .gif-field {
+        grid-column: 2;
+        gap: 3px;
+      }
+      .chat-form > button[type="submit"] {
+        grid-column: 2;
+      }
+      .gif-preview {
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
       }
     }
   </style>

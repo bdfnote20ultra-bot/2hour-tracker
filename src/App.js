@@ -723,8 +723,8 @@ function PokemonCoverImage({ game, onZoom, compact = false, imageType = "cover" 
         type="button"
         disabled
         style={{
-          width: compact ? 70 : 92,
-          height: compact ? 92 : 126,
+          width: compact ? "var(--flive-gaming-carousel-cover-width, 70px)" : "var(--flive-gaming-detail-cover-width, 92px)",
+          height: compact ? "var(--flive-gaming-carousel-cover-height, 92px)" : "var(--flive-gaming-detail-cover-height, 126px)",
           borderRadius: 10,
           border: "2px dashed rgba(255,255,255,.28)",
           background: "rgba(255,255,255,.08)",
@@ -751,8 +751,8 @@ function PokemonCoverImage({ game, onZoom, compact = false, imageType = "cover" 
         else setFailed(true);
       }}
       style={{
-        width: compact ? 70 : 92,
-        height: compact ? 92 : 126,
+        width: compact ? "var(--flive-gaming-carousel-cover-width, 70px)" : "var(--flive-gaming-detail-cover-width, 92px)",
+        height: compact ? "var(--flive-gaming-carousel-cover-height, 92px)" : "var(--flive-gaming-detail-cover-height, 126px)",
         objectFit: "cover",
         borderRadius: 10,
         border: "2px solid rgba(255,255,255,.25)",
@@ -2946,7 +2946,7 @@ function PokemonSidebar({ loggedInUsername = "" } = {}) {
 
           <div style={{
             marginTop: 8,
-            padding: 8,
+            padding: "var(--flive-gaming-carousel-panel-padding, 8px)",
             borderRadius: 18,
             background: "rgba(15,23,42,.86)",
             border: "1px solid rgba(255,255,255,.14)",
@@ -2960,8 +2960,8 @@ function PokemonSidebar({ loggedInUsername = "" } = {}) {
               marginBottom: 8
             }}>
               <button onClick={() => moveCarousel(-1)} style={{
-                width: 38, height: 38, borderRadius: "50%", border: "1px solid rgba(255,255,255,.18)",
-                background: "rgba(2,6,23,.9)", color: "#fff", cursor: "pointer", fontSize: 22, fontWeight: 900
+                width: "var(--flive-gaming-carousel-arrow-size, 38px)", height: "var(--flive-gaming-carousel-arrow-size, 38px)", borderRadius: "50%", border: "1px solid rgba(255,255,255,.18)",
+                background: "rgba(2,6,23,.9)", color: "#fff", cursor: "pointer", fontSize: "var(--flive-gaming-carousel-arrow-font-size, 22px)", fontWeight: 900
               }}>{"<"}</button>
               <div style={{ textAlign: "center", flex: 1 }}>
                 <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: 1.2, color: "#facc15", textTransform: "uppercase" }}>
@@ -2972,8 +2972,8 @@ function PokemonSidebar({ loggedInUsername = "" } = {}) {
                 </div>
               </div>
               <button onClick={() => moveCarousel(1)} style={{
-                width: 38, height: 38, borderRadius: "50%", border: "1px solid rgba(255,255,255,.18)",
-                background: "rgba(2,6,23,.9)", color: "#fff", cursor: "pointer", fontSize: 22, fontWeight: 900
+                width: "var(--flive-gaming-carousel-arrow-size, 38px)", height: "var(--flive-gaming-carousel-arrow-size, 38px)", borderRadius: "50%", border: "1px solid rgba(255,255,255,.18)",
+                background: "rgba(2,6,23,.9)", color: "#fff", cursor: "pointer", fontSize: "var(--flive-gaming-carousel-arrow-font-size, 22px)", fontWeight: 900
               }}>{">"}</button>
             </div>
 
@@ -3040,12 +3040,12 @@ function PokemonSidebar({ loggedInUsername = "" } = {}) {
                     }}
                     onClick={() => chooseCarouselGame(game)}
                     style={{
-                    minWidth: 94,
-                    maxWidth: 94,
+                    minWidth: "var(--flive-gaming-carousel-card-width, 94px)",
+                    maxWidth: "var(--flive-gaming-carousel-card-width, 94px)",
                     scrollSnapAlign: "center",
                     border: selected ? "2px solid #facc15" : "1px solid rgba(255,255,255,.18)",
                     borderRadius: 13,
-                    padding: 6,
+                    padding: "var(--flive-gaming-carousel-card-padding, 6px)",
                     background: selected ? "rgba(250,204,21,.18)" : "rgba(2,6,23,.72)",
                     color: "#fff",
                     cursor: "pointer",
@@ -3058,16 +3058,16 @@ function PokemonSidebar({ loggedInUsername = "" } = {}) {
                       <PokemonCoverImage game={game} onZoom={() => {}} compact />
                     </div>
                     <div style={{
-                      marginTop: 6, fontSize: 10, fontWeight: 900, lineHeight: 1.12,
-                      height: 34, overflow: "hidden", color: selected ? "#fff" : "#cbd5e1"
+                      marginTop: "var(--flive-gaming-carousel-title-margin, 6px)", fontSize: "var(--flive-gaming-carousel-title-font-size, 10px)", fontWeight: 900, lineHeight: 1.12,
+                      height: "var(--flive-gaming-carousel-title-height, 34px)", overflow: "hidden", color: selected ? "#fff" : "#cbd5e1"
                     }}>
                       {game.label}
                     </div>
-                    <div style={{ marginTop: 4, fontSize: 10, fontWeight: 900, color: selected ? "#facc15" : "#94a3b8" }}>
+                    <div style={{ marginTop: "var(--flive-gaming-carousel-meta-margin, 4px)", fontSize: "var(--flive-gaming-carousel-meta-font-size, 10px)", fontWeight: 900, color: selected ? "#facc15" : "#94a3b8" }}>
                       {game.system} - {game.year}
                     </div>
                     {discCount > 1 && (
-                      <div style={{ marginTop: 4, fontSize: 10, fontWeight: 1000, color: "#38bdf8" }}>
+                      <div style={{ marginTop: "var(--flive-gaming-carousel-meta-margin, 4px)", fontSize: "var(--flive-gaming-carousel-meta-font-size, 10px)", fontWeight: 1000, color: "#38bdf8" }}>
                         {discCount} discs
                       </div>
                     )}
@@ -3081,18 +3081,18 @@ function PokemonSidebar({ loggedInUsername = "" } = {}) {
           <div style={{
             marginTop: 8,
             display: "grid",
-            gridTemplateColumns: "92px 1fr",
-            gap: 10,
+            gridTemplateColumns: "var(--flive-gaming-detail-cover-width, 92px) 1fr",
+            gap: "var(--flive-gaming-detail-gap, 10px)",
             alignItems: "center",
-            padding: 8,
+            padding: "var(--flive-gaming-detail-padding, 8px)",
             borderRadius: 16,
             background: "rgba(15,23,42,.88)",
             border: "1px solid rgba(255,255,255,.14)"
           }}>
             <PokemonCoverImage game={activeGame} imageType={selectedArt} onZoom={setZoomedCover} />
             <div>
-              <div style={{ fontSize: 12, fontWeight: 900, lineHeight: 1.25, color: "#fff" }}>{activeGame.label}</div>
-              <div style={{ fontSize: 11, fontWeight: 800, color: "#cbd5e1", marginTop: 4 }}>{activeGame.system} - {activeGame.year}</div>
+              <div style={{ fontSize: "var(--flive-gaming-detail-title-font-size, 12px)", fontWeight: 900, lineHeight: 1.25, color: "#fff" }}>{activeGame.label}</div>
+              <div style={{ fontSize: "var(--flive-gaming-detail-meta-font-size, 11px)", fontWeight: 800, color: "#cbd5e1", marginTop: 4 }}>{activeGame.system} - {activeGame.year}</div>
               {activeGame.discUrls?.length > 1 && (
                 <select
                   value={selectedDiscIndex}
@@ -3116,20 +3116,20 @@ function PokemonSidebar({ loggedInUsername = "" } = {}) {
                   ))}
                 </select>
               )}
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+              <div style={{ display: "flex", gap: "var(--flive-gaming-detail-button-gap, 8px)", flexWrap: "wrap", marginTop: "var(--flive-gaming-detail-button-margin, 10px)" }}>
                 <button onClick={() => setSelectedArt("cover")} style={{
-                  border: "none", borderRadius: 999, padding: "7px 10px", cursor: "pointer",
-                  background: selectedArt === "cover" ? "#22c55e" : "rgba(255,255,255,.14)", color: selectedArt === "cover" ? "#052e16" : "#fff", fontWeight: 900
+                  border: "none", borderRadius: 999, padding: "var(--flive-gaming-detail-button-padding, 7px 10px)", cursor: "pointer",
+                  background: selectedArt === "cover" ? "#22c55e" : "rgba(255,255,255,.14)", color: selectedArt === "cover" ? "#052e16" : "#fff", fontWeight: 900, fontSize: "var(--flive-gaming-detail-button-font-size)"
                 }}>Cover</button>
                 {activeGameAssets.backUrl && (
                   <button onClick={() => setSelectedArt("back")} style={{
-                    border: "none", borderRadius: 999, padding: "7px 10px", cursor: "pointer",
-                    background: selectedArt === "back" ? "#a855f7" : "rgba(255,255,255,.14)", color: "#fff", fontWeight: 900
+                    border: "none", borderRadius: 999, padding: "var(--flive-gaming-detail-button-padding, 7px 10px)", cursor: "pointer",
+                    background: selectedArt === "back" ? "#a855f7" : "rgba(255,255,255,.14)", color: "#fff", fontWeight: 900, fontSize: "var(--flive-gaming-detail-button-font-size)"
                   }}>Back</button>
                 )}
                 {activeGameAssets.manualUrl && (
                   <a href={activeGameAssets.manualUrl} target="_blank" rel="noreferrer" style={{
-                    borderRadius: 999, padding: "7px 10px", textDecoration: "none", background: "rgba(59,130,246,.9)", color: "#fff", fontWeight: 900, fontSize: 13
+                    borderRadius: 999, padding: "var(--flive-gaming-detail-button-padding, 7px 10px)", textDecoration: "none", background: "rgba(59,130,246,.9)", color: "#fff", fontWeight: 900, fontSize: "var(--flive-gaming-detail-button-font-size, 13px)"
                   }}>Manual</a>
                 )}
               </div>
@@ -11849,6 +11849,28 @@ if (view === "gambling") {
             --flive-gaming-start-margin-top: 6px;
             --flive-gaming-start-padding: 7px 12px;
             --flive-gaming-start-font-size: 12px;
+            --flive-gaming-carousel-panel-padding: 6px;
+            --flive-gaming-carousel-arrow-size: 30px;
+            --flive-gaming-carousel-arrow-font-size: 18px;
+            --flive-gaming-carousel-card-width: 82px;
+            --flive-gaming-carousel-card-padding: 5px;
+            --flive-gaming-carousel-cover-width: 58px;
+            --flive-gaming-carousel-cover-height: 76px;
+            --flive-gaming-carousel-title-margin: 5px;
+            --flive-gaming-carousel-title-font-size: 9px;
+            --flive-gaming-carousel-title-height: 28px;
+            --flive-gaming-carousel-meta-margin: 3px;
+            --flive-gaming-carousel-meta-font-size: 9px;
+            --flive-gaming-detail-cover-width: 74px;
+            --flive-gaming-detail-cover-height: 100px;
+            --flive-gaming-detail-gap: 8px;
+            --flive-gaming-detail-padding: 6px;
+            --flive-gaming-detail-title-font-size: 11px;
+            --flive-gaming-detail-meta-font-size: 10px;
+            --flive-gaming-detail-button-gap: 6px;
+            --flive-gaming-detail-button-margin: 7px;
+            --flive-gaming-detail-button-padding: 5px 8px;
+            --flive-gaming-detail-button-font-size: 11px;
             --flive-ticker-top-scale: 1.54;
             --flive-weather-top-scale: 1.64;
             --flive-center-header-padding: 12px 14px 8px;

@@ -3693,7 +3693,7 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8", mobileLandsc
   };
 
   return (
-    <div ref={roomShellRef} className={`adult-relax-room-shell${softFullscreen ? " adult-relax-room-soft-fullscreen" : ""}${mobileLandscapeActive ? " adult-relax-room-mobile-landscape" : ""}`} style={{
+    <div ref={roomShellRef} className={`adult-relax-room-shell${softFullscreen ? " adult-relax-room-soft-fullscreen" : ""}${mobileLandscapeActive ? " adult-relax-room-mobile-landscape" : ""}${roomFullscreenActive ? " adult-relax-room-fullscreen-active" : " adult-relax-room-regular-view"}`} style={{
       width: "100%",
       display: "grid",
       gap: 10,
@@ -3796,6 +3796,110 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8", mobileLandsc
           padding: 4px 10px;
           background: rgba(2,6,23,.76);
           text-transform: uppercase;
+        }
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-regular-view {
+          gap: 5px !important;
+          padding: 6px !important;
+          overflow: hidden !important;
+        }
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-regular-view .adult-relax-toolbar {
+          gap: 4px !important;
+          font-size: 9px !important;
+          line-height: 1.12 !important;
+          min-width: 0 !important;
+        }
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-regular-view .adult-relax-toolbar > span,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-regular-view .adult-relax-toolbar div,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-regular-view .adult-relax-toolbar div span,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-regular-view .adult-relax-toolbar button {
+          min-width: 0 !important;
+          max-width: 100% !important;
+          white-space: normal !important;
+          overflow-wrap: anywhere !important;
+          word-break: break-word !important;
+        }
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-regular-view .adult-relax-grid {
+          display: grid !important;
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          grid-auto-rows: clamp(48px, 12dvh, 64px) !important;
+          gap: 4px !important;
+          min-width: 0 !important;
+          width: 100% !important;
+          overflow: hidden !important;
+          align-items: stretch !important;
+        }
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-regular-view .adult-relax-slot {
+          min-width: 0 !important;
+          min-height: 0 !important;
+          height: 100% !important;
+          border-radius: 7px !important;
+          overflow: hidden !important;
+        }
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-regular-view video {
+          display: block !important;
+          width: 100% !important;
+          height: 100% !important;
+          min-height: 0 !important;
+          max-height: 100% !important;
+          object-fit: cover !important;
+        }
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-regular-view .adult-relax-slot-empty-content {
+          box-sizing: border-box !important;
+          min-width: 0 !important;
+          min-height: 0 !important;
+          height: 100% !important;
+          padding: 4px !important;
+          gap: 3px !important;
+          font-size: 8px !important;
+          line-height: 1.08 !important;
+          overflow: hidden !important;
+          white-space: normal !important;
+          overflow-wrap: anywhere !important;
+          word-break: break-word !important;
+        }
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-regular-view .adult-relax-slot-empty-content > div {
+          min-width: 0 !important;
+          max-width: 100% !important;
+          white-space: normal !important;
+          overflow-wrap: anywhere !important;
+          word-break: break-word !important;
+        }
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-regular-view .adult-relax-slot-empty-content button {
+          min-height: 26px !important;
+          max-width: 100% !important;
+          padding: 3px 4px !important;
+          font-size: 7px !important;
+          line-height: 1.05 !important;
+          white-space: normal !important;
+          overflow-wrap: anywhere !important;
+          word-break: break-word !important;
+        }
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-regular-view .adult-relax-slot-label {
+          left: 3px !important;
+          right: 3px !important;
+          bottom: 3px !important;
+          font-size: 7px !important;
+          line-height: 1 !important;
+          max-width: calc(100% - 6px) !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+        }
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-regular-view .adult-relax-slot-label span {
+          display: block !important;
+          width: 100% !important;
+          box-sizing: border-box !important;
+          padding: 2px 4px !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          white-space: nowrap !important;
+        }
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-regular-view .adult-relax-leave-btn {
+          min-height: 28px !important;
+          padding: 4px 6px !important;
+          font-size: 9px !important;
+          line-height: 1.08 !important;
+          white-space: normal !important;
+          overflow-wrap: anywhere !important;
         }
         .adult-relax-room-shell:fullscreen .adult-relax-start-panel,
         .adult-relax-room-shell:-webkit-full-screen .adult-relax-start-panel,

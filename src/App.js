@@ -3902,10 +3902,30 @@ const getFuitsFullscreenElement = () => {
 
 const isFuitsMobileLandscapeProfile = () => {
   if (typeof window === "undefined") return false;
-  if (typeof window.matchMedia === "function") return window.matchMedia(FUITS_MOBILE_LANDSCAPE_QUERY).matches;
 
   const touchPoints = typeof navigator === "undefined" ? 0 : Number(navigator.maxTouchPoints || 0);
-  return touchPoints > 0 && window.innerWidth > window.innerHeight && window.innerWidth <= 1100 && window.innerHeight <= 560;
+  const mediaMatches = typeof window.matchMedia === "function" && window.matchMedia(FUITS_MOBILE_LANDSCAPE_QUERY).matches;
+  const landscapeMatches =
+    window.innerWidth > window.innerHeight ||
+    (typeof window.matchMedia === "function" && window.matchMedia("(orientation: landscape)").matches);
+
+  if (!landscapeMatches) return false;
+  if (mediaMatches) return true;
+  if (touchPoints <= 0) return false;
+
+  const visualViewport = window.visualViewport;
+  const viewportPairs = [
+    [window.innerWidth, window.innerHeight],
+    [visualViewport?.width, visualViewport?.height]
+  ];
+
+  return viewportPairs.some(([width, height]) => {
+    const viewportWidth = Number(width || 0);
+    const viewportHeight = Number(height || 0);
+    if (!viewportWidth || !viewportHeight) return false;
+
+    return Math.max(viewportWidth, viewportHeight) <= 1100 && Math.min(viewportWidth, viewportHeight) <= 560;
+  });
 };
 
 const FUITS_MOBILE_PORTRAIT_GATE_QUERY = "(hover: none) and (pointer: coarse) and (orientation: portrait) and (max-width: 820px)";
@@ -5634,21 +5654,32 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
     activeFuitsLiveTvChannelNameLength > 26 ? 36 :
     activeFuitsLiveTvChannelNameLength > 18 ? 34 : 30;
   useEffect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    if (typeof window === "undefined") {
       setFuitsMobileLandscapeProfileActive(isFuitsMobileLandscapeProfile());
       return undefined;
     }
 
-    const mediaQuery = window.matchMedia(FUITS_MOBILE_LANDSCAPE_QUERY);
-    const updateMobileLandscapeProfile = () => setFuitsMobileLandscapeProfileActive(mediaQuery.matches);
+    const mediaQuery = typeof window.matchMedia === "function" ? window.matchMedia(FUITS_MOBILE_LANDSCAPE_QUERY) : null;
+    const orientationQuery = typeof window.matchMedia === "function" ? window.matchMedia("(orientation: landscape)") : null;
+    const updateMobileLandscapeProfile = () => setFuitsMobileLandscapeProfileActive(isFuitsMobileLandscapeProfile());
     updateMobileLandscapeProfile();
 
-    if (mediaQuery.addEventListener) mediaQuery.addEventListener("change", updateMobileLandscapeProfile);
-    else if (mediaQuery.addListener) mediaQuery.addListener(updateMobileLandscapeProfile);
+    if (mediaQuery?.addEventListener) mediaQuery.addEventListener("change", updateMobileLandscapeProfile);
+    else if (mediaQuery?.addListener) mediaQuery.addListener(updateMobileLandscapeProfile);
+    if (orientationQuery?.addEventListener) orientationQuery.addEventListener("change", updateMobileLandscapeProfile);
+    else if (orientationQuery?.addListener) orientationQuery.addListener(updateMobileLandscapeProfile);
+    window.addEventListener("resize", updateMobileLandscapeProfile);
+    window.addEventListener("orientationchange", updateMobileLandscapeProfile);
+    window.visualViewport?.addEventListener?.("resize", updateMobileLandscapeProfile);
 
     return () => {
-      if (mediaQuery.removeEventListener) mediaQuery.removeEventListener("change", updateMobileLandscapeProfile);
-      else if (mediaQuery.removeListener) mediaQuery.removeListener(updateMobileLandscapeProfile);
+      if (mediaQuery?.removeEventListener) mediaQuery.removeEventListener("change", updateMobileLandscapeProfile);
+      else if (mediaQuery?.removeListener) mediaQuery.removeListener(updateMobileLandscapeProfile);
+      if (orientationQuery?.removeEventListener) orientationQuery.removeEventListener("change", updateMobileLandscapeProfile);
+      else if (orientationQuery?.removeListener) orientationQuery.removeListener(updateMobileLandscapeProfile);
+      window.removeEventListener("resize", updateMobileLandscapeProfile);
+      window.removeEventListener("orientationchange", updateMobileLandscapeProfile);
+      window.visualViewport?.removeEventListener?.("resize", updateMobileLandscapeProfile);
     };
   }, []);
   const musicViewOptions = [
@@ -7021,7 +7052,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
                 {(activeLiveTvOption.id === "jellyfin" || activeLiveTvOption.id === "athf") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src={`${fuitsLiveTvChannelUrl}/chat-only`}
+                    src={fuitsLiveTvChatSrc}
                     height={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                     minHeight={activeLiveTvOption.id === "jellyfin" ? 260 : 250}
                   />
@@ -7056,7 +7087,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
                 {(activeLiveTvOption.id === "southpark" || activeLiveTvOption.id === "youtube" || activeLiveTvOption.id === "fuit") && (
                   <LiveChatBox
                     title={`${activeLiveTvOption.label} Chat`}
-                    src={`${fuitsLiveTvChannelUrl}/chat-only`}
+                    src={fuitsLiveTvChatSrc}
                     height={250}
                     minHeight={250}
                   />
@@ -7475,7 +7506,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
         }}>
           <LiveChatBox
             title="FUITS Music Live Chat"
-            src={`${fuitsLiveTvChannelUrl}/chat-only`}
+            src={fuitsLiveTvChatSrc}
             height={250}
             minHeight={250}
           />

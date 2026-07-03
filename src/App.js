@@ -5383,7 +5383,8 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                   touch-action: manipulation;
                 }
               }
-              @media (min-width: 900px) and (max-width: 1400px) and (max-height: 730px) {
+              @media (hover: hover) and (pointer: fine) and (min-width: 900px) and (max-width: 1400px) and (max-height: 790px),
+                (hover: hover) and (pointer: fine) and (min-device-width: 900px) and (max-device-height: 820px) {
                 .fuits-video-shell {
                   height: var(--flive-tv-video-shell-height, 165px) !important;
                 }
@@ -6758,7 +6759,8 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             zoom: var(--flive-schedule-content-scale, var(--flive-info-content-scale, var(--flive-panel-content-scale, 1)));
           }
         }
-        @media (min-width: 900px) and (max-width: 1400px) and (max-height: 730px) {
+        @media (hover: hover) and (pointer: fine) and (min-width: 900px) and (max-width: 1400px) and (max-height: 790px),
+          (hover: hover) and (pointer: fine) and (min-device-width: 900px) and (max-device-height: 820px) {
           .music-library-desktop-sidebar > :not(style):not(.fuits-online-indicator):not(.fuits-weather-panel):not(.fuits-schedule-panel) {
             zoom: var(--flive-tv-content-scale, var(--flive-panel-content-scale, 1)) !important;
           }
@@ -11923,7 +11925,7 @@ if (view === "gambling") {
             --flive-gaming-detail-button-margin: 7px;
             --flive-gaming-detail-button-padding: 5px 8px;
             --flive-gaming-detail-button-font-size: 11px;
-            --flive-tv-content-scale: .60;
+            --flive-tv-content-scale: .56;
             --flive-tv-button-padding: 4px 6px;
             --flive-tv-button-radius: 8px;
             --flive-tv-button-font-size: 8px;
@@ -11951,10 +11953,10 @@ if (view === "gambling") {
             --flive-tv-video-title-font-size: 8px;
             --flive-tv-video-title-line-height: 1.08;
             --flive-tv-video-title-overflow: hidden;
-            --flive-tv-chat-flex: 0 0 430px;
-            --flive-tv-chat-height: 430px;
-            --flive-tv-chat-min-height: 430px;
-            --flive-tv-chat-max-height: 430px;
+            --flive-tv-chat-flex: 0 0 650px;
+            --flive-tv-chat-height: 650px;
+            --flive-tv-chat-min-height: 650px;
+            --flive-tv-chat-max-height: 650px;
             --flive-ticker-top-scale: 1.54;
             --flive-weather-top-scale: 1.64;
             --flive-center-header-padding: 12px 14px 8px;

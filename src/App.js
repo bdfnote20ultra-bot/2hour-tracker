@@ -5902,7 +5902,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
   const fuitsLiveTvChatUrl = getFuitsLiveTvUrl("/chat-only");
   const fuitsLiveTvChatParams = new URLSearchParams();
   if (activeLiveTvOption.id === "adultRelax") {
-    fuitsLiveTvChatParams.set("layout", "adult-relax");
+    fuitsLiveTvChatParams.set("layout", fuitsMobileLandscapeProfileActive ? "adult-relax-mobile-landscape" : "adult-relax");
   } else if (fuitsMobileLandscapeProfileActive) {
     fuitsLiveTvChatParams.set("layout", "mobile-landscape");
   }

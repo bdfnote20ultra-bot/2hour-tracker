@@ -5607,6 +5607,31 @@ function chatOnlyHtml() {
       color: #e2e8f0;
       overflow-wrap: anywhere;
     }
+    body.adult-relax-mobile-landscape-chat.chat-fullscreen-active .chat-log {
+      padding: 10px;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+      grid-auto-rows: minmax(0, 1fr);
+      align-content: stretch;
+      gap: 8px;
+      overflow: hidden;
+    }
+    body.adult-relax-mobile-landscape-chat.chat-fullscreen-active .chat-message {
+      min-height: 0;
+      border: 1px solid rgba(148, 163, 184, .22);
+      border-radius: 9px;
+      background: rgba(2, 6, 23, .72);
+      padding: 8px;
+      overflow: auto;
+    }
+    body.adult-relax-mobile-landscape-chat.chat-fullscreen-active .chat-message.empty-slot {
+      border-style: dashed;
+      color: #64748b;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      font-weight: 900;
+    }
     .chat-name {
       color: #93c5fd;
       font-weight: 900;
@@ -5839,6 +5864,61 @@ function chatOnlyHtml() {
     body.mobile-landscape-chat .chat-form > button[type="submit"] {
       grid-area: send;
     }
+    body.adult-relax-mobile-landscape-chat .chat {
+      grid-template-rows: auto minmax(120px, 1fr) auto;
+    }
+    body.adult-relax-mobile-landscape-chat .chat-head {
+      gap: 4px;
+      padding: 4px 5px;
+      font-size: 10px;
+      line-height: 1.12;
+    }
+    body.adult-relax-mobile-landscape-chat .chat-actions {
+      gap: 4px;
+      flex: 1 1 auto;
+      justify-content: flex-end;
+    }
+    body.adult-relax-mobile-landscape-chat .chat-name-row {
+      gap: 4px;
+      max-width: calc(100% - 48px);
+      font-size: 9px;
+      line-height: 1.15;
+    }
+    body.adult-relax-mobile-landscape-chat .chat-full-button {
+      width: 42px;
+      min-height: 28px;
+      padding: 3px 4px;
+      font-size: 9px;
+      line-height: 1;
+    }
+    body.adult-relax-mobile-landscape-chat .chat-log {
+      min-height: 120px;
+      font-size: 10px;
+    }
+    body.adult-relax-mobile-landscape-chat.chat-fullscreen-active .chat-log {
+      padding: 5px;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+      gap: 5px;
+      font-size: 9px;
+    }
+    body.adult-relax-mobile-landscape-chat.chat-fullscreen-active .chat-message {
+      padding: 5px;
+      border-radius: 7px;
+      line-height: 1.15;
+    }
+    body.adult-relax-mobile-landscape-chat .chat-form {
+      gap: 3px;
+      padding: 4px;
+    }
+    body.adult-relax-mobile-landscape-chat input,
+    body.adult-relax-mobile-landscape-chat select,
+    body.adult-relax-mobile-landscape-chat button {
+      min-height: 30px;
+      padding: 4px;
+      font-size: 9px;
+      line-height: 1.15;
+    }
   </style>
 </head>
 <body>
@@ -5875,14 +5955,20 @@ function chatOnlyHtml() {
     const changeNameButton = document.getElementById("changeNameButton");
     const chatFullscreenButton = document.getElementById("chatFullscreenButton");
     const chatLayout = new URLSearchParams(window.location.search).get("layout");
-    const adultRelaxGrid = chatLayout === "adult-relax";
-    const mobileLandscapeChat = chatLayout === "mobile-landscape";
+    const phoneLandscapeQuery = "(hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 1100px) and (max-height: 560px)";
+    const phoneLandscapeMedia = typeof window.matchMedia === "function" ? window.matchMedia(phoneLandscapeQuery) : null;
+    const phoneLandscapeFallback = window.innerWidth > window.innerHeight && window.innerWidth <= 1100 && window.innerHeight <= 560;
+    const phoneLandscapeActive = Boolean(phoneLandscapeMedia?.matches || (!phoneLandscapeMedia && phoneLandscapeFallback));
+    const adultRelaxGrid = chatLayout === "adult-relax" || chatLayout === "adult-relax-mobile-landscape";
+    const mobileLandscapeChat = chatLayout === "mobile-landscape" || (chatLayout === "adult-relax-mobile-landscape" && phoneLandscapeActive);
+    const adultRelaxMobileLandscape = adultRelaxGrid && mobileLandscapeChat;
     let latestChatMessages = [];
     let parentFullscreenActive = false;
     let localFullscreenActive = false;
     let parentFullscreenRequestTimer = null;
     document.body.classList.toggle("adult-relax-grid", adultRelaxGrid);
     document.body.classList.toggle("mobile-landscape-chat", mobileLandscapeChat);
+    document.body.classList.toggle("adult-relax-mobile-landscape-chat", adultRelaxMobileLandscape);
     function syncMobileLandscapeChatHeight() {
       if (!mobileLandscapeChat) return;
       const height = Math.max(0, Math.floor(window.innerHeight || document.documentElement.clientHeight || 0));
@@ -5962,7 +6048,9 @@ function chatOnlyHtml() {
     }
 
     function updateFullscreenUi() {
-      chatFullscreenButton.textContent = isChatFullscreenActive() ? "Exit" : "Full";
+      const fullscreenActive = isChatFullscreenActive();
+      document.body.classList.toggle("chat-fullscreen-active", fullscreenActive);
+      chatFullscreenButton.textContent = fullscreenActive ? "Exit" : "Full";
       if (mobileLandscapeChat) syncMobileLandscapeChatHeight();
       renderChat(latestChatMessages);
     }

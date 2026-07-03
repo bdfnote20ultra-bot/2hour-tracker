@@ -5509,9 +5509,7 @@ function chatOnlyHtml() {
     }
     .chat-head {
       display: flex;
-      align-items: flex-start;
       justify-content: space-between;
-      flex-wrap: wrap;
       gap: 8px;
       padding: 6px 8px;
       border-bottom: 1px solid rgba(148, 163, 184, .18);
@@ -5528,10 +5526,7 @@ function chatOnlyHtml() {
     }
     .chat-message {
       color: #e2e8f0;
-      min-width: 0;
-      line-height: 1.25;
       overflow-wrap: anywhere;
-      word-break: break-word;
     }
     .chat-name {
       color: #93c5fd;
@@ -5552,14 +5547,13 @@ function chatOnlyHtml() {
       align-items: center;
       gap: 8px;
       min-width: 0;
-      overflow: visible;
+      overflow: hidden;
     }
     #chatSavedName {
       min-width: 0;
-      overflow: visible;
-      white-space: normal;
-      overflow-wrap: anywhere;
-      word-break: break-word;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .name-change {
       padding: 0;
@@ -5572,11 +5566,10 @@ function chatOnlyHtml() {
     .chat-actions {
       display: flex;
       align-items: center;
-      flex-wrap: wrap;
       gap: 8px;
       min-width: 0;
-      max-width: 100%;
-      overflow: visible;
+      max-width: 70%;
+      overflow: hidden;
     }
     .chat-full-button {
       padding: 3px 6px;
@@ -5593,15 +5586,13 @@ function chatOnlyHtml() {
       margin-top: 4px;
     }
     .gif-field {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      display: flex;
       align-items: center;
       gap: 6px;
       min-width: 0;
     }
     .gif-field select {
-      width: 100%;
-      min-width: 0;
+      flex: 1;
     }
     .gif-preview {
       width: 30px;
@@ -5633,58 +5624,95 @@ function chatOnlyHtml() {
       padding: 7px 8px;
       font-weight: 800;
       font-size: 12px;
-      line-height: 1.2;
     }
     button {
       cursor: pointer;
-      min-height: 32px;
-      white-space: normal;
-      overflow-wrap: anywhere;
-    }
-    #chatName,
-    #chatGif {
-      text-align: center;
-    }
-    #chatGif {
-      text-align-last: center;
     }
     @media (max-width: 520px) {
       .chat-form {
-        grid-template-columns: minmax(0, 1fr) minmax(54px, .75fr);
-        gap: 4px;
-        padding: 5px;
+        grid-template-columns: 1fr;
       }
-      .chat-form.needs-name {
-        grid-template-columns: minmax(60px, .9fr) minmax(54px, .8fr);
-      }
-      input,
-      select,
-      button {
-        min-height: 34px;
-        padding: 6px 5px;
-        font-size: 11px;
-      }
-      #chatName {
-        grid-column: 1;
-      }
-      #chatMessage {
-        grid-column: 1;
-      }
-      .chat-form.needs-name #chatMessage {
-        grid-row: 2;
-      }
-      .gif-field {
-        grid-column: 2;
-        gap: 3px;
-      }
-      .chat-form > button[type="submit"] {
-        grid-column: 2;
-      }
-      .gif-preview {
-        width: 22px;
-        height: 22px;
-        border-radius: 6px;
-      }
+    }
+    body.mobile-landscape-chat .chat-head {
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 5px 6px;
+    }
+    body.mobile-landscape-chat .chat-log {
+      padding: 5px 6px;
+      gap: 3px;
+      font-size: 11px;
+    }
+    body.mobile-landscape-chat .chat-message {
+      min-width: 0;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    body.mobile-landscape-chat .chat-form {
+      grid-template-columns: minmax(76px, 1fr) minmax(62px, .74fr);
+      grid-template-areas:
+        "message gif"
+        "message send";
+      gap: 4px;
+      padding: 5px;
+    }
+    body.mobile-landscape-chat .chat-form.needs-name {
+      grid-template-columns: minmax(76px, 1fr) minmax(62px, .74fr);
+      grid-template-areas:
+        "name gif"
+        "message send";
+    }
+    body.mobile-landscape-chat .chat-name-row {
+      overflow: visible;
+    }
+    body.mobile-landscape-chat #chatSavedName {
+      overflow: visible;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    body.mobile-landscape-chat .chat-actions {
+      flex-wrap: wrap;
+      gap: 6px;
+      max-width: 100%;
+      overflow: visible;
+    }
+    body.mobile-landscape-chat input,
+    body.mobile-landscape-chat select,
+    body.mobile-landscape-chat button {
+      min-height: 34px;
+      padding: 6px 5px;
+      font-size: 11px;
+      line-height: 1.2;
+    }
+    body.mobile-landscape-chat button {
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+    body.mobile-landscape-chat #chatName {
+      grid-area: name;
+      text-align: center;
+    }
+    body.mobile-landscape-chat #chatMessage {
+      grid-area: message;
+    }
+    body.mobile-landscape-chat .gif-field {
+      grid-area: gif;
+      display: block;
+    }
+    body.mobile-landscape-chat #chatGif {
+      width: 100%;
+      min-width: 0;
+      text-align: center;
+      text-align-last: center;
+    }
+    body.mobile-landscape-chat .gif-preview {
+      display: none !important;
+    }
+    body.mobile-landscape-chat .chat-form > button[type="submit"] {
+      grid-area: send;
     }
   </style>
 </head>
@@ -5723,8 +5751,10 @@ function chatOnlyHtml() {
     const chatFullscreenButton = document.getElementById("chatFullscreenButton");
     const chatLayout = new URLSearchParams(window.location.search).get("layout");
     const adultRelaxGrid = chatLayout === "adult-relax";
+    const mobileLandscapeChat = chatLayout === "mobile-landscape";
     let latestChatMessages = [];
     document.body.classList.toggle("adult-relax-grid", adultRelaxGrid);
+    document.body.classList.toggle("mobile-landscape-chat", mobileLandscapeChat);
     chatName.value = localStorage.getItem("fuitsLiveTvChatName") || "";
 
     function updateChatNameUi() {

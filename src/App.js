@@ -5230,6 +5230,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
   const [fuitsSchedule, setFuitsSchedule] = useState({ channelLabel: "", items: [], loading: true });
   const [fuitsPlaybackAnchor, setFuitsPlaybackAnchor] = useState(null);
   const [fuitsStretchFullscreenActive, setFuitsStretchFullscreenActive] = useState(false);
+  const [fuitsMobileLandscapeProfileActive, setFuitsMobileLandscapeProfileActive] = useState(() => isFuitsMobileLandscapeProfile());
   const [jellyfinSilkFullscreenActive, setJellyfinSilkFullscreenActive] = useState(false);
   const [openMusicSections, setOpenMusicSections] = useState({ videos: false, music: false });
   const [zoomedDonationQr, setZoomedDonationQr] = useState(null);
@@ -5632,6 +5633,24 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
     activeFuitsLiveTvChannelNameLength > 34 ? 38 :
     activeFuitsLiveTvChannelNameLength > 26 ? 36 :
     activeFuitsLiveTvChannelNameLength > 18 ? 34 : 30;
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      setFuitsMobileLandscapeProfileActive(isFuitsMobileLandscapeProfile());
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia(FUITS_MOBILE_LANDSCAPE_QUERY);
+    const updateMobileLandscapeProfile = () => setFuitsMobileLandscapeProfileActive(mediaQuery.matches);
+    updateMobileLandscapeProfile();
+
+    if (mediaQuery.addEventListener) mediaQuery.addEventListener("change", updateMobileLandscapeProfile);
+    else if (mediaQuery.addListener) mediaQuery.addListener(updateMobileLandscapeProfile);
+
+    return () => {
+      if (mediaQuery.removeEventListener) mediaQuery.removeEventListener("change", updateMobileLandscapeProfile);
+      else if (mediaQuery.removeListener) mediaQuery.removeListener(updateMobileLandscapeProfile);
+    };
+  }, []);
   const musicViewOptions = [
     { id: "library", label: "Music Library" },
     { id: "radio", label: "FUIT RADIO WORLD" },
@@ -5740,6 +5759,14 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
 
   const fuitsLiveTvVideoUrl = getFuitsLiveTvUrl("/embed/video");
   const fuitsLiveTvChatUrl = getFuitsLiveTvUrl("/chat-only");
+  const fuitsLiveTvChatParams = new URLSearchParams();
+  if (activeLiveTvOption.id === "adultRelax") {
+    fuitsLiveTvChatParams.set("layout", "adult-relax");
+  } else if (fuitsMobileLandscapeProfileActive) {
+    fuitsLiveTvChatParams.set("layout", "mobile-landscape");
+  }
+  const fuitsLiveTvChatQuery = fuitsLiveTvChatParams.toString();
+  const fuitsLiveTvChatSrc = `${fuitsLiveTvChatUrl || `${fuitsLiveTvChannelUrl}/chat-only`}${fuitsLiveTvChatQuery ? `?${fuitsLiveTvChatQuery}` : ""}`;
 
   const releaseJellyfinSilkWakeLock = useCallback(() => {
     const wakeLock = jellyfinSilkWakeLockRef.current;
@@ -6824,7 +6851,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
                     {renderFuitsOwnerControls()}
                 <LiveChatBox
                   title="FUITS Live TV Chat"
-                  src={`${fuitsLiveTvChatUrl || `${fuitsLiveTvChannelUrl}/chat-only`}${activeLiveTvOption.id === "adultRelax" ? "?layout=adult-relax" : ""}`}
+                  src={fuitsLiveTvChatSrc}
                   height={260}
                   minHeight={260}
                 />

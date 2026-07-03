@@ -4421,6 +4421,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
   const lastMobileAudioToggleAtRef = useRef(0);
   const channelSwitchPendingRef = useRef(false);
   const previousChannelIdRef = useRef(channelId);
+  const stalledRecoveryTimerRef = useRef(null);
   const [preloadedLargeVideoKey, setPreloadedLargeVideoKey] = useState("");
   const autoPreloadKeyRef = useRef("");
   const [largePreloadProgress, setLargePreloadProgress] = useState(0);
@@ -4599,20 +4600,11 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
       pendingTransitionStartRef.current = false;
     };
 
-    const mobileLandscapeProfile = isFuitsMobileLandscapeProfile();
-    const readyForSync = mobileLandscapeProfile ? video.readyState >= 2 : video.readyState >= 1;
-    if (readyForSync) syncTime();
+    if (video.readyState >= 1) syncTime();
     else {
-      const primarySyncEvent = mobileLandscapeProfile ? "loadeddata" : "loadedmetadata";
-      video.addEventListener(primarySyncEvent, syncTime, { once: true });
-      if (mobileLandscapeProfile) {
-        video.addEventListener("canplay", syncTime, { once: true });
-      }
+      video.addEventListener("loadedmetadata", syncTime, { once: true });
       return () => {
-        video.removeEventListener(primarySyncEvent, syncTime);
-        if (mobileLandscapeProfile) {
-          video.removeEventListener("canplay", syncTime);
-        }
+        video.removeEventListener("loadedmetadata", syncTime);
       };
     }
   }, [channel, currentItem, currentOffsetSeconds, videoSrc, syncVideoToLiveOffset]);
@@ -4739,10 +4731,6 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
   const startChannelPlayback = useCallback(() => {
     const video = videoRef.current;
     if (!video || !videoSrc || liveAnnouncementOnline) return;
-    if (isFuitsMobileLandscapeProfile() && video.readyState < 2) {
-      setVideoLoading(true);
-      return;
-    }
     if (syncedVideoSrcRef.current !== videoSrc) {
       syncVideoToLiveOffset(true);
       syncedVideoSrcRef.current = videoSrc;
@@ -4758,6 +4746,47 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     if (video.paused || video.ended) return;
     if (video.readyState < 1 && getBufferedAheadSeconds(video) < 0.35) setVideoLoading(true);
   };
+
+  const recoverFromMobileLandscapeStall = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (!isFuitsMobileLandscapeProfile()) {
+      setVideoError("Stream stalled. The tunnel or source video is not sending data fast enough.");
+      return;
+    }
+
+    window.clearTimeout(stalledRecoveryTimerRef.current);
+    setVideoError("");
+
+    if (video.readyState >= 2 || getBufferedAheadSeconds(video) > 0.25) {
+      setVideoLoading(false);
+      playCurrentVideo();
+      return;
+    }
+
+    setVideoLoading(true);
+    stalledRecoveryTimerRef.current = window.setTimeout(() => {
+      const currentVideo = videoRef.current;
+      if (!currentVideo || !isFuitsMobileLandscapeProfile()) return;
+
+      if (currentVideo.readyState >= 2 || getBufferedAheadSeconds(currentVideo) > 0.25) {
+        setVideoLoading(false);
+        playCurrentVideo();
+        return;
+      }
+
+      if (syncedVideoSrcRef.current !== videoSrc) {
+        syncVideoToLiveOffset(true);
+        syncedVideoSrcRef.current = videoSrc;
+      }
+      playCurrentVideo();
+    }, 650);
+  };
+
+  useEffect(() => () => {
+    window.clearTimeout(stalledRecoveryTimerRef.current);
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -5277,14 +5306,10 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
               muted={playerMuted}
               autoPlay={!needsLargeVideoPreload}
               preload="auto"
-              onLoadedMetadata={event => {
+              onLoadedMetadata={() => {
                 setVideoLoading(false);
                 if (needsLargeVideoPreload) {
                   videoRef.current?.pause();
-                  return;
-                }
-                if (isFuitsMobileLandscapeProfile() && event.currentTarget.readyState < 2) {
-                  setVideoLoading(true);
                   return;
                 }
                 syncVideoToLiveOffset(true);
@@ -5308,18 +5333,12 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                   event.currentTarget.pause();
                   return;
                 }
-                if (isFuitsMobileLandscapeProfile()) {
-                  startChannelPlayback();
-                  return;
-                }
-                playWhenBuffered();
+                startChannelPlayback();
               }}
               onLoadedData={() => {
                 setVideoLoading(false);
                 setVideoError("");
-                if (isFuitsMobileLandscapeProfile()) {
-                  startChannelPlayback();
-                }
+                startChannelPlayback();
               }}
               onPlaying={() => {
                 const video = videoRef.current;
@@ -5329,9 +5348,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                 }
                 const playbackKey = `${channelId}:${currentItem?.id || ""}:${videoSrc}`;
                 if (video && currentItem && anchoredPlaybackKeyRef.current !== playbackKey) {
-                  if (!isFuitsMobileLandscapeProfile()) {
-                    syncVideoToLiveOffset(true);
-                  }
+                  syncVideoToLiveOffset(true);
                   anchoredPlaybackKeyRef.current = playbackKey;
                   pendingTransitionStartRef.current = false;
                   syncedVideoSrcRef.current = videoSrc;
@@ -5374,7 +5391,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                 window.setTimeout(() => { seekingLockRef.current = false; }, 0);
               }}
               onWaiting={showBufferingIfNeeded}
-              onStalled={() => setVideoError("Stream stalled. The tunnel or source video is not sending data fast enough.")}
+              onStalled={recoverFromMobileLandscapeStall}
               onError={() => setVideoError("This video did not load. Try Next, Shuffle, or Retry.")}
               onVolumeChange={handleVideoVolumeChange}
               style={{

@@ -11842,7 +11842,6 @@ if (view === "gambling") {
             --flive-gaming-scale: .66;
             --flive-gaming-stack-height-scale: 1;
             --flive-gaming-content-scale: .74;
-            --flive-center-shell-height-scale: .5;
             --flive-gaming-stage-padding: 8px;
             --flive-gaming-emulator-min-height: 170px;
             --flive-gaming-emulator-message-padding: 12px;
@@ -11850,15 +11849,39 @@ if (view === "gambling") {
             --flive-gaming-start-margin-top: 6px;
             --flive-gaming-start-padding: 7px 12px;
             --flive-gaming-start-font-size: 12px;
-          }
-          .flive-center-shell {
-            min-height: calc(100vh * var(--flive-center-shell-height-scale, 1)) !important;
-            min-height: calc(100dvh * var(--flive-center-shell-height-scale, 1)) !important;
-            height: calc(100vh * var(--flive-center-shell-height-scale, 1)) !important;
-            height: calc(100dvh * var(--flive-center-shell-height-scale, 1)) !important;
-            max-height: calc(100vh * var(--flive-center-shell-height-scale, 1)) !important;
-            max-height: calc(100dvh * var(--flive-center-shell-height-scale, 1)) !important;
-            overflow-y: hidden !important;
+            --flive-center-header-padding: 12px 14px 8px;
+            --flive-center-header-row-margin-bottom: 4px;
+            --flive-project-button-gap: 5px;
+            --flive-project-button-padding: 4px 8px;
+            --flive-project-button-radius: 8px;
+            --flive-project-button-font-size: 10px;
+            --flive-project-button-max-width: 142px;
+            --flive-project-dot-size: 6px;
+            --flive-project-label-max-width: 100px;
+            --flive-project-caret-font-size: 8px;
+            --flive-center-settings-font-size: 13px;
+            --flive-center-soundtrack-margin: -2px 0 5px;
+            --flive-center-soundtrack-gap: 4px;
+            --flive-center-soundtrack-padding: 4px 9px;
+            --flive-center-soundtrack-font-size: 10px;
+            --flive-center-logo-margin: -2px 0 5px;
+            --flive-center-logo-max-width: 170px;
+            --flive-center-logo-max-height: 58px;
+            --flive-center-week-margin-bottom: 5px;
+            --flive-center-week-arrow-font-size: 14px;
+            --flive-center-week-arrow-padding: 1px 5px;
+            --flive-center-week-title-font-size: 10px;
+            --flive-center-week-date-font-size: 9px;
+            --flive-center-stats-margin-top: 5px;
+            --flive-center-stats-padding: 8px 9px;
+            --flive-center-stats-gap: 6px;
+            --flive-center-stat-label-font-size: 8px;
+            --flive-center-stat-small-font-size: 8px;
+            --flive-center-stat-value-font-size: 15px;
+            --flive-center-mini-stat-value-font-size: 12px;
+            --flive-center-stat-value-margin-top: 0px;
+            --flive-center-stats-detail-margin-top: 5px;
+            --flive-center-stats-detail-padding-top: 5px;
           }
         }
         @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 1100px) and (max-height: 560px) {

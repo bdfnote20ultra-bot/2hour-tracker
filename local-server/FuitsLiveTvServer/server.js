@@ -5771,7 +5771,8 @@ function chatOnlyHtml() {
       height: var(--mobile-landscape-chat-height, 100vh);
       max-height: var(--mobile-landscape-chat-height, 100vh);
       min-height: 0;
-      grid-template-rows: auto minmax(185px, 1fr) auto;
+      grid-template-rows: auto minmax(92px, 210px) auto;
+      align-content: start;
     }
     body.mobile-landscape-chat .chat:fullscreen,
     body.mobile-landscape-chat .chat:-webkit-full-screen,
@@ -5788,7 +5789,8 @@ function chatOnlyHtml() {
       grid-template-rows: auto 1fr auto;
     }
     body.mobile-landscape-chat .chat-log {
-      min-height: 185px;
+      min-height: 92px;
+      max-height: 210px;
       padding: 5px 6px;
       gap: 3px;
       font-size: 11px;
@@ -5870,7 +5872,7 @@ function chatOnlyHtml() {
       grid-area: send;
     }
     body.adult-relax-mobile-landscape-chat .chat {
-      grid-template-rows: auto minmax(120px, 1fr) auto;
+      grid-template-rows: auto minmax(60px, 140px) auto;
     }
     body.adult-relax-mobile-landscape-chat .chat-head {
       gap: 4px;
@@ -5897,7 +5899,8 @@ function chatOnlyHtml() {
       line-height: 1;
     }
     body.adult-relax-mobile-landscape-chat .chat-log {
-      min-height: 120px;
+      min-height: 60px;
+      max-height: 140px;
       font-size: 10px;
     }
     body.adult-relax-mobile-landscape-chat.chat-fullscreen-active .chat-log {

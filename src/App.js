@@ -3321,6 +3321,7 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8", mobileLandsc
   const [localReady, setLocalReady] = useState(false);
   const [remoteStreams, setRemoteStreams] = useState({});
   const [softFullscreen, setSoftFullscreen] = useState(false);
+  const [nativeFullscreenActive, setNativeFullscreenActive] = useState(false);
   const localVideoRef = useRef(null);
   const roomShellRef = useRef(null);
   const localStreamRef = useRef(null);
@@ -3605,6 +3606,14 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8", mobileLandsc
     }
   };
 
+  const exitRoomFullscreen = async () => {
+    setSoftFullscreen(false);
+    setNativeFullscreenActive(false);
+    if (getRoomFullscreenElement() === roomShellRef.current) {
+      await exitRoomNativeFullscreen();
+    }
+  };
+
   useEffect(() => {
     if (!softFullscreen || typeof document === "undefined") return undefined;
 
@@ -3625,7 +3634,9 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8", mobileLandsc
     if (typeof document === "undefined") return undefined;
 
     const handleFullscreenChange = () => {
-      if (getRoomFullscreenElement() === roomShellRef.current) setSoftFullscreen(false);
+      const roomIsFullscreen = getRoomFullscreenElement() === roomShellRef.current;
+      setNativeFullscreenActive(roomIsFullscreen);
+      if (roomIsFullscreen) setSoftFullscreen(false);
     };
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
@@ -3646,20 +3657,17 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8", mobileLandsc
     const roomShell = roomShellRef.current;
     if (!roomShell) return;
 
-    if (softFullscreen) {
-      setSoftFullscreen(false);
-      return;
-    }
-
     const fullscreenElement = getRoomFullscreenElement();
-    if (fullscreenElement === roomShell) {
-      await exitRoomNativeFullscreen();
+    if (softFullscreen || fullscreenElement === roomShell) {
+      await exitRoomFullscreen();
       return;
     }
 
     const nativeStarted = await requestRoomNativeFullscreen(roomShell);
     window.setTimeout(() => {
-      if (getRoomFullscreenElement() === roomShell) return;
+      const roomIsFullscreen = getRoomFullscreenElement() === roomShell;
+      setNativeFullscreenActive(roomIsFullscreen);
+      if (roomIsFullscreen) return;
       if (mobileLandscapeActive) {
         setSoftFullscreen(true);
         return;
@@ -3672,6 +3680,8 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8", mobileLandsc
     sendSignal({ action: "leave" }).catch(() => {});
     stopRoom();
   }, [sendSignal, stopRoom]);
+
+  const roomFullscreenActive = softFullscreen || nativeFullscreenActive;
 
   const slotStyle = {
     position: "relative",
@@ -3715,6 +3725,9 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8", mobileLandsc
         .adult-relax-room-shell:fullscreen .adult-relax-toolbar,
         .adult-relax-room-shell:-webkit-full-screen .adult-relax-toolbar,
         .adult-relax-room-shell.adult-relax-room-soft-fullscreen .adult-relax-toolbar,
+        .adult-relax-room-shell:fullscreen .adult-relax-start-panel,
+        .adult-relax-room-shell:-webkit-full-screen .adult-relax-start-panel,
+        .adult-relax-room-shell.adult-relax-room-soft-fullscreen .adult-relax-start-panel,
         .adult-relax-room-shell:fullscreen .adult-relax-leave-btn,
         .adult-relax-room-shell:-webkit-full-screen .adult-relax-leave-btn,
         .adult-relax-room-shell.adult-relax-room-soft-fullscreen .adult-relax-leave-btn {
@@ -3784,6 +3797,17 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8", mobileLandsc
           background: rgba(2,6,23,.76);
           text-transform: uppercase;
         }
+        .adult-relax-room-shell:fullscreen .adult-relax-start-panel,
+        .adult-relax-room-shell:-webkit-full-screen .adult-relax-start-panel,
+        .adult-relax-room-shell.adult-relax-room-soft-fullscreen .adult-relax-start-panel {
+          flex: 1;
+          min-height: 0;
+          display: flex !important;
+          flex-direction: column;
+          align-items: stretch;
+          justify-content: center;
+          gap: 10px;
+        }
         .adult-relax-room-shell:fullscreen .adult-relax-slot-empty button,
         .adult-relax-room-shell:-webkit-full-screen .adult-relax-slot-empty button,
         .adult-relax-room-shell.adult-relax-room-soft-fullscreen .adult-relax-slot-empty button {
@@ -3802,6 +3826,24 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8", mobileLandsc
           gap: 4px !important;
           font-size: 9px !important;
           line-height: 1.12 !important;
+        }
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape:fullscreen .adult-relax-start-panel,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape:-webkit-full-screen .adult-relax-start-panel,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-soft-fullscreen .adult-relax-start-panel {
+          gap: 6px !important;
+        }
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape:fullscreen .adult-relax-start-btn,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape:-webkit-full-screen .adult-relax-start-btn,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-soft-fullscreen .adult-relax-start-btn {
+          min-height: 118px !important;
+          font-size: 18px !important;
+        }
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape:fullscreen .adult-relax-exit-fullscreen-btn,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape:-webkit-full-screen .adult-relax-exit-fullscreen-btn,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-soft-fullscreen .adult-relax-exit-fullscreen-btn {
+          min-height: 34px !important;
+          padding: 6px 8px !important;
+          font-size: 10px !important;
         }
         .adult-relax-room-shell.adult-relax-room-mobile-landscape:fullscreen .adult-relax-grid,
         .adult-relax-room-shell.adult-relax-room-mobile-landscape:-webkit-full-screen .adult-relax-grid,
@@ -3853,26 +3895,50 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8", mobileLandsc
         }
       `}</style>
       {!started ? (
-        <button
-          type="button"
-          onClick={startRoom}
-          style={{
-            width: "100%",
-            minHeight: 170,
-            border: `1px solid ${accentColor}`,
-            borderRadius: 12,
-            background: `linear-gradient(135deg, ${accentColor}, #14b8a6)`,
-            color: "#fff",
-            cursor: "pointer",
-            fontSize: 24,
-            fontWeight: 1000,
-            textTransform: "uppercase",
-            letterSpacing: 0,
-            boxShadow: "0 18px 44px rgba(0,0,0,.35)"
-          }}
-        >
-          WANT TO LIVE CHAT?
-        </button>
+        <div className="adult-relax-start-panel" style={{ display: "grid", gap: 10 }}>
+          <button
+            type="button"
+            className="adult-relax-start-btn"
+            onClick={startRoom}
+            style={{
+              width: "100%",
+              minHeight: 170,
+              border: `1px solid ${accentColor}`,
+              borderRadius: 12,
+              background: `linear-gradient(135deg, ${accentColor}, #14b8a6)`,
+              color: "#fff",
+              cursor: "pointer",
+              fontSize: 24,
+              fontWeight: 1000,
+              textTransform: "uppercase",
+              letterSpacing: 0,
+              boxShadow: "0 18px 44px rgba(0,0,0,.35)"
+            }}
+          >
+            WANT TO LIVE CHAT?
+          </button>
+          {mobileLandscapeActive && roomFullscreenActive && (
+            <button
+              type="button"
+              className="adult-relax-exit-fullscreen-btn"
+              onClick={exitRoomFullscreen}
+              style={{
+                width: "100%",
+                minHeight: 42,
+                border: "1px solid rgba(148,163,184,.34)",
+                borderRadius: 10,
+                background: "rgba(2,6,23,.88)",
+                color: "#f8fafc",
+                cursor: "pointer",
+                fontSize: 12,
+                fontWeight: 1000,
+                textTransform: "uppercase"
+              }}
+            >
+              Exit Fullscreen
+            </button>
+          )}
+        </div>
       ) : (
         <>
           <div className="adult-relax-toolbar" style={{
@@ -3903,7 +3969,7 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8", mobileLandsc
                   textTransform: "uppercase"
                 }}
               >
-                {softFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                {roomFullscreenActive ? "Exit Fullscreen" : "Fullscreen"}
               </button>
             </div>
           </div>

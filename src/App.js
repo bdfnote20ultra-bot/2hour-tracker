@@ -6367,8 +6367,8 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
   }
   const fuitsLiveTvChatQuery = fuitsLiveTvChatParams.toString();
   const fuitsLiveTvChatSrc = `${fuitsLiveTvChatUrl || `${fuitsLiveTvChannelUrl}/chat-only`}${fuitsLiveTvChatQuery ? `?${fuitsLiveTvChatQuery}` : ""}`;
-  const fuitsLiveTvChatFrameHeight = fuitsMobileLandscapeProfileActive ? 560 : 260;
-  const fuitsLiveTvCompactChatFrameHeight = fuitsMobileLandscapeProfileActive ? 560 : 250;
+  const fuitsLiveTvChatFrameHeight = fuitsMobileLandscapeProfileActive ? 280 : 260;
+  const fuitsLiveTvCompactChatFrameHeight = fuitsMobileLandscapeProfileActive ? 280 : 250;
 
   const releaseJellyfinSilkWakeLock = useCallback(() => {
     const wakeLock = jellyfinSilkWakeLockRef.current;
@@ -7121,9 +7121,9 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
           }
           .fuits-live-tv-panel .fuits-live-chat-frame {
             display: block !important;
-            flex: 0 0 560px !important;
-            height: 560px !important;
-            min-height: 560px !important;
+            flex: 0 0 280px !important;
+            height: 280px !important;
+            min-height: 280px !important;
             max-height: none !important;
             background: #020617 !important;
             color-scheme: dark;

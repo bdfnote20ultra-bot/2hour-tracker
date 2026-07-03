@@ -4315,6 +4315,9 @@ const LARGE_FUITS_PRELOAD_CHUNK_BYTES = 4 * 1024 * 1024;
 const LARGE_FUITS_PRELOAD_PARALLEL_CHUNKS = 6;
 const FUITS_RESTART_PASSWORD = "FOOLIO";
 const FUITS_TRANSITION_BUFFER_SECONDS = 4;
+const FUITS_MOBILE_SAFARI_STARTUP_BUFFER_SECONDS = 4;
+const FUITS_MOBILE_SAFARI_SYNC_DRIFT_SECONDS = 12;
+const FUITS_MOBILE_SAFARI_SYNC_INTERVAL_MS = 6000;
 const FUITS_MOBILE_LANDSCAPE_QUERY = "(hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 1100px) and (max-height: 560px)";
 const FUITS_SILK_JELLYFIN_KEEPALIVE_MS = 12 * 60 * 1000;
 
@@ -4369,6 +4372,10 @@ const isFuitsPhoneSafariProfile = () => {
 
   return isPhone && isSafari && touchPoints > 0;
 };
+
+const isFuitsMobileLandscapeSafariProfile = () => (
+  isFuitsPhoneSafariProfile() && isFuitsMobileLandscapeProfile()
+);
 
 const isFuitsMobilePortraitGateProfile = () => {
   if (typeof window === "undefined") return false;
@@ -4436,8 +4443,15 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
   const [playbackLocked, setPlaybackLocked] = useState(false);
   const [restartAnchor, setRestartAnchor] = useState(null);
   const currentItem = channel?.playlist?.[channel.currentIndex] || null;
+  const mobileLandscapeSafariProfile = isFuitsMobileLandscapeSafariProfile();
+  const videoStreamQuery = currentItem
+    ? new URLSearchParams({
+      stream: `${channelId}-${currentItem.id}-${currentItem.sizeBytes || currentItem.duration || ""}`,
+      ...(mobileLandscapeSafariProfile ? { profile: "mobile-safari-landscape" } : {})
+    }).toString()
+    : "";
   const videoSrc = currentItem?.src
-    ? `${baseUrl}${currentItem.src.startsWith("/") ? "" : "/"}${currentItem.src}${currentItem.src.includes("?") ? "&" : "?"}stream=${encodeURIComponent(`${channelId}-${currentItem.id}-${currentItem.sizeBytes || currentItem.duration || ""}`)}`
+    ? `${baseUrl}${currentItem.src.startsWith("/") ? "" : "/"}${currentItem.src}${currentItem.src.includes("?") ? "&" : "?"}${videoStreamQuery}`
     : "";
   const largeVideoKey = currentItem && videoSrc ? `${channelId}:${currentItem.id}:${currentItem.sizeBytes || 0}` : "";
   const needsLargeVideoPreload = false;
@@ -4488,7 +4502,8 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
 
     const liveOffset = Math.max(0, Math.min(rawLiveOffset, Math.max(0, duration - 1.5)));
     const driftSeconds = video.currentTime - liveOffset;
-    if (force || Math.abs(driftSeconds) > 1.75) {
+    const driftSeekSeconds = mobileLandscapeSafariProfile ? FUITS_MOBILE_SAFARI_SYNC_DRIFT_SECONDS : 1.75;
+    if (force || Math.abs(driftSeconds) > driftSeekSeconds) {
       try {
         setProgrammaticVideoTime(video, liveOffset);
         video.playbackRate = 1;
@@ -4498,8 +4513,13 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
       return;
     }
 
+    if (mobileLandscapeSafariProfile) {
+      video.playbackRate = 1;
+      return;
+    }
+
     video.playbackRate = driftSeconds < -0.35 ? 1.08 : 1;
-  }, [channel, currentItem, getLiveOffsetSeconds, setProgrammaticVideoTime, videoSrc]);
+  }, [channel, currentItem, getLiveOffsetSeconds, mobileLandscapeSafariProfile, setProgrammaticVideoTime, videoSrc]);
 
   useEffect(() => {
     if (!baseUrl) return;
@@ -4611,9 +4631,10 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
 
   useEffect(() => {
     if (!videoSrc) return undefined;
-    const timer = window.setInterval(() => syncVideoToLiveOffset(false), 2000);
+    const syncIntervalMs = mobileLandscapeSafariProfile ? FUITS_MOBILE_SAFARI_SYNC_INTERVAL_MS : 2000;
+    const timer = window.setInterval(() => syncVideoToLiveOffset(false), syncIntervalMs);
     return () => window.clearInterval(timer);
-  }, [videoSrc, syncVideoToLiveOffset]);
+  }, [mobileLandscapeSafariProfile, videoSrc, syncVideoToLiveOffset]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -4715,18 +4736,24 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
 
   const playWhenBuffered = useCallback(() => {
     const video = videoRef.current;
-    if (!video) return;
-    const bufferSeconds = transitionBufferPendingRef.current
+    if (!video) return false;
+    const baseBufferSeconds = transitionBufferPendingRef.current
       ? FUITS_TRANSITION_BUFFER_SECONDS
       : startupBufferSeconds;
+    const bufferSeconds = mobileLandscapeSafariProfile
+      ? Math.max(baseBufferSeconds, FUITS_MOBILE_SAFARI_STARTUP_BUFFER_SECONDS)
+      : baseBufferSeconds;
     const enoughBuffered = bufferSeconds <= 0 || getBufferedAheadSeconds(video) >= bufferSeconds;
     const nearEnd = Number.isFinite(video.duration) && video.duration - video.currentTime < bufferSeconds;
     if (video.readyState >= 1 && (enoughBuffered || nearEnd)) {
       transitionBufferPendingRef.current = false;
       setVideoLoading(false);
       playCurrentVideo();
+      return true;
     }
-  }, [playCurrentVideo, startupBufferSeconds]);
+    if (mobileLandscapeSafariProfile && bufferSeconds > 0) setVideoLoading(true);
+    return false;
+  }, [mobileLandscapeSafariProfile, playCurrentVideo, startupBufferSeconds]);
 
   const startChannelPlayback = useCallback(() => {
     const video = videoRef.current;
@@ -4736,20 +4763,30 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
       syncedVideoSrcRef.current = videoSrc;
     }
     pendingTransitionStartRef.current = false;
-    playWhenBuffered();
-    playCurrentVideo();
-  }, [liveAnnouncementOnline, playCurrentVideo, playWhenBuffered, syncVideoToLiveOffset, videoSrc]);
+    const bufferedPlaybackStarted = playWhenBuffered();
+    if (!mobileLandscapeSafariProfile || bufferedPlaybackStarted) playCurrentVideo();
+    else setVideoLoading(true);
+  }, [liveAnnouncementOnline, mobileLandscapeSafariProfile, playCurrentVideo, playWhenBuffered, syncVideoToLiveOffset, videoSrc]);
 
   const showBufferingIfNeeded = () => {
     const video = videoRef.current;
     if (!video) return;
     if (video.paused || video.ended) return;
-    if (video.readyState < 1 && getBufferedAheadSeconds(video) < 0.35) setVideoLoading(true);
+    const minimumBufferSeconds = mobileLandscapeSafariProfile ? 1.25 : 0.35;
+    const minimumReadyState = mobileLandscapeSafariProfile ? 3 : 1;
+    if (video.readyState < minimumReadyState && getBufferedAheadSeconds(video) < minimumBufferSeconds) setVideoLoading(true);
   };
 
   const recoverFromMobileLandscapeStall = () => {
     const video = videoRef.current;
     if (!video) return;
+
+    const safariLandscapeProfile = isFuitsMobileLandscapeSafariProfile();
+    const hasRecoveryBuffer = targetVideo => (
+      safariLandscapeProfile
+        ? targetVideo.readyState >= 3 || getBufferedAheadSeconds(targetVideo) > 1.25
+        : targetVideo.readyState >= 2 || getBufferedAheadSeconds(targetVideo) > 0.25
+    );
 
     if (!isFuitsMobileLandscapeProfile()) {
       setVideoError("Stream stalled. The tunnel or source video is not sending data fast enough.");
@@ -4759,7 +4796,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
     window.clearTimeout(stalledRecoveryTimerRef.current);
     setVideoError("");
 
-    if (video.readyState >= 2 || getBufferedAheadSeconds(video) > 0.25) {
+    if (hasRecoveryBuffer(video)) {
       setVideoLoading(false);
       playCurrentVideo();
       return;
@@ -4770,7 +4807,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
       const currentVideo = videoRef.current;
       if (!currentVideo || !isFuitsMobileLandscapeProfile()) return;
 
-      if (currentVideo.readyState >= 2 || getBufferedAheadSeconds(currentVideo) > 0.25) {
+      if (hasRecoveryBuffer(currentVideo)) {
         setVideoLoading(false);
         playCurrentVideo();
         return;
@@ -4780,7 +4817,8 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
         syncVideoToLiveOffset(true);
         syncedVideoSrcRef.current = videoSrc;
       }
-      playCurrentVideo();
+      if (safariLandscapeProfile) playWhenBuffered();
+      else playCurrentVideo();
     }, 650);
   };
 
@@ -5304,7 +5342,7 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
               disablePictureInPicture
               playsInline
               muted={playerMuted}
-              autoPlay={!needsLargeVideoPreload}
+              autoPlay={!needsLargeVideoPreload && !mobileLandscapeSafariProfile}
               preload="auto"
               onLoadedMetadata={() => {
                 setVideoLoading(false);
@@ -5315,8 +5353,8 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                 syncVideoToLiveOffset(true);
                 syncedVideoSrcRef.current = videoSrc;
                 pendingTransitionStartRef.current = false;
-                playCurrentVideo();
-                playWhenBuffered();
+                const bufferedPlaybackStarted = playWhenBuffered();
+                if (!mobileLandscapeSafariProfile || bufferedPlaybackStarted) playCurrentVideo();
               }}
               onCanPlayThrough={() => {
                 if (needsLargeVideoPreload) return;
@@ -5348,7 +5386,9 @@ const FuitsLiveTvPlayer = forwardRef(function FuitsLiveTvPlayer({ baseUrl, chann
                 }
                 const playbackKey = `${channelId}:${currentItem?.id || ""}:${videoSrc}`;
                 if (video && currentItem && anchoredPlaybackKeyRef.current !== playbackKey) {
-                  syncVideoToLiveOffset(true);
+                  if (!mobileLandscapeSafariProfile || syncedVideoSrcRef.current !== videoSrc) {
+                    syncVideoToLiveOffset(true);
+                  }
                   anchoredPlaybackKeyRef.current = playbackKey;
                   pendingTransitionStartRef.current = false;
                   syncedVideoSrcRef.current = videoSrc;

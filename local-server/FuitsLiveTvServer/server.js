@@ -16,6 +16,7 @@ const SHUFFLE_PASSWORD = "FOOLIO";
 const SITE_BLANK_PATH = path.join(__dirname, "site-blank.json");
 const VIDEO_STREAM_SETTINGS_PATH = path.join(__dirname, "video-stream-settings.json");
 const DEFAULT_VIDEO_CHUNK_MB = 4;
+const MOBILE_SAFARI_VIDEO_CHUNK_MB = 16;
 const MIN_VIDEO_CHUNK_MB = 1;
 const MAX_VIDEO_CHUNK_MB = 16;
 const FALLBACK_DURATION_SECONDS = 30 * 60;
@@ -3062,7 +3063,11 @@ function serveMediaFile(req, res, file, contentType) {
   const stat = fs.statSync(file);
   const range = req.headers.range;
   const isVideo = contentType.startsWith("video/");
-  const videoChunkSize = readVideoStreamSettings().chunkBytes;
+  const requestUrl = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+  const mobileSafariLandscapeStream = requestUrl.searchParams.get("profile") === "mobile-safari-landscape";
+  const videoChunkSize = (isVideo && mobileSafariLandscapeStream)
+    ? MOBILE_SAFARI_VIDEO_CHUNK_MB * 1024 * 1024
+    : readVideoStreamSettings().chunkBytes;
   const logVideoRange = (status, start, end) => {
     if (!isVideo) return;
     console.log(`[video-range] ${status} ${path.basename(file)} requested=${range || "none"} served=${start}-${end} size=${stat.size}`);

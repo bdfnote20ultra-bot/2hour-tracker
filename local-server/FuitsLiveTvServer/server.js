@@ -4515,7 +4515,8 @@ function pageHtml() {
       line-height: 1;
       flex: 0 0 auto;
     }
-    .chat:fullscreen {
+    .chat:fullscreen,
+    .chat:-webkit-full-screen {
       width: 100vw;
       height: 100vh;
       margin: 0;
@@ -4524,12 +4525,14 @@ function pageHtml() {
       grid-template-rows: auto 1fr auto;
       background: #050816;
     }
-    .chat:fullscreen .chat-log {
+    .chat:fullscreen .chat-log,
+    .chat:-webkit-full-screen .chat-log {
       height: auto;
       font-size: 16px;
       padding: 12px;
     }
-    .chat:fullscreen .chat-form {
+    .chat:fullscreen .chat-form,
+    .chat:-webkit-full-screen .chat-form {
       padding: 10px;
     }
     .chat-gif {
@@ -5648,6 +5651,16 @@ function chatOnlyHtml() {
       min-height: 0;
       grid-template-rows: auto minmax(185px, 1fr) auto;
     }
+    body.mobile-landscape-chat .chat:fullscreen,
+    body.mobile-landscape-chat .chat:-webkit-full-screen {
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      margin: 0;
+      border-radius: 0;
+      max-height: none;
+      grid-template-rows: auto 1fr auto;
+    }
     body.mobile-landscape-chat .chat-log {
       min-height: 185px;
       padding: 5px 6px;
@@ -5782,6 +5795,49 @@ function chatOnlyHtml() {
     window.visualViewport?.addEventListener?.("resize", syncMobileLandscapeChatHeight);
     chatName.value = localStorage.getItem("fuitsLiveTvChatName") || "";
 
+    function getFullscreenElement() {
+      return document.fullscreenElement || document.webkitFullscreenElement || document.webkitFullScreenElement || document.msFullscreenElement || null;
+    }
+
+    async function requestElementFullscreen(element) {
+      const requestFullscreen =
+        element.requestFullscreen ||
+        element.webkitRequestFullscreen ||
+        element.webkitRequestFullScreen ||
+        element.msRequestFullscreen;
+      if (!requestFullscreen) return false;
+      try {
+        const result = requestFullscreen.call(element);
+        if (result?.then) await result;
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    async function exitFullscreen() {
+      const exit =
+        document.exitFullscreen ||
+        document.webkitExitFullscreen ||
+        document.webkitCancelFullScreen ||
+        document.msExitFullscreen;
+      if (!exit) return false;
+      try {
+        const result = exit.call(document);
+        if (result?.then) await result;
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function updateFullscreenUi() {
+      const fullscreenElement = getFullscreenElement();
+      chatFullscreenButton.textContent = fullscreenElement === chatSection ? "Exit" : "Full";
+      if (mobileLandscapeChat) syncMobileLandscapeChatHeight();
+      renderChat(latestChatMessages);
+    }
+
     function updateChatNameUi() {
       const savedName = localStorage.getItem("fuitsLiveTvChatName") || "";
       chatName.hidden = Boolean(savedName);
@@ -5885,18 +5941,15 @@ function chatOnlyHtml() {
       updateChatNameUi();
     });
     chatFullscreenButton.addEventListener("click", async () => {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen().catch(() => {});
+      if (getFullscreenElement()) {
+        await exitFullscreen();
         return;
       }
-      if (chatSection.requestFullscreen) {
-        await chatSection.requestFullscreen().catch(() => {});
-      }
+      await requestElementFullscreen(chatSection);
+      updateFullscreenUi();
     });
-    document.addEventListener("fullscreenchange", () => {
-      chatFullscreenButton.textContent = document.fullscreenElement === chatSection ? "Exit" : "Full";
-      renderChat(latestChatMessages);
-    });
+    document.addEventListener("fullscreenchange", updateFullscreenUi);
+    document.addEventListener("webkitfullscreenchange", updateFullscreenUi);
     updateChatNameUi();
     loadChatGifs().catch(() => {});
     loadChat().catch(() => {});

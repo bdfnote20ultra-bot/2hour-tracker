@@ -3311,7 +3311,7 @@ function LiveChatBox({ title = "Live Chat", src, height = 250, minHeight = 250 }
   );
 }
 
-function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
+function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8", mobileLandscapeActive = false }) {
   const [started, setStarted] = useState(false);
   const [status, setStatus] = useState("Ready when you are.");
   const [error, setError] = useState("");
@@ -3320,6 +3320,7 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
   const [localSlot, setLocalSlot] = useState(0);
   const [localReady, setLocalReady] = useState(false);
   const [remoteStreams, setRemoteStreams] = useState({});
+  const [softFullscreen, setSoftFullscreen] = useState(false);
   const localVideoRef = useRef(null);
   const roomShellRef = useRef(null);
   const localStreamRef = useRef(null);
@@ -3567,32 +3568,104 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
     }
   }, [localReady, localSlot]);
 
+  const getRoomFullscreenElement = () => (
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.msFullscreenElement ||
+    null
+  );
+
+  const exitRoomNativeFullscreen = async () => {
+    const exitFullscreen =
+      document.exitFullscreen ||
+      document.webkitExitFullscreen ||
+      document.msExitFullscreen;
+    if (!exitFullscreen) return false;
+    try {
+      const result = exitFullscreen.call(document);
+      if (result?.then) await result;
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const requestRoomNativeFullscreen = async roomShell => {
+    const requestFullscreen =
+      roomShell.requestFullscreen ||
+      roomShell.webkitRequestFullscreen ||
+      roomShell.msRequestFullscreen;
+    if (!requestFullscreen) return false;
+    try {
+      const result = requestFullscreen.call(roomShell);
+      if (result?.then) await result;
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    if (!softFullscreen || typeof document === "undefined") return undefined;
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    document.body.classList.add("adult-relax-room-soft-fullscreen-active");
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.classList.remove("adult-relax-room-soft-fullscreen-active");
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, [softFullscreen]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+
+    const handleFullscreenChange = () => {
+      if (getRoomFullscreenElement() === roomShellRef.current) setSoftFullscreen(false);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    document.addEventListener("MSFullscreenChange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+      document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mobileLandscapeActive && softFullscreen) setSoftFullscreen(false);
+  }, [mobileLandscapeActive, softFullscreen]);
+
   const fullscreenRoom = async () => {
     const roomShell = roomShellRef.current;
     if (!roomShell) return;
 
-    try {
-      const fullscreenElement =
-        document.fullscreenElement ||
-        document.webkitFullscreenElement ||
-        document.msFullscreenElement;
-      if (fullscreenElement === roomShell) {
-        const exitFullscreen =
-          document.exitFullscreen ||
-          document.webkitExitFullscreen ||
-          document.msExitFullscreen;
-        exitFullscreen?.call(document);
+    if (softFullscreen) {
+      setSoftFullscreen(false);
+      return;
+    }
+
+    const fullscreenElement = getRoomFullscreenElement();
+    if (fullscreenElement === roomShell) {
+      await exitRoomNativeFullscreen();
+      return;
+    }
+
+    const nativeStarted = await requestRoomNativeFullscreen(roomShell);
+    window.setTimeout(() => {
+      if (getRoomFullscreenElement() === roomShell) return;
+      if (mobileLandscapeActive) {
+        setSoftFullscreen(true);
         return;
       }
-
-      const requestFullscreen =
-        roomShell.requestFullscreen ||
-        roomShell.webkitRequestFullscreen ||
-        roomShell.msRequestFullscreen;
-      requestFullscreen?.call(roomShell);
-    } catch {
-      setStatus("Fullscreen is not available in this browser.");
-    }
+      if (!nativeStarted) setStatus("Fullscreen is not available in this browser.");
+    }, nativeStarted ? 120 : 0);
   };
 
   useEffect(() => () => {
@@ -3610,7 +3683,7 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
   };
 
   return (
-    <div ref={roomShellRef} className="adult-relax-room-shell" style={{
+    <div ref={roomShellRef} className={`adult-relax-room-shell${softFullscreen ? " adult-relax-room-soft-fullscreen" : ""}${mobileLandscapeActive ? " adult-relax-room-mobile-landscape" : ""}`} style={{
       width: "100%",
       display: "grid",
       gap: 10,
@@ -3621,9 +3694,14 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
     }}>
       <style>{`
         .adult-relax-room-shell:fullscreen,
-        .adult-relax-room-shell:-webkit-full-screen {
+        .adult-relax-room-shell:-webkit-full-screen,
+        .adult-relax-room-shell.adult-relax-room-soft-fullscreen {
+          position: fixed !important;
+          inset: 0 !important;
+          z-index: 2147483647 !important;
           width: 100vw !important;
           height: 100vh !important;
+          height: 100dvh !important;
           padding: 12px !important;
           box-sizing: border-box;
           display: flex !important;
@@ -3631,15 +3709,20 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
           gap: 8px;
           overflow: hidden;
           background: #020617 !important;
+          border-radius: 0 !important;
+          margin: 0 !important;
         }
         .adult-relax-room-shell:fullscreen .adult-relax-toolbar,
         .adult-relax-room-shell:-webkit-full-screen .adult-relax-toolbar,
+        .adult-relax-room-shell.adult-relax-room-soft-fullscreen .adult-relax-toolbar,
         .adult-relax-room-shell:fullscreen .adult-relax-leave-btn,
-        .adult-relax-room-shell:-webkit-full-screen .adult-relax-leave-btn {
+        .adult-relax-room-shell:-webkit-full-screen .adult-relax-leave-btn,
+        .adult-relax-room-shell.adult-relax-room-soft-fullscreen .adult-relax-leave-btn {
           flex-shrink: 0;
         }
         .adult-relax-room-shell:fullscreen .adult-relax-grid,
-        .adult-relax-room-shell:-webkit-full-screen .adult-relax-grid {
+        .adult-relax-room-shell:-webkit-full-screen .adult-relax-grid,
+        .adult-relax-room-shell.adult-relax-room-soft-fullscreen .adult-relax-grid {
           flex: 1;
           min-height: 0;
           width: 100%;
@@ -3650,19 +3733,22 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
           align-items: stretch;
         }
         .adult-relax-room-shell:fullscreen .adult-relax-slot,
-        .adult-relax-room-shell:-webkit-full-screen .adult-relax-slot {
+        .adult-relax-room-shell:-webkit-full-screen .adult-relax-slot,
+        .adult-relax-room-shell.adult-relax-room-soft-fullscreen .adult-relax-slot {
           min-height: 0 !important;
           height: 100% !important;
         }
         .adult-relax-room-shell:fullscreen video,
-        .adult-relax-room-shell:-webkit-full-screen video {
+        .adult-relax-room-shell:-webkit-full-screen video,
+        .adult-relax-room-shell.adult-relax-room-soft-fullscreen video {
           width: 100% !important;
           min-height: 0 !important;
           height: 100% !important;
           object-fit: cover !important;
         }
         .adult-relax-room-shell:fullscreen .adult-relax-slot-empty > div,
-        .adult-relax-room-shell:-webkit-full-screen .adult-relax-slot-empty > div {
+        .adult-relax-room-shell:-webkit-full-screen .adult-relax-slot-empty > div,
+        .adult-relax-room-shell.adult-relax-room-soft-fullscreen .adult-relax-slot-empty > div {
           height: 100%;
           padding: 10px !important;
           display: flex !important;
@@ -3699,9 +3785,71 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
           text-transform: uppercase;
         }
         .adult-relax-room-shell:fullscreen .adult-relax-slot-empty button,
-        .adult-relax-room-shell:-webkit-full-screen .adult-relax-slot-empty button {
+        .adult-relax-room-shell:-webkit-full-screen .adult-relax-slot-empty button,
+        .adult-relax-room-shell.adult-relax-room-soft-fullscreen .adult-relax-slot-empty button {
           min-height: 44px !important;
           font-size: 10px !important;
+        }
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape:fullscreen,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape:-webkit-full-screen,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-soft-fullscreen {
+          padding: 5px !important;
+          gap: 4px !important;
+        }
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape:fullscreen .adult-relax-toolbar,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape:-webkit-full-screen .adult-relax-toolbar,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-soft-fullscreen .adult-relax-toolbar {
+          gap: 4px !important;
+          font-size: 9px !important;
+          line-height: 1.12 !important;
+        }
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape:fullscreen .adult-relax-grid,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape:-webkit-full-screen .adult-relax-grid,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-soft-fullscreen .adult-relax-grid {
+          grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+          grid-template-rows: repeat(2, minmax(0, 1fr)) !important;
+          gap: 4px !important;
+        }
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape:fullscreen .adult-relax-slot,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape:-webkit-full-screen .adult-relax-slot,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-soft-fullscreen .adult-relax-slot {
+          border-radius: 7px !important;
+        }
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape:fullscreen .adult-relax-slot-empty > div,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape:-webkit-full-screen .adult-relax-slot-empty > div,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-soft-fullscreen .adult-relax-slot-empty > div {
+          padding: 5px !important;
+          gap: 4px !important;
+          font-size: 9px !important;
+          line-height: 1.12 !important;
+        }
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape:fullscreen .adult-relax-slot-empty button,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape:-webkit-full-screen .adult-relax-slot-empty button,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-soft-fullscreen .adult-relax-slot-empty button {
+          min-height: 30px !important;
+          max-width: 100% !important;
+          padding: 4px 5px !important;
+          font-size: 8px !important;
+          line-height: 1.05 !important;
+        }
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape:fullscreen .adult-relax-leave-btn,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape:-webkit-full-screen .adult-relax-leave-btn,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-soft-fullscreen .adult-relax-leave-btn {
+          min-height: 28px !important;
+          padding: 4px 6px !important;
+          font-size: 9px !important;
+        }
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape:fullscreen .adult-relax-slot-label,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape:-webkit-full-screen .adult-relax-slot-label,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-soft-fullscreen .adult-relax-slot-label {
+          left: 4px !important;
+          bottom: 4px !important;
+          font-size: 8px !important;
+        }
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape:fullscreen .adult-relax-slot-label span,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape:-webkit-full-screen .adult-relax-slot-label span,
+        .adult-relax-room-shell.adult-relax-room-mobile-landscape.adult-relax-room-soft-fullscreen .adult-relax-slot-label span {
+          padding: 2px 5px !important;
         }
       `}</style>
       {!started ? (
@@ -3755,7 +3903,7 @@ function AdultRelaxLiveChatRoom({ baseUrl, accentColor = "#38bdf8" }) {
                   textTransform: "uppercase"
                 }}
               >
-                Fullscreen
+                {softFullscreen ? "Exit Fullscreen" : "Fullscreen"}
               </button>
             </div>
           </div>
@@ -6283,6 +6431,22 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             display: none !important;
             pointer-events: none !important;
           }
+          body.adult-relax-room-soft-fullscreen-active .music-library-desktop-sidebar {
+            z-index: 2147483647 !important;
+            overflow: visible !important;
+            isolation: isolate;
+          }
+          body.adult-relax-room-soft-fullscreen-active .music-library-desktop-sidebar > .fuits-live-tv-panel {
+            position: relative !important;
+            z-index: 2147483647 !important;
+            isolation: isolate;
+          }
+          body.adult-relax-room-soft-fullscreen-active .music-library-desktop-sidebar > .fuits-online-indicator,
+          body.adult-relax-room-soft-fullscreen-active .music-library-desktop-sidebar > .fuits-weather-panel,
+          body.adult-relax-room-soft-fullscreen-active .music-library-desktop-sidebar > .fuits-schedule-panel {
+            display: none !important;
+            pointer-events: none !important;
+          }
           .music-library-desktop-sidebar > .fuits-live-tv-panel {
             zoom: 1 !important;
             min-height: 0 !important;
@@ -6937,7 +7101,11 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             {activeLiveTvOption.custom && fuitsLiveTvChannelUrl && (
               <>
                 {activeLiveTvOption.liveChat ? (
-                  <AdultRelaxLiveChatRoom baseUrl={fuitsLiveTvChannelUrl} accentColor={accentColor} />
+                  <AdultRelaxLiveChatRoom
+                    baseUrl={fuitsLiveTvChannelUrl}
+                    accentColor={accentColor}
+                    mobileLandscapeActive={fuitsMobileLandscapeProfileActive}
+                  />
                 ) : (
                   <>
                     {!activeLiveTvFixedChannel && (

@@ -2001,6 +2001,11 @@ function PokemonSidebar({ loggedInUsername = "" } = {}) {
             zoom: var(--flive-gaming-content-scale, var(--flive-panel-content-scale, 1));
           }
         }
+        @media (hover: hover) and (pointer: fine) and (min-width: 1351px) and (max-width: 1400px) and (max-height: 790px) {
+          .pokemon-desktop-sidebar > :not(style) {
+            zoom: var(--flive-gaming-content-scale, var(--flive-panel-content-scale, 1));
+          }
+        }
         .pokemon-desktop-stack { scrollbar-width: none; -ms-overflow-style: none; }
         .pokemon-desktop-stack::-webkit-scrollbar { display: none; width: 0; height: 0; }
         .pokemon-desktop-sidebar button:hover { transform: translateY(-1px); }
@@ -11799,6 +11804,12 @@ if (view === "gambling") {
             --flive-schedule-right-scale: 1.64;
             --flive-schedule-width-scale: 1.24;
             --flive-schedule-content-scale: .72;
+          }
+        }
+        @media (hover: hover) and (pointer: fine) and (min-width: 1351px) and (max-width: 1400px) and (max-height: 790px) {
+          :root {
+            --flive-gaming-scale: .56;
+            --flive-gaming-content-scale: .60;
           }
         }
         @media (max-width: 1180px) and (max-height: 760px) {

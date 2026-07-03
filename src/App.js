@@ -4318,8 +4318,12 @@ const FUITS_TRANSITION_BUFFER_SECONDS = 4;
 const FUITS_MOBILE_SAFARI_STARTUP_BUFFER_SECONDS = 4;
 const FUITS_MOBILE_SAFARI_SYNC_DRIFT_SECONDS = 12;
 const FUITS_MOBILE_SAFARI_SYNC_INTERVAL_MS = 6000;
+const FUITS_DEFAULT_VIEWPORT_CONTENT = "width=device-width, initial-scale=1, viewport-fit=cover";
+const FUITS_SAFARI_ZOOM_RESET_VIEWPORT_CONTENT = "width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover";
 const FUITS_MOBILE_LANDSCAPE_QUERY = "(hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 1100px) and (max-height: 560px)";
 const FUITS_SILK_JELLYFIN_KEEPALIVE_MS = 12 * 60 * 1000;
+let fuitsSafariZoomResetTimer = null;
+let fuitsSafariZoomRestoreViewportContent = null;
 
 const getFuitsFullscreenElement = () => {
   if (typeof document === "undefined") return null;
@@ -4376,6 +4380,50 @@ const isFuitsPhoneSafariProfile = () => {
 const isFuitsMobileLandscapeSafariProfile = () => (
   isFuitsPhoneSafariProfile() && isFuitsMobileLandscapeProfile()
 );
+
+const resetFuitsMobileSafariViewportZoom = () => {
+  if (typeof document === "undefined" || typeof window === "undefined") return false;
+  if (!isFuitsMobileLandscapeSafariProfile()) return false;
+
+  let viewportMeta = document.querySelector('meta[name="viewport"]');
+  if (!viewportMeta) {
+    viewportMeta = document.createElement("meta");
+    viewportMeta.setAttribute("name", "viewport");
+    document.head.appendChild(viewportMeta);
+  }
+
+  const currentContent = viewportMeta.getAttribute("content") || FUITS_DEFAULT_VIEWPORT_CONTENT;
+  if (currentContent !== FUITS_SAFARI_ZOOM_RESET_VIEWPORT_CONTENT) {
+    fuitsSafariZoomRestoreViewportContent = currentContent;
+  } else if (!fuitsSafariZoomRestoreViewportContent) {
+    fuitsSafariZoomRestoreViewportContent = FUITS_DEFAULT_VIEWPORT_CONTENT;
+  }
+
+  window.clearTimeout(fuitsSafariZoomResetTimer);
+  viewportMeta.setAttribute("content", FUITS_SAFARI_ZOOM_RESET_VIEWPORT_CONTENT);
+
+  fuitsSafariZoomResetTimer = window.setTimeout(() => {
+    if (document.head.contains(viewportMeta)) {
+      viewportMeta.setAttribute("content", fuitsSafariZoomRestoreViewportContent || FUITS_DEFAULT_VIEWPORT_CONTENT);
+    }
+    fuitsSafariZoomRestoreViewportContent = null;
+  }, 450);
+
+  return true;
+};
+
+const resetFuitsMobileSafariViewportZoomForNavigation = () => {
+  const didReset = resetFuitsMobileSafariViewportZoom();
+  if (!didReset || typeof window === "undefined") return didReset;
+
+  const resetAgain = () => resetFuitsMobileSafariViewportZoom();
+  if (typeof window.requestAnimationFrame === "function") {
+    window.requestAnimationFrame(resetAgain);
+  }
+  window.setTimeout(resetAgain, 120);
+
+  return didReset;
+};
 
 const isFuitsMobilePortraitGateProfile = () => {
   if (typeof window === "undefined") return false;
@@ -11949,7 +11997,15 @@ if (view === "gambling") {
           ].map(link => (
             <div key={link.nextView || link.label}>
               <button
-                onClick={() => link.nextView ? setView(link.nextView) : window.open(link.href, "_blank", "noopener,noreferrer")}
+                onClick={() => {
+                  if (link.nextView) {
+                    resetFuitsMobileSafariViewportZoomForNavigation();
+                    setView(link.nextView);
+                  } else if (link.href) {
+                    resetFuitsMobileSafariViewportZoom();
+                    window.open(link.href, "_blank", "noopener,noreferrer");
+                  }
+                }}
                 style={{
                   position: "fixed",
                   top: `calc((${link.top}px * var(--flive-scale, 1) * var(--flive-menu-gap-scale, 1)) + (var(--flive-menu-top-offset, 0px) * var(--flive-scale, 1)))`,

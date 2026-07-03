@@ -11882,6 +11882,9 @@ if (view === "gambling") {
             --flive-center-stat-value-margin-top: 0px;
             --flive-center-stats-detail-margin-top: 5px;
             --flive-center-stats-detail-padding-top: 5px;
+            --flive-schedule-content-scale: .78;
+            --flive-schedule-bottom-scale: .70;
+            --flive-schedule-box-scale: .72;
           }
         }
         @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 1100px) and (max-height: 560px) {

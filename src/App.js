@@ -11236,11 +11236,13 @@ function MobileLandscapeGate({ onEnter }) {
           src={`${process.env.PUBLIC_URL}/icon-192.png`}
           alt="FLiveTV"
           style={{
-            width: 82,
-            height: 82,
+            width: 118,
+            height: 118,
+            marginBottom: 18,
             objectFit: "contain",
             display: "block",
-            filter: "drop-shadow(0 0 18px rgba(103,232,249,.28))"
+            filter: "drop-shadow(0 0 22px rgba(103,232,249,.34))",
+            transform: "translateY(-8px)"
           }}
         />
         <div aria-hidden="true" style={{

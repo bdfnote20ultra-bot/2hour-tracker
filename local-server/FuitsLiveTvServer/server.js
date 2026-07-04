@@ -176,6 +176,7 @@ function createDefaultFuitCreditState() {
     wallets: {},
     balances: {},
     deposits: [],
+    withdrawalRequests: [],
     ledger: [],
     blacklistedWallets: []
   };
@@ -190,6 +191,7 @@ function readFuitCreditState() {
       wallets: parsed.wallets && typeof parsed.wallets === "object" ? parsed.wallets : {},
       balances: parsed.balances && typeof parsed.balances === "object" ? parsed.balances : {},
       deposits: Array.isArray(parsed.deposits) ? parsed.deposits : [],
+      withdrawalRequests: Array.isArray(parsed.withdrawalRequests) ? parsed.withdrawalRequests : [],
       ledger: Array.isArray(parsed.ledger) ? parsed.ledger : [],
       blacklistedWallets: Array.isArray(parsed.blacklistedWallets) ? parsed.blacklistedWallets : []
     };
@@ -204,6 +206,7 @@ function writeFuitCreditState(state) {
     ...state,
     settings: { ...createDefaultFuitCreditState().settings, ...(state.settings || {}) },
     deposits: Array.isArray(state.deposits) ? state.deposits : [],
+    withdrawalRequests: Array.isArray(state.withdrawalRequests) ? state.withdrawalRequests : [],
     ledger: Array.isArray(state.ledger) ? state.ledger : [],
     blacklistedWallets: Array.isArray(state.blacklistedWallets) ? state.blacklistedWallets : []
   };
@@ -246,6 +249,12 @@ function getPublicFuitCreditSummary(payload = {}) {
       (walletLower && String(item.wallet || "").toLowerCase() === walletLower)
     ))
     .slice(0, 60);
+  const withdrawalRequests = (state.withdrawalRequests || [])
+    .filter(item => (
+      (key && getFuitCreditUserKey(item.username) === key) ||
+      (walletLower && String(item.wallet || "").toLowerCase() === walletLower)
+    ))
+    .slice(0, 60);
   return {
     ok: true,
     settings: state.settings,
@@ -256,7 +265,8 @@ function getPublicFuitCreditSummary(payload = {}) {
       balance: Number(balance?.balance) || 0,
       issuedTotal: Number(balance?.issuedTotal) || 0,
       withdrawnTotal: Number(balance?.withdrawnTotal) || 0,
-      deposits
+      deposits,
+      withdrawalRequests
     }
   };
 }
@@ -320,6 +330,34 @@ function submitFuitCreditDeposit(payload = {}) {
   return { ...getPublicFuitCreditSummary({ username, wallet }), deposit };
 }
 
+function submitFuitCreditWithdrawal(payload = {}) {
+  const username = normalizeFuitCreditUsername(payload.username);
+  const key = getFuitCreditUserKey(username);
+  const amount = normalizeFuitAmount(payload.amount);
+  if (!key) throw new Error("Username required.");
+
+  const state = readFuitCreditState();
+  const wallet = state.wallets[key]?.wallet || state.balances[key]?.wallet || "";
+  const balance = getFuitBalanceRecord(state, username, wallet);
+  if (amount > Number(balance.balance || 0)) {
+    throw new Error("Withdrawal request is more than the available FUIT balance.");
+  }
+
+  const now = new Date().toISOString();
+  const withdrawalRequest = {
+    id: `withdrawal_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+    username,
+    wallet: balance.wallet || wallet || "",
+    amount,
+    status: "pending",
+    note: String(payload.note || "").trim().slice(0, 240),
+    createdAt: now
+  };
+  state.withdrawalRequests.unshift(withdrawalRequest);
+  writeFuitCreditState(state);
+  return { ...getPublicFuitCreditSummary({ username, wallet: balance.wallet || wallet || undefined }), withdrawalRequest };
+}
+
 function getAdminFuitCreditState() {
   const state = readFuitCreditState();
   const totals = Object.values(state.balances || {}).reduce((acc, item) => ({
@@ -333,10 +371,12 @@ function getAdminFuitCreditState() {
     wallets: state.wallets || {},
     balances: state.balances || {},
     deposits: state.deposits || [],
+    withdrawalRequests: state.withdrawalRequests || [],
     ledger: (state.ledger || []).slice(0, 200),
     blacklistedWallets: state.blacklistedWallets || [],
     totals,
-    pendingCount: (state.deposits || []).filter(item => item.status === "pending").length
+    pendingCount: (state.deposits || []).filter(item => item.status === "pending").length,
+    pendingWithdrawalCount: (state.withdrawalRequests || []).filter(item => item.status === "pending").length
   };
 }
 
@@ -444,6 +484,47 @@ function updateAdminFuitCredits(payload = {}) {
       createdAt: now,
       note: String(payload.note || "").trim().slice(0, 240)
     });
+    writeFuitCreditState(state);
+    return getAdminFuitCreditState();
+  }
+
+  if (action === "approveWithdrawalRequest") {
+    const request = (state.withdrawalRequests || []).find(item => item.id === payload.withdrawalRequestId);
+    if (!request) throw new Error("Withdrawal request not found.");
+    if (request.status !== "pending") throw new Error("Withdrawal request is already reviewed.");
+    const amount = payload.amount ? normalizeFuitAmount(payload.amount) : normalizeFuitAmount(request.amount);
+    const balance = getFuitBalanceRecord(state, request.username, request.wallet || "");
+    if (amount > Number(balance.balance || 0)) {
+      throw new Error("User does not have enough FUIT balance for this withdrawal.");
+    }
+    balance.balance = Number((Number(balance.balance || 0) - amount).toFixed(6));
+    balance.withdrawnTotal = Number((Number(balance.withdrawnTotal || 0) + amount).toFixed(6));
+    balance.updatedAt = now;
+    request.status = "paid";
+    request.paidAmount = amount;
+    request.reviewedAt = now;
+    request.adminNote = String(payload.adminNote || "").trim().slice(0, 240);
+    state.ledger.unshift({
+      id: `ledger_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+      type: "withdraw_request_paid",
+      username: request.username,
+      wallet: balance.wallet || request.wallet || "",
+      amount,
+      withdrawalRequestId: request.id,
+      createdAt: now,
+      note: request.adminNote || request.note || ""
+    });
+    writeFuitCreditState(state);
+    return getAdminFuitCreditState();
+  }
+
+  if (action === "rejectWithdrawalRequest") {
+    const request = (state.withdrawalRequests || []).find(item => item.id === payload.withdrawalRequestId);
+    if (!request) throw new Error("Withdrawal request not found.");
+    if (request.status !== "pending") throw new Error("Withdrawal request is already reviewed.");
+    request.status = "rejected";
+    request.reviewedAt = now;
+    request.adminNote = String(payload.adminNote || "").trim().slice(0, 240);
     writeFuitCreditState(state);
     return getAdminFuitCreditState();
   }
@@ -6448,6 +6529,10 @@ const server = http.createServer((req, res) => {
         }
         if (action === "submitDeposit") {
           sendJson(res, 200, submitFuitCreditDeposit(payload));
+          return;
+        }
+        if (action === "submitWithdrawal") {
+          sendJson(res, 200, submitFuitCreditWithdrawal(payload));
           return;
         }
         sendJson(res, 200, getPublicFuitCreditSummary(payload));

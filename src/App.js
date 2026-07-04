@@ -8430,6 +8430,9 @@ function FuitCoinPage({ onClose, loggedInUsername = "", approvedUsers = [] }) {
   const [depositAmount, setDepositAmount] = useState("");
   const [depositTxHash, setDepositTxHash] = useState("");
   const [depositNote, setDepositNote] = useState("");
+  const [withdrawalUsername, setWithdrawalUsername] = useState(loggedInUsername || "");
+  const [withdrawalAmount, setWithdrawalAmount] = useState("");
+  const [withdrawalNote, setWithdrawalNote] = useState("");
   const [status, setStatus] = useState("Loading FUIT Coin...");
   const [summary, setSummary] = useState({
     loading: true,
@@ -8441,7 +8444,8 @@ function FuitCoinPage({ onClose, loggedInUsername = "", approvedUsers = [] }) {
       balance: 0,
       issuedTotal: 0,
       withdrawnTotal: 0,
-      deposits: []
+      deposits: [],
+      withdrawalRequests: []
     }
   });
 
@@ -8455,9 +8459,14 @@ function FuitCoinPage({ onClose, loggedInUsername = "", approvedUsers = [] }) {
   const settings = { ...DEFAULT_FUIT_CREDIT_SETTINGS, ...(summary.settings || {}) };
   const creditUser = summary.user || {};
   const deposits = Array.isArray(creditUser.deposits) ? creditUser.deposits : [];
+  const withdrawalRequests = Array.isArray(creditUser.withdrawalRequests) ? creditUser.withdrawalRequests : [];
   const treasuryWallet = settings.treasuryWallet || "";
   const treasuryQrUrl = getFuitQrImageUrl(treasuryWallet, 210);
   const walletQrUrl = getFuitQrImageUrl(cleanWalletAddress, 150);
+
+  useEffect(() => {
+    setWithdrawalUsername(current => current || cleanUsername);
+  }, [cleanUsername]);
 
   const postFuitCredits = useCallback(async payload => {
     if (!baseUrl) throw new Error("FUITS Live TV URL is not set yet.");
@@ -8544,6 +8553,33 @@ function FuitCoinPage({ onClose, loggedInUsername = "", approvedUsers = [] }) {
       setStatus("Deposit submitted. FUIT Coin will appear after admin approval.");
     } catch (err) {
       setStatus(err?.message || "Could not submit deposit.");
+    }
+  };
+
+  const submitWithdrawal = async () => {
+    const requestUsername = String(withdrawalUsername || cleanUsername || "").trim();
+    if (!requestUsername) {
+      setStatus("Enter the username for this withdrawal request.");
+      return;
+    }
+    if (!Number(withdrawalAmount) || Number(withdrawalAmount) <= 0) {
+      setStatus("Enter the FUIT amount you want to withdraw.");
+      return;
+    }
+    try {
+      setStatus("Submitting withdrawal request for admin review...");
+      const result = await postFuitCredits({
+        action: "submitWithdrawal",
+        username: requestUsername,
+        amount: withdrawalAmount,
+        note: withdrawalNote
+      });
+      setSummary({ loading: false, ...result });
+      setWithdrawalAmount("");
+      setWithdrawalNote("");
+      setStatus("Withdrawal request submitted. Admin can review it in the FUIT Coin area.");
+    } catch (err) {
+      setStatus(err?.message || "Could not submit withdrawal request.");
     }
   };
 
@@ -8730,6 +8766,34 @@ function FuitCoinPage({ onClose, loggedInUsername = "", approvedUsers = [] }) {
         </section>
 
         <section style={cardStyle}>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 1000 }}>Withdraw FUIT Coins</h2>
+          <div style={{ color: "#94a3b8", fontSize: 13, fontWeight: 850, lineHeight: 1.45, marginTop: 6 }}>
+            Submit a withdrawal request for admin review.
+          </div>
+          <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10 }}>
+            <input value={withdrawalUsername} onChange={event => setWithdrawalUsername(event.target.value)} placeholder="Username" style={inputStyle} />
+            <input type="number" min="0" value={withdrawalAmount} onChange={event => setWithdrawalAmount(event.target.value)} placeholder={`${settings.creditSymbol} amount`} style={inputStyle} />
+            <input value={withdrawalNote} onChange={event => setWithdrawalNote(event.target.value)} placeholder="Withdrawal note" style={inputStyle} />
+          </div>
+          <button type="button" onClick={submitWithdrawal} style={{ ...buttonStyle, marginTop: 12 }}>
+            Submit Withdrawal Request
+          </button>
+          <div style={{ marginTop: 12, display: "grid", gap: 9 }}>
+            {!withdrawalRequests.length && <div style={{ color: "#94a3b8", fontSize: 13, fontWeight: 900 }}>No withdrawal requests yet.</div>}
+            {withdrawalRequests.map(request => (
+              <div key={request.id} style={{ border: "1px solid rgba(148,163,184,.2)", background: "rgba(2,6,23,.58)", borderRadius: 8, padding: 10, display: "grid", gap: 5 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                  <div style={{ color: "#f8fafc", fontWeight: 1000 }}>{formatFuitCreditAmount(request.amount)} {settings.creditSymbol}</div>
+                  <div style={{ color: request.status === "paid" ? "#bbf7d0" : request.status === "rejected" ? "#fecaca" : "#fef3c7", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>{request.status}</div>
+                </div>
+                {request.note && <div style={{ color: "#94a3b8", fontSize: 12, fontWeight: 800, overflowWrap: "anywhere" }}>Note: {request.note}</div>}
+                {request.adminNote && <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 800 }}>Admin note: {request.adminNote}</div>}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section style={cardStyle}>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 1000 }}>Deposit History</h2>
           <div style={{ marginTop: 10, display: "grid", gap: 9 }}>
             {!deposits.length && <div style={{ color: "#94a3b8", fontSize: 13, fontWeight: 900 }}>No deposits reported yet.</div>}
@@ -8804,10 +8868,12 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
     wallets: {},
     balances: {},
     deposits: [],
+    withdrawalRequests: [],
     ledger: [],
     blacklistedWallets: [],
     totals: { issued: 0, balance: 0, withdrawn: 0 },
-    pendingCount: 0
+    pendingCount: 0,
+    pendingWithdrawalCount: 0
   });
   const [fuitCreditStatus, setFuitCreditStatus] = useState("Loading FUIT Coin ledger...");
   const [fuitTreasuryWallet, setFuitTreasuryWallet] = useState("");
@@ -9137,10 +9203,12 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
       wallets: result.wallets && typeof result.wallets === "object" ? result.wallets : {},
       balances: result.balances && typeof result.balances === "object" ? result.balances : {},
       deposits: Array.isArray(result.deposits) ? result.deposits : [],
+      withdrawalRequests: Array.isArray(result.withdrawalRequests) ? result.withdrawalRequests : [],
       ledger: Array.isArray(result.ledger) ? result.ledger : [],
       blacklistedWallets: Array.isArray(result.blacklistedWallets) ? result.blacklistedWallets : [],
       totals: result.totals || { issued: 0, balance: 0, withdrawn: 0 },
-      pendingCount: Number(result.pendingCount) || 0
+      pendingCount: Number(result.pendingCount) || 0,
+      pendingWithdrawalCount: Number(result.pendingWithdrawalCount) || 0
     });
     setFuitTreasuryWallet(settings.treasuryWallet || "");
     setFuitInstructions(settings.instructions || DEFAULT_FUIT_CREDIT_SETTINGS.instructions);
@@ -9248,6 +9316,36 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
       setFuitCreditStatus("FUIT Coin withdrawn from user balance.");
     } catch (err) {
       setFuitCreditStatus(err?.message || "Could not withdraw FUIT Coin.");
+    }
+  };
+
+  const approveFuitWithdrawalRequest = async request => {
+    const adminNote = window.prompt("Admin note for this withdrawal", request.note || "") || "";
+    try {
+      setFuitCreditStatus("Approving FUIT withdrawal request...");
+      await postAdminFuitCredits({
+        action: "approveWithdrawalRequest",
+        withdrawalRequestId: request.id,
+        adminNote
+      });
+      setFuitCreditStatus("Withdrawal request marked paid and removed from user balance.");
+    } catch (err) {
+      setFuitCreditStatus(err?.message || "Could not approve withdrawal request.");
+    }
+  };
+
+  const rejectFuitWithdrawalRequest = async request => {
+    const adminNote = window.prompt("Reason or note for rejection", "") || "";
+    try {
+      setFuitCreditStatus("Rejecting FUIT withdrawal request...");
+      await postAdminFuitCredits({
+        action: "rejectWithdrawalRequest",
+        withdrawalRequestId: request.id,
+        adminNote
+      });
+      setFuitCreditStatus("Withdrawal request rejected.");
+    } catch (err) {
+      setFuitCreditStatus(err?.message || "Could not reject withdrawal request.");
     }
   };
 
@@ -10395,6 +10493,10 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
                   <div style={controlLabelStyle}>PENDING DEPOSITS</div>
                   <div style={{ color: "#fef3c7", fontSize: 24, fontWeight: 1000 }}>{fuitCreditAdmin.pendingCount || 0}</div>
                 </div>
+                <div style={{ border: "1px solid rgba(244,114,182,.35)", background: "rgba(83,19,77,.26)", padding: 12 }}>
+                  <div style={controlLabelStyle}>PENDING WITHDRAWALS</div>
+                  <div style={{ color: "#fbcfe8", fontSize: 24, fontWeight: 1000 }}>{fuitCreditAdmin.pendingWithdrawalCount || 0}</div>
+                </div>
               </div>
 
               <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 12, display: "grid", gap: 10 }}>
@@ -10452,6 +10554,43 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
                         <button type="button" onClick={() => issueFuitDeposit(deposit)} style={{ ...adminButtonStyle, padding: "8px 10px", fontSize: 12 }}>Approve + Issue</button>
                         <button type="button" onClick={() => rejectFuitDeposit(deposit)} style={{ ...adminButtonStyle, padding: "8px 10px", fontSize: 12, borderColor: "#fb7185", background: "#fb7185" }}>Reject</button>
                         <button type="button" onClick={() => { setFuitManualUsername(deposit.username || ""); setFuitManualWallet(deposit.wallet || ""); setFuitManualAmount(String(deposit.amount || "")); }} style={{ ...adminButtonStyle, padding: "8px 10px", fontSize: 12, borderColor: "#94a3b8", background: "#94a3b8" }}>Use Below</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ border: "1px solid rgba(148,163,184,.22)", background: "rgba(2,6,23,.58)", padding: 12, display: "grid", gap: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                  <div>
+                    <div style={controlLabelStyle}>USER WITHDRAWAL REQUESTS</div>
+                    <div style={{ color: "#f8fafc", fontSize: 18, fontWeight: 1000 }}>Review FUIT Coin withdrawals</div>
+                  </div>
+                  <div style={{ color: "#fbcfe8", fontSize: 13, fontWeight: 1000 }}>
+                    {(fuitCreditAdmin.pendingWithdrawalCount || 0)} pending
+                  </div>
+                </div>
+                {!(fuitCreditAdmin.withdrawalRequests || []).length && (
+                  <div style={{ color: "#94a3b8", fontSize: 13, fontWeight: 900 }}>No FUIT withdrawal requests yet.</div>
+                )}
+                {(fuitCreditAdmin.withdrawalRequests || []).slice(0, 80).map(request => (
+                  <div key={request.id} style={{ borderTop: "1px solid rgba(148,163,184,.18)", paddingTop: 9, display: "grid", gap: 6 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                      <div style={{ color: "#f8fafc", fontSize: 14, fontWeight: 1000, overflowWrap: "anywhere" }}>
+                        {request.username} - {formatFuitCreditAmount(request.amount)} FUIT
+                      </div>
+                      <div style={{ color: request.status === "paid" ? "#bbf7d0" : request.status === "rejected" ? "#fecaca" : "#fef3c7", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>
+                        {request.status}
+                      </div>
+                    </div>
+                    {request.wallet && <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 800, overflowWrap: "anywhere" }}>Wallet: {request.wallet}</div>}
+                    {request.note && <div style={{ color: "#94a3b8", fontSize: 12, fontWeight: 800, overflowWrap: "anywhere" }}>User note: {request.note}</div>}
+                    {request.adminNote && <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 800 }}>Admin note: {request.adminNote}</div>}
+                    {request.status === "pending" && (
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button type="button" onClick={() => approveFuitWithdrawalRequest(request)} style={{ ...adminButtonStyle, padding: "8px 10px", fontSize: 12, borderColor: "#facc15", background: "#facc15" }}>Mark Paid + Withdraw</button>
+                        <button type="button" onClick={() => rejectFuitWithdrawalRequest(request)} style={{ ...adminButtonStyle, padding: "8px 10px", fontSize: 12, borderColor: "#fb7185", background: "#fb7185" }}>Reject</button>
+                        <button type="button" onClick={() => { setFuitWithdrawUsername(request.username || ""); setFuitWithdrawAmount(String(request.amount || "")); setFuitWithdrawNote(request.note || ""); }} style={{ ...adminButtonStyle, padding: "8px 10px", fontSize: 12, borderColor: "#94a3b8", background: "#94a3b8" }}>Use Below</button>
                       </div>
                     )}
                   </div>

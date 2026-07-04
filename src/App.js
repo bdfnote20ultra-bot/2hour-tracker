@@ -5789,7 +5789,7 @@ const fetchFuitsLiveOnlineStats = async (baseUrl, extraParams = {}) => {
   throw new Error("online stats unavailable");
 };
 
-function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = [], onLogout }) {
+function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = [], onLogout, onOpenFuitCoins }) {
   const fuitsLiveTvChannelUrl = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
   const [musicLibrary, setMusicLibrary] = useState(MUSIC_LIBRARY);
   const [activeGenre, setActiveGenre] = useState("Other");
@@ -7345,6 +7345,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
             <button
               type="button"
+              onClick={onOpenFuitCoins}
               style={{
                 border: "1px solid rgba(250,204,21,.72)",
                 borderRadius: 8,
@@ -11692,7 +11693,7 @@ export default function App() {
   const totalWorked = calcTotalWorked(form);
   const totalPay = calcExactPay(totalWorked, hourlyRate);
 
-  if (view === "cryptoNfts" || view === "creditHub") {
+  if (view === "creditHub") {
     return <FuitCoinPage onClose={() => setView("week")} loggedInUsername={loggedInUsername} approvedUsers={approvedUsers} />;
   }
 
@@ -11717,6 +11718,7 @@ export default function App() {
   }
 
   const blankPages = {
+    cryptoNfts: "CRYPTO + NFTS",
     discounts: "DISCOUNTS",
     availableResidence: "AVAILABLE RESIDENCE",
     emergencyPlanning: "EMERGENCY PLANNING!",
@@ -12258,7 +12260,10 @@ if (view === "gambling") {
           </div>
         </>
       )}
-      {view === "week" && <MusicLibrarySidebar accentColor={accentColor} loggedInUsername={loggedInUsername} approvedUsers={approvedUsers} onLogout={logoutUser} />}
+      {view === "week" && <MusicLibrarySidebar accentColor={accentColor} loggedInUsername={loggedInUsername} approvedUsers={approvedUsers} onLogout={logoutUser} onOpenFuitCoins={() => {
+        resetFuitsMobileSafariViewportZoomForNavigation();
+        setView("creditHub");
+      }} />}
       <div ref={centerShellRef} className="flive-center-shell" style={{ minHeight: "100vh", background: pageBackground, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed", fontFamily: theme.font, width: "calc(480px * var(--flive-scale, 1) * var(--flive-center-width-scale, 1))", maxWidth: "100vw", margin: "0 auto", color: appTextColor, transition: "background 0.25s ease, color 0.25s ease", position: "relative", zIndex: 5, overflowX: "hidden" }}>
       {activeMusicSrc && <audio ref={musicRef} src={activeMusicSrc} loop playsInline onPlay={() => setIsMusicPlaying(true)} onPause={() => setIsMusicPlaying(false)} onEnded={() => setIsMusicPlaying(false)} />}
       {inAppBrowserOpen && (

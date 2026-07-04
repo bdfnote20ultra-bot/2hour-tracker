@@ -7342,23 +7342,42 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             </div>
             <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>{loggedInUsername || "User"} logged in</span>
           </div>
-          <button
-            type="button"
-            onClick={onLogout}
-            style={{
-              border: "1px solid rgba(248,113,113,.78)",
-              borderRadius: 8,
-              background: "rgba(127,29,29,.78)",
-              color: "#fee2e2",
-              cursor: "pointer",
-              fontSize: 10,
-              fontWeight: 1000,
-              padding: "6px 8px",
-              textTransform: "uppercase"
-            }}
-          >
-            Logout
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+            <button
+              type="button"
+              style={{
+                border: "1px solid rgba(250,204,21,.72)",
+                borderRadius: 8,
+                background: "rgba(113,63,18,.72)",
+                color: "#fef3c7",
+                cursor: "pointer",
+                fontSize: 10,
+                fontWeight: 1000,
+                padding: "6px 8px",
+                textTransform: "uppercase",
+                whiteSpace: "nowrap"
+              }}
+            >
+              FUIT COINS
+            </button>
+            <button
+              type="button"
+              onClick={onLogout}
+              style={{
+                border: "1px solid rgba(248,113,113,.78)",
+                borderRadius: 8,
+                background: "rgba(127,29,29,.78)",
+                color: "#fee2e2",
+                cursor: "pointer",
+                fontSize: 10,
+                fontWeight: 1000,
+                padding: "6px 8px",
+                textTransform: "uppercase"
+              }}
+            >
+              Logout
+            </button>
+          </div>
         </div>
         <div style={{
           display: "grid",

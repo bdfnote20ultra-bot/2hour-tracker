@@ -121,6 +121,7 @@ const RETROARCH_WEB_PLAYER_URL = "https://web.libretro.com/";
 const SIGNUP_REQUESTS_KEY = "fuitsSignupRequests_v1";
 const APPROVED_USERS_KEY = "fuitsApprovedUsers_v1";
 const BANNED_USERS_KEY = "fuitsBannedUsers_v1";
+const TRUST_WALLET_RETURN_VIEW_KEY = "fuitsTrustWalletReturnView_v1";
 const FUIT_CREDITS_BASE_URL = FUITS_LIVE_TV_PLAYLIST.publicChannelUrl;
 const DEFAULT_FUIT_CREDIT_SETTINGS = {
   creditSymbol: "FUIT",
@@ -178,6 +179,23 @@ function loadBannedUsers() {
 }
 function saveBannedUsers(users) {
   try { localStorage.setItem(BANNED_USERS_KEY, JSON.stringify(users)); } catch {}
+}
+
+function rememberTrustWalletReturnView() {
+  try {
+    sessionStorage.setItem(TRUST_WALLET_RETURN_VIEW_KEY, JSON.stringify({ view: "creditHub", createdAt: Date.now() }));
+  } catch {}
+}
+
+function loadInitialView() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(TRUST_WALLET_RETURN_VIEW_KEY) || "null");
+    sessionStorage.removeItem(TRUST_WALLET_RETURN_VIEW_KEY);
+    if (saved?.view === "creditHub" && Date.now() - Number(saved.createdAt || 0) < 30 * 60 * 1000) {
+      return "creditHub";
+    }
+  } catch {}
+  return "week";
 }
 
 function extractFuitWalletAddress(value) {
@@ -8640,7 +8658,9 @@ function FuitCoinPage({ onClose, loggedInUsername = "", approvedUsers = [] }) {
   };
 
   const openTrustWallet = () => {
-    window.open(`https://link.trustwallet.com/open_url?coin_id=966&url=${encodeURIComponent(window.location.href)}`, "_blank", "noopener,noreferrer");
+    rememberTrustWalletReturnView();
+    setStatus("Opening Trust Wallet. Return here when finished.");
+    window.location.assign(`https://link.trustwallet.com/open_url?coin_id=966&url=${encodeURIComponent(window.location.href)}`);
   };
 
   const copyTreasuryWallet = async () => {
@@ -11263,7 +11283,7 @@ export default function App() {
   const [editingDay, setEditingDay] = useState(null);
   const [projectRates, setProjectRates] = useState(loadRates);
   const [monthlyTrackerMonths, setMonthlyTrackerMonths] = useState(loadMonthlyTrackerMonths);
-  const [view, setView] = useState("week");
+  const [view, setView] = useState(loadInitialView);
   const [form, setForm] = useState(defaultEntry());
   const [projects, setProjects] = useState(loadProjects);
   const [activeProjectId, setActiveProjectId] = useState(() => loadProjects()[0]?.id || "default");

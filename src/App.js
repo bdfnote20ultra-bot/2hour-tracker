@@ -11267,7 +11267,7 @@ function MobileLandscapeGate({ onEnter }) {
           lineHeight: 1.4,
           maxWidth: 310
         }}>
-          Turn your phone sideways, then press the button to open the landscape mobile view.
+          TURN YOUR PHONE SIDEWAYS
         </div>
         <button
           type="button"

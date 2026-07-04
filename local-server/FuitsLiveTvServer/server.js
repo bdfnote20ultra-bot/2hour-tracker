@@ -294,14 +294,15 @@ function submitFuitCreditDeposit(payload = {}) {
   const key = getFuitCreditUserKey(username);
   const wallet = normalizeFuitWallet(payload.wallet);
   const amount = normalizeFuitAmount(payload.amount);
-  const txHash = normalizeFuitTxHash(payload.txHash);
+  const rawTxHash = String(payload.txHash || "").trim();
+  const txHash = rawTxHash ? normalizeFuitTxHash(rawTxHash) : "";
   if (!key) throw new Error("Username required.");
 
   const state = readFuitCreditState();
   if (isFuitWalletBlacklisted(state, wallet)) {
     throw new Error("This wallet is blacklisted.");
   }
-  if ((state.deposits || []).some(item => String(item.txHash || "").toLowerCase() === txHash.toLowerCase())) {
+  if (txHash && (state.deposits || []).some(item => String(item.txHash || "").toLowerCase() === txHash.toLowerCase())) {
     throw new Error("That transaction hash is already submitted.");
   }
 

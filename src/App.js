@@ -8430,6 +8430,8 @@ function FuitCoinPage({ onClose, loggedInUsername = "", approvedUsers = [] }) {
   const [depositAmount, setDepositAmount] = useState("");
   const [depositTxHash, setDepositTxHash] = useState("");
   const [depositNote, setDepositNote] = useState("");
+  const [depositStatus, setDepositStatus] = useState("");
+  const [depositSubmitBusy, setDepositSubmitBusy] = useState(false);
   const [withdrawalUsername, setWithdrawalUsername] = useState(loggedInUsername || "");
   const [withdrawalAmount, setWithdrawalAmount] = useState("");
   const [withdrawalNote, setWithdrawalNote] = useState("");
@@ -8526,18 +8528,23 @@ function FuitCoinPage({ onClose, loggedInUsername = "", approvedUsers = [] }) {
   const submitDeposit = async () => {
     if (!cleanUsername) {
       setStatus("Login username is missing.");
+      setDepositStatus("Login username is missing.");
       return;
     }
     if (!cleanWalletAddress) {
       setStatus("Enter or scan your deposit wallet first.");
+      setDepositStatus("Enter or scan your deposit wallet first.");
       return;
     }
     if (!Number(depositAmount) || Number(depositAmount) <= 0) {
       setStatus("Enter the USDT amount you deposited.");
+      setDepositStatus("Enter the USDT amount you deposited.");
       return;
     }
     try {
+      setDepositSubmitBusy(true);
       setStatus("Submitting deposit for admin approval...");
+      setDepositStatus("Submitting deposit for admin approval...");
       const result = await postFuitCredits({
         action: "submitDeposit",
         username: cleanUsername,
@@ -8551,8 +8558,12 @@ function FuitCoinPage({ onClose, loggedInUsername = "", approvedUsers = [] }) {
       setDepositTxHash("");
       setDepositNote("");
       setStatus("Deposit submitted. FUIT Coin will appear after admin approval.");
+      setDepositStatus("Deposit submitted. Admin can review it in the FUIT Coin area.");
     } catch (err) {
       setStatus(err?.message || "Could not submit deposit.");
+      setDepositStatus(err?.message || "Could not submit deposit.");
+    } finally {
+      setDepositSubmitBusy(false);
     }
   };
 
@@ -8757,12 +8768,13 @@ function FuitCoinPage({ onClose, loggedInUsername = "", approvedUsers = [] }) {
           </div>
           <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10 }}>
             <input type="number" min="0" value={depositAmount} onChange={event => setDepositAmount(event.target.value)} placeholder={`${settings.depositToken} amount`} style={inputStyle} />
-            <input value={depositTxHash} onChange={event => setDepositTxHash(event.target.value)} placeholder="Transaction hash" style={inputStyle} />
+            <input value={depositTxHash} onChange={event => setDepositTxHash(event.target.value)} placeholder="Transaction hash optional" style={inputStyle} />
             <input value={depositNote} onChange={event => setDepositNote(event.target.value)} placeholder="Optional note" style={inputStyle} />
           </div>
-          <button type="button" disabled={creditUser.walletBlacklisted} onClick={submitDeposit} style={{ ...buttonStyle, marginTop: 12, opacity: creditUser.walletBlacklisted ? .55 : 1 }}>
-            Submit For Admin Approval
+          <button type="button" disabled={creditUser.walletBlacklisted || depositSubmitBusy} onClick={submitDeposit} style={{ ...buttonStyle, marginTop: 12, opacity: creditUser.walletBlacklisted || depositSubmitBusy ? .55 : 1 }}>
+            {depositSubmitBusy ? "Submitting..." : "Submit For Admin Approval"}
           </button>
+          {depositStatus && <div style={{ color: depositStatus.toLowerCase().includes("submitted") ? "#bbf7d0" : "#fef3c7", fontSize: 13, fontWeight: 900, lineHeight: 1.35, marginTop: 9 }}>{depositStatus}</div>}
         </section>
 
         <section style={cardStyle}>
@@ -8803,7 +8815,7 @@ function FuitCoinPage({ onClose, loggedInUsername = "", approvedUsers = [] }) {
                   <div style={{ color: "#f8fafc", fontWeight: 1000 }}>{formatFuitCreditAmount(deposit.amount)} {deposit.token || settings.depositToken}</div>
                   <div style={{ color: deposit.status === "issued" ? "#bbf7d0" : deposit.status === "rejected" ? "#fecaca" : "#fef3c7", fontSize: 12, fontWeight: 1000, textTransform: "uppercase" }}>{deposit.status}</div>
                 </div>
-                <div style={{ color: "#94a3b8", fontSize: 12, fontWeight: 800, overflowWrap: "anywhere" }}>{deposit.txHash}</div>
+                <div style={{ color: "#94a3b8", fontSize: 12, fontWeight: 800, overflowWrap: "anywhere" }}>TX: {deposit.txHash || "Not provided"}</div>
                 {deposit.issuedAmount && <div style={{ color: "#bbf7d0", fontSize: 12, fontWeight: 900 }}>Issued: {formatFuitCreditAmount(deposit.issuedAmount)} {settings.creditSymbol}</div>}
                 {deposit.adminNote && <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 800 }}>{deposit.adminNote}</div>}
               </div>
@@ -10547,7 +10559,7 @@ function AdminPage({ onClose, loggedInUsername, signupRequests, approvedUsers, b
                       </div>
                     </div>
                     <div style={{ color: "#cbd5e1", fontSize: 12, fontWeight: 800, overflowWrap: "anywhere" }}>Wallet: {deposit.wallet}</div>
-                    <div style={{ color: "#94a3b8", fontSize: 12, fontWeight: 800, overflowWrap: "anywhere" }}>TX: {deposit.txHash}</div>
+                    <div style={{ color: "#94a3b8", fontSize: 12, fontWeight: 800, overflowWrap: "anywhere" }}>TX: {deposit.txHash || "Not provided"}</div>
                     {deposit.adminNote && <div style={{ color: "#dbeafe", fontSize: 12, fontWeight: 800 }}>Admin note: {deposit.adminNote}</div>}
                     {deposit.status === "pending" && (
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

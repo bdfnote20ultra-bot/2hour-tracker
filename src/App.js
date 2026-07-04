@@ -8435,6 +8435,9 @@ function FuitCoinPage({ onClose, loggedInUsername = "", approvedUsers = [] }) {
   const [withdrawalUsername, setWithdrawalUsername] = useState(loggedInUsername || "");
   const [withdrawalAmount, setWithdrawalAmount] = useState("");
   const [withdrawalNote, setWithdrawalNote] = useState("");
+  const [withdrawalStatus, setWithdrawalStatus] = useState("");
+  const [withdrawalStatusTone, setWithdrawalStatusTone] = useState("info");
+  const [withdrawalSubmitBusy, setWithdrawalSubmitBusy] = useState(false);
   const [status, setStatus] = useState("Loading FUIT Coin...");
   const [summary, setSummary] = useState({
     loading: true,
@@ -8570,15 +8573,24 @@ function FuitCoinPage({ onClose, loggedInUsername = "", approvedUsers = [] }) {
   const submitWithdrawal = async () => {
     const requestUsername = String(withdrawalUsername || cleanUsername || "").trim();
     if (!requestUsername) {
-      setStatus("Enter the username for this withdrawal request.");
+      const message = "Enter the username for this withdrawal request.";
+      setStatus(message);
+      setWithdrawalStatus(message);
+      setWithdrawalStatusTone("error");
       return;
     }
     if (!Number(withdrawalAmount) || Number(withdrawalAmount) <= 0) {
-      setStatus("Enter the FUIT amount you want to withdraw.");
+      const message = "Enter the FUIT amount you want to withdraw.";
+      setStatus(message);
+      setWithdrawalStatus(message);
+      setWithdrawalStatusTone("error");
       return;
     }
     try {
+      setWithdrawalSubmitBusy(true);
       setStatus("Submitting withdrawal request for admin review...");
+      setWithdrawalStatus("Submitting withdrawal request for admin review...");
+      setWithdrawalStatusTone("info");
       const result = await postFuitCredits({
         action: "submitWithdrawal",
         username: requestUsername,
@@ -8589,8 +8601,15 @@ function FuitCoinPage({ onClose, loggedInUsername = "", approvedUsers = [] }) {
       setWithdrawalAmount("");
       setWithdrawalNote("");
       setStatus("Withdrawal request submitted. Admin can review it in the FUIT Coin area.");
+      setWithdrawalStatus("Withdrawal request submitted. Admin can review it in the FUIT Coin area.");
+      setWithdrawalStatusTone("success");
     } catch (err) {
-      setStatus(err?.message || "Could not submit withdrawal request.");
+      const message = err?.message || "Could not submit withdrawal request.";
+      setStatus(message);
+      setWithdrawalStatus(message);
+      setWithdrawalStatusTone("error");
+    } finally {
+      setWithdrawalSubmitBusy(false);
     }
   };
 
@@ -8787,9 +8806,10 @@ function FuitCoinPage({ onClose, loggedInUsername = "", approvedUsers = [] }) {
             <input type="number" min="0" value={withdrawalAmount} onChange={event => setWithdrawalAmount(event.target.value)} placeholder={`${settings.creditSymbol} amount`} style={inputStyle} />
             <input value={withdrawalNote} onChange={event => setWithdrawalNote(event.target.value)} placeholder="Withdrawal note" style={inputStyle} />
           </div>
-          <button type="button" onClick={submitWithdrawal} style={{ ...buttonStyle, marginTop: 12 }}>
-            Submit Withdrawal Request
+          <button type="button" disabled={withdrawalSubmitBusy} onClick={submitWithdrawal} style={{ ...buttonStyle, marginTop: 12, opacity: withdrawalSubmitBusy ? .55 : 1 }}>
+            {withdrawalSubmitBusy ? "Submitting..." : "Submit Withdrawal Request"}
           </button>
+          {withdrawalStatus && <div style={{ color: withdrawalStatusTone === "success" ? "#bbf7d0" : withdrawalStatusTone === "error" ? "#fecaca" : "#fef3c7", fontSize: 13, fontWeight: 900, lineHeight: 1.35, marginTop: 9 }}>{withdrawalStatus}</div>}
           <div style={{ marginTop: 12, display: "grid", gap: 9 }}>
             {!withdrawalRequests.length && <div style={{ color: "#94a3b8", fontSize: 13, fontWeight: 900 }}>No withdrawal requests yet.</div>}
             {withdrawalRequests.map(request => (

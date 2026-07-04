@@ -152,8 +152,11 @@ function normalizeFuitWallet(value) {
 function normalizeFuitTxHash(value) {
   const text = String(value || "").trim();
   const match = text.match(/0x[a-fA-F0-9]{64}/);
-  if (!match) throw new Error("Enter the transaction hash from the deposit.");
-  return match[0];
+  return match ? match[0] : "";
+}
+
+function normalizeFuitDepositReference(value) {
+  return String(value || "").trim().slice(0, 180);
 }
 
 function normalizeFuitAmount(value) {
@@ -294,15 +297,15 @@ function submitFuitCreditDeposit(payload = {}) {
   const key = getFuitCreditUserKey(username);
   const wallet = normalizeFuitWallet(payload.wallet);
   const amount = normalizeFuitAmount(payload.amount);
-  const rawTxHash = String(payload.txHash || "").trim();
-  const txHash = rawTxHash ? normalizeFuitTxHash(rawTxHash) : "";
+  const txHash = normalizeFuitDepositReference(payload.txHash);
+  const duplicateTxHash = normalizeFuitTxHash(txHash);
   if (!key) throw new Error("Username required.");
 
   const state = readFuitCreditState();
   if (isFuitWalletBlacklisted(state, wallet)) {
     throw new Error("This wallet is blacklisted.");
   }
-  if (txHash && (state.deposits || []).some(item => String(item.txHash || "").toLowerCase() === txHash.toLowerCase())) {
+  if (duplicateTxHash && (state.deposits || []).some(item => normalizeFuitTxHash(item.txHash).toLowerCase() === duplicateTxHash.toLowerCase())) {
     throw new Error("That transaction hash is already submitted.");
   }
 

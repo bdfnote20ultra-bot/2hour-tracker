@@ -8768,7 +8768,7 @@ function FuitCoinPage({ onClose, loggedInUsername = "", approvedUsers = [] }) {
           </div>
           <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10 }}>
             <input type="number" min="0" value={depositAmount} onChange={event => setDepositAmount(event.target.value)} placeholder={`${settings.depositToken} amount`} style={inputStyle} />
-            <input value={depositTxHash} onChange={event => setDepositTxHash(event.target.value)} placeholder="Transaction hash optional" style={inputStyle} />
+            <input value={depositTxHash} onChange={event => setDepositTxHash(event.target.value)} placeholder="Transaction hash/reference optional" style={inputStyle} />
             <input value={depositNote} onChange={event => setDepositNote(event.target.value)} placeholder="Optional note" style={inputStyle} />
           </div>
           <button type="button" disabled={creditUser.walletBlacklisted || depositSubmitBusy} onClick={submitDeposit} style={{ ...buttonStyle, marginTop: 12, opacity: creditUser.walletBlacklisted || depositSubmitBusy ? .55 : 1 }}>

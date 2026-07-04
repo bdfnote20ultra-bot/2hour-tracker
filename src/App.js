@@ -8739,7 +8739,12 @@ function FuitCoinPage({ onClose, loggedInUsername = "", approvedUsers = [] }) {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 12 }}>
           <section style={cardStyle}>
-            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 1000 }}>Your Deposit Wallet</h2>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 1000 }}>Your Deposit Wallet</h2>
+              <span style={{ border: "1px solid rgba(103,232,249,.55)", borderRadius: 8, color: "#a7f3d0", background: "rgba(14,165,233,.16)", fontSize: 12, fontWeight: 1000, padding: "4px 8px", lineHeight: 1 }}>
+                POL USDT
+              </span>
+            </div>
             <div style={{ color: "#94a3b8", fontSize: 13, fontWeight: 850, lineHeight: 1.45, margin: "7px 0 12px" }}>
               This wallet is how admin tracks your deposits and issues your FUIT Coin.
             </div>

@@ -11232,6 +11232,17 @@ function MobileLandscapeGate({ onEnter }) {
         justifyItems: "center",
         gap: 16
       }}>
+        <img
+          src={`${process.env.PUBLIC_URL}/icon-192.png`}
+          alt="FLiveTV"
+          style={{
+            width: 82,
+            height: 82,
+            objectFit: "contain",
+            display: "block",
+            filter: "drop-shadow(0 0 18px rgba(103,232,249,.28))"
+          }}
+        />
         <div aria-hidden="true" style={{
           width: 96,
           height: 58,

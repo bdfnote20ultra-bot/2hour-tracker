@@ -11193,6 +11193,24 @@ function LoginPage({ onLogin, approvedUsers, bannedUsers = [], onSignupRequest }
 }
 
 function MobileLandscapeGate({ onEnter }) {
+  const platformLabelStyle = {
+    color: "#e2e8f0",
+    fontSize: 10,
+    fontWeight: 1000,
+    lineHeight: 1.1,
+    letterSpacing: 0,
+    textTransform: "uppercase"
+  };
+  const platformTileStyle = {
+    minWidth: 0,
+    minHeight: 62,
+    display: "grid",
+    alignContent: "start",
+    justifyItems: "center",
+    gap: 5
+  };
+  const chromeSize = 32;
+
   return (
     <div style={{
       minHeight: "100vh",
@@ -11269,6 +11287,159 @@ function MobileLandscapeGate({ onEnter }) {
         >
           Enter Landscape
         </button>
+        <div style={{
+          width: "100%",
+          display: "grid",
+          gap: 11,
+          marginTop: 1
+        }}>
+          <div style={{
+            color: "#fef08a",
+            fontSize: 12,
+            fontWeight: 1000,
+            lineHeight: 1,
+            letterSpacing: 0,
+            textTransform: "uppercase"
+          }}>
+            AVAILABLE <span style={{ color: "#fff", textShadow: "0 0 14px rgba(254,240,138,.68)" }}>NOW</span> ON
+          </div>
+          <div style={{
+            width: "100%",
+            display: "grid",
+            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            gap: 8,
+            alignItems: "start"
+          }}>
+            <div aria-label="Apple" style={platformTileStyle}>
+              <div aria-hidden="true" style={{
+                color: "#f8fafc",
+                fontFamily: "-apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+                fontSize: 38,
+                lineHeight: .85,
+                textShadow: "0 0 18px rgba(248,250,252,.35)"
+              }}>
+                {"\uF8FF"}
+              </div>
+            </div>
+            <div aria-label="Chrome desktop 720p 1080p 4K" style={platformTileStyle}>
+              <div aria-hidden="true" style={{
+                width: chromeSize,
+                height: chromeSize,
+                borderRadius: "50%",
+                background: "conic-gradient(#ea4335 0deg 115deg, #fbbc05 115deg 232deg, #34a853 232deg 360deg)",
+                display: "grid",
+                placeItems: "center",
+                boxShadow: "0 0 16px rgba(103,232,249,.22)"
+              }}>
+                <span style={{
+                  width: chromeSize * .44,
+                  height: chromeSize * .44,
+                  borderRadius: "50%",
+                  background: "#4285f4",
+                  border: "3px solid #f8fafc",
+                  boxSizing: "border-box"
+                }} />
+              </div>
+              <div style={platformLabelStyle}>DESKTOP</div>
+              <div style={{ ...platformLabelStyle, fontSize: 9, color: "#cbd5e1" }}>720p/1080p/4k</div>
+            </div>
+            <div aria-label="Amazon Silk" style={platformTileStyle}>
+              <div aria-hidden="true" style={{
+                width: 34,
+                height: 32,
+                display: "grid",
+                placeItems: "center",
+                position: "relative"
+              }}>
+                <span style={{
+                  color: "#f8fafc",
+                  fontSize: 27,
+                  fontWeight: 1000,
+                  lineHeight: 1,
+                  fontFamily: "Arial, Helvetica, sans-serif"
+                }}>a</span>
+                <span style={{
+                  position: "absolute",
+                  width: 20,
+                  height: 8,
+                  left: 7,
+                  bottom: 1,
+                  borderBottom: "3px solid #f59e0b",
+                  borderRadius: "0 0 18px 18px",
+                  transform: "rotate(-8deg)"
+                }} />
+              </div>
+              <div style={platformLabelStyle}>Amazon Silk</div>
+            </div>
+          </div>
+          <div style={{
+            width: "100%",
+            borderTop: "1px solid rgba(148,163,184,.28)",
+            paddingTop: 10,
+            display: "grid",
+            gap: 8,
+            justifyItems: "center"
+          }}>
+            <div style={{
+              color: "#94a3b8",
+              fontSize: 11,
+              fontWeight: 1000,
+              lineHeight: 1,
+              letterSpacing: 0,
+              textTransform: "uppercase"
+            }}>
+              COMING SOON
+            </div>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2, minmax(0, 72px))",
+              justifyContent: "center",
+              gap: 14,
+              alignItems: "center"
+            }}>
+              <div aria-label="Roku" style={{ display: "grid", justifyItems: "center" }}>
+                <div aria-hidden="true" style={{
+                  color: "#fff",
+                  background: "#6b21a8",
+                  border: "1px solid rgba(255,255,255,.22)",
+                  borderRadius: 6,
+                  padding: "5px 9px",
+                  fontSize: 15,
+                  fontWeight: 1000,
+                  lineHeight: 1,
+                  letterSpacing: 0,
+                  fontFamily: "Arial Black, Arial, sans-serif"
+                }}>
+                  Roku
+                </div>
+              </div>
+              <div aria-label="Android" style={{ display: "grid", justifyItems: "center" }}>
+                <div aria-hidden="true" style={{
+                  width: 34,
+                  height: 30,
+                  position: "relative"
+                }}>
+                  <span style={{
+                    position: "absolute",
+                    left: 7,
+                    right: 7,
+                    top: 5,
+                    height: 17,
+                    background: "#3ddc84",
+                    borderRadius: "8px 8px 3px 3px"
+                  }}>
+                    <span style={{ position: "absolute", left: 5, top: 6, width: 3, height: 3, borderRadius: "50%", background: "#052e16" }} />
+                    <span style={{ position: "absolute", right: 5, top: 6, width: 3, height: 3, borderRadius: "50%", background: "#052e16" }} />
+                  </span>
+                  <span style={{ position: "absolute", left: 9, top: 0, width: 2, height: 9, background: "#3ddc84", borderRadius: 999, transform: "rotate(-32deg)", transformOrigin: "bottom" }} />
+                  <span style={{ position: "absolute", right: 9, top: 0, width: 2, height: 9, background: "#3ddc84", borderRadius: 999, transform: "rotate(32deg)", transformOrigin: "bottom" }} />
+                  <span style={{ position: "absolute", left: 5, top: 18, width: 5, height: 11, background: "#3ddc84", borderRadius: 999 }} />
+                  <span style={{ position: "absolute", right: 5, top: 18, width: 5, height: 11, background: "#3ddc84", borderRadius: 999 }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -7184,10 +7184,10 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             zoom: 1 !important;
             display: flex !important;
             flex-direction: column !important;
-            flex: 1 1 280px !important;
-            height: auto !important;
+            flex: 0 0 280px !important;
+            height: 280px !important;
             min-height: 280px !important;
-            max-height: none !important;
+            max-height: 280px !important;
             box-sizing: border-box !important;
             padding: 0 !important;
             overflow: hidden !important;
@@ -7195,11 +7195,11 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
           }
           .music-library-desktop-sidebar.fuits-mobile-safari-landscape-profile .fuits-music-live-chat-card .fuits-live-chat-frame {
             display: block !important;
-            flex: 1 1 auto !important;
+            flex: 1 1 100% !important;
             width: 100% !important;
-            height: auto !important;
-            min-height: 0 !important;
-            max-height: none !important;
+            height: 100% !important;
+            min-height: 100% !important;
+            max-height: 100% !important;
             border-radius: 12px !important;
             background: #020617 !important;
             color-scheme: dark;

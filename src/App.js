@@ -7154,23 +7154,33 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             background: #020617 !important;
             color-scheme: dark;
           }
-          .music-library-desktop-sidebar.fuits-mobile-safari-landscape-profile > .fuits-music-track-list {
-            flex: 0 0 88px !important;
-            height: 88px !important;
+          .music-library-desktop-sidebar.fuits-mobile-safari-landscape-profile > .fuits-music-scroll {
+            flex: 1 1 auto !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
             min-height: 0 !important;
-            max-height: 88px !important;
             min-block-size: 0 !important;
-            block-size: 88px !important;
-            max-block-size: 88px !important;
-            margin-bottom: 6px !important;
             overflow-x: hidden !important;
             overflow-y: scroll !important;
             touch-action: pan-y;
             overscroll-behavior: contain;
             -webkit-overflow-scrolling: touch;
             pointer-events: auto;
+            padding: 3px 2px 10px !important;
           }
-          .music-library-desktop-sidebar.fuits-mobile-safari-landscape-profile > .fuits-music-live-chat-card {
+          .music-library-desktop-sidebar.fuits-mobile-safari-landscape-profile .fuits-music-scroll > .fuits-music-track-list {
+            flex: 0 0 auto !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            min-block-size: 0 !important;
+            block-size: auto !important;
+            max-block-size: none !important;
+            margin-bottom: 6px !important;
+            overflow: visible !important;
+          }
+          .music-library-desktop-sidebar.fuits-mobile-safari-landscape-profile .fuits-music-scroll > .fuits-music-live-chat-card {
             zoom: 1 !important;
             display: flex !important;
             flex-direction: column !important;
@@ -8062,7 +8072,13 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
           </div>
         </div>
       ) : (
-        <>
+        <div className="fuits-music-scroll" style={{
+          flex: 1,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+          overflowX: "hidden"
+        }}>
 
       <div style={{ display: "none",
         borderRadius: 18,
@@ -8424,7 +8440,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
       )}
         </>
       )}
-        </>
+        </div>
       )}
       {zoomedDonationQr && (
         <div

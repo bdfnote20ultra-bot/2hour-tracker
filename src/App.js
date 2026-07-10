@@ -11993,6 +11993,13 @@ export default function App() {
       isMobileLandscape() &&
       shell.scrollHeight > shell.clientHeight + 1
     );
+    const updateSafariPinchClass = () => {
+      shell.classList.toggle("flive-center-shell-safari-native-zoom", isFuitsMobileLandscapeSafariProfile());
+    };
+    const isSafariNativePinchGesture = (event) => (
+      isFuitsMobileLandscapeSafariProfile() &&
+      (event.touches?.length || 0) > 1
+    );
     const resetDrag = () => {
       drag.active = false;
       drag.dragging = false;
@@ -12011,6 +12018,10 @@ export default function App() {
     };
     const handleTouchStart = (event) => {
       if (!canDragScroll()) return;
+      if (isSafariNativePinchGesture(event)) {
+        resetDrag();
+        return;
+      }
 
       const touch = event.touches?.[0];
       if (!touch) return;
@@ -12024,6 +12035,10 @@ export default function App() {
     };
     const handleTouchMove = (event) => {
       if (!drag.active || !canDragScroll()) return;
+      if (isSafariNativePinchGesture(event)) {
+        resetDrag();
+        return;
+      }
 
       const point = getTrackedTouch(event);
       if (!point) return;
@@ -12059,6 +12074,10 @@ export default function App() {
     const passiveCaptureOptions = { capture: true, passive: true };
     const activeCaptureOptions = { capture: true, passive: false };
 
+    updateSafariPinchClass();
+    window.addEventListener("resize", updateSafariPinchClass);
+    window.addEventListener("orientationchange", updateSafariPinchClass);
+    window.visualViewport?.addEventListener?.("resize", updateSafariPinchClass);
     shell.addEventListener("touchstart", handleTouchStart, passiveCaptureOptions);
     shell.addEventListener("touchmove", handleTouchMove, activeCaptureOptions);
     shell.addEventListener("touchend", handleTouchEnd, passiveCaptureOptions);
@@ -12066,6 +12085,10 @@ export default function App() {
     shell.addEventListener("click", handleClick, true);
 
     return () => {
+      shell.classList.remove("flive-center-shell-safari-native-zoom");
+      window.removeEventListener("resize", updateSafariPinchClass);
+      window.removeEventListener("orientationchange", updateSafariPinchClass);
+      window.visualViewport?.removeEventListener?.("resize", updateSafariPinchClass);
       shell.removeEventListener("touchstart", handleTouchStart, passiveCaptureOptions);
       shell.removeEventListener("touchmove", handleTouchMove, activeCaptureOptions);
       shell.removeEventListener("touchend", handleTouchEnd, passiveCaptureOptions);
@@ -12624,6 +12647,9 @@ if (view === "gambling") {
             touch-action: pan-y;
             overscroll-behavior: contain;
             -webkit-overflow-scrolling: touch;
+          }
+          .flive-center-shell.flive-center-shell-safari-native-zoom {
+            touch-action: pan-y pinch-zoom;
           }
           .music-library-desktop-sidebar {
             z-index: 7 !important;

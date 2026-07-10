@@ -5651,8 +5651,7 @@ function pageHtml() {
 </html>`;
 }
 
-function chatOnlyHtml(initialLayout = "") {
-  const initialBodyClass = initialLayout === "music-mobile-safari-landscape" ? ' class="mobile-landscape-chat music-mobile-safari-landscape-chat"' : "";
+function chatOnlyHtml() {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -5957,25 +5956,6 @@ function chatOnlyHtml(initialLayout = "") {
     body.mobile-landscape-chat .chat-form > button[type="submit"] {
       grid-area: send;
     }
-    html.music-mobile-safari-landscape-chat-root,
-    html.music-mobile-safari-landscape-chat-root body {
-      height: 100%;
-      min-height: 0;
-      overflow: hidden;
-      background: #020617;
-    }
-    body.music-mobile-safari-landscape-chat .chat {
-      height: 100%;
-      max-height: 100%;
-      min-height: 0;
-      grid-template-rows: auto minmax(0, 1fr) auto;
-      align-content: stretch;
-    }
-    body.music-mobile-safari-landscape-chat .chat-log {
-      min-height: 0;
-      max-height: none;
-      align-content: start;
-    }
     body.adult-relax-mobile-landscape-chat .chat {
       grid-template-rows: auto minmax(30px, 70px) auto;
     }
@@ -6034,7 +6014,7 @@ function chatOnlyHtml(initialLayout = "") {
     }
   </style>
 </head>
-<body${initialBodyClass}>
+<body>
   <section class="chat" aria-label="Live chat">
     <div class="chat-head">
       <span>Live Chat</span>
@@ -6073,8 +6053,7 @@ function chatOnlyHtml(initialLayout = "") {
     const phoneLandscapeFallback = window.innerWidth > window.innerHeight && window.innerWidth <= 1100 && window.innerHeight <= 560;
     const phoneLandscapeActive = Boolean(phoneLandscapeMedia?.matches || (!phoneLandscapeMedia && phoneLandscapeFallback));
     const adultRelaxGrid = chatLayout === "adult-relax" || chatLayout === "adult-relax-mobile-landscape";
-    const musicMobileSafariLandscape = chatLayout === "music-mobile-safari-landscape";
-    const mobileLandscapeChat = chatLayout === "mobile-landscape" || musicMobileSafariLandscape || (chatLayout === "adult-relax-mobile-landscape" && phoneLandscapeActive);
+    const mobileLandscapeChat = chatLayout === "mobile-landscape" || (chatLayout === "adult-relax-mobile-landscape" && phoneLandscapeActive);
     const adultRelaxMobileLandscape = adultRelaxGrid && mobileLandscapeChat;
     let latestChatMessages = [];
     let parentFullscreenActive = false;
@@ -6082,15 +6061,9 @@ function chatOnlyHtml(initialLayout = "") {
     let parentFullscreenRequestTimer = null;
     document.body.classList.toggle("adult-relax-grid", adultRelaxGrid);
     document.body.classList.toggle("mobile-landscape-chat", mobileLandscapeChat);
-    document.body.classList.toggle("music-mobile-safari-landscape-chat", musicMobileSafariLandscape);
-    document.documentElement.classList.toggle("music-mobile-safari-landscape-chat-root", musicMobileSafariLandscape);
     document.body.classList.toggle("adult-relax-mobile-landscape-chat", adultRelaxMobileLandscape);
     function syncMobileLandscapeChatHeight() {
       if (!mobileLandscapeChat) return;
-      if (musicMobileSafariLandscape) {
-        document.documentElement.style.removeProperty("--mobile-landscape-chat-height");
-        return;
-      }
       const height = Math.max(0, Math.floor(window.innerHeight || document.documentElement.clientHeight || 0));
       if (height) document.documentElement.style.setProperty("--mobile-landscape-chat-height", height + "px");
     }
@@ -6396,7 +6369,7 @@ const server = http.createServer((req, res) => {
   }
 
   if (url.pathname === "/chat-only") {
-    send(res, 200, chatOnlyHtml(url.searchParams.get("layout") || ""), "text/html; charset=utf-8");
+    send(res, 200, chatOnlyHtml(), "text/html; charset=utf-8");
     return;
   }
 

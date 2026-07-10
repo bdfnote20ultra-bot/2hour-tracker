@@ -6393,11 +6393,6 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
     return `${fuitsLiveTvChatUrl || `${fuitsLiveTvChannelUrl}/chat-only`}${query ? `?${query}` : ""}`;
   };
   const fuitsLiveTvChatSrc = buildFuitsLiveTvChatSrc(fuitsLiveTvChatParams);
-  const fuitsMusicLiveChatParams = new URLSearchParams(fuitsLiveTvChatParams);
-  if (fuitsMobileLandscapeSafariProfileActive) {
-    fuitsMusicLiveChatParams.set("layout", "music-mobile-safari-landscape");
-  }
-  const fuitsMusicLiveChatSrc = buildFuitsLiveTvChatSrc(fuitsMusicLiveChatParams);
   const fuitsLiveTvChatFrameHeight = fuitsMobileLandscapeProfileActive ? 280 : 260;
   const fuitsLiveTvCompactChatFrameHeight = fuitsMobileLandscapeProfileActive ? 280 : 250;
 
@@ -7159,11 +7154,21 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             background: #020617 !important;
             color-scheme: dark;
           }
-          .music-library-desktop-sidebar.fuits-mobile-safari-landscape-profile .fuits-music-live-chat-card {
+          .music-library-desktop-sidebar.fuits-mobile-safari-landscape-profile > .fuits-music-track-list {
+            flex: 0 1 88px !important;
+            max-height: 88px !important;
+            margin-bottom: 6px !important;
+            overflow-y: auto !important;
+          }
+          .music-library-desktop-sidebar.fuits-mobile-safari-landscape-profile > .fuits-music-live-chat-card {
+            zoom: 1 !important;
             display: flex !important;
             flex-direction: column !important;
-            height: 280px !important;
-            min-height: 0 !important;
+            flex: 1 1 280px !important;
+            height: auto !important;
+            min-height: 280px !important;
+            max-height: none !important;
+            box-sizing: border-box !important;
             padding: 0 !important;
             overflow: hidden !important;
             background: #020617 !important;
@@ -7172,9 +7177,9 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             display: block !important;
             flex: 1 1 auto !important;
             width: 100% !important;
-            height: 100% !important;
+            height: auto !important;
             min-height: 0 !important;
-            max-height: 100% !important;
+            max-height: none !important;
             border-radius: 12px !important;
             background: #020617 !important;
             color-scheme: dark;
@@ -8310,7 +8315,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
         </div>
       )}
 
-      <div style={{ flex: 1, overflowY: "auto", paddingRight: 4, marginBottom: 12 }}>
+      <div className="fuits-music-track-list" style={{ flex: 1, overflowY: "auto", paddingRight: 4, marginBottom: 12 }}>
         {[
           { label: "Videos", key: "videos", items: filteredVideos },
           { label: "Music", key: "music", items: filteredMusic }
@@ -8401,9 +8406,9 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
         }}>
           <LiveChatBox
             title="FUITS Music Live Chat"
-            src={fuitsMusicLiveChatSrc}
-            height={fuitsLiveTvCompactChatFrameHeight}
-            minHeight={fuitsLiveTvCompactChatFrameHeight}
+            src={fuitsLiveTvChatSrc}
+            height={fuitsMobileLandscapeSafariProfileActive ? "100%" : fuitsLiveTvCompactChatFrameHeight}
+            minHeight={fuitsMobileLandscapeSafariProfileActive ? 0 : fuitsLiveTvCompactChatFrameHeight}
           />
         </div>
       )}

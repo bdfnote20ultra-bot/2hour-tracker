@@ -7155,10 +7155,20 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             color-scheme: dark;
           }
           .music-library-desktop-sidebar.fuits-mobile-safari-landscape-profile > .fuits-music-track-list {
-            flex: 0 1 88px !important;
+            flex: 0 0 88px !important;
+            height: 88px !important;
+            min-height: 0 !important;
             max-height: 88px !important;
+            min-block-size: 0 !important;
+            block-size: 88px !important;
+            max-block-size: 88px !important;
             margin-bottom: 6px !important;
-            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            overflow-y: scroll !important;
+            touch-action: pan-y;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+            pointer-events: auto;
           }
           .music-library-desktop-sidebar.fuits-mobile-safari-landscape-profile > .fuits-music-live-chat-card {
             zoom: 1 !important;

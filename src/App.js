@@ -1,4 +1,5 @@
 import { forwardRef, useState, useEffect, useRef, useMemo, useCallback, useImperativeHandle } from "react";
+import { createPortal } from "react-dom";
 import { MUSIC_LIBRARY } from "./musicLibraryData";
 import { FATTYS_LIVE_TV, FUITS_LIVE_TV_PLAYLIST } from "./fattysLiveTvData";
 
@@ -12202,81 +12203,6 @@ export default function App() {
 
   const totalWorked = calcTotalWorked(form);
   const totalPay = calcExactPay(totalWorked, hourlyRate);
-  const safariEntryModalActive = Boolean(editingDay && fuitsMobileLandscapeSafariProfileActive);
-  const entryModalBackdropStyle = {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,0.5)",
-    display: "flex",
-    alignItems: safariEntryModalActive ? "stretch" : "flex-end",
-    justifyContent: safariEntryModalActive ? "center" : undefined,
-    padding: safariEntryModalActive
-      ? "max(6px, env(safe-area-inset-top, 0px)) max(8px, env(safe-area-inset-right, 0px)) max(6px, env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px))"
-      : undefined,
-    boxSizing: safariEntryModalActive ? "border-box" : undefined,
-    overflow: safariEntryModalActive ? "hidden" : undefined,
-    zIndex: 100,
-    zoom: safariEntryModalActive ? 1 : undefined,
-  };
-  const entryModalPanelStyle = {
-    background: theme.modalBg,
-    width: safariEntryModalActive ? "min(96vw, 560px)" : "100%",
-    maxWidth: safariEntryModalActive ? "100%" : undefined,
-    height: safariEntryModalActive ? "calc(100vh - 12px)" : undefined,
-    maxHeight: safariEntryModalActive ? "calc(100vh - 12px)" : "90vh",
-    margin: safariEntryModalActive ? "0 auto" : undefined,
-    borderRadius: safariEntryModalActive ? 14 : "20px 20px 0 0",
-    padding: safariEntryModalActive ? "12px 14px calc(18px + env(safe-area-inset-bottom, 0px))" : "24px 20px 48px",
-    overflowX: safariEntryModalActive ? "hidden" : undefined,
-    overflowY: "auto",
-    WebkitOverflowScrolling: safariEntryModalActive ? "touch" : undefined,
-    overscrollBehavior: safariEntryModalActive ? "contain" : undefined,
-    touchAction: safariEntryModalActive ? "pan-y" : undefined,
-    boxSizing: safariEntryModalActive ? "border-box" : undefined,
-    color: theme.text,
-    ...glassStyle
-  };
-  const entryModalHeaderStyle = {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: safariEntryModalActive ? 10 : 20,
-  };
-  const entryModalTitleStyle = {
-    fontSize: safariEntryModalActive ? 18 : 22,
-    lineHeight: safariEntryModalActive ? 1.1 : undefined,
-    color: "#1C1C1E",
-  };
-  const entryTimeInputStyle = {
-    display: "block",
-    width: "100%",
-    marginTop: 6,
-    minHeight: safariEntryModalActive ? 30 : undefined,
-    fontSize: safariEntryModalActive ? 18 : 22,
-    lineHeight: safariEntryModalActive ? 1.1 : undefined,
-    border: "none",
-    borderBottom: "2px solid #1C1C1E",
-    outline: "none",
-    fontFamily: "Georgia, serif",
-    color: "#1C1C1E",
-    background: "transparent",
-    padding: safariEntryModalActive ? "3px 0" : "4px 0",
-  };
-  const entrySaveButtonStyle = {
-    width: "100%",
-    padding: safariEntryModalActive ? "12px" : "16px",
-    background: theme.buttonBg,
-    color: theme.buttonText,
-    border: "none",
-    borderRadius: 14,
-    minHeight: safariEntryModalActive ? 42 : undefined,
-    fontSize: 17,
-    cursor: "pointer",
-    fontFamily: "Georgia, serif",
-    position: safariEntryModalActive ? "sticky" : undefined,
-    bottom: safariEntryModalActive ? 0 : undefined,
-    boxShadow: safariEntryModalActive ? "0 -8px 18px rgba(255,255,255,.78)" : undefined,
-  };
 
   if (view === "creditHub") {
     return <FuitCoinPage onClose={() => setView("week")} loggedInUsername={loggedInUsername} approvedUsers={approvedUsers} />;
@@ -13387,13 +13313,13 @@ if (view === "gambling") {
       )}
 
       {/* Edit Modal */}
-      {editingDay && (
-        <div style={entryModalBackdropStyle}
+      {editingDay && typeof document !== "undefined" && createPortal((
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-end", zIndex: 100 }}
           onClick={() => setEditingDay(null)}>
-          <div onClick={e => e.stopPropagation()} style={entryModalPanelStyle}>
-            <div style={entryModalHeaderStyle}>
+          <div onClick={e => e.stopPropagation()} style={{ background: theme.modalBg, width: "100%", borderRadius: "20px 20px 0 0", padding: "24px 20px 48px", maxHeight: "90vh", overflowY: "auto", color: theme.text, ...glassStyle }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
               <div>
-                <div style={entryModalTitleStyle}>{FULL_DAYS[weekDates.indexOf(editingDay)]}</div>
+                <div style={{ fontSize: 22, color: "#1C1C1E" }}>{FULL_DAYS[weekDates.indexOf(editingDay)]}</div>
                 <div style={{ fontSize: 13, color: "#aaa", fontFamily: "system-ui", marginTop: 2 }}>{formatDate(editingDay)}</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
                   <span style={{ width: 8, height: 8, borderRadius: "50%", background: accentColor }} />
@@ -13411,12 +13337,12 @@ if (view === "gambling") {
               <div>
                 <label style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui" }}>Start</label>
                 <input type="time" value={form.start} onChange={e => setForm(f => ({ ...f, start: e.target.value }))}
-                  style={entryTimeInputStyle} />
+                  style={{ display: "block", width: "100%", marginTop: 6, fontSize: 22, border: "none", borderBottom: "2px solid #1C1C1E", outline: "none", fontFamily: "Georgia, serif", color: "#1C1C1E", background: "transparent", padding: "4px 0" }} />
               </div>
               <div>
                 <label style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui" }}>End</label>
                 <input type="time" value={form.end} onChange={e => setForm(f => ({ ...f, end: e.target.value }))}
-                  style={entryTimeInputStyle} />
+                  style={{ display: "block", width: "100%", marginTop: 6, fontSize: 22, border: "none", borderBottom: "2px solid #1C1C1E", outline: "none", fontFamily: "Georgia, serif", color: "#1C1C1E", background: "transparent", padding: "4px 0" }} />
               </div>
             </div>
 
@@ -13432,12 +13358,12 @@ if (view === "gambling") {
                   <div>
                     <label style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui" }}>Start</label>
                     <input type="time" value={form.start2} onChange={e => setForm(f => ({ ...f, start2: e.target.value }))}
-                      style={entryTimeInputStyle} />
+                      style={{ display: "block", width: "100%", marginTop: 6, fontSize: 22, border: "none", borderBottom: "2px solid #1C1C1E", outline: "none", fontFamily: "Georgia, serif", color: "#1C1C1E", background: "transparent", padding: "4px 0" }} />
                   </div>
                   <div>
                     <label style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui" }}>End</label>
                     <input type="time" value={form.end2} onChange={e => setForm(f => ({ ...f, end2: e.target.value }))}
-                      style={entryTimeInputStyle} />
+                      style={{ display: "block", width: "100%", marginTop: 6, fontSize: 22, border: "none", borderBottom: "2px solid #1C1C1E", outline: "none", fontFamily: "Georgia, serif", color: "#1C1C1E", background: "transparent", padding: "4px 0" }} />
                   </div>
                 </div>
 
@@ -13452,12 +13378,12 @@ if (view === "gambling") {
                       <div>
                         <label style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui" }}>Start</label>
                         <input type="time" value={shift.start} onChange={e => setForm(f => { const extraShifts = [...(f.extraShifts || [])]; extraShifts[idx] = { ...extraShifts[idx], start: e.target.value }; return { ...f, extraShifts }; })}
-                          style={entryTimeInputStyle} />
+                          style={{ display: "block", width: "100%", marginTop: 6, fontSize: 22, border: "none", borderBottom: "2px solid #1C1C1E", outline: "none", fontFamily: "Georgia, serif", color: "#1C1C1E", background: "transparent", padding: "4px 0" }} />
                       </div>
                       <div>
                         <label style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui" }}>End</label>
                         <input type="time" value={shift.end} onChange={e => setForm(f => { const extraShifts = [...(f.extraShifts || [])]; extraShifts[idx] = { ...extraShifts[idx], end: e.target.value }; return { ...f, extraShifts }; })}
-                          style={entryTimeInputStyle} />
+                          style={{ display: "block", width: "100%", marginTop: 6, fontSize: 22, border: "none", borderBottom: "2px solid #1C1C1E", outline: "none", fontFamily: "Georgia, serif", color: "#1C1C1E", background: "transparent", padding: "4px 0" }} />
                       </div>
                     </div>
                     <button onClick={() => setForm(f => ({ ...f, extraShifts: (f.extraShifts || []).filter((_, i) => i !== idx) }))}
@@ -13538,12 +13464,12 @@ if (view === "gambling") {
                 </div>
               </div>
             )}
-            <button onClick={saveEntry} style={entrySaveButtonStyle}>
+            <button onClick={saveEntry} style={{ width: "100%", padding: "16px", background: theme.buttonBg, color: theme.buttonText, border: "none", borderRadius: 14, fontSize: 17, cursor: "pointer", fontFamily: "Georgia, serif" }}>
               Save Entry
             </button>
           </div>
         </div>
-      )}
+      ), document.body)}
       </div>
     </div>
   );

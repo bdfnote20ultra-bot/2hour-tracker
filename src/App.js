@@ -6393,6 +6393,11 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
     return `${fuitsLiveTvChatUrl || `${fuitsLiveTvChannelUrl}/chat-only`}${query ? `?${query}` : ""}`;
   };
   const fuitsLiveTvChatSrc = buildFuitsLiveTvChatSrc(fuitsLiveTvChatParams);
+  const fuitsMusicChatParams = new URLSearchParams(fuitsLiveTvChatParams);
+  if (fuitsMobileLandscapeSafariProfileActive) {
+    fuitsMusicChatParams.set("layout", "music-mobile-safari-landscape");
+  }
+  const fuitsMusicChatSrc = buildFuitsLiveTvChatSrc(fuitsMusicChatParams);
   const fuitsLiveTvChatFrameHeight = fuitsMobileLandscapeProfileActive ? 280 : 260;
   const fuitsLiveTvCompactChatFrameHeight = fuitsMobileLandscapeProfileActive ? 280 : 250;
 
@@ -7184,10 +7189,10 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             zoom: 1 !important;
             display: flex !important;
             flex-direction: column !important;
-            flex: 0 0 280px !important;
-            height: 280px !important;
+            flex: 1 0 280px !important;
+            height: auto !important;
             min-height: 280px !important;
-            max-height: 280px !important;
+            max-height: none !important;
             box-sizing: border-box !important;
             padding: 0 !important;
             overflow: hidden !important;
@@ -7195,11 +7200,11 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
           }
           .music-library-desktop-sidebar.fuits-mobile-safari-landscape-profile .fuits-music-live-chat-card .fuits-live-chat-frame {
             display: block !important;
-            flex: 1 1 100% !important;
+            flex: 1 1 auto !important;
             width: 100% !important;
             height: 100% !important;
             min-height: 100% !important;
-            max-height: 100% !important;
+            max-height: none !important;
             border-radius: 12px !important;
             background: #020617 !important;
             color-scheme: dark;
@@ -8432,7 +8437,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
         }}>
           <LiveChatBox
             title="FUITS Music Live Chat"
-            src={fuitsLiveTvChatSrc}
+            src={fuitsMusicChatSrc}
             height={fuitsMobileLandscapeSafariProfileActive ? "100%" : fuitsLiveTvCompactChatFrameHeight}
             minHeight={fuitsMobileLandscapeSafariProfileActive ? 0 : fuitsLiveTvCompactChatFrameHeight}
           />

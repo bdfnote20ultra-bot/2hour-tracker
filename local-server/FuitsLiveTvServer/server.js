@@ -5956,6 +5956,17 @@ function chatOnlyHtml() {
     body.mobile-landscape-chat .chat-form > button[type="submit"] {
       grid-area: send;
     }
+    body.music-mobile-safari-landscape-chat .chat {
+      height: var(--mobile-landscape-chat-height, 100vh);
+      max-height: var(--mobile-landscape-chat-height, 100vh);
+      min-height: 0;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      align-content: stretch;
+    }
+    body.music-mobile-safari-landscape-chat .chat-log {
+      min-height: 0;
+      max-height: none;
+    }
     body.adult-relax-mobile-landscape-chat .chat {
       grid-template-rows: auto minmax(30px, 70px) auto;
     }
@@ -6053,7 +6064,8 @@ function chatOnlyHtml() {
     const phoneLandscapeFallback = window.innerWidth > window.innerHeight && window.innerWidth <= 1100 && window.innerHeight <= 560;
     const phoneLandscapeActive = Boolean(phoneLandscapeMedia?.matches || (!phoneLandscapeMedia && phoneLandscapeFallback));
     const adultRelaxGrid = chatLayout === "adult-relax" || chatLayout === "adult-relax-mobile-landscape";
-    const mobileLandscapeChat = chatLayout === "mobile-landscape" || (chatLayout === "adult-relax-mobile-landscape" && phoneLandscapeActive);
+    const musicMobileSafariLandscape = chatLayout === "music-mobile-safari-landscape";
+    const mobileLandscapeChat = chatLayout === "mobile-landscape" || musicMobileSafariLandscape || (chatLayout === "adult-relax-mobile-landscape" && phoneLandscapeActive);
     const adultRelaxMobileLandscape = adultRelaxGrid && mobileLandscapeChat;
     let latestChatMessages = [];
     let parentFullscreenActive = false;
@@ -6061,6 +6073,7 @@ function chatOnlyHtml() {
     let parentFullscreenRequestTimer = null;
     document.body.classList.toggle("adult-relax-grid", adultRelaxGrid);
     document.body.classList.toggle("mobile-landscape-chat", mobileLandscapeChat);
+    document.body.classList.toggle("music-mobile-safari-landscape-chat", musicMobileSafariLandscape);
     document.body.classList.toggle("adult-relax-mobile-landscape-chat", adultRelaxMobileLandscape);
     function syncMobileLandscapeChatHeight() {
       if (!mobileLandscapeChat) return;

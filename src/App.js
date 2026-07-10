@@ -7186,6 +7186,63 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             margin-bottom: 6px !important;
             overflow: visible !important;
           }
+          .music-library-desktop-sidebar.fuits-mobile-safari-landscape-profile .fuits-music-view-button {
+            min-height: 36px !important;
+            padding: 8px 10px !important;
+            color: #06111f !important;
+            line-height: 1.14 !important;
+            overflow: visible !important;
+          }
+          .music-library-desktop-sidebar.fuits-mobile-safari-landscape-profile .fuits-music-view-label {
+            display: block !important;
+            min-width: 0 !important;
+            color: inherit !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
+            white-space: normal !important;
+            overflow-wrap: anywhere !important;
+            word-break: normal !important;
+            line-height: 1.14 !important;
+          }
+          .music-library-desktop-sidebar.fuits-mobile-safari-landscape-profile .fuits-music-view-caret {
+            flex: 0 0 auto !important;
+            color: #06111f !important;
+          }
+          .music-library-desktop-sidebar.fuits-mobile-safari-landscape-profile .fuits-music-view-menu button {
+            min-height: 34px !important;
+            color: #f8fafc !important;
+            line-height: 1.14 !important;
+            white-space: normal !important;
+            overflow-wrap: anywhere !important;
+            word-break: normal !important;
+          }
+          .music-library-desktop-sidebar.fuits-mobile-safari-landscape-profile .fuits-music-genre-select {
+            display: block !important;
+            width: 100% !important;
+            height: 36px !important;
+            min-height: 36px !important;
+            padding: 8px 34px 8px 11px !important;
+            border: 1px solid rgba(148,163,184,.34) !important;
+            border-radius: 12px !important;
+            background-color: #020617 !important;
+            background-image:
+              linear-gradient(45deg, transparent 50%, #f8fafc 50%),
+              linear-gradient(135deg, #f8fafc 50%, transparent 50%) !important;
+            background-position:
+              calc(100% - 20px) 50%,
+              calc(100% - 14px) 50% !important;
+            background-size: 7px 7px, 7px 7px !important;
+            background-repeat: no-repeat !important;
+            color: #f8fafc !important;
+            -webkit-text-fill-color: #f8fafc !important;
+            opacity: 1 !important;
+            font-size: 12px !important;
+            font-weight: 1000 !important;
+            line-height: 1.15 !important;
+            text-transform: uppercase !important;
+            appearance: none !important;
+            -webkit-appearance: none !important;
+          }
           .music-library-desktop-sidebar.fuits-mobile-safari-landscape-profile .fuits-music-scroll > .fuits-music-live-chat-card {
             zoom: 1 !important;
             display: flex !important;
@@ -8153,6 +8210,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
 
       <div style={{ position: "relative", marginBottom: 10 }}>
         <button
+          className="fuits-music-view-button"
           onClick={() => setMusicViewMenuOpen(open => !open)}
           style={{
             width: "100%",
@@ -8173,11 +8231,11 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             gap: 10
           }}
         >
-          <span style={{ flex: 1 }}>{activeMusicViewOption.label}</span>
-          <span style={{ fontSize: 12, fontWeight: 1000 }}>{musicViewMenuOpen ? "^" : "v"}</span>
+          <span className="fuits-music-view-label" style={{ flex: 1 }}>{activeMusicViewOption.label}</span>
+          <span className="fuits-music-view-caret" style={{ fontSize: 12, fontWeight: 1000 }}>{musicViewMenuOpen ? "^" : "v"}</span>
         </button>
         {musicViewMenuOpen && (
-          <div style={{
+          <div className="fuits-music-view-menu" style={{
             position: "absolute",
             top: "calc(100% + 8px)",
             left: 0,
@@ -8191,6 +8249,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
           }}>
             {musicViewOptions.map(option => (
               <button
+                className="fuits-music-view-option"
                 key={option.id}
                 onClick={() => chooseMusicView(option.id)}
                 style={{
@@ -8255,6 +8314,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
       />
 
       <select
+        className="fuits-music-genre-select"
         value={activeGenre}
         onChange={event => setActiveGenre(event.target.value)}
         style={{

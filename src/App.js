@@ -6393,11 +6393,6 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
     return `${fuitsLiveTvChatUrl || `${fuitsLiveTvChannelUrl}/chat-only`}${query ? `?${query}` : ""}`;
   };
   const fuitsLiveTvChatSrc = buildFuitsLiveTvChatSrc(fuitsLiveTvChatParams);
-  const fuitsMusicChatParams = new URLSearchParams(fuitsLiveTvChatParams);
-  if (fuitsMobileLandscapeSafariProfileActive) {
-    fuitsMusicChatParams.set("layout", "music-mobile-safari-landscape");
-  }
-  const fuitsMusicChatSrc = buildFuitsLiveTvChatSrc(fuitsMusicChatParams);
   const fuitsLiveTvChatFrameHeight = fuitsMobileLandscapeProfileActive ? 280 : 260;
   const fuitsLiveTvCompactChatFrameHeight = fuitsMobileLandscapeProfileActive ? 280 : 250;
 
@@ -7160,10 +7155,14 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             color-scheme: dark;
           }
           .music-library-desktop-sidebar.fuits-mobile-safari-landscape-profile > .fuits-music-scroll {
+            zoom: 1 !important;
             flex: 1 1 auto !important;
             display: flex !important;
             flex-direction: column !important;
             align-items: stretch !important;
+            width: 100% !important;
+            height: 100% !important;
+            block-size: 100% !important;
             min-height: 0 !important;
             min-block-size: 0 !important;
             overflow-x: hidden !important;
@@ -7173,6 +7172,8 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             -webkit-overflow-scrolling: touch;
             pointer-events: auto;
             padding: 3px 2px 10px !important;
+            box-sizing: border-box !important;
+            background: #020617 !important;
           }
           .music-library-desktop-sidebar.fuits-mobile-safari-landscape-profile .fuits-music-scroll > .fuits-music-track-list {
             flex: 0 0 auto !important;
@@ -8437,7 +8438,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
         }}>
           <LiveChatBox
             title="FUITS Music Live Chat"
-            src={fuitsMusicChatSrc}
+            src={fuitsLiveTvChatSrc}
             height={fuitsMobileLandscapeSafariProfileActive ? "100%" : fuitsLiveTvCompactChatFrameHeight}
             minHeight={fuitsMobileLandscapeSafariProfileActive ? 0 : fuitsLiveTvCompactChatFrameHeight}
           />

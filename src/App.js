@@ -12653,6 +12653,66 @@ if (view === "gambling") {
             zoom: var(--flive-center-content-scale, 1);
           }
         }
+        .flive-center-shell.fuits-mobile-safari-landscape-profile .flive-entry-modal-backdrop,
+        .flive-center-shell.fuits-mobile-safari-landscape-profile .flive-entry-modal-panel {
+          box-sizing: border-box;
+        }
+        .flive-center-shell.fuits-mobile-safari-landscape-profile .flive-entry-modal-panel {
+          -webkit-overflow-scrolling: touch;
+          overscroll-behavior: contain;
+        }
+        @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 1100px) and (max-height: 560px) {
+          .flive-center-shell.fuits-mobile-safari-landscape-profile > .flive-entry-modal-backdrop {
+            zoom: 1 !important;
+          }
+          .flive-center-shell.fuits-mobile-safari-landscape-profile .flive-entry-modal-backdrop {
+            align-items: stretch !important;
+            justify-content: center !important;
+            padding: max(6px, env(safe-area-inset-top, 0px)) max(8px, env(safe-area-inset-right, 0px)) max(6px, env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)) !important;
+            overflow: hidden !important;
+            z-index: 2147483000 !important;
+          }
+          .flive-center-shell.fuits-mobile-safari-landscape-profile .flive-entry-modal-panel {
+            width: min(96vw, 560px) !important;
+            height: calc(100vh - 12px) !important;
+            height: calc(100dvh - 12px) !important;
+            max-height: calc(100vh - 12px) !important;
+            max-height: calc(100dvh - 12px) !important;
+            margin: 0 auto !important;
+            border-radius: 14px !important;
+            padding: 12px 14px calc(18px + env(safe-area-inset-bottom, 0px)) !important;
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
+            touch-action: pan-y;
+          }
+          .flive-center-shell.fuits-mobile-safari-landscape-profile .flive-entry-modal-header {
+            margin-bottom: 10px !important;
+          }
+          .flive-center-shell.fuits-mobile-safari-landscape-profile .flive-entry-modal-title {
+            font-size: 18px !important;
+            line-height: 1.1 !important;
+          }
+          .flive-center-shell.fuits-mobile-safari-landscape-profile .flive-entry-time-grid {
+            gap: 10px !important;
+            margin-bottom: 12px !important;
+          }
+          .flive-center-shell.fuits-mobile-safari-landscape-profile .flive-entry-time-input {
+            min-height: 30px !important;
+            font-size: 18px !important;
+            line-height: 1.1 !important;
+            padding: 3px 0 !important;
+          }
+          .flive-center-shell.fuits-mobile-safari-landscape-profile .flive-entry-modal-panel button {
+            min-height: 30px;
+          }
+          .flive-center-shell.fuits-mobile-safari-landscape-profile .flive-entry-save-button {
+            position: sticky !important;
+            bottom: 0 !important;
+            min-height: 42px !important;
+            padding: 12px !important;
+            box-shadow: 0 -8px 18px rgba(255,255,255,.78) !important;
+          }
+        }
         @keyframes flive-main-coins-ticker-scroll {
           0% { transform: translateX(calc(100vw - (700px * var(--flive-scale, 1)))); }
           100% { transform: translateX(0); }
@@ -12774,7 +12834,7 @@ if (view === "gambling") {
         resetFuitsMobileSafariViewportZoomForNavigation();
         setView("creditHub");
       }} />}
-      <div ref={centerShellRef} className="flive-center-shell" style={{ minHeight: "100vh", background: pageBackground, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed", fontFamily: theme.font, width: "calc(480px * var(--flive-scale, 1) * var(--flive-center-width-scale, 1))", maxWidth: "100vw", margin: "0 auto", color: appTextColor, transition: "background 0.25s ease, color 0.25s ease", position: "relative", zIndex: 5, overflowX: "hidden" }}>
+      <div ref={centerShellRef} className={`flive-center-shell${fuitsMobileLandscapeSafariProfileActive ? " fuits-mobile-safari-landscape-profile" : ""}`} style={{ minHeight: "100vh", background: pageBackground, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed", fontFamily: theme.font, width: "calc(480px * var(--flive-scale, 1) * var(--flive-center-width-scale, 1))", maxWidth: "100vw", margin: "0 auto", color: appTextColor, transition: "background 0.25s ease, color 0.25s ease", position: "relative", zIndex: 5, overflowX: "hidden" }}>
       {activeMusicSrc && <audio ref={musicRef} src={activeMusicSrc} loop playsInline onPlay={() => setIsMusicPlaying(true)} onPause={() => setIsMusicPlaying(false)} onEnded={() => setIsMusicPlaying(false)} />}
       {inAppBrowserOpen && (
         <div
@@ -13313,12 +13373,12 @@ if (view === "gambling") {
 
       {/* Edit Modal */}
       {editingDay && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-end", zIndex: 100 }}
+        <div className="flive-entry-modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-end", zIndex: 100 }}
           onClick={() => setEditingDay(null)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: theme.modalBg, width: "100%", borderRadius: "20px 20px 0 0", padding: "24px 20px 48px", maxHeight: "90vh", overflowY: "auto", color: theme.text, ...glassStyle }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+          <div className="flive-entry-modal-panel" onClick={e => e.stopPropagation()} style={{ background: theme.modalBg, width: "100%", borderRadius: "20px 20px 0 0", padding: "24px 20px 48px", maxHeight: "90vh", overflowY: "auto", color: theme.text, ...glassStyle }}>
+            <div className="flive-entry-modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
               <div>
-                <div style={{ fontSize: 22, color: "#1C1C1E" }}>{FULL_DAYS[weekDates.indexOf(editingDay)]}</div>
+                <div className="flive-entry-modal-title" style={{ fontSize: 22, color: "#1C1C1E" }}>{FULL_DAYS[weekDates.indexOf(editingDay)]}</div>
                 <div style={{ fontSize: 13, color: "#aaa", fontFamily: "system-ui", marginTop: 2 }}>{formatDate(editingDay)}</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
                   <span style={{ width: 8, height: 8, borderRadius: "50%", background: accentColor }} />
@@ -13332,15 +13392,15 @@ if (view === "gambling") {
             <div style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui", marginBottom: 8 }}>
               {form.splitShift ? "Shift 1" : "Shift"}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+            <div className="flive-entry-time-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
               <div>
                 <label style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui" }}>Start</label>
-                <input type="time" value={form.start} onChange={e => setForm(f => ({ ...f, start: e.target.value }))}
+                <input className="flive-entry-time-input" type="time" value={form.start} onChange={e => setForm(f => ({ ...f, start: e.target.value }))}
                   style={{ display: "block", width: "100%", marginTop: 6, fontSize: 22, border: "none", borderBottom: "2px solid #1C1C1E", outline: "none", fontFamily: "Georgia, serif", color: "#1C1C1E", background: "transparent", padding: "4px 0" }} />
               </div>
               <div>
                 <label style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui" }}>End</label>
-                <input type="time" value={form.end} onChange={e => setForm(f => ({ ...f, end: e.target.value }))}
+                <input className="flive-entry-time-input" type="time" value={form.end} onChange={e => setForm(f => ({ ...f, end: e.target.value }))}
                   style={{ display: "block", width: "100%", marginTop: 6, fontSize: 22, border: "none", borderBottom: "2px solid #1C1C1E", outline: "none", fontFamily: "Georgia, serif", color: "#1C1C1E", background: "transparent", padding: "4px 0" }} />
               </div>
             </div>
@@ -13356,12 +13416,12 @@ if (view === "gambling") {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div>
                     <label style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui" }}>Start</label>
-                    <input type="time" value={form.start2} onChange={e => setForm(f => ({ ...f, start2: e.target.value }))}
+                    <input className="flive-entry-time-input" type="time" value={form.start2} onChange={e => setForm(f => ({ ...f, start2: e.target.value }))}
                       style={{ display: "block", width: "100%", marginTop: 6, fontSize: 22, border: "none", borderBottom: "2px solid #1C1C1E", outline: "none", fontFamily: "Georgia, serif", color: "#1C1C1E", background: "transparent", padding: "4px 0" }} />
                   </div>
                   <div>
                     <label style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui" }}>End</label>
-                    <input type="time" value={form.end2} onChange={e => setForm(f => ({ ...f, end2: e.target.value }))}
+                    <input className="flive-entry-time-input" type="time" value={form.end2} onChange={e => setForm(f => ({ ...f, end2: e.target.value }))}
                       style={{ display: "block", width: "100%", marginTop: 6, fontSize: 22, border: "none", borderBottom: "2px solid #1C1C1E", outline: "none", fontFamily: "Georgia, serif", color: "#1C1C1E", background: "transparent", padding: "4px 0" }} />
                   </div>
                 </div>
@@ -13376,12 +13436,12 @@ if (view === "gambling") {
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                       <div>
                         <label style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui" }}>Start</label>
-                        <input type="time" value={shift.start} onChange={e => setForm(f => { const extraShifts = [...(f.extraShifts || [])]; extraShifts[idx] = { ...extraShifts[idx], start: e.target.value }; return { ...f, extraShifts }; })}
+                        <input className="flive-entry-time-input" type="time" value={shift.start} onChange={e => setForm(f => { const extraShifts = [...(f.extraShifts || [])]; extraShifts[idx] = { ...extraShifts[idx], start: e.target.value }; return { ...f, extraShifts }; })}
                           style={{ display: "block", width: "100%", marginTop: 6, fontSize: 22, border: "none", borderBottom: "2px solid #1C1C1E", outline: "none", fontFamily: "Georgia, serif", color: "#1C1C1E", background: "transparent", padding: "4px 0" }} />
                       </div>
                       <div>
                         <label style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 1, fontFamily: "system-ui" }}>End</label>
-                        <input type="time" value={shift.end} onChange={e => setForm(f => { const extraShifts = [...(f.extraShifts || [])]; extraShifts[idx] = { ...extraShifts[idx], end: e.target.value }; return { ...f, extraShifts }; })}
+                        <input className="flive-entry-time-input" type="time" value={shift.end} onChange={e => setForm(f => { const extraShifts = [...(f.extraShifts || [])]; extraShifts[idx] = { ...extraShifts[idx], end: e.target.value }; return { ...f, extraShifts }; })}
                           style={{ display: "block", width: "100%", marginTop: 6, fontSize: 22, border: "none", borderBottom: "2px solid #1C1C1E", outline: "none", fontFamily: "Georgia, serif", color: "#1C1C1E", background: "transparent", padding: "4px 0" }} />
                       </div>
                     </div>
@@ -13463,7 +13523,7 @@ if (view === "gambling") {
                 </div>
               </div>
             )}
-            <button onClick={saveEntry} style={{ width: "100%", padding: "16px", background: theme.buttonBg, color: theme.buttonText, border: "none", borderRadius: 14, fontSize: 17, cursor: "pointer", fontFamily: "Georgia, serif" }}>
+            <button className="flive-entry-save-button" onClick={saveEntry} style={{ width: "100%", padding: "16px", background: theme.buttonBg, color: theme.buttonText, border: "none", borderRadius: 14, fontSize: 17, cursor: "pointer", fontFamily: "Georgia, serif" }}>
               Save Entry
             </button>
           </div>

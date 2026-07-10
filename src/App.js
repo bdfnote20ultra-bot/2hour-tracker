@@ -5836,6 +5836,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
   const [fuitsPlaybackAnchor, setFuitsPlaybackAnchor] = useState(null);
   const [fuitsStretchFullscreenActive, setFuitsStretchFullscreenActive] = useState(false);
   const [fuitsMobileLandscapeProfileActive, setFuitsMobileLandscapeProfileActive] = useState(() => isFuitsMobileLandscapeProfile());
+  const [fuitsMobileLandscapeSafariProfileActive, setFuitsMobileLandscapeSafariProfileActive] = useState(() => isFuitsMobileLandscapeSafariProfile());
   const [jellyfinSilkFullscreenActive, setJellyfinSilkFullscreenActive] = useState(false);
   const [jellyfinNativeFullscreenActive, setJellyfinNativeFullscreenActive] = useState(false);
   const [jellyfinSoftFullscreenActive, setJellyfinSoftFullscreenActive] = useState(false);
@@ -6243,12 +6244,16 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
   useEffect(() => {
     if (typeof window === "undefined") {
       setFuitsMobileLandscapeProfileActive(isFuitsMobileLandscapeProfile());
+      setFuitsMobileLandscapeSafariProfileActive(isFuitsMobileLandscapeSafariProfile());
       return undefined;
     }
 
     const mediaQuery = typeof window.matchMedia === "function" ? window.matchMedia(FUITS_MOBILE_LANDSCAPE_QUERY) : null;
     const orientationQuery = typeof window.matchMedia === "function" ? window.matchMedia("(orientation: landscape)") : null;
-    const updateMobileLandscapeProfile = () => setFuitsMobileLandscapeProfileActive(isFuitsMobileLandscapeProfile());
+    const updateMobileLandscapeProfile = () => {
+      setFuitsMobileLandscapeProfileActive(isFuitsMobileLandscapeProfile());
+      setFuitsMobileLandscapeSafariProfileActive(isFuitsMobileLandscapeSafariProfile());
+    };
     updateMobileLandscapeProfile();
 
     if (mediaQuery?.addEventListener) mediaQuery.addEventListener("change", updateMobileLandscapeProfile);
@@ -6383,8 +6388,16 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
   } else if (fuitsMobileLandscapeProfileActive) {
     fuitsLiveTvChatParams.set("layout", "mobile-landscape");
   }
-  const fuitsLiveTvChatQuery = fuitsLiveTvChatParams.toString();
-  const fuitsLiveTvChatSrc = `${fuitsLiveTvChatUrl || `${fuitsLiveTvChannelUrl}/chat-only`}${fuitsLiveTvChatQuery ? `?${fuitsLiveTvChatQuery}` : ""}`;
+  const buildFuitsLiveTvChatSrc = (params) => {
+    const query = params.toString();
+    return `${fuitsLiveTvChatUrl || `${fuitsLiveTvChannelUrl}/chat-only`}${query ? `?${query}` : ""}`;
+  };
+  const fuitsLiveTvChatSrc = buildFuitsLiveTvChatSrc(fuitsLiveTvChatParams);
+  const fuitsMusicLiveChatParams = new URLSearchParams(fuitsLiveTvChatParams);
+  if (fuitsMobileLandscapeSafariProfileActive) {
+    fuitsMusicLiveChatParams.set("layout", "music-mobile-safari-landscape");
+  }
+  const fuitsMusicLiveChatSrc = buildFuitsLiveTvChatSrc(fuitsMusicLiveChatParams);
   const fuitsLiveTvChatFrameHeight = fuitsMobileLandscapeProfileActive ? 280 : 260;
   const fuitsLiveTvCompactChatFrameHeight = fuitsMobileLandscapeProfileActive ? 280 : 250;
 
@@ -6740,7 +6753,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
   const jellyfinFullscreenActive = jellyfinSoftFullscreenActive || jellyfinNativeFullscreenActive || jellyfinSilkFullscreenActive;
 
   return (
-    <aside className={`music-library-desktop-sidebar${amazonSilkProfile.active ? " fuits-amazon-silk-profile" : ""}${fuitsStretchFullscreenActive ? " fuits-live-tv-stretching-fullscreen" : ""}${jellyfinSilkFullscreenActive ? " fuits-jellyfin-silk-fullscreen-active" : ""}${jellyfinSoftFullscreenActive ? " fuits-jellyfin-soft-fullscreen-active" : ""}`} style={{
+    <aside className={`music-library-desktop-sidebar${amazonSilkProfile.active ? " fuits-amazon-silk-profile" : ""}${fuitsMobileLandscapeSafariProfileActive ? " fuits-mobile-safari-landscape-profile" : ""}${fuitsStretchFullscreenActive ? " fuits-live-tv-stretching-fullscreen" : ""}${jellyfinSilkFullscreenActive ? " fuits-jellyfin-silk-fullscreen-active" : ""}${jellyfinSoftFullscreenActive ? " fuits-jellyfin-soft-fullscreen-active" : ""}`} style={{
       position: "fixed",
       right: "calc(18px * var(--flive-scale, 1))",
       top: "calc(18px * var(--flive-scale, 1))",
@@ -7143,6 +7156,26 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
             height: 280px !important;
             min-height: 280px !important;
             max-height: none !important;
+            background: #020617 !important;
+            color-scheme: dark;
+          }
+          .music-library-desktop-sidebar.fuits-mobile-safari-landscape-profile .fuits-music-live-chat-card {
+            display: flex !important;
+            flex-direction: column !important;
+            height: 280px !important;
+            min-height: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+            background: #020617 !important;
+          }
+          .music-library-desktop-sidebar.fuits-mobile-safari-landscape-profile .fuits-music-live-chat-card .fuits-live-chat-frame {
+            display: block !important;
+            flex: 1 1 auto !important;
+            width: 100% !important;
+            height: 100% !important;
+            min-height: 0 !important;
+            max-height: 100% !important;
+            border-radius: 12px !important;
             background: #020617 !important;
             color-scheme: dark;
           }
@@ -8359,7 +8392,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
       </div>
 
       {selectedTrack && (
-        <div style={{
+        <div className="fuits-music-live-chat-card" style={{
           borderRadius: 12,
           background: "rgba(15,23,42,.6)",
           border: "1px solid rgba(148,163,184,.12)",
@@ -8368,7 +8401,7 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
         }}>
           <LiveChatBox
             title="FUITS Music Live Chat"
-            src={fuitsLiveTvChatSrc}
+            src={fuitsMusicLiveChatSrc}
             height={fuitsLiveTvCompactChatFrameHeight}
             minHeight={fuitsLiveTvCompactChatFrameHeight}
           />

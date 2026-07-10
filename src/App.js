@@ -12011,6 +12011,10 @@ export default function App() {
     };
     const handleTouchStart = (event) => {
       if (!canDragScroll()) return;
+      if ((event.touches?.length || 0) !== 1) {
+        resetDrag();
+        return;
+      }
 
       const touch = event.touches?.[0];
       if (!touch) return;
@@ -12024,6 +12028,10 @@ export default function App() {
     };
     const handleTouchMove = (event) => {
       if (!drag.active || !canDragScroll()) return;
+      if ((event.touches?.length || 0) > 1) {
+        resetDrag();
+        return;
+      }
 
       const point = getTrackedTouch(event);
       if (!point) return;
@@ -12625,6 +12633,9 @@ if (view === "gambling") {
             overscroll-behavior: contain;
             -webkit-overflow-scrolling: touch;
           }
+          .flive-center-shell.flive-center-shell-safari-pinch {
+            touch-action: pan-y pinch-zoom !important;
+          }
           .music-library-desktop-sidebar {
             z-index: 7 !important;
           }
@@ -12775,7 +12786,7 @@ if (view === "gambling") {
         resetFuitsMobileSafariViewportZoomForNavigation();
         setView("creditHub");
       }} />}
-      <div ref={centerShellRef} className="flive-center-shell" style={{ minHeight: "100vh", background: pageBackground, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed", fontFamily: theme.font, width: "calc(480px * var(--flive-scale, 1) * var(--flive-center-width-scale, 1))", maxWidth: "100vw", margin: "0 auto", color: appTextColor, transition: "background 0.25s ease, color 0.25s ease", position: "relative", zIndex: 5, overflowX: "hidden" }}>
+      <div ref={centerShellRef} className={`flive-center-shell${fuitsMobileLandscapeSafariProfileActive ? " flive-center-shell-safari-pinch" : ""}`} style={{ minHeight: "100vh", background: pageBackground, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed", fontFamily: theme.font, width: "calc(480px * var(--flive-scale, 1) * var(--flive-center-width-scale, 1))", maxWidth: "100vw", margin: "0 auto", color: appTextColor, transition: "background 0.25s ease, color 0.25s ease", position: "relative", zIndex: 5, overflowX: "hidden" }}>
       {activeMusicSrc && <audio ref={musicRef} src={activeMusicSrc} loop playsInline onPlay={() => setIsMusicPlaying(true)} onPause={() => setIsMusicPlaying(false)} onEnded={() => setIsMusicPlaying(false)} />}
       {inAppBrowserOpen && (
         <div

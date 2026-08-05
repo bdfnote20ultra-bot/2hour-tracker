@@ -1,4 +1,4 @@
-import { forwardRef, useState, useEffect, useRef, useMemo, useCallback, useImperativeHandle } from "react";
+﻿import { forwardRef, useState, useEffect, useRef, useMemo, useCallback, useImperativeHandle } from "react";
 import { createPortal } from "react-dom";
 import { MUSIC_LIBRARY } from "./musicLibraryData";
 import { FATTYS_LIVE_TV, FUITS_LIVE_TV_PLAYLIST } from "./fattysLiveTvData";
@@ -6218,13 +6218,18 @@ function MusicLibrarySidebar({ accentColor, loggedInUsername, approvedUsers = []
     { id: "jellyfin", label: "FUIT JELLYFIN", heading: "FUIT JELLYFIN", url: "https://jellyfin.flivetv.qzz.io/web/", embed: true }
   ];
   const fuitsLiveTvChannels = useMemo(() => ([
+    { id: "channel-adrians-channel", label: "ADRIANS CHANNEL" },
+    { id: "channel-ariel-benny", label: "ARIEL&BENNY" },
     { id: "channel-a", label: "Channel A" },
     { id: "channel-b", label: "Channel B" },
     { id: "channel-fuit-mom-channel", label: "FUIT MOM CHANNEL" },
     { id: "channel-fuits-live-tv-world", label: "FUITS LIVE TV WORLD" },
     { id: "channel-movie-night", label: "MOVIE NIGHT" },
+    { id: "channel-newest-channel", label: "NEWEST CHANNEL" },
     { id: "channel-new-releases", label: "NEW RELEASES" },
-    { id: "channel-sleep-chill", label: "SLEEP CHILL" }
+    { id: "channel-sleep-chill", label: "SLEEP CHILL" },
+    { id: "channel-smoking-channel", label: "SMOKING CHANNEL" },
+    { id: "channel-sports-night", label: "Sports Night" }
   ]), []);
   const [liveFuitsLiveTvChannels, setLiveFuitsLiveTvChannels] = useState(fuitsLiveTvChannels);
   const activeLiveTvOption = liveTvOptions.find(option => option.id === activeLiveTv) || liveTvOptions[0];
